@@ -1,0 +1,26 @@
+# Build
+build/
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Generated binaries
+*.exe
+*.dll
+*.lib
+*.pdb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# No need to track temporary files
+NoTrack/
