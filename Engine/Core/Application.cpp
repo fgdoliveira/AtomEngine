@@ -43,22 +43,27 @@ namespace Atom
             return 1;
         }
 
-        SDL_Event event;
-
         while (m_running)
         {
-            while (SDL_PollEvent(&event))
-            {
-                if (event.type == SDL_EVENT_QUIT)
-                {
-                    m_running = false;
-                }
-            }
+            ProcessEvents();
         }
 
         Shutdown();
 
         return 0;
+    }
+
+    void Application::ProcessEvents()
+    {
+        SDL_Event event;
+
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                m_running = false;
+            }
+        }
     }
 
     void Application::Shutdown()

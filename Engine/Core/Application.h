@@ -12,6 +12,8 @@ namespace Atom
         void Shutdown();
 
     private:
+        void ProcessEvents();
+
         bool m_running = false;
 
         Window m_window;
