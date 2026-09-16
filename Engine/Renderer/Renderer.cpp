@@ -97,14 +97,46 @@ namespace Atom
             return;
         }
 
-        // When resizing or minimized, the swapchain texture may be null even if acquisition succeeds. 
-        // Submitting the command buffer empty without drawing avoids displaying stale/ghost frames 
-        // or using an invalid render target.
+         /* Solved: When resizing or minimized, the swapchain texture may be null even if acquisition 
+         succeeds. Submitting the command buffer empty without drawing avoids displaying stale/ghost 
+         frames or using an invalid render target. */
         if (!swapchainTexture)
         {
             SDL_SubmitGPUCommandBuffer(commandBuffer);
             return;
         }
+
+        SDL_GPUColorTargetInfo colorTarget{};
+        colorTarget.texture = swapchainTexture;
+        colorTarget.clear_color = SDL_FColor{
+            0.1f,
+            0.15f,
+            0.2f,
+            1.0f
+        };
+        colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+
+        SDL_GPURenderPass* renderPass =
+            SDL_BeginGPURenderPass(
+                commandBuffer,
+                &colorTarget,
+                1,
+                nullptr
+            );
+
+        if (!renderPass)
+        {
+            std::cerr
+                << "Failed to begin GPU render pass: "
+                << SDL_GetError()
+                << '\n';
+
+            SDL_SubmitGPUCommandBuffer(commandBuffer);
+            return;
+        }
+
+        SDL_EndGPURenderPass(renderPass);
 
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
