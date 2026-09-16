@@ -5,10 +5,12 @@ target_sources(
     PRIVATE
         Core/Application.cpp
         Platform/Window.cpp
+        Renderer/Renderer.cpp
 
     PUBLIC
         Core/Application.h
         Platform/Window.h
+        Renderer/Renderer.h
 )
 
 target_include_directories(

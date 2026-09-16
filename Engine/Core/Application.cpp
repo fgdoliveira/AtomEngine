@@ -29,6 +29,13 @@ namespace Atom
             return false;
         }
 
+		if (!m_renderer.Initialize(m_window.GetSDLWindow()))
+		{
+			m_window.Destroy();
+			SDL_Quit();
+			return false;
+		}
+
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
@@ -46,6 +53,8 @@ namespace Atom
         while (m_running)
         {
             ProcessEvents();
+
+            m_renderer.Render();
         }
 
         Shutdown();
@@ -70,6 +79,7 @@ namespace Atom
     {
         std::cout << "Shutting down AtomEngine...\n";
 
+        m_renderer.Shutdown();
         m_window.Destroy();
 
         SDL_Quit();

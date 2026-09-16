@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Platform/Window.h"
+#include "Renderer/Renderer.h"
 
 namespace Atom
 {
@@ -17,5 +18,6 @@ namespace Atom
         bool m_running = false;
 
         Window m_window;
+		Renderer m_renderer;
     };
 }
