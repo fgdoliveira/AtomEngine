@@ -23,5 +23,8 @@ namespace Atom
 
 		// Pointer to the SDL GPU device
         SDL_GPUDevice* m_device = nullptr;
+
+		// Pointer to the SDL window
+        SDL_Window* m_window = nullptr;
     };
 }
