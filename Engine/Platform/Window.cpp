@@ -21,7 +21,7 @@ namespace Atom
             title,
             width,
             height,
-            0
+            SDL_WINDOW_RESIZABLE
         );
 
         if (!m_window)
