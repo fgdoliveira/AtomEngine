@@ -66,8 +66,55 @@ namespace Atom
 
     void Renderer::Render()
     {
-    }
+        SDL_GPUCommandBuffer* commandBuffer =
+            SDL_AcquireGPUCommandBuffer(m_device);
 
+        if (!commandBuffer)
+        {
+            std::cerr
+                << "Failed to acquire GPU command buffer: "
+                << SDL_GetError()
+                << '\n';
+
+            return;
+        }
+
+        SDL_GPUTexture* swapchainTexture = nullptr;
+
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+            commandBuffer,
+            m_window,
+            &swapchainTexture,
+            nullptr,
+            nullptr))
+        {
+            std::cerr
+                << "Failed to acquire swapchain texture: "
+                << SDL_GetError()
+                << '\n';
+
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            return;
+        }
+
+        // When resizing or minimized, the swapchain texture may be null even if acquisition succeeds. 
+        // Submitting the command buffer empty without drawing avoids displaying stale/ghost frames 
+        // or using an invalid render target.
+        if (!swapchainTexture)
+        {
+            SDL_SubmitGPUCommandBuffer(commandBuffer);
+            return;
+        }
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            std::cerr
+                << "Failed to submit GPU command buffer: "
+                << SDL_GetError()
+                << '\n';
+        }
+    }
+    
     void Renderer::Shutdown()
     {
         if (m_device)
