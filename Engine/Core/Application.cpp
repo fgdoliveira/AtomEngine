@@ -29,7 +29,13 @@ namespace Atom
             return false;
         }
 
-        if (!m_renderer.Initialize(m_window.GetSDLWindow()))
+        RendererConfig rendererConfig{};
+        rendererConfig.gpuPreference = GPUPreference::LowPower;
+
+        if (!m_renderer.Initialize(
+            m_window.GetSDLWindow(),
+            rendererConfig
+        ))
         {
             m_renderer.Shutdown();
             m_window.Destroy();

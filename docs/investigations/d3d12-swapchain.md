@@ -213,7 +213,7 @@ Use classified, bounded failure handling:
 7. Preserve the original HRESULT, the separate removal reason, InfoQueue messages, DRED data, topology state, and recovery-stage results across every boundary.
 8. Do not rebuild merely because the window changed monitors. The monitor transition is a reproducible trigger to investigate, not a sufficient recovery classification.
 
-The full-device code remains temporarily on this private diagnostic branch so the failed experiment and its ordered cleanup can be reproduced. It is not a production recovery direction. Microsoft documents `S_OK` from `GetDeviceRemovedReason()` as meaning that the D3D12 device is not reporting itself removed, but the captures show that this does not guarantee a usable DXGI presentation path.
+The full-device code was retained temporarily on the private diagnostic branch so the failed experiment and its ordered cleanup could be reproduced, then removed during production cleanup. It was never a production recovery direction. Microsoft documents `S_OK` from `GetDeviceRemovedReason()` as meaning that the D3D12 device is not reporting itself removed, but the captures show that this does not guarantee a usable DXGI presentation path.
 
 Microsoft's Advanced Color guidance warns that recreating a swapchain merely to refresh output information introduces temporary black frames:
 
@@ -375,4 +375,10 @@ The initiating failure and misleading error translation are proven at three pres
 
 The evidence rejects continued resize retries, swapchain-only reconstruction, complete SDL GPU-device reconstruction, and fresh-HWND creation as runtime recovery strategies. The raw probe proves that SDL is not the initiating layer: the high-performance NVIDIA adapter fails during the transition to the Intel-attached display, while the device itself continues to report `S_OK`.
 
-Selecting the Intel/minimum-power adapter prevents the reproduced failure in raw D3D12, the SDL probe, and five full AtomEngine validation episodes. This is the current production direction for the tested hybrid topology. Runtime reconstruction remains diagnostic code only and should be removed after the adapter policy is retained and performance-qualified. If the problem appears with the Intel adapter or on a different topology, preserve the logs and obtain the elevated GPUView trace rather than adding another recovery level.
+Selecting the Intel/minimum-power adapter prevents the reproduced failure in raw D3D12, the SDL probe, and five full AtomEngine validation episodes. This is the current production direction for the tested hybrid topology. Runtime reconstruction was removed after the adapter policy passed validation. If the problem appears with the Intel adapter or on a different topology, preserve the logs and obtain an elevated GPUView trace rather than adding another recovery level.
+
+## Production cleanup
+
+After the prevention passed validation, AtomEngine removed the experimental device-reconstruction path, persistent diagnostic logging, and runtime DXGI/topology polling. Swapchain acquisition failures now cancel the still-empty command buffer and stop rendering cleanly rather than attempting recovery.
+
+The verified adapter choice remains available through `RendererConfig::gpuPreference`, with low power as the safe default. The standalone `PresentationProbe` is retained for regression work but excluded from normal builds unless `ATOM_BUILD_PRESENTATION_PROBE=ON` is configured.
