@@ -1,7 +1,10 @@
 #pragma once
 
+#include <string>
+
 struct SDL_Window;
 struct SDL_GPUDevice;
+struct SDL_IOStream;
 
 namespace Atom
 {
@@ -23,10 +26,20 @@ namespace Atom
 
     private:
 
+        bool CreateAndClaimGPUDevice(const char* stage);
+        void OpenDiagnosticLog();
+        void LogDiagnostic(const std::string& message);
+        void LogWindowState(const std::string& event);
+
 		// Pointer to the SDL GPU device
         SDL_GPUDevice* m_device = nullptr;
 
 		// Pointer to the SDL window
         SDL_Window* m_window = nullptr;
+
+        SDL_IOStream* m_diagnosticLog = nullptr;
+        bool m_windowClaimed = false;
+        bool m_deviceRecoveryAttempted = false;
+        bool m_waitingForRecoveredFrame = false;
     };
 }

@@ -29,12 +29,13 @@ namespace Atom
             return false;
         }
 
-		if (!m_renderer.Initialize(m_window.GetSDLWindow()))
-		{
-			m_window.Destroy();
-			SDL_Quit();
-			return false;
-		}
+        if (!m_renderer.Initialize(m_window.GetSDLWindow()))
+        {
+            m_renderer.Shutdown();
+            m_window.Destroy();
+            SDL_Quit();
+            return false;
+        }
 
         m_running = true;
 

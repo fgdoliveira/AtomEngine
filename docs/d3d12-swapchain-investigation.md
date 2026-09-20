@@ -6,7 +6,7 @@
 
 The supervised Orca investigation completed successfully under run `run_73ac9a49d448`. Three read-only workers independently audited HRESULT provenance, back-buffer ownership, and Microsoft DXGI/D3D12 contracts. No SDL files were changed.
 
-The investigation first identified the repeated retry state from source inspection. A debugger capture on 20 September 2026 then proved the initiating API failure at its call site, before SDL translated the error. No source files were changed during that capture; only Visual Studio Watch expressions were added.
+The investigation first identified the repeated retry state from source inspection. Debugger captures on 20 September 2026 then proved the initiating API failure at its call site, the failure of swapchain-only reconstruction, and the failure of complete SDL GPU-device reconstruction. No SDL files were changed during these captures.
 
 ## Diagnosis
 
@@ -38,16 +38,52 @@ Execution was stopped on `SDL_gpu_d3d12.c:6948`, immediately after the `IDXGISwa
 
 This satisfies the requirement to identify the exact failing call with its own HRESULT. It also proves that the later error text containing `0x00000000` did not contain the HRESULT returned by `ResizeBuffers`.
 
-The Visual Studio Output window showed no D3D12 validation-layer error at the captured failure point. It contained a `D3D11: Removing Device!` line and later first-chance C++ exceptions, but the producer of that D3D11 line was not identified. It is therefore contextual evidence only; it does not prove that AtomEngine's D3D12 device was removed.
+### Confirmed swapchain-only recovery failure
+
+A later diagnostic run tested destruction and recreation of only the swapchain while retaining the same SDL/D3D12 GPU device. The persistent log and debugger established this sequence:
+
+| Observed value | Result |
+|---|---|
+| Failure display | `Generic PnP Monitor`, display ID `2` |
+| Failure window state | `1920 x 991`, display scale `1.25` |
+| Old swapchain release | Completed |
+| `IDXGIFactory4::CreateSwapChainForHwnd` HRESULT | `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) |
+| Immediate `ID3D12Device::GetDeviceRemovedReason()` | `S_OK` (`0x00000000`) |
+| Time from release completion to reclaim failure | Approximately `2.78` seconds |
+| Failure handling | Clean terminal shutdown; no retry loop |
+
+The original run began on `Acer KA240HQ`, display ID `1`, at `1280 x 720` and scale `1.0`. The failure occurred after the transition to the second display. These display facts describe the reproducible trigger; they do not by themselves establish the underlying driver or DXGI cause.
+
+This disproves swapchain-only recovery for the captured state. After the old swapchain was released, the existing SDL GPU device's DXGI factory/command-queue path could not create a replacement swapchain, even though the D3D12 device-removal query continued to report `S_OK`.
+
+### Confirmed full-device reconstruction failure
+
+The next diagnostic replaced the complete SDL GPU device rather than retaining the existing device. Repeated persistent-log captures and a debugger stop at `SDL_gpu_d3d12.c:7072` established this sequence:
+
+| Observed stage | Result |
+|---|---|
+| Failed frame command buffer | Cancelled successfully |
+| Old window claim | Released successfully |
+| Old SDL GPU device | Destroyed successfully |
+| Replacement backend request | Explicit `direct3d12` with DXIL and Debug mode |
+| Replacement SDL GPU device | Created successfully and reported `direct3d12` |
+| Replacement `CreateSwapChainForHwnd` | `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) |
+| Replacement `ID3D12Device::GetDeviceRemovedReason()` | `S_OK` (`0x00000000`) |
+| Replacement device cleanup | Completed successfully |
+| Application result | Clean terminal renderer shutdown and `session_end` |
+
+The replacement call used a new SDL GPU device and its new D3D12/DXGI objects but the same process, HWND, and active display topology. Complete device reconstruction therefore does not restore the presentation path for this captured state. The experiment never reached a non-null replacement swapchain texture or a validated recovered frame.
+
+The Visual Studio Output window showed no D3D12 validation-layer error at any captured failure point. It contained a `D3D11: Removing Device!` line and first-chance C++ exceptions. Process-module inspection also found NVIDIA's `nvspcap64.dll` capture component loaded. These are contextual observations only: their producer and causal relationship were not proven, and overlay isolation was declined for this investigation.
 
 ### Why a resize error can display `0x00000000`
 
-The debugger confirmed the complete path behind the message labelled `Could not resize swapchain buffers` with error code zero:
+The debugger confirmed the complete path behind both `Could not resize swapchain buffers` and `Could not create swapchain` messages with error code zero:
 
 1. `IDXGISwapChain::ResizeBuffers` returns `DXGI_ERROR_DEVICE_REMOVED`.
 2. `D3D12_INTERNAL_SetError` replaces that HRESULT with `ID3D12Device::GetDeviceRemovedReason()`.
 3. The secondary call returns `S_OK`.
-4. SDL formats the replacement value as `0x00000000` instead of preserving the original `ResizeBuffers` HRESULT.
+4. SDL formats the replacement value as `0x00000000` instead of preserving the original HRESULT.
 
 Microsoft explicitly documents that `GetDeviceRemovedReason()` returns `S_OK` when the D3D12 device does not report itself removed:
 
@@ -57,10 +93,14 @@ Relevant source locations:
 
 - `external/SDL/src/gpu/d3d12/SDL_gpu_d3d12.c:6941`: `ResizeBuffers`
 - `external/SDL/src/gpu/d3d12/SDL_gpu_d3d12.c:6948`: resize HRESULT check
+- `external/SDL/src/gpu/d3d12/SDL_gpu_d3d12.c:7064`: `CreateSwapChainForHwnd`
+- `external/SDL/src/gpu/d3d12/SDL_gpu_d3d12.c:7072`: creation HRESULT check
 - `external/SDL/src/gpu/d3d12/SDL_gpu_d3d12.c:1256`: D3D12 error helper
 - `external/SDL/src/gpu/d3d12/SDL_gpu_d3d12.c:1267`: replacement of `DXGI_ERROR_DEVICE_REMOVED`
-- `Engine/Renderer/Renderer.cpp:90`: AtomEngine acquisition boundary
-- `Engine/Renderer/Renderer.cpp:102`: silent cancel-and-retry behavior
+- `Engine/Renderer/Renderer.cpp:278`: AtomEngine acquisition boundary
+- `Engine/Renderer/Renderer.cpp:293`: command-buffer cancellation after acquisition failure
+- `Engine/Renderer/Renderer.cpp:314`: old-window release in the full-device reconstruction experiment
+- `Engine/Renderer/Renderer.cpp:319`: old-device destruction in the full-device reconstruction experiment
 
 The zero code is therefore an error-reporting artifact. It is not evidence that `ResizeBuffers` succeeded.
 
@@ -123,10 +163,13 @@ Partial initialization therefore explains the retry state but is not, by itself,
 ## Findings and remaining hypotheses
 
 1. **Confirmed:** `ResizeBuffers` returned `DXGI_ERROR_DEVICE_REMOVED`, and SDL replaced that result with the immediately queried `S_OK` removal reason before formatting the message.
-2. **Confirmed:** returning success from AtomEngine after cancelling the empty command buffer leaves `needsSwapchainRecreate` set, so the next frame retries `ResizeBuffers` on the same failed swapchain.
-3. **Still unproven:** why DXGI reported removal for the swapchain while the D3D12 device reported healthy. The capture contained no D3D12 InfoQueue explanation.
-4. **Still possible but not demonstrated:** an outstanding direct or indirect back-buffer reference contributed to the failure. The absence of a visible debug-layer message makes this less supported for this capture, but does not eliminate it.
-5. **Now rejected for this capture:** the displayed error came only from stale SDL error state or a different call. The original HRESULT was observed directly at line 6948.
+2. **Confirmed:** after releasing the old swapchain, `CreateSwapChainForHwnd` on the same SDL GPU device also returned `DXGI_ERROR_DEVICE_REMOVED`; its immediate removal-reason query also returned `S_OK`.
+3. **Confirmed:** after destroying the old SDL GPU device, a fresh `direct3d12` SDL GPU device was created successfully, but its `CreateSwapChainForHwnd` call returned the same `DXGI_ERROR_DEVICE_REMOVED` while its new D3D12 device reported `S_OK`.
+4. **Confirmed:** neither swapchain-only nor complete SDL GPU-device reconstruction can recover the captured state.
+5. **Confirmed:** the bounded diagnostic cleans up every partial state and terminates without a retry loop or unhandled application crash.
+6. **Still unproven:** why DXGI reports removal for presentation operations while both old and replacement D3D12 devices report healthy. The captures contained no D3D12 InfoQueue explanation.
+7. **Still possible but less likely:** an outstanding direct or indirect old back-buffer reference contributed to the initiating resize failure. It cannot explain why a newly created device fails to create a swapchain on the retained HWND unless wider process, driver, or presentation state is involved.
+8. **Rejected for these captures:** the displayed errors came only from stale SDL error state or different calls. The original HRESULTs were observed directly at their call-site checks.
 
 ## Unsupported assumptions
 
@@ -137,6 +180,7 @@ Current evidence does not support:
 - Wrapping the plain resize return with a generic error.
 - Recreating the swapchain merely because the window crossed monitors.
 - Treating monitor movement or minimization alone as device loss.
+- Assuming `GetDeviceRemovedReason() == S_OK` means the existing presentation stack is reusable.
 - Retrying an unknown or repeatable failure indefinitely.
 
 ## Back-buffer ownership invariants
@@ -154,18 +198,20 @@ Microsoft requires every direct and indirect back-buffer reference to be release
 - [IDXGISwapChain::ResizeBuffers](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-resizebuffers)
 - [DXGI overview and window resizing](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/d3d10-graphics-programming-guide-dxgi)
 
-## Selected recovery strategy
+## Recovery decision
 
-Use classified, bounded recovery:
+Use classified, bounded failure handling:
 
 1. On an ordinary successful `ResizeBuffers`, rebuild all back-buffer texture wrappers, descriptors, and indices.
 2. For an InfoQueue-confirmed outstanding-reference or invalid-state failure, correct the ownership state and retry once.
-3. For the captured special case—`ResizeBuffers == DXGI_ERROR_DEVICE_REMOVED` while the immediate D3D12 removal reason is `S_OK`—stop retrying the same swapchain. Perform one controlled destruction and recreation of only the window swapchain while retaining the D3D12 device.
-4. If that swapchain-only reconstruction fails, or if `GetDeviceRemovedReason()` returns a failure value, rebuild the D3D12 device and all dependent resources.
-5. Preserve the original HRESULT, the separate removal reason, InfoQueue messages, and DRED data across every recovery boundary.
-6. Do not recreate merely because the window changed monitors. Recreation is justified here by the captured failure of the existing swapchain, not by monitor identity alone.
+3. For the captured special case—`ResizeBuffers == DXGI_ERROR_DEVICE_REMOVED` while the immediate D3D12 removal reason is `S_OK`—stop retrying the same swapchain.
+4. Swapchain-only reconstruction is no longer a candidate for this incident: it was attempted once and `CreateSwapChainForHwnd` returned the same `DXGI_ERROR_DEVICE_REMOVED` result.
+5. Complete SDL GPU-device reconstruction is also rejected for this incident: a fresh device could not create a swapchain for the retained HWND.
+6. Do not add more in-process recovery tiers. Preserve the failure evidence and terminate rendering cleanly.
+7. Preserve the original HRESULT, the separate removal reason, InfoQueue messages, DRED data, topology state, and recovery-stage results across every boundary.
+8. Do not rebuild merely because the window changed monitors. The monitor transition is a reproducible trigger to investigate, not a sufficient recovery classification.
 
-The swapchain-only step is a recovery hypothesis to validate, not yet a proven final fix. Microsoft documents `S_OK` from `GetDeviceRemovedReason()` as meaning that the D3D12 device is not reporting itself removed. SDL's public release/claim window operations provide a way to destroy and recreate the swapchain without immediately destroying the GPU device.
+The full-device code remains temporarily on this private diagnostic branch so the failed experiment and its ordered cleanup can be reproduced. It is not a production recovery direction. Microsoft documents `S_OK` from `GetDeviceRemovedReason()` as meaning that the D3D12 device is not reporting itself removed, but the captures show that this does not guarantee a usable DXGI presentation path.
 
 Microsoft's Advanced Color guidance warns that recreating a swapchain merely to refresh output information introduces temporary black frames:
 
@@ -190,8 +236,10 @@ Resize or output-related event
   |     |
   |     +-- GetDeviceRemovedReason returned S_OK?
   |           -> Do not retry ResizeBuffers on the same swapchain.
-  |           -> Recreate the swapchain once while retaining the device.
-  |           -> Escalate to device rebuild if recreation fails.
+  |           -> The captured swapchain-only reconstruction also failed.
+  |           -> The captured complete-device reconstruction also failed.
+  |           -> Terminate cleanly and preserve presentation/topology evidence.
+  |           -> Do not add another runtime recovery tier.
   |
   +-- Invalid call/outstanding reference confirmed by InfoQueue?
   |     -> Account for and release the reference or command-list ownership.
@@ -205,34 +253,30 @@ Resize or output-related event
         -> Stop the blind retry loop and preserve diagnostics.
 ```
 
-## Next controlled experiment
+## Next controlled investigation
 
-The next step is to test whether a fresh swapchain can recover while the existing D3D12 device remains valid. Keep this as a private AtomEngine diagnostic change; do not modify SDL for this experiment.
+The next step is to identify which state shared across the failed replacement device prevents presentation. Keep all diagnostics private to AtomEngine or standalone private probes; do not modify SDL.
 
 ### Procedure
 
-1. Reproduce the same cross-monitor/resize trigger with the D3D12 debug layer enabled.
-2. When swapchain acquisition fails, copy `SDL_GetError()` immediately and cancel the still-empty command buffer.
-3. Allow exactly one recovery attempt for that failure episode:
-   - release the window from the current SDL GPU device, which destroys its swapchain;
-   - claim the same window again on the same GPU device, which creates a fresh swapchain;
-   - retain or restore the prior swapchain composition and present-mode settings if the application changes them from their defaults.
-4. If reclaim succeeds, resume rendering and verify at least several hundred frames, a second monitor transition, resize, minimize/restore, and clean shutdown.
-5. If reclaim fails, preserve its immediate `SDL_GetError()` and terminate rendering cleanly. The following experiment should then rebuild the entire SDL GPU device and its dependent resources.
-6. Never repeat release/claim every frame. Use a one-attempt state or cooldown so a persistent failure becomes visible instead of turning into another silent loop.
+1. Retrieve and persist DXGI InfoQueue messages at initialization and every failure/reconstruction boundary.
+2. Record the active Windows display path with `QueryDisplayConfig`: adapter LUID, source and target IDs, connector technology, scaling, rotation, refresh rate, availability, monitor name, DPI, Advanced Color state, HWND validity, and client/window rectangles.
+3. Capture a short GPUView/WPR ETW trace beginning before the monitor crossing and ending immediately after the failure, plus matching `Display`, `nvlddmkm`, and `DxgKrnl` event-log entries.
+4. Reproduce with a minimal private SDL GPU presentation probe and then a raw Win32/D3D12/DXGI probe using the same SDR, VSYNC, two-buffer flip-discard configuration.
+5. In each probe, allow one diagnostic-only new-HWND test after failure. Do not promote window recreation into runtime recovery without separate evidence and validation.
+6. Keep NVIDIA capture/overlay injection recorded as an unexcluded variable because isolation of that component is outside the chosen test constraints.
 
-### Evidence to record
+### Decision gates
 
-- Whether the failure was triggered by crossing displays, DPI change, resize, HDR/SDR change, or another event.
-- Original acquisition error text and the debugger-confirmed pair of HRESULT values.
-- Whether release/claim succeeded and the first acquire/present result afterward.
-- D3D12 and DXGI InfoQueue output before failure, during recreation, and during the first recovered frame.
-- Window pixel size, DPI, display identity, adapter identity, composition, and present mode before and after recovery.
-- Any black frame, flicker, leaked live object, repeated failure, or shutdown error.
+- Fresh HWND succeeds in the same process: investigate stale HWND/presentation binding and validate window recreation separately.
+- Fresh HWND fails but a new process succeeds: classify the state as process-global runtime or driver state; clean restart remains the only reliable recovery.
+- SDL probe fails while raw D3D12 succeeds: isolate the differing SDL presentation/event sequence without modifying or contributing generated material to SDL.
+- Raw D3D12 also fails: classify the incident as Windows/NVIDIA/display-topology behavior and stop AtomEngine recovery work.
+- DXGI diagnostics identify an invalid call, ownership error, or deterministic transient-topology condition: implement only the smallest AtomEngine-side prevention supported by that evidence.
 
-### Success threshold
+### Fix acceptance threshold
 
-Swapchain-only recovery is accepted as the next implementation direction only if it succeeds without recreating the GPU device, rendering remains stable across the validation cases, and the debug layer reports no live-object or ownership errors. One successful run is encouraging but insufficient; repeat the original trigger several times.
+Any candidate AtomEngine fix must prevent the original acquisition failure in five reproduced monitor-crossing episodes. After each crossing, render for 30 seconds, resize repeatedly, minimize and restore three times, cross monitors again, and shut down normally with no D3D12/DXGI error, live-object warning, corrupted frame, or retry loop.
 
 ## Instrumentation checklist
 
@@ -241,6 +285,7 @@ A human diagnostic build should capture the following before any error translati
 - Monotonic event, frame, and call sequence plus thread identifier.
 - Exact call name and raw numeric and symbolic HRESULT for:
   - `ResizeBuffers`
+  - `CreateSwapChainForHwnd`
   - initialization and per-frame `GetBuffer`
   - `GetDesc1`
   - `Present`
@@ -280,6 +325,6 @@ Run each case in debug and release configurations. Exercise VSYNC, immediate, an
 
 ## Current conclusion
 
-The initiating failure and misleading error translation are now proven: `ResizeBuffers` returned `DXGI_ERROR_DEVICE_REMOVED`, while the immediate D3D12 device-removal query returned `S_OK` and replaced the original code in SDL's error message. AtomEngine's current cancel-and-success path then retries the already failed swapchain indefinitely.
+The initiating failure and misleading error translation are proven at three presentation stages. `ResizeBuffers` returned `DXGI_ERROR_DEVICE_REMOVED`; swapchain-only reconstruction returned the same result from `CreateSwapChainForHwnd`; and a newly created SDL/D3D12 GPU device again returned the same result while claiming the retained HWND. Every immediate D3D12 device-removal query returned `S_OK`, which SDL substituted into its error message as `0x00000000`.
 
-The evidence does not yet establish the underlying driver/DXGI cause, but it does narrow the next recovery test. The next decisive step is one bounded swapchain-only reconstruction using the existing healthy-reporting D3D12 device. Escalate to a complete device rebuild only if that experiment fails or the D3D12 device begins reporting an actual removal reason.
+The evidence rejects continued resize retries, swapchain-only reconstruction, and complete SDL GPU-device reconstruction as runtime recovery strategies. The current diagnostic terminates cleanly after preserving the failure. Further work must identify whether the persistent state is bound to the HWND, process-wide DXGI state, SDL's presentation sequence, or the Windows/NVIDIA display-topology path before another fix is proposed.
