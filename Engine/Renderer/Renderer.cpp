@@ -1,10 +1,18 @@
 #include "Renderer/Renderer.h"
+#include "Renderer/D3D12PresentationDiagnostics.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <sstream>
 
 namespace Atom
 {
+    Renderer::Renderer()
+        : m_presentationDiagnostics(
+            std::make_unique<D3D12PresentationDiagnostics>()
+        )
+    {
+    }
+
     bool Renderer::CreateAndClaimGPUDevice(const char* stage)
     {
 #ifndef NDEBUG
@@ -49,6 +57,10 @@ namespace Atom
             (gpuDriver ? gpuDriver : "unavailable") +
             "\""
         );
+        m_presentationDiagnostics->DrainDxgiMessages(
+            (stageName + "_device_created").c_str(),
+            [this](const std::string& entry) { LogDiagnostic(entry); }
+        );
 
         if (!SDL_ClaimWindowForGPUDevice(m_device, m_window))
         {
@@ -68,11 +80,24 @@ namespace Atom
             SDL_DestroyGPUDevice(m_device);
             m_device = nullptr;
             LogDiagnostic(stageName + "_unclaimed_device_destroyed");
+            m_presentationDiagnostics->DrainDxgiMessages(
+                (stageName + "_claim_failed").c_str(),
+                [this](const std::string& entry) { LogDiagnostic(entry); }
+            );
             return false;
         }
 
         m_windowClaimed = true;
         LogWindowState(stageName + "_window_claim_succeeded");
+        m_presentationDiagnostics->CaptureTopology(
+            (stageName + "_window_claim_succeeded").c_str(),
+            true,
+            [this](const std::string& entry) { LogDiagnostic(entry); }
+        );
+        m_presentationDiagnostics->DrainDxgiMessages(
+            (stageName + "_window_claim_succeeded").c_str(),
+            [this](const std::string& entry) { LogDiagnostic(entry); }
+        );
         return true;
     }
 
@@ -223,6 +248,11 @@ namespace Atom
             << " ===";
         LogDiagnostic(session.str());
 
+        m_presentationDiagnostics->Initialize(
+            m_window,
+            [this](const std::string& entry) { LogDiagnostic(entry); }
+        );
+
         if (!CreateAndClaimGPUDevice("initial"))
         {
             return false;
@@ -238,6 +268,12 @@ namespace Atom
 
     bool Renderer::Render()
     {
+        m_presentationDiagnostics->CaptureTopology(
+            "render_topology_changed",
+            false,
+            [this](const std::string& entry) { LogDiagnostic(entry); }
+        );
+
         if (!m_device || !m_window || !m_windowClaimed)
         {
             LogDiagnostic(
@@ -289,6 +325,15 @@ namespace Atom
                 "\""
             );
             LogWindowState("swapchain_acquire_failure_state");
+            m_presentationDiagnostics->CaptureTopology(
+                "swapchain_acquire_failure",
+                true,
+                [this](const std::string& entry) { LogDiagnostic(entry); }
+            );
+            m_presentationDiagnostics->DrainDxgiMessages(
+                "swapchain_acquire_failure",
+                [this](const std::string& entry) { LogDiagnostic(entry); }
+            );
 
             if (!SDL_CancelGPUCommandBuffer(commandBuffer))
             {
@@ -320,6 +365,10 @@ namespace Atom
             SDL_DestroyGPUDevice(m_device);
             m_device = nullptr;
             LogDiagnostic("old_device_destroyed");
+            m_presentationDiagnostics->DrainDxgiMessages(
+                "old_device_destroyed",
+                [this](const std::string& entry) { LogDiagnostic(entry); }
+            );
 
             LogDiagnostic(
                 "replacement_device_resources_recreate_started "
@@ -453,6 +502,16 @@ namespace Atom
 
         if (m_device)
         {
+            m_presentationDiagnostics->CaptureTopology(
+                "renderer_shutdown",
+                true,
+                [this](const std::string& entry) { LogDiagnostic(entry); }
+            );
+            m_presentationDiagnostics->DrainDxgiMessages(
+                "renderer_shutdown_before_release",
+                [this](const std::string& entry) { LogDiagnostic(entry); }
+            );
+
             if (m_windowClaimed && m_window)
             {
                 LogDiagnostic("shutdown_window_release_started");
@@ -469,6 +528,10 @@ namespace Atom
             m_device = nullptr;
             LogDiagnostic("shutdown_device_destroyed");
         }
+
+        m_presentationDiagnostics->Shutdown(
+            [this](const std::string& entry) { LogDiagnostic(entry); }
+        );
 
         m_windowClaimed = false;
         m_window = nullptr;

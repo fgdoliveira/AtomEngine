@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 struct SDL_Window;
@@ -8,10 +9,12 @@ struct SDL_IOStream;
 
 namespace Atom
 {
+    class D3D12PresentationDiagnostics;
+
     class Renderer
     {
 	public:
-		Renderer() = default;
+		Renderer();
 		~Renderer();
 
 		// Delete copy constructor and assignment operator to prevent copying
@@ -38,6 +41,7 @@ namespace Atom
         SDL_Window* m_window = nullptr;
 
         SDL_IOStream* m_diagnosticLog = nullptr;
+        std::unique_ptr<D3D12PresentationDiagnostics> m_presentationDiagnostics;
         bool m_windowClaimed = false;
         bool m_deviceRecoveryAttempted = false;
         bool m_waitingForRecoveredFrame = false;

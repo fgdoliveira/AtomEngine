@@ -266,6 +266,14 @@ The next step is to identify which state shared across the failed replacement de
 5. In each probe, allow one diagnostic-only new-HWND test after failure. Do not promote window recreation into runtime recovery without separate evidence and validation.
 6. Keep NVIDIA capture/overlay injection recorded as an unexcluded variable because isolation of that component is outside the chosen test constraints.
 
+### Implemented private evidence capture
+
+AtomEngine now opens the DXGI debug InfoQueue before creating the SDL GPU device and records only messages added after that baseline. It drains the queue at device creation, window claim, acquisition failure, device destruction, and shutdown boundaries.
+
+The same private diagnostic records the Win32 HWND and validity, window and client rectangles, DPI, SDL display and pixel size, monitor handle and GDI name, and every active `QueryDisplayConfig` path. Each path includes its adapter LUID, source and target IDs, monitor name, connector technology, rotation, scaling, refresh rate, availability, and Advanced Color state. A snapshot is written at startup, after a successful claim, when the window's display geometry changes, at acquisition failure, and during shutdown.
+
+This instrumentation is evidence collection only. It does not modify SDL, expose a public AtomEngine API, or add another recovery attempt.
+
 ### Decision gates
 
 - Fresh HWND succeeds in the same process: investigate stale HWND/presentation binding and validate window recreation separately.
