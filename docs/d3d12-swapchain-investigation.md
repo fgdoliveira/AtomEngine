@@ -8,6 +8,8 @@ The supervised Orca investigation completed successfully under run `run_73ac9a49
 
 The investigation first identified the repeated retry state from source inspection. Debugger captures on 20 September 2026 then proved the initiating API failure at its call site, the failure of swapchain-only reconstruction, and the failure of complete SDL GPU-device reconstruction. No SDL files were changed during these captures.
 
+A private raw D3D12 probe subsequently reproduced the same failure outside SDL and isolated it to the high-performance adapter's cross-adapter presentation path. Selecting the Intel/minimum-power adapter prevented the failure in five full AtomEngine validation episodes.
+
 ## Diagnosis
 
 The repeatable state transition is:
@@ -274,6 +276,42 @@ The same private diagnostic records the Win32 HWND and validity, window and clie
 
 This instrumentation is evidence collection only. It does not modify SDL, expose a public AtomEngine API, or add another recovery attempt.
 
+### Private isolation probe
+
+`PresentationProbe` provides two deliberately small paths with the same SDR, VSYNC, `R8G8B8A8_UNORM`, two-buffer, flip-discard presentation shape:
+
+```powershell
+out\build\x64-Debug\bin\PresentationProbe.exe --api sdl --new-window-after-failure --log sdl-probe.log
+out\build\x64-Debug\bin\PresentationProbe.exe --api d3d12 --new-window-after-failure --log d3d12-probe.log
+```
+
+Omit `--new-window-after-failure` for the baseline run. The option consumes exactly one diagnostic fresh-HWND attempt while retaining the same GPU device. It exists only to classify HWND-bound versus process/device-bound state and is not an application recovery mechanism. `--frames N` is available for bounded smoke tests; omit it for interactive monitor-crossing reproduction.
+
+Run the SDL and raw D3D12 reproductions separately under the same monitor-transition procedure. Capture a GPUView trace by running the Windows Performance Toolkit `gpuview\log.cmd` once immediately before reproduction and once immediately after failure from an elevated Command Prompt; retain its `Merged.etl` beside the corresponding probe log outside the repository.
+
+### Confirmed raw D3D12 reproduction
+
+The first automated cross-monitor run reproduced the failure in both probe modes on the active hybrid-adapter topology:
+
+| Probe | Transition result | Fresh-HWND result |
+|---|---|---|
+| SDL GPU / D3D12 | Swapchain acquisition failed while SDL reported its translated `0x00000000` error | Claiming the replacement window failed |
+| Raw Win32 / D3D12 / DXGI | `ResizeBuffers` returned `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) | `CreateSwapChainForHwnd` returned `0x887A0005` |
+
+The raw probe separately queried `ID3D12Device::GetDeviceRemovedReason()` and again received `S_OK`. Its D3D12 device used adapter LUID `0:16429`; the window crossed from `DISPLAY5` on that adapter to `DISPLAY1` on adapter LUID `0:1600E`. The one-shot replacement HWND was created on the destination display while retaining the same device and process, and it did not restore presentation.
+
+This rules out SDL's event or swapchain-wrapper sequence as the initiating cause. The remaining useful AtomEngine investigation is prevention: determine whether selecting the adapter attached to the intended startup display avoids the cross-adapter DXGI failure. ETW capture still requires an elevated session and was not produced by the non-elevated automated run.
+
+### Adapter-selection prevention result
+
+DXGI preference index 0 selected adapter LUID `0:16429`, the high-performance NVIDIA adapter attached to `DISPLAY5`. Preference index 1 selected LUID `0:1600E`, the Intel Iris Xe adapter attached to `DISPLAY1`. SDL's `SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN` selected that same Intel adapter.
+
+Both the raw D3D12 probe on index 1 and the SDL probe with minimum-power preference presented successfully when created on `DISPLAY1` and while crossing in both directions. AtomEngine was therefore changed to request the minimum-power adapter through `SDL_CreateGPUDeviceWithProperties`; its persistent log records the selected adapter.
+
+The AtomEngine candidate passed five automated reproduction episodes. Every episode crossed to the 125% DPI Intel-attached display, rendered there for 30 seconds while performing 19 resizes, minimized/restored three times, crossed to the NVIDIA-attached display and back, and shut down normally. Across the five runs there were 95 resizes, 150 seconds of post-cross rendering, 15 minimize/restore cycles, five exit-code-zero shutdowns, no swapchain acquisition failure, no recovery attempt, and no diagnostic terminal failure.
+
+The result supports adapter selection as prevention on this machine, not device reconstruction as recovery. The tradeoff is deliberate use of the integrated GPU; performance qualification with the engine's future real workloads remains required before treating this as a general hybrid-GPU policy.
+
 ### Decision gates
 
 - Fresh HWND succeeds in the same process: investigate stale HWND/presentation binding and validate window recreation separately.
@@ -335,4 +373,6 @@ Run each case in debug and release configurations. Exercise VSYNC, immediate, an
 
 The initiating failure and misleading error translation are proven at three presentation stages. `ResizeBuffers` returned `DXGI_ERROR_DEVICE_REMOVED`; swapchain-only reconstruction returned the same result from `CreateSwapChainForHwnd`; and a newly created SDL/D3D12 GPU device again returned the same result while claiming the retained HWND. Every immediate D3D12 device-removal query returned `S_OK`, which SDL substituted into its error message as `0x00000000`.
 
-The evidence rejects continued resize retries, swapchain-only reconstruction, and complete SDL GPU-device reconstruction as runtime recovery strategies. The current diagnostic terminates cleanly after preserving the failure. Further work must identify whether the persistent state is bound to the HWND, process-wide DXGI state, SDL's presentation sequence, or the Windows/NVIDIA display-topology path before another fix is proposed.
+The evidence rejects continued resize retries, swapchain-only reconstruction, complete SDL GPU-device reconstruction, and fresh-HWND creation as runtime recovery strategies. The raw probe proves that SDL is not the initiating layer: the high-performance NVIDIA adapter fails during the transition to the Intel-attached display, while the device itself continues to report `S_OK`.
+
+Selecting the Intel/minimum-power adapter prevents the reproduced failure in raw D3D12, the SDL probe, and five full AtomEngine validation episodes. This is the current production direction for the tested hybrid topology. Runtime reconstruction remains diagnostic code only and should be removed after the adapter policy is retained and performance-qualified. If the problem appears with the Intel adapter or on a different topology, preserve the logs and obtain the elevated GPUView trace rather than adding another recovery level.

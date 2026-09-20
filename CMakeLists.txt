@@ -17,3 +17,7 @@ add_subdirectory(external/SDL)
 
 add_subdirectory(Engine)
 add_subdirectory(Game)
+
+if(WIN32)
+    add_subdirectory(Tools/PresentationProbe)
+endif()

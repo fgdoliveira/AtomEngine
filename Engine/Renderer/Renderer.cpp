@@ -20,42 +20,96 @@ namespace Atom
 #else
         constexpr bool enableDebug = false;
 #endif
+        constexpr bool preferLowPower = true;
 
         const std::string stageName = stage;
         LogDiagnostic(
             stageName +
             "_device_create_started requested_backend=\"direct3d12\" debug=" +
-            (enableDebug ? "true" : "false")
+            (enableDebug ? "true" : "false") +
+            " prefer_low_power=" +
+            (preferLowPower ? "true" : "false")
         );
 
-        m_device = SDL_CreateGPUDevice(
-            SDL_GPU_SHADERFORMAT_DXIL,
-            enableDebug,
-            "direct3d12"
-        );
-
-        if (!m_device)
+        const SDL_PropertiesID deviceProperties = SDL_CreateProperties();
+        if (!deviceProperties)
         {
             const std::string error = SDL_GetError();
             LogDiagnostic(
                 stageName +
+                "_device_properties_create_failed error=\"" + error +
+                "\" terminal_failure=true"
+            );
+            return false;
+        }
+
+        const bool propertiesConfigured =
+            SDL_SetStringProperty(
+                deviceProperties,
+                SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING,
+                "direct3d12"
+            ) &&
+            SDL_SetBooleanProperty(
+                deviceProperties,
+                SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN,
+                true
+            ) &&
+            SDL_SetBooleanProperty(
+                deviceProperties,
+                SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN,
+                enableDebug
+            ) &&
+            SDL_SetBooleanProperty(
+                deviceProperties,
+                SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN,
+                preferLowPower
+            );
+
+        if (!propertiesConfigured)
+        {
+            const std::string error = SDL_GetError();
+            SDL_DestroyProperties(deviceProperties);
+            LogDiagnostic(
+                stageName +
+                "_device_properties_configure_failed error=\"" + error +
+                "\" terminal_failure=true"
+            );
+            return false;
+        }
+
+        m_device = SDL_CreateGPUDeviceWithProperties(
+            deviceProperties
+        );
+        const std::string createError = m_device ? "" : SDL_GetError();
+        SDL_DestroyProperties(deviceProperties);
+
+        if (!m_device)
+        {
+            LogDiagnostic(
+                stageName +
                 "_device_create_failed requested_backend=\"direct3d12\" error=\"" +
-                error +
+                createError +
                 "\" terminal_failure=true"
             );
             std::cerr
                 << "Failed to create " << stageName << " GPU device: "
-                << error
+                << createError
                 << '\n';
             return false;
         }
 
         const char* gpuDriver = SDL_GetGPUDeviceDriver(m_device);
+        const char* adapterName = SDL_GetStringProperty(
+            SDL_GetGPUDeviceProperties(m_device),
+            SDL_PROP_GPU_DEVICE_NAME_STRING,
+            "unavailable"
+        );
         LogDiagnostic(
             stageName +
             "_device_created requested_backend=\"direct3d12\" actual_backend=\"" +
             (gpuDriver ? gpuDriver : "unavailable") +
-            "\""
+            "\" adapter=\"" + adapterName +
+            "\" prefer_low_power=true"
         );
         m_presentationDiagnostics->DrainDxgiMessages(
             (stageName + "_device_created").c_str(),

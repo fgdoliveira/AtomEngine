@@ -300,6 +300,7 @@ namespace Atom
         }
 
         paths.resize(pathCount);
+        modes.resize(modeCount);
         const std::string windowMonitor = hasMonitorInfo
             ? ToUtf8(monitorInfo.szDevice)
             : std::string{};
@@ -343,6 +344,26 @@ namespace Atom
                 ? ToUtf8(targetName.monitorFriendlyDeviceName)
                 : std::string{};
 
+            const DISPLAYCONFIG_MODE_INFO* sourceMode = nullptr;
+            if (
+                path.sourceInfo.modeInfoIdx !=
+                    DISPLAYCONFIG_PATH_MODE_IDX_INVALID &&
+                path.sourceInfo.modeInfoIdx < modes.size()
+            )
+            {
+                sourceMode = &modes[path.sourceInfo.modeInfoIdx];
+            }
+
+            const DISPLAYCONFIG_MODE_INFO* targetMode = nullptr;
+            if (
+                path.targetInfo.modeInfoIdx !=
+                    DISPLAYCONFIG_PATH_MODE_IDX_INVALID &&
+                path.targetInfo.modeInfoIdx < modes.size()
+            )
+            {
+                targetMode = &modes[path.targetInfo.modeInfoIdx];
+            }
+
             std::ostringstream pathEntry;
             pathEntry
                 << "display_path stage=" << stage
@@ -366,6 +387,28 @@ namespace Atom
                 << " source_query=" << sourceResult
                 << " target_query=" << targetResult
                 << " advanced_color_query=" << advancedColorResult;
+            if (sourceMode && sourceMode->infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
+            {
+                pathEntry
+                    << " desktop_position="
+                    << sourceMode->sourceMode.position.x << ','
+                    << sourceMode->sourceMode.position.y
+                    << " source_mode="
+                    << sourceMode->sourceMode.width << 'x'
+                    << sourceMode->sourceMode.height;
+            }
+            if (targetMode && targetMode->infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
+            {
+                pathEntry
+                    << " target_active="
+                    << targetMode->targetMode.targetVideoSignalInfo.activeSize.cx
+                    << 'x'
+                    << targetMode->targetMode.targetVideoSignalInfo.activeSize.cy
+                    << " target_total="
+                    << targetMode->targetMode.targetVideoSignalInfo.totalSize.cx
+                    << 'x'
+                    << targetMode->targetMode.targetVideoSignalInfo.totalSize.cy;
+            }
             if (advancedColorResult == ERROR_SUCCESS)
             {
                 pathEntry
