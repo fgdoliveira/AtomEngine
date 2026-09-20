@@ -64,19 +64,25 @@ namespace Atom
         return true;
     }
 
-    void Renderer::Render()
+    bool Renderer::Render()
     {
         SDL_GPUCommandBuffer* commandBuffer =
             SDL_AcquireGPUCommandBuffer(m_device);
 
         if (!commandBuffer)
         {
+            // Failing to acquire a command buffer is not part of the normal
+            // resize/minimize flow (that case is handled below once the
+            // swapchain texture is acquired), so treat this as an
+            // unrecoverable error (e.g. the GPU device was removed/reset)
+            // and let the caller stop, instead of retrying every frame
+            // forever with the same error.
             std::cerr
                 << "Failed to acquire GPU command buffer: "
                 << SDL_GetError()
                 << '\n';
 
-            return;
+            return false;
         }
 
         SDL_GPUTexture* swapchainTexture = nullptr;
@@ -88,13 +94,13 @@ namespace Atom
             nullptr,
             nullptr))
         {
-            std::cerr
-                << "Failed to acquire swapchain texture: "
-                << SDL_GetError()
-                << '\n';
-
+            /* A failed swapchain acquisition is usually transient:
+               the swapchain may be mid-recreate after a resize or a
+               monitor change (e.g. moving the window between displays
+               with different DPI). Cancel this frame's command buffer
+               and retry on the next frame instead of shutting down. */
             SDL_CancelGPUCommandBuffer(commandBuffer);
-            return;
+            return true;
         }
 
          /* Solved: When resizing or minimized, the swapchain texture may be null even if acquisition 
@@ -103,7 +109,7 @@ namespace Atom
         if (!swapchainTexture)
         {
             SDL_SubmitGPUCommandBuffer(commandBuffer);
-            return;
+            return true;
         }
 
         SDL_GPUColorTargetInfo colorTarget{};
@@ -133,7 +139,7 @@ namespace Atom
                 << '\n';
 
             SDL_SubmitGPUCommandBuffer(commandBuffer);
-            return;
+            return true;
         }
 
         SDL_EndGPURenderPass(renderPass);
@@ -145,6 +151,8 @@ namespace Atom
                 << SDL_GetError()
                 << '\n';
         }
+
+        return true;
     }
     
     void Renderer::Shutdown()

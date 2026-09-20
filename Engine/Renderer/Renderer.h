@@ -16,7 +16,9 @@ namespace Atom
         Renderer& operator=(const Renderer&) = delete;
 
         bool Initialize(SDL_Window* window);
-        void Render();
+        // Returns false if a fatal, unrecoverable GPU error occurred
+        // (e.g. device removed/reset) and the application should stop.
+        bool Render();
         void Shutdown();
 
     private:
