@@ -29,16 +29,46 @@ namespace Atom
             return false;
         }
 
-		if (!m_renderer.Initialize(m_window.GetSDLWindow()))
-		{
-			m_window.Destroy();
-			SDL_Quit();
-			return false;
-		}
+        RendererConfig rendererConfig{};
+        rendererConfig.gpuPreference = GPUPreference::LowPower;
+
+        if (!m_renderer.Initialize(
+            m_window.GetSDLWindow(),
+            rendererConfig
+        ))
+        {
+            m_renderer.Shutdown();
+            m_window.Destroy();
+            SDL_Quit();
+            return false;
+        }
 
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
+
+		// Print SDL version information
+        const int compiledVersion = SDL_VERSION;
+        const int runtimeVersion = SDL_GetVersion();
+
+        std::cout
+            << "SDL compiled version: "
+            << SDL_VERSIONNUM_MAJOR(compiledVersion) << '.'
+            << SDL_VERSIONNUM_MINOR(compiledVersion) << '.'
+            << SDL_VERSIONNUM_MICRO(compiledVersion)
+            << '\n';
+
+        std::cout
+            << "SDL runtime version: "
+            << SDL_VERSIONNUM_MAJOR(runtimeVersion) << '.'
+            << SDL_VERSIONNUM_MINOR(runtimeVersion) << '.'
+            << SDL_VERSIONNUM_MICRO(runtimeVersion)
+            << '\n';
+
+        std::cout
+            << "SDL revision: "
+            << SDL_GetRevision()
+            << '\n';
 
         return true;
     }
@@ -54,7 +84,13 @@ namespace Atom
         {
             ProcessEvents();
 
-            m_renderer.Render();
+            if (!m_renderer.Render())
+            {
+                std::cerr
+                    << "Renderer encountered a fatal error. Shutting down.\n";
+
+                m_running = false;
+            }
         }
 
         Shutdown();
