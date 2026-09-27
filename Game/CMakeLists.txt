@@ -7,6 +7,8 @@ add_executable(
     AudioScape.h
     SoundSynth.cpp
     SoundSynth.h
+    UneaseDirector.cpp
+    UneaseDirector.h
     DemoApp.cpp
     DemoApp.h
     PlayerController.cpp

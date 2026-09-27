@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Atom
@@ -37,10 +38,15 @@ namespace Atom
 
         const std::vector<Part>& GetParts() const { return m_parts; }
 
+        // Materials can be tweaked at runtime (e.g. flickering emission);
+        // every part using the material follows. nullptr if not found.
+        Material* FindMaterial(std::string_view name);
+
     private:
         std::vector<std::unique_ptr<Texture>> m_textures;
         std::vector<std::unique_ptr<Mesh>> m_meshes;
         std::vector<Material> m_materials; // last entry is the fallback
+        std::vector<std::string> m_materialNames; // parallel to m_materials
         std::vector<Part> m_parts;
     };
 }

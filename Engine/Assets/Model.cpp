@@ -178,9 +178,11 @@ namespace Atom
 
             materials[&source] = model->m_materials.size();
             model->m_materials.push_back(material);
+            model->m_materialNames.emplace_back(source.name ? source.name : "");
         }
         const std::size_t fallbackMaterial = model->m_materials.size();
         model->m_materials.push_back(Material{});
+        model->m_materialNames.emplace_back();
 
         // Meshes: one GPU mesh per triangle primitive.
         std::unordered_map<const cgltf_primitive*, const Mesh*> meshes;
@@ -295,6 +297,18 @@ namespace Atom
             << model->m_textures.size() << " textures\n";
 
         return model;
+    }
+
+    Material* Model::FindMaterial(std::string_view name)
+    {
+        for (std::size_t i = 0; i < m_materialNames.size(); ++i)
+        {
+            if (m_materialNames[i] == name)
+            {
+                return &m_materials[i];
+            }
+        }
+        return nullptr;
     }
 
     void Model::Submit(Renderer& renderer, const glm::mat4& transform) const

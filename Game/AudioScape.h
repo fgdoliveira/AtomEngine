@@ -37,8 +37,10 @@ namespace AtomGame
             const Listener& listener
         );
 
-        // 0..1; radio static for the unease beats (M8.3).
+        // 0..1; radio static for the unease beats.
         void SetStaticLevel(float level);
+        // 0..1; scales every vending machine hum (they flicker together).
+        void SetHumLevel(float level);
 
         void ToggleMute();
         bool IsMuted() const { return m_muted; }
@@ -54,6 +56,7 @@ namespace AtomGame
         Atom::SoundHandle m_static;
 
         Atom::VoiceId m_staticVoice = 0;
+        std::vector<Atom::VoiceId> m_humVoices;
         int m_lastStep = 0;
         float m_higurashiTimer = 6.0f;
         bool m_muted = false;

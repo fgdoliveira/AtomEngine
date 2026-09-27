@@ -7,6 +7,7 @@
 #include "Physics/CollisionWorld.h"
 #include "PlayerController.h"
 #include "Scene/Camera.h"
+#include "UneaseDirector.h"
 
 #include <cstddef>
 #include <memory>
@@ -33,6 +34,7 @@ namespace AtomGame
         PlayerController m_player;
         AudioScape m_audioScape;
         Atmosphere m_atmosphere;
+        UneaseDirector m_unease;
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;

@@ -49,7 +49,7 @@ namespace AtomGame
             params.position = position;
             params.minDistance = 1.5f;
             params.maxDistance = 14.0f;
-            audio.Play(hum, params);
+            m_humVoices.push_back(audio.Play(hum, params));
         }
 
         for (int surface = 0; surface < 4; ++surface)
@@ -160,6 +160,18 @@ namespace AtomGame
         if (m_audio && m_staticVoice)
         {
             m_audio->SetVoiceGain(m_staticVoice, 0.45f * level);
+        }
+    }
+
+    void AudioScape::SetHumLevel(float level)
+    {
+        if (!m_audio)
+        {
+            return;
+        }
+        for (const Atom::VoiceId voice : m_humVoices)
+        {
+            m_audio->SetVoiceGain(voice, 0.22f * level);
         }
     }
 

@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <iostream>
 #include <iterator>
 #include <string>
 
@@ -50,6 +51,18 @@ namespace AtomGame
         {
             return false;
         }
+
+        // Blender material names survive into glTF ("atom_" + kit name).
+        if (!m_unease.Initialize(
+            GetRenderer(), m_street->FindMaterial("atom_vending_front")))
+        {
+            return false;
+        }
+
+        std::cout
+            << "Controls: WASD move, Shift jog, mouse look, Esc release/quit\n"
+            << "  F2 render scale  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
+            << "  F8 particles  F9 unease events  M mute\n";
 
         // East end of the street, looking west along it.
         m_player.SetFeetPosition(glm::vec3{ 36.0f, 0.0f, 1.0f });
@@ -97,12 +110,16 @@ namespace AtomGame
         );
         m_atmosphere.Submit(renderer);
 
+        m_unease.Update(deltaSeconds, m_camera, m_player.GetFeetPosition(), m_audioScape);
+        m_unease.Submit(renderer);
+
         UpdateWindowTitle(deltaSeconds);
     }
 
     void DemoApp::OnShutdown()
     {
         GetRenderer().SetParticleAtlas(nullptr, 1);
+        m_unease.Shutdown();
         m_atmosphere.Shutdown();
         m_street.reset();
     }
@@ -126,7 +143,7 @@ namespace AtomGame
             sizeof(title),
             "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
             " | shadows %s | post %s | draws %u/%u (+%u) | particles %u"
-            " | pos %.1f %.2f %.1f",
+            " | pos %.1f %.2f %.1f%s",
             m_titleFrames / m_titleTimer,
             stats.sceneWidth,
             stats.sceneHeight,
@@ -141,7 +158,8 @@ namespace AtomGame
             stats.particles,
             feet.x,
             feet.y,
-            feet.z
+            feet.z,
+            m_unease.IsFigureVisible() ? " | figure" : ""
         );
         SDL_SetWindowTitle(GetWindow().GetSDLWindow(), title);
 
@@ -198,6 +216,12 @@ namespace AtomGame
         if (input.WasKeyPressed(SDL_SCANCODE_F8))
         {
             m_atmosphere.SetEnabled(!m_atmosphere.IsEnabled());
+        }
+
+        // F9: unease events (figure, static, flicker) on/off.
+        if (input.WasKeyPressed(SDL_SCANCODE_F9))
+        {
+            m_unease.SetEnabled(!m_unease.IsEnabled());
         }
 
         // F6: sun shadows on/off.
