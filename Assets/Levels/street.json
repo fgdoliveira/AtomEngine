@@ -4,7 +4,9 @@
   "collision": "Street/street_col.glb",
   "defaultSpawn": "east_end",
   "spawns": {
-    "east_end":    { "position": [36.0, 0.0, 1.0], "yaw": -90 }
+    "east_end":    { "position": [36.0, 0.0, 1.0], "yaw": -90 },
+    "from_shrine": { "position": [-14.0, 0.0, 12.6], "yaw": 0 },
+    "from_house":  { "position": [34.3, 0.0, -3.2], "yaw": 180 }
   },
   "lighting": {
     "sunDirection": [0.35, 0.6, -0.55],
@@ -86,6 +88,24 @@
         "requires": "bowed_at_torii",
         "action": { "type": "setFlag", "flag": "prayed_at_hokora", "message": "You put your hands together. For a moment, the cicadas fall silent." },
         "locked": { "type": "message", "text": "It feels wrong to come this close without bowing at the torii first." }
+      }
+    },
+    {
+      "name": "shrine_gate",
+      "position": [-14.0, 0.0, 13.8],
+      "interactable": {
+        "prompt": "Enter the shrine grounds", "focus": [0.0, 1.4, -0.35],
+        "requires": "keeper_permission",
+        "action": { "type": "changeLevel", "level": "shrine_grounds", "spawn": "gate" },
+        "locked": { "type": "message", "text": "The gate is barred from the inside. Someone would have to let you in." }
+      }
+    },
+    {
+      "name": "house_door",
+      "position": [34.3, 0.0, -4.4],
+      "interactable": {
+        "prompt": "Enter the house", "focus": [0.0, 1.2, 0.15],
+        "action": { "type": "changeLevel", "level": "machiya_interior", "spawn": "entrance" }
       }
     },
     {

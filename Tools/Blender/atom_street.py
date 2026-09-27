@@ -31,11 +31,11 @@ class Street:
         self.visual = []
         self.colliders = []
 
-    def place(self, name, x, y, yaw_degrees=0.0):
+    def place(self, name, x, y, yaw_degrees=0.0, z=0.0):
         rotation = (0.0, 0.0, math.radians(yaw_degrees))
 
         obj = bpy.data.objects.new(f"{name}.{len(self.visual):03d}", self.pieces[name].data)
-        obj.location = (x, y, 0.0)
+        obj.location = (x, y, z)
         obj.rotation_euler = rotation
         self.collection.objects.link(obj)
         self.visual.append(obj)
@@ -43,7 +43,7 @@ class Street:
         source = self.collision.get(name)
         if source:
             col = bpy.data.objects.new(f"{name}_col.{len(self.colliders):03d}", source.data)
-            col.location = (x, y, 0.0)
+            col.location = (x, y, z)
             col.rotation_euler = rotation
             col.display_type = "WIRE"
             self.collection.objects.link(col)
@@ -142,6 +142,10 @@ def build_street(pieces, collision, materials, collection):
         street.place("stone_wall", x, -EDGE_OFFSET)
     street.place("torii", -14.0, -5.5, 180)
     street.place("hokora", -14.0, -11.0, 180)
+    # Behind the hokora: the barred gate to the shrine grounds, fenced off.
+    street.place("shrine_gate", -14.0, -13.8, 180)
+    for x in (-17.3, -10.7):
+        street.place("wood_fence", x, -13.8, 180)
     street.place("vending_machine", -2.6, -4.1, 180)
     for x in (2, 10):
         street.place("machiya", x, -HOUSE_OFFSET, 180)

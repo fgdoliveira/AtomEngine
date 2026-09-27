@@ -46,6 +46,16 @@ MATERIALS = {
     "cloth_hakama": (lambda: tex.flat((0.30, 0.22, 0.34), size=32, seed=31, variation=0.15), 1.0, 0.9, 0.0),
     "skin": (lambda: tex.flat((0.62, 0.48, 0.38), size=16, seed=32, variation=0.06), 1.0, 0.7, 0.0),
     "hair_grey": (lambda: tex.flat((0.46, 0.46, 0.45), size=16, seed=33, variation=0.1), 1.0, 0.9, 0.0),
+    "tatami": (lambda: tex.tatami(), 0.9, 0.95, 0.0),
+    "gravel": (lambda: tex.gravel(), 2.0, 1.0, 0.0),
+    "bark": (lambda: tex.bark(), 1.2, 1.0, 0.0),
+    "foliage": (lambda: tex.foliage(), 2.0, 1.0, 0.0),
+    "wood_floor": (lambda: tex.wood_floor(), 1.5, 0.6, 0.0),
+    "fusuma": (lambda: tex.fusuma(), 0.9, 0.95, 0.0),
+    "scroll": (lambda: tex.scroll(), 1.0, 0.9, 0.0),
+    "shoji_glow": (lambda: tex.shoji(seed=28), 0.9, 0.95, 0.35),
+    "lantern_paper": (lambda: tex.lantern_paper(), 0.5, 0.9, 0.9),
+    "straw": (lambda: tex.flat((0.62, 0.52, 0.30), size=16, seed=34, variation=0.15), 1.0, 1.0, 0.0),
 }
 
 
@@ -422,6 +432,118 @@ def build_keeper(materials, collection):
     return m.build("keeper", materials, collection)
 
 
+def build_shrine_gate(materials, collection):
+    """A small roofed wooden gate with barred double doors."""
+    m = MeshBuilder()
+    for x in (-1.35, 1.35):
+        m.box((x, 0, 1.3), (0.22, 0.22, 2.6), "wood_dark")
+    m.box((0, 0, 2.5), (3.2, 0.26, 0.2), "wood_dark")               # lintel
+    m.box((0, 0, 0.04), (2.7, 0.3, 0.08), "wood_dark")              # threshold
+    for x in (-0.63, 0.63):
+        m.box((x, 0, 1.2), (1.24, 0.08, 2.24), "wood_light")         # doors
+        m.box((x, -0.05, 1.8), (1.1, 0.03, 0.08), "metal_dark")      # iron bands
+        m.box((x, -0.05, 0.6), (1.1, 0.03, 0.08), "metal_dark")
+    m.box((0, -0.07, 1.25), (1.6, 0.06, 0.14), "wood_dark")          # the bar
+    for side in (-1, 1):
+        m.box((0, side * 0.42, 2.83), (3.7, 0.95, 0.09), "roof_tile", rotation=rot_x(-side * 24))
+    m.box((0, 0, 3.02), (3.8, 0.18, 0.14), "roof_tile")
+    return m.build("shrine_gate", materials, collection)
+
+
+def build_toro(materials, collection):
+    """Stone lantern with a glowing paper window."""
+    m = MeshBuilder()
+    m.box((0, 0, 0.1), (0.62, 0.62, 0.2), "stone")
+    m.cylinder((0, 0, 0.2), 0.13, 0.8, "stone", segments=8)
+    m.box((0, 0, 1.05), (0.5, 0.5, 0.1), "stone")
+    m.box((0, 0, 1.3), (0.42, 0.42, 0.4), "stone")
+    for normal in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+        nx, ny = normal
+        x, y = nx * 0.212, ny * 0.212
+        tx, ty = -ny, nx  # tangent along the face
+        corners = [
+            (x - tx * 0.12, y - ty * 0.12, 1.18),
+            (x + tx * 0.12, y + ty * 0.12, 1.18),
+            (x + tx * 0.12, y + ty * 0.12, 1.42),
+            (x - tx * 0.12, y - ty * 0.12, 1.42),
+        ]
+        m.quad(corners, "lantern_paper")
+    m.box((0, 0, 1.56), (0.72, 0.72, 0.12), "stone")
+    m.box((0, 0, 1.68), (0.4, 0.4, 0.12), "stone")
+    m.box((0, 0, 1.8), (0.14, 0.14, 0.12), "stone")
+    return m.build("toro", materials, collection)
+
+
+def build_cedar(materials, collection):
+    """A tall cedar: bark trunk and stacked, turned tiers of foliage."""
+    m = MeshBuilder()
+    m.cylinder((0, 0, 0), 0.34, 10.5, "bark", segments=8)
+    tiers = [(3.0, 3.4), (4.8, 2.9), (6.4, 2.4), (7.8, 1.9), (9.0, 1.4), (10.0, 0.9)]
+    for i, (z, width) in enumerate(tiers):
+        m.box((0, 0, z), (width, width, 1.5), "foliage", rotation=rot_z(20 * i))
+    return m.build("cedar", materials, collection)
+
+
+def build_haiden(materials, collection):
+    """Main hall: raised platform with steps, lattice doors, deep gable roof.
+    Front (-Y) steps rise 0.18 m each, low enough to walk up."""
+    m = MeshBuilder()
+    width, depth, height = 10.0, 7.0, 0.9
+    m.box((0, 0, height / 2), (width, depth, height), "wood_dark")
+    m.box((0, 0, height + 0.02), (width, depth, 0.04), "wood_floor", faces=[(0, 0, 1)])
+    front = -depth / 2
+    for k in range(4):
+        top = height - 0.18 * (k + 1)
+        m.box((0, front - 0.3 * (k + 0.5), top / 2), (3.2, 0.3, top), "wood_light")
+
+    body_y = 0.6
+    body_depth = 5.0
+    z0 = height
+    m.box((0, body_y, z0 + 1.6), (8.0, body_depth, 3.2), "plaster")
+    m.box((0, body_y, z0 + 0.15), (8.04, body_depth + 0.04, 0.3), "wood_dark")
+    y = body_y - body_depth / 2 - 0.02
+    m.quad([(-3.0, y, z0 + 0.3), (3.0, y, z0 + 0.3), (3.0, y, z0 + 2.7), (-3.0, y, z0 + 2.7)], "door_lattice",
+           uvs=[(0, 0), (10, 0), (10, 4), (0, 4)])
+    for x in (-3.9, -3.05, 3.05, 3.9):
+        m.box((x, body_y - body_depth / 2 - 0.1, z0 + 1.6), (0.26, 0.26, 3.2), "wood_dark")
+    # Shimenawa: a straw rope across the doors.
+    m.box((0, y - 0.15, z0 + 2.9), (6.4, 0.22, 0.22), "straw")
+    for x in (-2.0, 0.0, 2.0):
+        m.box((x, y - 0.15, z0 + 2.55), (0.12, 0.12, 0.5), "straw")
+
+    pitch = 30.0
+    overhang = 1.4
+    eave_z = z0 + 3.2
+    half_span = body_depth / 2 + overhang
+    rise = half_span * math.tan(math.radians(pitch))
+    slab = half_span / math.cos(math.radians(pitch))
+    for side in (-1, 1):
+        center_y = body_y + side * half_span / 2
+        center_z = eave_z + rise / 2 - overhang * math.tan(math.radians(pitch))
+        m.box((0, center_y, center_z), (width + 0.8, slab, 0.18), "roof_tile", rotation=rot_x(-side * pitch))
+    ridge_z = eave_z + rise - overhang * math.tan(math.radians(pitch))
+    m.box((0, body_y, ridge_z + 0.1), (width + 1.0, 0.45, 0.35), "roof_tile")
+    inner_rise = (body_depth / 2) * math.tan(math.radians(pitch))
+    tile = tile_of("plaster")
+    for side in (-1, 1):
+        x = side * 4.0
+        a = (x, body_y - body_depth / 2, eave_z)
+        b = (x, body_y + body_depth / 2, eave_z)
+        c = (x, body_y, eave_z + inner_rise)
+        corners = [a, b, c] if side > 0 else [b, a, c]
+        m.tri(corners, "plaster", [((p[1]) / tile, (p[2] - eave_z) / tile) for p in corners])
+    return m.build("haiden", materials, collection)
+
+
+def build_offering_box(materials, collection):
+    """Saisen-bako: slatted offering box."""
+    m = MeshBuilder()
+    m.box((0, 0, 0.3), (1.2, 0.6, 0.6), "wood_dark")
+    m.quad([(-0.55, -0.25, 0.605), (0.55, -0.25, 0.605), (0.55, 0.25, 0.605), (-0.55, 0.25, 0.605)], "lattice",
+           uvs=[(0, 0), (2, 0), (2, 1), (0, 1)])
+    return m.build("offering_box", materials, collection)
+
+
 PIECES = [
     build_machiya,
     build_utility_pole,
@@ -432,6 +554,11 @@ PIECES = [
     build_road,
     build_hokora,
     build_keeper,
+    build_shrine_gate,
+    build_toro,
+    build_cedar,
+    build_haiden,
+    build_offering_box,
 ]
 
 
@@ -452,6 +579,14 @@ COLLISION = {
     "road": [((0, side * 3.55, 0.05), (8.0, 0.1, 0.3)) for side in (-1, 1)],
     "hokora": [((0, 0, 0.8), (1.4, 1.2, 1.6)), ((0, -0.7, 0.08), (0.5, 0.3, 0.16))],
     "keeper": [((0, 0, 0.85), (0.6, 0.5, 1.7))],
+    "shrine_gate": [((0, 0, 1.3), (3.0, 0.4, 2.6))],
+    "toro": [((0, 0, 0.9), (0.66, 0.66, 1.8))],
+    "cedar": [((0, 0, 1.5), (0.8, 0.8, 3.0))],
+    # Platform top is walkable; steps rise 0.18 m; the hall body blocks.
+    "haiden": [((0, 0, 0.45), (10.0, 7.0, 0.9))]
+        + [((0, -3.5 - 0.3 * (k + 0.5), (0.9 - 0.18 * (k + 1)) / 2), (3.2, 0.3, 0.9 - 0.18 * (k + 1))) for k in range(4)]
+        + [((0, 0.6, 0.9 + 1.6), (8.0, 5.0, 3.2))],
+    "offering_box": [((0, 0, 0.3), (1.2, 0.6, 0.6))],
 }
 
 

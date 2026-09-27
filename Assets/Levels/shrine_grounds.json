@@ -1,0 +1,64 @@
+{
+  "name": "shrine_grounds",
+  "model": "Shrine/shrine.glb",
+  "collision": "Shrine/shrine_col.glb",
+  "defaultSpawn": "gate",
+  "spawns": {
+    "gate": { "position": [0.0, 0.0, 18.5], "yaw": 0 }
+  },
+  "lighting": {
+    "sunDirection": [0.35, 0.6, -0.55],
+    "sunColor": [0.35, 0.35, 0.34],
+    "skyColor": [0.62, 0.65, 0.66],
+    "groundColor": [0.17, 0.17, 0.15],
+    "fogColor": [0.42, 0.44, 0.43],
+    "shadows": true
+  },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.4 },
+      { "sound": "cicadas", "gain": 0.3 },
+      { "sound": "drone", "gain": 0.2 }
+    ]
+  },
+  "surfaces": {
+    "default": "dirt",
+    "zones": [
+      { "min": [-5.2, 0, -21.5], "max": [5.2, 0, -12.1], "surface": "wood" },
+      { "min": [-0.9, 0, -14.3], "max": [0.9, 0, 19.6], "surface": "stone" }
+    ]
+  },
+  "particles": { "leaves": true, "fogBanks": true },
+  "unease": {
+    "figure": true,
+    "figureSpots": [[-10.0, 0.0, -21.0], [10.0, 0.0, -21.0], [-10.5, 0.0, -9.0], [10.5, 0.0, -2.0]]
+  },
+  "entities": [
+    {
+      "name": "gate_back",
+      "position": [0.0, 0.0, 20.0],
+      "interactable": {
+        "prompt": "Leave the grounds", "focus": [0.0, 1.4, -0.35],
+        "action": { "type": "changeLevel", "level": "street", "spawn": "from_shrine" }
+      }
+    },
+    {
+      "name": "offering_box",
+      "position": [0.0, 0.9, -14.9],
+      "interactable": {
+        "prompt": "Make an offering", "focus": [0.0, 0.35, 0.35],
+        "action": { "type": "setFlag", "flag": "prayed_at_hall",
+                    "message": "The coin falls a long way before it lands. Something inside the hall shifts its weight." }
+      }
+    },
+    {
+      "name": "stone_lantern",
+      "position": [2.5, 0.0, 6.0],
+      "interactable": {
+        "prompt": "Look", "focus": [0.0, 1.3, 0.0],
+        "action": { "type": "message", "text": "The paper is warm, as if a flame burned here a moment ago." }
+      }
+    }
+  ]
+}
