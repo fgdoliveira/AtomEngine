@@ -40,6 +40,8 @@ MATERIALS = {
     "hazard": (lambda: tex.hazard_stripes(), 0.6, 0.6, 0.0),
     "road_paint": (lambda: tex.road_paint(), 1.0, 0.8, 0.0),
     "vending_front": (lambda: tex.vending_front(), 1.0, 0.3, 1.0),
+    "dirt": (lambda: tex.dirt(), 3.0, 1.0, 0.0),
+    "paddy": (lambda: tex.paddy(), 4.0, 0.2, 0.0),
 }
 
 
@@ -379,6 +381,20 @@ def build_road(materials, collection):
     return m.build("road", materials, collection)
 
 
+def build_hokora(materials, collection):
+    """Small roadside shrine on a stone plinth."""
+    m = MeshBuilder()
+    m.box((0, 0, 0.2), (1.4, 1.2, 0.4), "stone")
+    m.box((0, 0, 0.75), (0.9, 0.8, 0.7), "wood_dark")
+    m.quad([(-0.3, -0.405, 0.45), (0.3, -0.405, 0.45), (0.3, -0.405, 1.0), (-0.3, -0.405, 1.0)], "door_lattice",
+           uvs=[(0, 0), (1, 0), (1, 0.9), (0, 0.9)])
+    for side in (-1, 1):
+        m.box((0, side * 0.3, 1.25), (1.2, 0.75, 0.06), "roof_tile", rotation=rot_x(-side * 30))
+    m.box((0, 0, 1.46), (1.25, 0.12, 0.1), "black")
+    m.box((0, -0.7, 0.08), (0.5, 0.3, 0.16), "stone")  # offering step
+    return m.build("hokora", materials, collection)
+
+
 PIECES = [
     build_machiya,
     build_utility_pole,
@@ -387,4 +403,58 @@ PIECES = [
     build_stone_wall,
     build_wood_fence,
     build_road,
+    build_hokora,
 ]
+
+
+# --------------------------------------------------------------------------
+# Collision proxies
+# --------------------------------------------------------------------------
+
+# Boxes (centre, size) in piece-local space. Walkable floors come from the
+# street's ground plane; these only need to stop the player or be stepped on.
+COLLISION = {
+    "machiya": [((0, 0, 2.6), (6.5, 8.1, 5.2))],
+    "utility_pole": [((0, 0, 4.5), (0.4, 0.4, 9.0))],
+    "vending_machine": [((0, 0, 0.92), (1.04, 0.8, 1.84))],
+    "torii": [((x, 0, 1.85), (0.44, 0.44, 3.7)) for x in (-1.6, 1.6)],
+    "stone_wall": [((0, 0, 0.7), (4.0, 0.6, 1.4))],
+    "wood_fence": [((0, 0.03, 0.65), (4.0, 0.14, 1.3))],
+    # Curbs are low enough to step onto.
+    "road": [((0, side * 3.55, 0.05), (8.0, 0.1, 0.3)) for side in (-1, 1)],
+    "hokora": [((0, 0, 0.8), (1.4, 1.2, 1.6)), ((0, -0.7, 0.08), (0.5, 0.3, 0.16))],
+}
+
+
+def box_triangles(center, size, rotation=None):
+    """Vertices and quads (CCW outward) of a box, for collision meshes."""
+    rotation = rotation or Matrix.Identity(3)
+    center = Vector(center)
+    half = Vector(size) / 2.0
+    verts, faces = [], []
+    for normal, u_axis, v_axis in _BOX_FACES:
+        n, u, v = Vector(normal), Vector(u_axis), Vector(v_axis)
+        base = len(verts)
+        for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            local = n + u * su + v * sv
+            local = Vector((local.x * half.x, local.y * half.y, local.z * half.z))
+            verts.append(tuple(center + rotation @ local))
+        faces.append((base, base + 1, base + 2, base + 3))
+    return verts, faces
+
+
+def build_collision(name, boxes, collection):
+    verts, faces = [], []
+    for center, size in boxes:
+        box_verts, box_faces = box_triangles(center, size)
+        offset = len(verts)
+        verts.extend(box_verts)
+        faces.extend(tuple(i + offset for i in face) for face in box_faces)
+
+    mesh = bpy.data.meshes.new(PREFIX + name + "_col")
+    mesh.from_pydata(verts, [], faces)
+    mesh.validate()
+    obj = bpy.data.objects.new(name + "_col", mesh)
+    obj.display_type = "WIRE"
+    collection.objects.link(obj)
+    return obj

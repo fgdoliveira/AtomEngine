@@ -5,26 +5,33 @@
 namespace Atom
 {
     class Camera;
+    class CollisionWorld;
     class Input;
 }
 
 namespace AtomGame
 {
-    // Walks a first-person camera over a flat ground at y = 0.
-    // Collision against level geometry arrives with the street (M6).
+    // First-person walker. The body is a vertical stack of spheres that
+    // slides along walls; the feet follow the floor found by a downward ray,
+    // stepping up ledges no taller than stepHeight (curbs, plinths).
     class PlayerController
     {
     public:
         void SetFeetPosition(const glm::vec3& position)
         {
             m_feetPosition = position;
+            m_spawnPosition = position;
+            m_visualFeetY = position.y;
         }
 
+        const glm::vec3& GetFeetPosition() const { return m_feetPosition; }
+
         // Applies mouse look and movement, then places the camera at eye
-        // height including head-bob.
+        // height including head-bob. With no world, walks on y = 0.
         void Update(
             const Atom::Input& input,
             Atom::Camera& camera,
+            const Atom::CollisionWorld* world,
             float deltaSeconds
         );
 
@@ -34,11 +41,24 @@ namespace AtomGame
         float acceleration = 10.0f;       // 1/s, exponential approach
         float eyeHeight = 1.6f;
         float gravity = 9.81f;
-        float boundsHalfExtent = 19.5f;   // stay on the test ground
+        float radius = 0.3f;
+        float stepHeight = 0.35f;
+        float bodyHeight = 1.8f;
 
     private:
+        void MoveHorizontally(
+            const Atom::CollisionWorld& world,
+            const glm::vec3& displacement
+        );
+        void ResolveWalls(const Atom::CollisionWorld& world);
+        void UpdateVertical(const Atom::CollisionWorld* world, float deltaSeconds);
+
         glm::vec3 m_feetPosition{ 0.0f };
+        glm::vec3 m_spawnPosition{ 0.0f };
         glm::vec3 m_velocity{ 0.0f };
+
+        // Feet height the camera follows; eases up steps instead of popping.
+        float m_visualFeetY = 0.0f;
 
         float m_bobPhase = 0.0f;
         float m_bobWeight = 0.0f;

@@ -7,6 +7,7 @@ target_sources(
         Assets/ThirdParty.cpp
         Core/Application.cpp
         Core/Time.cpp
+        Physics/CollisionWorld.cpp
         Platform/Input.cpp
         Platform/Window.cpp
         Renderer/Mesh.cpp
@@ -19,6 +20,7 @@ target_sources(
         Assets/Model.h
         Core/Application.h
         Core/Time.h
+        Physics/CollisionWorld.h
         Platform/Input.h
         Platform/Window.h
         Renderer/Material.h

@@ -2,15 +2,11 @@
 
 #include "Assets/Model.h"
 #include "Core/Application.h"
+#include "Physics/CollisionWorld.h"
 #include "PlayerController.h"
-#include "Renderer/Material.h"
-#include "Renderer/Mesh.h"
 #include "Scene/Camera.h"
 
-#include <glm/mat4x4.hpp>
-
 #include <memory>
-#include <vector>
 
 namespace AtomGame
 {
@@ -22,30 +18,16 @@ namespace AtomGame
         void OnShutdown() override;
 
     private:
-        struct Placement
-        {
-            const Atom::Model* model = nullptr;
-            glm::mat4 transform{ 1.0f };
-        };
-
-        bool LoadKit();
-        void BuildVignette();
         void UpdateMouseCapture();
+        void UpdateWindowTitle(float deltaSeconds);
 
-        std::unique_ptr<Atom::Mesh> m_groundMesh;
-        Atom::Material m_groundMaterial;
-
-        std::unique_ptr<Atom::Model> m_machiya;
-        std::unique_ptr<Atom::Model> m_utilityPole;
-        std::unique_ptr<Atom::Model> m_vendingMachine;
-        std::unique_ptr<Atom::Model> m_torii;
-        std::unique_ptr<Atom::Model> m_stoneWall;
-        std::unique_ptr<Atom::Model> m_woodFence;
-        std::unique_ptr<Atom::Model> m_road;
-
-        std::vector<Placement> m_placements;
+        std::unique_ptr<Atom::Model> m_street;
+        Atom::CollisionWorld m_collision;
 
         Atom::Camera m_camera;
         PlayerController m_player;
+
+        float m_titleTimer = 0.0f;
+        int m_titleFrames = 0;
     };
 }

@@ -1,7 +1,10 @@
 """Builds the AtomEngine kit and exports one .glb per piece.
 
 Headless:
-    blender -b -P Tools/Blender/build_assets.py -- --out Assets/Kit
+    blender -b --factory-startup -P Tools/Blender/build_assets.py
+
+Writes Assets/Kit/<piece>.glb, Assets/Street/street.glb (visuals) and
+Assets/Street/street_col.glb (collision proxies, no materials).
 
 From a live Blender (e.g. Blender MCP), exec this file with __file__ set to
 build a preview in a dedicated "AtomKit" scene; the open scene is untouched
@@ -24,16 +27,18 @@ if SCRIPT_DIR not in sys.path:
 
 import atom_textures  # noqa: E402
 import atom_kit  # noqa: E402
+import atom_street  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
 importlib.reload(atom_kit)
+importlib.reload(atom_street)
 
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Assets", "Kit"))
+    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Assets"))
     parser.add_argument("--no-export", action="store_true")
     return parser.parse_args(argv)
 
@@ -60,31 +65,34 @@ def fresh_scene():
     return scene
 
 
-def export_piece(obj, scene, out_dir):
-    saved = obj.location.copy()
-    obj.location = (0.0, 0.0, 0.0)
+def export_objects(objects, scene, path, materials=True):
+    selected = set(objects)
+    for obj in scene.objects:
+        obj.select_set(obj in selected)
 
-    for other in scene.objects:
-        other.select_set(other == obj)
-
-    path = os.path.join(out_dir, obj.name + ".glb")
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format="GLB",
         use_selection=True,
         export_yup=True,
         export_apply=True,
-        export_texcoords=True,
+        export_texcoords=materials,
         export_normals=True,
-        export_materials="EXPORT",
+        export_materials="EXPORT" if materials else "NONE",
         export_image_format="AUTO",
         export_cameras=False,
         export_lights=False,
         export_extras=False,
     )
+    print("Exported", os.path.relpath(path, REPO_ROOT))
 
+
+def export_piece(obj, scene, out_dir):
+    """Exports a kit piece centred on the origin."""
+    saved = obj.location.copy()
+    obj.location = (0.0, 0.0, 0.0)
+    export_objects([obj], scene, os.path.join(out_dir, obj.name + ".glb"))
     obj.location = saved
-    return path
 
 
 def main():
@@ -94,29 +102,51 @@ def main():
     atom_kit.clear_generated()
     materials = atom_kit.build_materials()
 
-    pieces = []
+    # Kit pieces, lined up away from the street for previewing.
+    kit_collection = bpy.data.collections.new("Kit")
+    scene.collection.children.link(kit_collection)
+    pieces = {}
+    collision = {}
     x = 0.0
     for build in atom_kit.PIECES:
-        obj = build(materials, scene.collection)
+        obj = build(materials, kit_collection)
+        name = obj.name
+        pieces[name] = obj
+        if name in atom_kit.COLLISION:
+            collision[name] = atom_kit.build_collision(
+                name, atom_kit.COLLISION[name], kit_collection)
+
         width = obj.dimensions.x
-        obj.location.x = x + width / 2.0
+        offset = (x + width / 2.0, 60.0, 0.0)
+        obj.location = offset
+        if name in collision:
+            collision[name].location = offset
         x += width + 2.0
-        pieces.append(obj)
+
+    street_collection = bpy.data.collections.new("Street")
+    scene.collection.children.link(street_collection)
+    street = atom_street.build_street(pieces, collision, materials, street_collection)
 
     if args.no_export:
-        return pieces
+        return
 
     if not bpy.app.background:
         # Exporting from a live session has proven crash-prone (the context
         # scene lags the window scene), so exports are headless only.
         print("Preview built in scene", SCENE_NAME, "- export with blender -b")
-        return pieces
+        return
 
-    os.makedirs(args.out, exist_ok=True)
-    for obj in pieces:
-        path = export_piece(obj, scene, args.out)
-        print("Exported", os.path.relpath(path, REPO_ROOT))
-    return pieces
+    kit_dir = os.path.join(args.out, "Kit")
+    street_dir = os.path.join(args.out, "Street")
+    os.makedirs(kit_dir, exist_ok=True)
+    os.makedirs(street_dir, exist_ok=True)
+
+    for obj in pieces.values():
+        export_piece(obj, scene, kit_dir)
+
+    export_objects(street.visual, scene, os.path.join(street_dir, "street.glb"))
+    export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
+                   materials=False)
 
 
 main()

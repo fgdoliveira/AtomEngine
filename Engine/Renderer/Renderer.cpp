@@ -28,6 +28,63 @@ namespace Atom
             glm::mat4 model;
         };
 
+        struct Frustum
+        {
+            glm::vec4 planes[6];
+        };
+
+        // Gribb-Hartmann plane extraction for a zero-to-one depth range.
+        // Planes point inward; they are left unnormalised, which is fine for
+        // the sign tests below.
+        Frustum ExtractFrustum(const glm::mat4& m)
+        {
+            const auto row = [&](int i) {
+                return glm::vec4{ m[0][i], m[1][i], m[2][i], m[3][i] };
+            };
+            const glm::vec4 r0 = row(0);
+            const glm::vec4 r1 = row(1);
+            const glm::vec4 r2 = row(2);
+            const glm::vec4 r3 = row(3);
+
+            return Frustum{ {
+                r3 + r0, r3 - r0,
+                r3 + r1, r3 - r1,
+                r2, r3 - r2
+            } };
+        }
+
+        bool IsVisible(
+            const Frustum& frustum,
+            const Mesh& mesh,
+            const glm::mat4& model
+        )
+        {
+            const glm::vec3 localCenter =
+                (mesh.GetBoundsMin() + mesh.GetBoundsMax()) * 0.5f;
+            const glm::vec3 localExtent =
+                (mesh.GetBoundsMax() - mesh.GetBoundsMin()) * 0.5f;
+
+            // World AABB of the transformed box (Arvo).
+            const glm::vec3 center = glm::vec3(model * glm::vec4(localCenter, 1.0f));
+            glm::vec3 extent{ 0.0f };
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                extent += glm::abs(glm::vec3(model[axis])) * localExtent[axis];
+            }
+
+            for (const glm::vec4& plane : frustum.planes)
+            {
+                const glm::vec3 normal{ plane };
+                const float distance = glm::dot(normal, center) + plane.w;
+                const float reach = glm::dot(glm::abs(normal), extent);
+                if (distance < -reach)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         // Mirrors the cbuffer in Shaders/Basic.frag.hlsl.
         struct MaterialUniforms
         {
@@ -537,8 +594,18 @@ namespace Atom
 
         SDL_BindGPUGraphicsPipeline(renderPass, m_basicPipeline);
 
+        const Frustum frustum = ExtractFrustum(uniforms.viewProjection);
+        m_stats = FrameStats{};
+        m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
+
         for (const DrawCommand& command : m_drawCommands)
         {
+            if (!IsVisible(frustum, *command.mesh, command.model))
+            {
+                continue;
+            }
+            ++m_stats.drawn;
+
             const SDL_GPUBufferBinding vertexBinding{
                 command.mesh->GetVertexBuffer(),
                 0

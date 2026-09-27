@@ -30,6 +30,12 @@ namespace Atom
         GPUPreference gpuPreference = GPUPreference::LowPower;
     };
 
+    struct FrameStats
+    {
+        std::uint32_t submitted = 0;
+        std::uint32_t drawn = 0; // after frustum culling
+    };
+
     class Renderer
     {
     public:
@@ -76,6 +82,8 @@ namespace Atom
             const glm::mat4& model
         );
 
+        const FrameStats& GetLastFrameStats() const { return m_stats; }
+
     private:
         struct DrawCommand
         {
@@ -110,5 +118,6 @@ namespace Atom
 
         Camera m_camera;
         std::vector<DrawCommand> m_drawCommands;
+        FrameStats m_stats;
     };
 }

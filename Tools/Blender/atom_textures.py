@@ -285,3 +285,29 @@ def vending_front(width=128, height=256, seed=15):
 
     noise = 0.9 + 0.1 * fbm(width, height, 4, 3, rng)
     return _rgba(rgb * noise[:, :, None])
+
+
+def dirt(size=256, seed=17, color=(0.33, 0.29, 0.23)):
+    """Packed earth with gravel and patchy dead grass."""
+    rng = np.random.default_rng(seed)
+    value = 0.75 + 0.3 * fbm(size, size, 6, 5, rng)
+    gravel = rng.random((size, size))
+    value = np.where(gravel < 0.03, value * 1.35, value)
+    value = np.where(gravel > 0.985, value * 0.6, value)
+    rgb = _tint(value, color)
+    grass = np.clip(fbm(size, size, 4, 4, rng) * 2.4 - 1.3, 0, 1)
+    rgb = _mix(rgb, _tint(value, (0.30, 0.31, 0.18)), grass)
+    return _rgba(rgb)
+
+
+def paddy(size=256, seed=18):
+    """Flooded rice paddy: murky water with rows of young shoots."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size] / size
+    water = 0.8 + 0.2 * fbm(size, size, 4, 4, rng)
+    rgb = _tint(water, (0.24, 0.26, 0.22))
+    rows = (np.abs(((ys * 8) % 1.0) - 0.5) < 0.12)
+    clumps = ((xs * 16) % 1.0 < 0.5) & rows
+    shoots = clumps & (fbm(size, size, 16, 2, rng) > 0.4)
+    rgb = np.where(shoots[:, :, None], _tint(water, (0.30, 0.38, 0.18)), rgb)
+    return _rgba(rgb)

@@ -39,6 +39,10 @@ namespace Atom
         SDL_GPUBuffer* GetIndexBuffer() const { return m_indexBuffer; }
         std::uint32_t GetIndexCount() const { return m_indexCount; }
 
+        // Local-space axis-aligned bounds of the vertices.
+        const glm::vec3& GetBoundsMin() const { return m_boundsMin; }
+        const glm::vec3& GetBoundsMax() const { return m_boundsMax; }
+
     private:
         explicit Mesh(SDL_GPUDevice* device) : m_device(device) {}
 
@@ -46,5 +50,7 @@ namespace Atom
         SDL_GPUBuffer* m_vertexBuffer = nullptr;
         SDL_GPUBuffer* m_indexBuffer = nullptr;
         std::uint32_t m_indexCount = 0;
+        glm::vec3 m_boundsMin{ 0.0f };
+        glm::vec3 m_boundsMax{ 0.0f };
     };
 }

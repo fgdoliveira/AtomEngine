@@ -2,6 +2,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <glm/common.hpp>
+
 #include <cstddef>
 #include <cstring>
 #include <iostream>
@@ -51,6 +53,13 @@ namespace Atom
 
         std::unique_ptr<Mesh> mesh(new Mesh(device));
         mesh->m_indexCount = static_cast<std::uint32_t>(indices.size());
+        mesh->m_boundsMin = vertices.front().position;
+        mesh->m_boundsMax = vertices.front().position;
+        for (const Vertex& vertex : vertices)
+        {
+            mesh->m_boundsMin = glm::min(mesh->m_boundsMin, vertex.position);
+            mesh->m_boundsMax = glm::max(mesh->m_boundsMax, vertex.position);
+        }
         mesh->m_vertexBuffer =
             CreateBuffer(device, SDL_GPU_BUFFERUSAGE_VERTEX, vertexBytes);
         mesh->m_indexBuffer =
