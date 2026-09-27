@@ -24,3 +24,6 @@ Thumbs.db
 
 # No need to track temporary files
 NoTrack/
+# Python
+__pycache__/
+*.pyc

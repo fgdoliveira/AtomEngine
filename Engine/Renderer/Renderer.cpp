@@ -17,14 +17,22 @@ namespace Atom
         constexpr SDL_GPUTextureFormat DepthFormat =
             SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 
-        // Overcast sky grey; the fog pass will match this later.
-        constexpr SDL_FColor ClearColor{ 0.62f, 0.63f, 0.64f, 1.0f };
+        // Overcast sky grey (linear; ~0.62 sRGB). The fog pass will match
+        // this later.
+        constexpr SDL_FColor ClearColor{ 0.34f, 0.35f, 0.37f, 1.0f };
 
         // Mirrors the cbuffer in Shaders/Basic.vert.hlsl.
         struct ObjectUniforms
         {
             glm::mat4 viewProjection;
             glm::mat4 model;
+        };
+
+        // Mirrors the cbuffer in Shaders/Basic.frag.hlsl.
+        struct MaterialUniforms
+        {
+            glm::vec4 baseColorFactor;
+            glm::vec4 emissiveFactor;
         };
 
         const char* GetPreferenceName(GPUPreference preference)
@@ -164,7 +172,61 @@ namespace Atom
             return false;
         }
 
-        return CreateBasicPipeline();
+        // Shaders work in linear space (textures are sampled as sRGB), so
+        // let the swapchain do the linear -> sRGB encode on write.
+        if (SDL_WindowSupportsGPUSwapchainComposition(
+            m_device,
+            m_window,
+            SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR
+        ))
+        {
+            if (!SDL_SetGPUSwapchainParameters(
+                m_device,
+                m_window,
+                SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR,
+                SDL_GPU_PRESENTMODE_VSYNC
+            ))
+            {
+                std::cerr
+                    << "Failed to set sRGB swapchain: "
+                    << SDL_GetError()
+                    << '\n';
+                return false;
+            }
+        }
+        else
+        {
+            std::cerr
+                << "sRGB swapchain unsupported; colors will look dark.\n";
+        }
+
+        return CreateBasicPipeline() && CreateDefaultResources();
+    }
+
+    bool Renderer::CreateDefaultResources()
+    {
+        SDL_GPUSamplerCreateInfo samplerInfo{};
+        samplerInfo.min_filter = SDL_GPU_FILTER_LINEAR;
+        samplerInfo.mag_filter = SDL_GPU_FILTER_LINEAR;
+        samplerInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+        samplerInfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
+        samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
+        samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
+        samplerInfo.max_lod = 1000.0f;
+
+        m_sampler = SDL_CreateGPUSampler(m_device, &samplerInfo);
+        if (!m_sampler)
+        {
+            std::cerr
+                << "Failed to create sampler: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+
+        constexpr std::uint8_t white[4] = { 255, 255, 255, 255 };
+        m_whiteTexture = Texture::Create(m_device, 1, 1, white);
+        return m_whiteTexture != nullptr;
     }
 
     bool Renderer::CreateBasicPipeline()
@@ -179,7 +241,7 @@ namespace Atom
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{}
+            ShaderResources{ .samplers = 1, .uniformBuffers = 1 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -208,8 +270,8 @@ namespace Atom
         attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[1].offset = offsetof(Vertex, normal);
         attributes[2].location = 2;
-        attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        attributes[2].offset = offsetof(Vertex, color);
+        attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+        attributes[2].offset = offsetof(Vertex, uv);
 
         SDL_GPUColorTargetDescription colorTarget{};
         colorTarget.format =
@@ -309,6 +371,16 @@ namespace Atom
         return Mesh::Create(m_device, vertices, indices);
     }
 
+    std::unique_ptr<Texture> Renderer::CreateTexture(
+        std::uint32_t width,
+        std::uint32_t height,
+        const std::uint8_t* pixels,
+        bool srgb
+    )
+    {
+        return Texture::Create(m_device, width, height, pixels, srgb);
+    }
+
     void Renderer::SetCamera(
         const glm::mat4& view,
         float verticalFovRadians,
@@ -322,9 +394,13 @@ namespace Atom
         m_camera.farPlane = farPlane;
     }
 
-    void Renderer::Submit(const Mesh& mesh, const glm::mat4& model)
+    void Renderer::Submit(
+        const Mesh& mesh,
+        const Material& material,
+        const glm::mat4& model
+    )
     {
-        m_drawCommands.push_back(DrawCommand{ &mesh, model });
+        m_drawCommands.push_back(DrawCommand{ &mesh, &material, model });
     }
 
     bool Renderer::Render()
@@ -480,6 +556,27 @@ namespace Atom
                 sizeof(uniforms)
             );
 
+            const Material& material = *command.material;
+            const MaterialUniforms materialUniforms{
+                material.baseColorFactor,
+                glm::vec4{ material.emissiveFactor, 0.0f }
+            };
+            SDL_PushGPUFragmentUniformData(
+                commandBuffer,
+                0,
+                &materialUniforms,
+                sizeof(materialUniforms)
+            );
+
+            const Texture* baseColor = material.baseColorTexture
+                ? material.baseColorTexture
+                : m_whiteTexture.get();
+            const SDL_GPUTextureSamplerBinding textureBinding{
+                baseColor->GetGPUTexture(),
+                m_sampler
+            };
+            SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+
             SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
             SDL_BindGPUIndexBuffer(
                 renderPass,
@@ -516,6 +613,11 @@ namespace Atom
 
         if (m_device)
         {
+            m_whiteTexture.reset();
+            if (m_sampler)
+            {
+                SDL_ReleaseGPUSampler(m_device, m_sampler);
+            }
             if (m_depthTexture)
             {
                 SDL_ReleaseGPUTexture(m_device, m_depthTexture);
@@ -537,6 +639,7 @@ namespace Atom
         m_depthWidth = 0;
         m_depthHeight = 0;
         m_basicPipeline = nullptr;
+        m_sampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
         m_windowClaimed = false;

@@ -9,14 +9,14 @@ struct VSInput
 {
     float3 position : TEXCOORD0;
     float3 normal   : TEXCOORD1;
-    float3 color    : TEXCOORD2;
+    float2 uv       : TEXCOORD2;
 };
 
 struct VSOutput
 {
-    float4 position      : SV_Position;
-    float3 worldNormal   : TEXCOORD0;
-    float3 color         : TEXCOORD1;
+    float4 position    : SV_Position;
+    float3 worldNormal : TEXCOORD0;
+    float2 uv          : TEXCOORD1;
 };
 
 VSOutput main(VSInput input)
@@ -28,6 +28,6 @@ VSOutput main(VSInput input)
     // Model matrices are rigid + uniform scale for now; revisit with the
     // inverse-transpose once non-uniform scaling shows up.
     output.worldNormal = mul((float3x3)u_model, input.normal);
-    output.color = input.color;
+    output.uv = input.uv;
     return output;
 }

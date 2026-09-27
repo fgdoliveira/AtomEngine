@@ -3,6 +3,8 @@ add_library(AtomEngine STATIC)
 target_sources(
     AtomEngine
     PRIVATE
+        Assets/Model.cpp
+        Assets/ThirdParty.cpp
         Core/Application.cpp
         Core/Time.cpp
         Platform/Input.cpp
@@ -10,16 +12,20 @@ target_sources(
         Renderer/Mesh.cpp
         Renderer/Renderer.cpp
         Renderer/Shader.cpp
+        Renderer/Texture.cpp
         Scene/Camera.cpp
 
     PUBLIC
+        Assets/Model.h
         Core/Application.h
         Core/Time.h
         Platform/Input.h
         Platform/Window.h
+        Renderer/Material.h
         Renderer/Mesh.h
         Renderer/Renderer.h
         Renderer/Shader.h
+        Renderer/Texture.h
         Scene/Camera.h
 )
 
@@ -27,6 +33,9 @@ target_include_directories(
     AtomEngine
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/external/cgltf
+        ${CMAKE_SOURCE_DIR}/external/stb
 )
 
 target_link_libraries(
