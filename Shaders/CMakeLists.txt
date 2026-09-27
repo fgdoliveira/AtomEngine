@@ -24,7 +24,15 @@ set(ATOM_SHADER_SOURCES
     Post.frag.hlsl
     Shadow.vert.hlsl
     Shadow.frag.hlsl
+    Particle.vert.hlsl
+    Particle.frag.hlsl
 )
+
+# Headers every shader may include; a change recompiles all shaders.
+set(ATOM_SHADER_INCLUDES
+    Common.hlsli
+)
+list(TRANSFORM ATOM_SHADER_INCLUDES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/" OUTPUT_VARIABLE ATOM_SHADER_INCLUDE_PATHS)
 
 get_property(ATOM_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(ATOM_MULTI_CONFIG)
@@ -55,7 +63,7 @@ foreach(source IN LISTS ATOM_SHADER_SOURCES)
             $<$<CONFIG:Debug>:-Zi> $<$<CONFIG:Debug>:-Qembed_debug> $<$<CONFIG:Debug>:-Od>
             -Fo "${output}"
             "${CMAKE_CURRENT_SOURCE_DIR}/${source}"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${source}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${source}" ${ATOM_SHADER_INCLUDE_PATHS}
         COMMENT "Compiling shader ${source}"
         VERBATIM
     )
@@ -66,6 +74,7 @@ endforeach()
 # Listed for IDE browsing only; keep Visual Studio's built-in FXC off them.
 set_source_files_properties(
     ${ATOM_SHADER_SOURCES}
+    ${ATOM_SHADER_INCLUDES}
     PROPERTIES
         VS_TOOL_OVERRIDE "None"
 )
@@ -73,5 +82,5 @@ set_source_files_properties(
 add_custom_target(
     AtomShaders
     DEPENDS ${ATOM_SHADER_OUTPUTS}
-    SOURCES ${ATOM_SHADER_SOURCES}
+    SOURCES ${ATOM_SHADER_SOURCES} ${ATOM_SHADER_INCLUDES}
 )

@@ -3,6 +3,7 @@
 #include "Renderer/Lighting.h"
 #include "Renderer/Material.h"
 #include "Renderer/Mesh.h"
+#include "Renderer/Particles.h"
 #include "Renderer/RenderSettings.h"
 #include "Renderer/RenderTargets.h"
 #include "Renderer/Texture.h"
@@ -21,6 +22,8 @@ struct SDL_GPURenderPass;
 struct SDL_GPUDevice;
 struct SDL_GPUGraphicsPipeline;
 struct SDL_GPUSampler;
+struct SDL_GPUBuffer;
+struct SDL_GPUTransferBuffer;
 struct SDL_GPUTexture;
 
 namespace Atom
@@ -42,6 +45,7 @@ namespace Atom
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
         std::uint32_t shadowDrawn = 0;
+        std::uint32_t particles = 0;
         std::uint32_t sceneWidth = 0;
         std::uint32_t sceneHeight = 0;
         std::uint32_t msaaSamples = 0;
@@ -95,6 +99,11 @@ namespace Atom
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
 
+        // Queues billboards for this frame (sorted and drawn after opaque
+        // geometry). The atlas is split into `columns` equal cells.
+        void SubmitParticles(std::span<const Particle> particles);
+        void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
+
         // Takes effect on the next Render(); targets are rebuilt as needed.
         void SetSettings(const RenderSettings& settings);
         const RenderSettings& GetSettings() const { return m_settings; }
@@ -124,6 +133,15 @@ namespace Atom
         bool CreateDefaultResources();
         bool CreatePostPipeline();
         bool CreateShadowResources();
+        bool CreateParticleResources();
+        SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples);
+        // Sorts back to front and copies this frame's particles to the GPU.
+        bool UploadParticles(SDL_GPUCommandBuffer* commandBuffer);
+        void DrawParticles(
+            SDL_GPURenderPass* renderPass,
+            SDL_GPUCommandBuffer* commandBuffer,
+            const glm::mat4& viewProjection
+        );
         // Scene pipelines depend on the MSAA sample count; built lazily.
         SDL_GPUGraphicsPipeline* GetScenePipeline(std::uint32_t samples);
 
@@ -165,6 +183,14 @@ namespace Atom
         SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
         SDL_GPUTexture* m_shadowMap = nullptr;
         SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
+
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_particlePipelines{};
+        SDL_GPUBuffer* m_particleBuffer = nullptr;
+        SDL_GPUTransferBuffer* m_particleTransfer = nullptr;
+        std::vector<Particle> m_particles;
+        std::uint32_t m_uploadedParticles = 0;
+        const Texture* m_particleAtlas = nullptr;
+        std::uint32_t m_particleAtlasColumns = 1;
         SDL_GPUSampler* m_sampler = nullptr;      // material textures
         SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
         std::unique_ptr<Texture> m_whiteTexture;

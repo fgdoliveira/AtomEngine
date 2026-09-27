@@ -29,6 +29,7 @@ target_sources(
         Renderer/Lighting.h
         Renderer/Material.h
         Renderer/Mesh.h
+        Renderer/Particles.h
         Renderer/RenderSettings.h
         Renderer/RenderTargets.h
         Renderer/Renderer.h

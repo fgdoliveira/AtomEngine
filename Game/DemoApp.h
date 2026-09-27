@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Assets/Model.h"
+#include "Atmosphere.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
 #include "Physics/CollisionWorld.h"
@@ -31,6 +32,7 @@ namespace AtomGame
         Atom::Camera m_camera;
         PlayerController m_player;
         AudioScape m_audioScape;
+        Atmosphere m_atmosphere;
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;

@@ -46,6 +46,11 @@ namespace AtomGame
 
         m_audioScape.Initialize(GetAudio());
 
+        if (!m_atmosphere.Initialize(GetRenderer()))
+        {
+            return false;
+        }
+
         // East end of the street, looking west along it.
         m_player.SetFeetPosition(glm::vec3{ 36.0f, 0.0f, 1.0f });
         m_camera.SetRotation(-glm::half_pi<float>(), 0.0f);
@@ -82,11 +87,23 @@ namespace AtomGame
 
         m_street->Submit(renderer, glm::mat4{ 1.0f });
 
+        // Fog banks stay faintly visible with fog off: morning haze.
+        const Atom::SceneLighting& lighting = renderer.GetLighting();
+        m_atmosphere.Update(
+            deltaSeconds,
+            m_player.GetFeetPosition(),
+            lighting.fogColor,
+            lighting.fogDensity > 0.0f ? 1.0f : 0.35f
+        );
+        m_atmosphere.Submit(renderer);
+
         UpdateWindowTitle(deltaSeconds);
     }
 
     void DemoApp::OnShutdown()
     {
+        GetRenderer().SetParticleAtlas(nullptr, 1);
+        m_atmosphere.Shutdown();
         m_street.reset();
     }
 
@@ -103,12 +120,13 @@ namespace AtomGame
         const Atom::FrameStats& stats = GetRenderer().GetLastFrameStats();
         const glm::vec3& feet = m_player.GetFeetPosition();
 
-        char title[224];
+        char title[256];
         std::snprintf(
             title,
             sizeof(title),
             "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
-            " | shadows %s | post %s | draws %u/%u (+%u) | pos %.1f %.2f %.1f",
+            " | shadows %s | post %s | draws %u/%u (+%u) | particles %u"
+            " | pos %.1f %.2f %.1f",
             m_titleFrames / m_titleTimer,
             stats.sceneWidth,
             stats.sceneHeight,
@@ -120,6 +138,7 @@ namespace AtomGame
             stats.drawn,
             stats.submitted,
             stats.shadowDrawn,
+            stats.particles,
             feet.x,
             feet.y,
             feet.z
@@ -173,6 +192,12 @@ namespace AtomGame
                 settings.post.vignette = 0.0f;
             }
             renderer.SetSettings(settings);
+        }
+
+        // F8: particles (leaves, ash, fog banks) on/off.
+        if (input.WasKeyPressed(SDL_SCANCODE_F8))
+        {
+            m_atmosphere.SetEnabled(!m_atmosphere.IsEnabled());
         }
 
         // F6: sun shadows on/off.

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstring>
 #include <iostream>
 #include <string>
 
@@ -95,6 +96,28 @@ namespace Atom
             glm::vec4 params; // exposure, saturation, grain, vignette
             glm::vec4 output; // width, height, frame index
         };
+
+        constexpr std::uint32_t MaxParticles = 4096;
+
+        // Mirrors the cbuffer in Shaders/Particle.vert.hlsl.
+        struct ParticleUniforms
+        {
+            glm::mat4 viewProjection;
+            glm::vec4 cameraRight; // w: atlas columns
+            glm::vec4 cameraUp;
+        };
+
+        std::size_t SampleSlot(std::uint32_t samples)
+        {
+            return samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        }
+
+        SDL_GPUSampleCount SampleCountFor(std::size_t slot)
+        {
+            return slot == 2 ? SDL_GPU_SAMPLECOUNT_4
+                : slot == 1 ? SDL_GPU_SAMPLECOUNT_2
+                : SDL_GPU_SAMPLECOUNT_1;
+        }
 
         constexpr std::uint32_t ShadowMapSize = 2048;
         constexpr SDL_GPUTextureFormat ShadowMapFormat =
@@ -312,6 +335,7 @@ namespace Atom
             && CreateDefaultResources()
             && CreatePostPipeline()
             && CreateShadowResources()
+            && CreateParticleResources()
             && GetScenePipeline(m_targets.ClampSampleCount(m_settings.msaaSamples));
     }
 
@@ -636,6 +660,13 @@ namespace Atom
         m_stats = FrameStats{};
         m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
 
+        // Particles are only valid for the frame they were submitted in.
+        struct ClearParticles
+        {
+            std::vector<Particle>& particles;
+            ~ClearParticles() { particles.clear(); }
+        } clearParticles{ m_particles };
+
         const glm::mat4 lightViewProjection = ComputeLightViewProjection();
 
         const bool ok =
@@ -643,6 +674,7 @@ namespace Atom
                 scaled(swapchainWidth),
                 scaled(swapchainHeight),
                 m_settings.msaaSamples)
+            && UploadParticles(commandBuffer)
             && RenderShadowPass(commandBuffer, lightViewProjection)
             && RenderScenePass(commandBuffer, lightViewProjection)
             && RenderPostPass(
@@ -1014,8 +1046,234 @@ namespace Atom
         m_stats.drawn = DrawQueue(
             renderPass, commandBuffer, projection * m_camera.view, true);
 
+        DrawParticles(renderPass, commandBuffer, projection * m_camera.view);
+
         SDL_EndGPURenderPass(renderPass);
         return true;
+    }
+
+    void Renderer::SubmitParticles(std::span<const Particle> particles)
+    {
+        m_particles.insert(m_particles.end(), particles.begin(), particles.end());
+    }
+
+    void Renderer::SetParticleAtlas(const Texture* atlas, std::uint32_t columns)
+    {
+        m_particleAtlas = atlas;
+        m_particleAtlasColumns = std::max<std::uint32_t>(1, columns);
+    }
+
+    bool Renderer::CreateParticleResources()
+    {
+        SDL_GPUBufferCreateInfo bufferInfo{};
+        bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+        bufferInfo.size = MaxParticles * sizeof(Particle);
+        m_particleBuffer = SDL_CreateGPUBuffer(m_device, &bufferInfo);
+
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        transferInfo.size = MaxParticles * sizeof(Particle);
+        m_particleTransfer = SDL_CreateGPUTransferBuffer(m_device, &transferInfo);
+
+        if (!m_particleBuffer || !m_particleTransfer)
+        {
+            std::cerr
+                << "Failed to create particle buffers: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+        return true;
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetParticlePipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = SampleSlot(samples);
+        if (m_particlePipelines[slot])
+        {
+            return m_particlePipelines[slot];
+        }
+
+        SDL_GPUShader* vertexShader = LoadShader(
+            m_device,
+            "Particle.vert",
+            SDL_GPU_SHADERSTAGE_VERTEX,
+            ShaderResources{ .uniformBuffers = 1 }
+        );
+        SDL_GPUShader* fragmentShader = LoadShader(
+            m_device,
+            "Particle.frag",
+            SDL_GPU_SHADERSTAGE_FRAGMENT,
+            // Slot 1 carries SceneUniforms (fog), shared with Basic.frag.
+            ShaderResources{ .samplers = 1, .uniformBuffers = 2 }
+        );
+
+        if (!vertexShader || !fragmentShader)
+        {
+            if (vertexShader)
+            {
+                SDL_ReleaseGPUShader(m_device, vertexShader);
+            }
+            if (fragmentShader)
+            {
+                SDL_ReleaseGPUShader(m_device, fragmentShader);
+            }
+            return nullptr;
+        }
+
+        SDL_GPUVertexBufferDescription instanceBuffer{};
+        instanceBuffer.slot = 0;
+        instanceBuffer.pitch = sizeof(Particle);
+        instanceBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_INSTANCE;
+
+        SDL_GPUVertexAttribute attributes[3]{};
+        for (Uint32 i = 0; i < 3; ++i)
+        {
+            attributes[i].location = i;
+            attributes[i].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
+            attributes[i].offset = i * 16;
+        }
+
+        // Straight alpha blending over the opaque scene.
+        SDL_GPUColorTargetDescription colorTarget{};
+        colorTarget.format = m_targets.GetColorFormat();
+        colorTarget.blend_state.enable_blend = true;
+        colorTarget.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+        colorTarget.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+        colorTarget.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+        colorTarget.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+        colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+        colorTarget.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+
+        SDL_GPUGraphicsPipelineCreateInfo createInfo{};
+        createInfo.vertex_shader = vertexShader;
+        createInfo.fragment_shader = fragmentShader;
+        createInfo.vertex_input_state.vertex_buffer_descriptions = &instanceBuffer;
+        createInfo.vertex_input_state.num_vertex_buffers = 1;
+        createInfo.vertex_input_state.vertex_attributes = attributes;
+        createInfo.vertex_input_state.num_vertex_attributes = 3;
+        createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+        createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+        createInfo.rasterizer_state.enable_depth_clip = true;
+        createInfo.multisample_state.sample_count = SampleCountFor(slot);
+        // Tested against the scene but not written: particles overlap freely.
+        createInfo.depth_stencil_state.enable_depth_test = true;
+        createInfo.depth_stencil_state.enable_depth_write = false;
+        createInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        createInfo.target_info.color_target_descriptions = &colorTarget;
+        createInfo.target_info.num_color_targets = 1;
+        createInfo.target_info.depth_stencil_format = RenderTargets::GetDepthFormat();
+        createInfo.target_info.has_depth_stencil_target = true;
+
+        SDL_GPUGraphicsPipeline* pipeline =
+            SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+
+        SDL_ReleaseGPUShader(m_device, vertexShader);
+        SDL_ReleaseGPUShader(m_device, fragmentShader);
+
+        if (!pipeline)
+        {
+            std::cerr
+                << "Failed to create particle pipeline: "
+                << SDL_GetError()
+                << '\n';
+            return nullptr;
+        }
+
+        m_particlePipelines[slot] = pipeline;
+        return pipeline;
+    }
+
+    bool Renderer::UploadParticles(SDL_GPUCommandBuffer* commandBuffer)
+    {
+        m_uploadedParticles = 0;
+        if (m_particles.empty() || !m_particleAtlas)
+        {
+            return true;
+        }
+
+        // Back to front, so alpha blending composites correctly.
+        const glm::vec3 cameraPosition{ glm::inverse(m_camera.view)[3] };
+        std::sort(
+            m_particles.begin(),
+            m_particles.end(),
+            [&](const Particle& a, const Particle& b) {
+                const glm::vec3 da = a.position - cameraPosition;
+                const glm::vec3 db = b.position - cameraPosition;
+                return glm::dot(da, da) > glm::dot(db, db);
+            }
+        );
+
+        const auto count = static_cast<std::uint32_t>(
+            std::min<std::size_t>(m_particles.size(), MaxParticles));
+        const Uint32 bytes = count * sizeof(Particle);
+
+        // Cycling hands us a fresh buffer if last frame's copy is in flight.
+        void* mapped = SDL_MapGPUTransferBuffer(m_device, m_particleTransfer, true);
+        if (!mapped)
+        {
+            std::cerr
+                << "Failed to map particle transfer buffer: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+        std::memcpy(mapped, m_particles.data(), bytes);
+        SDL_UnmapGPUTransferBuffer(m_device, m_particleTransfer);
+
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        SDL_GPUTransferBufferLocation source{};
+        source.transfer_buffer = m_particleTransfer;
+        SDL_GPUBufferRegion destination{};
+        destination.buffer = m_particleBuffer;
+        destination.size = bytes;
+        SDL_UploadToGPUBuffer(copyPass, &source, &destination, true);
+        SDL_EndGPUCopyPass(copyPass);
+
+        m_uploadedParticles = count;
+        return true;
+    }
+
+    void Renderer::DrawParticles(
+        SDL_GPURenderPass* renderPass,
+        SDL_GPUCommandBuffer* commandBuffer,
+        const glm::mat4& viewProjection
+    )
+    {
+        m_stats.particles = m_uploadedParticles;
+        if (m_uploadedParticles == 0)
+        {
+            return;
+        }
+
+        SDL_GPUGraphicsPipeline* pipeline =
+            GetParticlePipeline(m_targets.GetSamples());
+        if (!pipeline)
+        {
+            return;
+        }
+
+        // Billboards face the camera: expand along its right and up axes.
+        const glm::mat4 cameraWorld = glm::inverse(m_camera.view);
+        const ParticleUniforms uniforms{
+            viewProjection,
+            glm::vec4{ glm::vec3(cameraWorld[0]), static_cast<float>(m_particleAtlasColumns) },
+            glm::vec4{ glm::vec3(cameraWorld[1]), 0.0f }
+        };
+
+        SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniforms, sizeof(uniforms));
+
+        const SDL_GPUTextureSamplerBinding atlasBinding{
+            m_particleAtlas->GetGPUTexture(),
+            m_postSampler // linear, clamped
+        };
+        SDL_BindGPUFragmentSamplers(renderPass, 0, &atlasBinding, 1);
+
+        const SDL_GPUBufferBinding instances{ m_particleBuffer, 0 };
+        SDL_BindGPUVertexBuffers(renderPass, 0, &instances, 1);
+        SDL_DrawGPUPrimitives(renderPass, 6, m_uploadedParticles, 0, 0);
     }
 
     bool Renderer::RenderPostPass(
@@ -1108,6 +1366,21 @@ namespace Atom
             {
                 SDL_ReleaseGPUGraphicsPipeline(m_device, m_shadowPipeline);
             }
+            for (SDL_GPUGraphicsPipeline* pipeline : m_particlePipelines)
+            {
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
+            }
+            if (m_particleBuffer)
+            {
+                SDL_ReleaseGPUBuffer(m_device, m_particleBuffer);
+            }
+            if (m_particleTransfer)
+            {
+                SDL_ReleaseGPUTransferBuffer(m_device, m_particleTransfer);
+            }
             if (m_shadowSampler)
             {
                 SDL_ReleaseGPUSampler(m_device, m_shadowSampler);
@@ -1128,6 +1401,11 @@ namespace Atom
         m_scenePipelines = {};
         m_postPipeline = nullptr;
         m_shadowPipeline = nullptr;
+        m_particlePipelines = {};
+        m_particleBuffer = nullptr;
+        m_particleTransfer = nullptr;
+        m_particles.clear();
+        m_particleAtlas = nullptr;
         m_shadowSampler = nullptr;
         m_shadowMap = nullptr;
         m_sampler = nullptr;
