@@ -32,9 +32,11 @@ namespace AtomGame
                 std::cout << "Flag set: " << set.flag << '\n';
             },
             [&](const StartDialogue& dialogue) {
-                // Wired to the dialogue system in M11.
-                std::cout << "StartDialogue '" << dialogue.dialogueId << "' (M11)\n";
-                context.messages.Show("...");
+                if (!context.startDialogue || !context.startDialogue(dialogue.dialogueId))
+                {
+                    std::cerr << "No dialogue '" << dialogue.dialogueId << "'\n";
+                    context.messages.Show("...");
+                }
             },
             [&](const ChangeLevel& change) {
                 // Wired to the level manager in M12.

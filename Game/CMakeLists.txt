@@ -14,6 +14,12 @@ add_library(
     DemoApp.h
     PlayerController.cpp
     PlayerController.h
+    Dialogue/Dialogue.cpp
+    Dialogue/Dialogue.h
+    Dialogue/DialogueRunner.cpp
+    Dialogue/DialogueRunner.h
+    Dialogue/DialogueView.cpp
+    Dialogue/DialogueView.h
     Interaction/Actions.h
     Interaction/ActionExecutor.cpp
     Interaction/ActionExecutor.h
@@ -35,6 +41,7 @@ target_link_libraries(
     AtomGameLib
     PUBLIC
         AtomEngine
+        nlohmann_json::nlohmann_json
 )
 
 add_executable(

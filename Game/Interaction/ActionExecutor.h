@@ -2,6 +2,9 @@
 
 #include "Interaction/Actions.h"
 
+#include <functional>
+#include <string>
+
 namespace AtomGame
 {
     class GameState;
@@ -14,6 +17,8 @@ namespace AtomGame
     {
         GameState& state;
         MessageFeed& messages;
+        // Hooks into systems the executor shouldn't depend on directly.
+        std::function<bool(const std::string& dialogueId)> startDialogue;
     };
 
     void ExecuteAction(const Action& action, ActionContext& context);

@@ -5,6 +5,7 @@ add_executable(
     SlotMapTests.cpp
     RaycastTests.cpp
     InteractionTests.cpp
+    DialogueTests.cpp
 )
 
 target_link_libraries(
@@ -20,3 +21,10 @@ target_include_directories(
 )
 
 add_test(NAME AtomTests COMMAND AtomTests)
+
+# Lets tests validate shipped content (e.g. Assets/Dialogue/*.json).
+target_compile_definitions(
+    AtomTests
+    PRIVATE
+        ATOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)

@@ -42,6 +42,10 @@ MATERIALS = {
     "vending_front": (lambda: tex.vending_front(), 1.0, 0.3, 1.0),
     "dirt": (lambda: tex.dirt(), 3.0, 1.0, 0.0),
     "paddy": (lambda: tex.paddy(), 4.0, 0.2, 0.0),
+    "cloth_white": (lambda: tex.flat((0.78, 0.77, 0.72), size=32, seed=30, variation=0.12), 1.0, 0.9, 0.0),
+    "cloth_hakama": (lambda: tex.flat((0.30, 0.22, 0.34), size=32, seed=31, variation=0.15), 1.0, 0.9, 0.0),
+    "skin": (lambda: tex.flat((0.62, 0.48, 0.38), size=16, seed=32, variation=0.06), 1.0, 0.7, 0.0),
+    "hair_grey": (lambda: tex.flat((0.46, 0.46, 0.45), size=16, seed=33, variation=0.1), 1.0, 0.9, 0.0),
 }
 
 
@@ -395,6 +399,29 @@ def build_hokora(materials, collection):
     return m.build("hokora", materials, collection)
 
 
+def build_keeper(materials, collection):
+    """The shrine keeper: an old priest in white kimono, faded purple
+    hakama and a black eboshi, hands folded. Low-poly on purpose; the fog
+    and distance do the rest. Faces -Y like the rest of the kit."""
+    m = MeshBuilder()
+    # Hakama: wide pleated trousers, flaring at the hem, straw sandals.
+    m.box((0, 0, 0.47), (0.50, 0.34, 0.86), "cloth_hakama")
+    m.box((0, 0, 0.09), (0.58, 0.42, 0.18), "cloth_hakama")
+    for x in (-0.11, 0.11):
+        m.box((x, -0.06, 0.015), (0.11, 0.26, 0.03), "black")
+    # Kimono body and wide hanging sleeves, a slight stoop forward.
+    m.box((0, -0.02, 1.13), (0.46, 0.28, 0.54), "cloth_white", rotation=rot_x(-4))
+    for side in (-1, 1):
+        m.box((side * 0.28, -0.03, 1.07), (0.13, 0.32, 0.44), "cloth_white", rotation=rot_x(-4))
+    m.box((0, -0.19, 0.93), (0.16, 0.08, 0.08), "skin")          # folded hands
+    m.box((0, -0.03, 1.40), (0.10, 0.10, 0.08), "skin")          # neck
+    m.box((0, -0.05, 1.52), (0.18, 0.20, 0.22), "skin")          # head
+    m.box((0, 0.01, 1.60), (0.20, 0.20, 0.07), "hair_grey")      # hair
+    m.box((0, 0.06, 1.52), (0.19, 0.07, 0.17), "hair_grey")
+    m.box((0, -0.01, 1.70), (0.13, 0.19, 0.15), "black")         # eboshi
+    return m.build("keeper", materials, collection)
+
+
 PIECES = [
     build_machiya,
     build_utility_pole,
@@ -404,6 +431,7 @@ PIECES = [
     build_wood_fence,
     build_road,
     build_hokora,
+    build_keeper,
 ]
 
 
@@ -423,6 +451,7 @@ COLLISION = {
     # Curbs are low enough to step onto.
     "road": [((0, side * 3.55, 0.05), (8.0, 0.1, 0.3)) for side in (-1, 1)],
     "hokora": [((0, 0, 0.8), (1.4, 1.2, 1.6)), ((0, -0.7, 0.08), (0.5, 0.3, 0.16))],
+    "keeper": [((0, 0, 0.85), (0.6, 0.5, 1.7))],
 }
 
 

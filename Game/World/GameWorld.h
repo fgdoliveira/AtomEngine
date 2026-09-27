@@ -8,9 +8,22 @@
 #include <optional>
 #include <string>
 
+namespace Atom
+{
+    class Model;
+}
+
 namespace AtomGame
 {
     using EntityId = Atom::Handle;
+
+    // A capability: "this is drawn". The model is shared and owned
+    // elsewhere (by the game now, by the level in M12).
+    struct Renderable
+    {
+        const Atom::Model* model = nullptr;
+        float yaw = 0.0f; // radians around +Y
+    };
 
     // A capability: "the player can use this". Any entity can have it; the
     // player code only ever sees this, never what kind of object it is.
@@ -33,6 +46,7 @@ namespace AtomGame
     {
         std::string name;
         glm::vec3 position{ 0.0f };
+        std::optional<Renderable> renderable;
         std::optional<Interactable> interactable;
     };
 

@@ -4,6 +4,9 @@
 #include "Atmosphere.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
+#include "Dialogue/Dialogue.h"
+#include "Dialogue/DialogueRunner.h"
+#include "Dialogue/DialogueView.h"
 #include "Interaction/MessageFeed.h"
 #include "World/GameState.h"
 #include "World/GameWorld.h"
@@ -34,6 +37,18 @@ namespace AtomGame
         void SpawnStreetEntities();
         void UpdateInteraction(float deltaSeconds);
         void DrawInteractionPrompt(float scale);
+        bool BeginDialogue(const std::string& dialogueId);
+        void UpdateDialogue(float deltaSeconds);
+        void TurnCameraToward(const glm::vec3& point, float deltaSeconds);
+        void SubmitEntities();
+        void AddBoxCollider(const glm::vec3& center, const glm::vec3& halfExtents);
+
+        // Top-level game state: what input means and what updates.
+        enum class Mode
+        {
+            Exploring,  // walk, look, interact
+            InDialogue, // movement frozen; input drives the conversation
+        };
 
         std::unique_ptr<Atom::Model> m_street;
         Atom::CollisionWorld m_collision;
@@ -49,6 +64,14 @@ namespace AtomGame
         GameWorld m_world;
         MessageFeed m_messages;
         EntityId m_target{};
+
+        Mode m_mode = Mode::Exploring;
+        DialogueLibrary m_dialogues;
+        DialogueRunner m_dialogue;
+        DialogueView m_dialogueView;
+        EntityId m_speaker{};            // who we're talking to
+        std::unique_ptr<Atom::Model> m_keeperModel;
+        float m_time = 0.0f;
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;

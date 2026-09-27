@@ -6,9 +6,11 @@
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
@@ -72,6 +74,14 @@ namespace AtomGame
             return false;
         }
 
+        const std::string root = basePath ? basePath : "";
+        m_dialogues.LoadDirectory(root + "Assets/Dialogue");
+        m_keeperModel = Atom::Model::Load(GetRenderer(), root + "Assets/Kit/keeper.glb");
+        if (!m_keeperModel)
+        {
+            return false;
+        }
+
         SpawnStreetEntities();
 
         std::cout
@@ -91,8 +101,17 @@ namespace AtomGame
         UpdateMouseCapture();
         UpdateRenderSettings();
 
-        m_player.Update(GetInput(), m_camera, &m_collision, deltaSeconds);
-        UpdateInteraction(deltaSeconds);
+        m_time += deltaSeconds;
+        m_messages.Update(deltaSeconds);
+        if (m_mode == Mode::Exploring)
+        {
+            m_player.Update(GetInput(), m_camera, &m_collision, deltaSeconds);
+            UpdateInteraction(deltaSeconds);
+        }
+        else
+        {
+            UpdateDialogue(deltaSeconds);
+        }
 
         const Atom::Input& input = GetInput();
         if (input.WasKeyPressed(SDL_SCANCODE_M))
@@ -115,6 +134,7 @@ namespace AtomGame
         );
 
         m_street->Submit(renderer, glm::mat4{ 1.0f });
+        SubmitEntities();
 
         // Fog banks stay faintly visible with fog off: morning haze.
         const Atom::SceneLighting& lighting = renderer.GetLighting();
@@ -140,6 +160,8 @@ namespace AtomGame
         m_font.reset();
         m_unease.Shutdown();
         m_atmosphere.Shutdown();
+        m_world.Clear();
+        m_keeperModel.reset();
         m_street.reset();
     }
 
@@ -208,10 +230,17 @@ namespace AtomGame
                 { 0.92f, 0.90f, 0.84f, hintAlpha }, scale * 0.8f);
         }
 
-        DrawInteractionPrompt(scale);
-        if (hintAlpha <= 0.0f)
+        if (m_mode == Mode::InDialogue)
         {
-            m_messages.Draw(ui, *m_font, scale * 0.85f);
+            m_dialogueView.Draw(ui, *m_font, *m_smallFont, m_dialogue, scale, m_time);
+        }
+        else
+        {
+            DrawInteractionPrompt(scale);
+            if (hintAlpha <= 0.0f)
+            {
+                m_messages.Draw(ui, *m_font, scale * 0.85f);
+            }
         }
 
         // Frame time, smoothed so the numbers are readable.
@@ -301,13 +330,135 @@ namespace AtomGame
         hokora.interactable = std::move(pray);
         m_world.Spawn(std::move(hokora));
 
+        // The shrine keeper stands by the torii, facing the road. An NPC is
+        // just an entity that is drawn and can be talked to.
+        Entity keeper;
+        keeper.name = "shrine_keeper";
+        keeper.position = { -11.4f, 0.0f, 3.9f };
+        keeper.renderable = Renderable{ m_keeperModel.get(), glm::pi<float>() };
+        Interactable talk{ "Talk", StartDialogue{ "shrine_keeper" } };
+        talk.focusOffset = { 0.0f, 1.45f, 0.0f };
+        talk.radius = 2.6f;
+        keeper.interactable = std::move(talk);
+        m_world.Spawn(std::move(keeper));
+        AddBoxCollider({ -11.4f, 0.85f, 3.9f }, { 0.3f, 0.85f, 0.25f });
+
         std::cout << "Spawned " << m_world.Count() << " street entities\n";
     }
 
-    void DemoApp::UpdateInteraction(float deltaSeconds)
+    void DemoApp::AddBoxCollider(const glm::vec3& center, const glm::vec3& half)
     {
-        m_messages.Update(deltaSeconds);
+        // Twelve triangles of an axis-aligned box.
+        const auto corner = [&](int x, int y, int z) {
+            return center + glm::vec3{ x ? half.x : -half.x, y ? half.y : -half.y, z ? half.z : -half.z };
+        };
+        const int faces[6][4][3] = {
+            { { 1, 0, 0 }, { 1, 1, 0 }, { 1, 1, 1 }, { 1, 0, 1 } },
+            { { 0, 0, 1 }, { 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0 } },
+            { { 0, 1, 0 }, { 0, 1, 1 }, { 1, 1, 1 }, { 1, 1, 0 } },
+            { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 0, 1 }, { 0, 0, 1 } },
+            { { 0, 0, 1 }, { 1, 0, 1 }, { 1, 1, 1 }, { 0, 1, 1 } },
+            { { 1, 0, 0 }, { 0, 0, 0 }, { 0, 1, 0 }, { 1, 1, 0 } },
+        };
+        for (const auto& face : faces)
+        {
+            const glm::vec3 a = corner(face[0][0], face[0][1], face[0][2]);
+            const glm::vec3 b = corner(face[1][0], face[1][1], face[1][2]);
+            const glm::vec3 c = corner(face[2][0], face[2][1], face[2][2]);
+            const glm::vec3 d = corner(face[3][0], face[3][1], face[3][2]);
+            m_collision.AddTriangle(a, b, c);
+            m_collision.AddTriangle(a, c, d);
+        }
+    }
 
+    void DemoApp::SubmitEntities()
+    {
+        Atom::Renderer& renderer = GetRenderer();
+        m_world.ForEach([&](EntityId, const Entity& entity) {
+            if (!entity.renderable || !entity.renderable->model)
+            {
+                return;
+            }
+            glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
+            transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
+            entity.renderable->model->Submit(renderer, transform);
+        });
+    }
+
+    bool DemoApp::BeginDialogue(const std::string& dialogueId)
+    {
+        const Dialogue* dialogue = m_dialogues.Find(dialogueId);
+        if (!dialogue)
+        {
+            return false;
+        }
+        m_dialogue.Start(*dialogue, m_gameState);
+        m_speaker = m_target;
+        m_mode = Mode::InDialogue;
+        return true;
+    }
+
+    void DemoApp::UpdateDialogue(float deltaSeconds)
+    {
+        const Atom::Input& input = GetInput();
+        m_dialogue.Update(deltaSeconds);
+
+        if (input.WasKeyPressed(SDL_SCANCODE_W) || input.WasKeyPressed(SDL_SCANCODE_UP))
+        {
+            m_dialogue.MoveSelection(-1);
+        }
+        if (input.WasKeyPressed(SDL_SCANCODE_S) || input.WasKeyPressed(SDL_SCANCODE_DOWN))
+        {
+            m_dialogue.MoveSelection(1);
+        }
+        // Number keys pick a choice directly.
+        for (int i = 0; i < 4; ++i)
+        {
+            if (input.WasKeyPressed(static_cast<SDL_Scancode>(SDL_SCANCODE_1 + i)))
+            {
+                m_dialogue.SelectIndex(i);
+                m_dialogue.Confirm();
+            }
+        }
+        if (input.WasKeyPressed(SDL_SCANCODE_E)
+            || input.WasKeyPressed(SDL_SCANCODE_SPACE)
+            || input.WasKeyPressed(SDL_SCANCODE_RETURN))
+        {
+            m_dialogue.Confirm();
+        }
+
+        // Face whoever is speaking.
+        if (const Entity* speaker = m_world.Find(m_speaker))
+        {
+            const glm::vec3 focus = speaker->position
+                + (speaker->interactable ? speaker->interactable->focusOffset : glm::vec3{ 0.0f, 1.5f, 0.0f });
+            TurnCameraToward(focus, deltaSeconds);
+        }
+
+        if (!m_dialogue.IsActive())
+        {
+            m_dialogue.Close();
+            m_mode = Mode::Exploring;
+            m_speaker = {};
+        }
+    }
+
+    void DemoApp::TurnCameraToward(const glm::vec3& point, float deltaSeconds)
+    {
+        const glm::vec3 offset = point - m_camera.GetPosition();
+        const float targetYaw = std::atan2(offset.x, -offset.z);
+        const float targetPitch = std::atan2(offset.y, std::sqrt(offset.x * offset.x + offset.z * offset.z));
+
+        // Shortest way round, eased: settles in about half a second.
+        float yawDelta = std::remainder(targetYaw - m_camera.GetYaw(), glm::two_pi<float>());
+        const float blend = 1.0f - std::exp(-8.0f * deltaSeconds);
+        m_camera.SetRotation(
+            m_camera.GetYaw() + yawDelta * blend,
+            m_camera.GetPitch() + (targetPitch - m_camera.GetPitch()) * blend);
+    }
+
+    void DemoApp::UpdateInteraction(float /*deltaSeconds*/)
+    {
         const Atom::Input& input = GetInput();
         if (!input.IsMouseCaptured())
         {
@@ -321,7 +472,8 @@ namespace AtomGame
         const Entity* target = m_world.Find(m_target);
         if (target && input.WasKeyPressed(SDL_SCANCODE_E))
         {
-            ActionContext context{ m_gameState, m_messages };
+            ActionContext context{ m_gameState, m_messages,
+                [this](const std::string& id) { return BeginDialogue(id); } };
             ExecuteAction(
                 InteractionSystem::ResolveAction(*target->interactable, m_gameState),
                 context);
