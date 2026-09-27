@@ -29,9 +29,62 @@ namespace Atom
             return false;
         }
 
+        RendererConfig rendererConfig{};
+        rendererConfig.gpuPreference = GPUPreference::LowPower;
+
+        // ATOM_VSYNC=0 uncaps the frame rate for profiling.
+        const char* vsync = SDL_getenv("ATOM_VSYNC");
+        rendererConfig.vsync = !(vsync && SDL_strcmp(vsync, "0") == 0);
+
+        if (!m_renderer.Initialize(
+            m_window.GetSDLWindow(),
+            rendererConfig
+        ))
+        {
+            m_renderer.Shutdown();
+            m_window.Destroy();
+            SDL_Quit();
+            return false;
+        }
+
+        // Audio is optional: without a device the game runs silently.
+        m_audio.Initialize();
+
+        m_initialized = true;
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
+
+		// Print SDL version information
+        const int compiledVersion = SDL_VERSION;
+        const int runtimeVersion = SDL_GetVersion();
+
+        std::cout
+            << "SDL compiled version: "
+            << SDL_VERSIONNUM_MAJOR(compiledVersion) << '.'
+            << SDL_VERSIONNUM_MINOR(compiledVersion) << '.'
+            << SDL_VERSIONNUM_MICRO(compiledVersion)
+            << '\n';
+
+        std::cout
+            << "SDL runtime version: "
+            << SDL_VERSIONNUM_MAJOR(runtimeVersion) << '.'
+            << SDL_VERSIONNUM_MINOR(runtimeVersion) << '.'
+            << SDL_VERSIONNUM_MICRO(runtimeVersion)
+            << '\n';
+
+        std::cout
+            << "SDL revision: "
+            << SDL_GetRevision()
+            << '\n';
+
+        if (!OnInitialize())
+        {
+            Shutdown();
+            return false;
+        }
+
+        m_time.Reset();
 
         return true;
     }
@@ -43,16 +96,23 @@ namespace Atom
             return 1;
         }
 
-        SDL_Event event;
-
         while (m_running)
         {
-            while (SDL_PollEvent(&event))
+            ProcessEvents();
+
+            OnUpdate(m_time.Tick());
+
+            if (!m_running)
             {
-                if (event.type == SDL_EVENT_QUIT)
-                {
-                    m_running = false;
-                }
+                break;
+            }
+
+            if (!m_renderer.Render())
+            {
+                std::cerr
+                    << "Renderer encountered a fatal error. Shutting down.\n";
+
+                m_running = false;
             }
         }
 
@@ -61,10 +121,38 @@ namespace Atom
         return 0;
     }
 
+    void Application::ProcessEvents()
+    {
+        m_input.BeginFrame();
+
+        SDL_Event event;
+
+        while (SDL_PollEvent(&event))
+        {
+            m_input.HandleEvent(event);
+
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                m_running = false;
+            }
+        }
+    }
+
     void Application::Shutdown()
     {
+        if (!m_initialized)
+        {
+            return;
+        }
+
+        m_initialized = false;
+
+        OnShutdown();
+
         std::cout << "Shutting down AtomEngine...\n";
 
+        m_audio.Shutdown();
+        m_renderer.Shutdown();
         m_window.Destroy();
 
         SDL_Quit();

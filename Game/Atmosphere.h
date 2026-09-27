@@ -1,0 +1,75 @@
+#pragma once
+
+#include "Renderer/Particles.h"
+#include "Renderer/Texture.h"
+
+#include <glm/vec3.hpp>
+
+#include <memory>
+#include <random>
+#include <vector>
+
+namespace Atom
+{
+    class Renderer;
+}
+
+namespace AtomGame
+{
+    // Particle ambience around the player: falling leaves and ash, and slow
+    // fog banks drifting at ground level. Particles live in a box that
+    // follows the player and wrap around its edges, so the effect is
+    // everywhere without simulating the whole street.
+    class Atmosphere
+    {
+    public:
+        bool Initialize(Atom::Renderer& renderer);
+        void Shutdown();
+
+        // fogColor is linear; fogStrength 0..1 scales the fog banks.
+        void Update(
+            float deltaSeconds,
+            const glm::vec3& center,
+            const glm::vec3& fogColor,
+            float fogStrength
+        );
+        void Submit(Atom::Renderer& renderer) const;
+
+        void SetEnabled(bool enabled) { m_enabled = enabled; }
+        bool IsEnabled() const { return m_enabled; }
+
+    private:
+        struct Flake
+        {
+            glm::vec3 position;
+            float size;
+            float fallSpeed;
+            float phase;
+            float spin;
+            float rotation;
+            float shade;
+        };
+
+        struct Bank
+        {
+            glm::vec3 position;
+            float size;
+            float age;
+            float lifetime;
+            float opacity;
+        };
+
+        void RespawnBank(Bank& bank, const glm::vec3& center, bool anywhere);
+
+        std::unique_ptr<Atom::Texture> m_atlas;
+        std::vector<Flake> m_flakes;
+        std::vector<Bank> m_banks;
+        std::vector<Atom::Particle> m_particles;
+
+        glm::vec3 m_wind{ 0.45f, 0.0f, 0.15f };
+        float m_time = 0.0f;
+        bool m_enabled = true;
+        bool m_seeded = false;
+        std::mt19937 m_random{ 777 };
+    };
+}
