@@ -1,0 +1,31 @@
+#pragma once
+
+#include <glm/vec3.hpp>
+
+namespace Atom
+{
+    // Per-frame lighting and atmosphere. Colours are linear.
+    struct SceneLighting
+    {
+        // Direction *towards* the sun (normalised by the renderer).
+        glm::vec3 sunDirection{ 0.3f, 0.8f, 0.4f };
+        glm::vec3 sunColor{ 0.45f, 0.45f, 0.45f };
+
+        // Hemispheric ambient: light from above vs bounced from the ground.
+        glm::vec3 skyColor{ 0.75f, 0.77f, 0.80f };
+        glm::vec3 groundColor{ 0.20f, 0.19f, 0.17f };
+
+        // Exponential height fog. The sky is drawn in fogColor, so distant
+        // geometry dissolves into it.
+        glm::vec3 fogColor{ 0.34f, 0.35f, 0.37f };
+        float fogDensity = 0.0f;        // per metre at fogBaseHeight; 0 = off
+        float fogHeightFalloff = 0.08f; // per metre; higher = thinner up high
+        float fogBaseHeight = 0.0f;     // world Y where density applies
+
+        // Sun shadow map, centred on the camera.
+        bool shadowsEnabled = true;
+        float shadowHalfExtent = 30.0f;   // metres covered either side
+        float shadowAmbientShare = 0.35f; // how much sky light shadows block
+        float shadowNormalOffset = 0.06f; // metres; fights shadow acne
+    };
+}

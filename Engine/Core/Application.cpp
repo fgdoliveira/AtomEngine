@@ -32,6 +32,10 @@ namespace Atom
         RendererConfig rendererConfig{};
         rendererConfig.gpuPreference = GPUPreference::LowPower;
 
+        // ATOM_VSYNC=0 uncaps the frame rate for profiling.
+        const char* vsync = SDL_getenv("ATOM_VSYNC");
+        rendererConfig.vsync = !(vsync && SDL_strcmp(vsync, "0") == 0);
+
         if (!m_renderer.Initialize(
             m_window.GetSDLWindow(),
             rendererConfig
@@ -43,6 +47,10 @@ namespace Atom
             return false;
         }
 
+        // Audio is optional: without a device the game runs silently.
+        m_audio.Initialize();
+
+        m_initialized = true;
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
@@ -70,6 +78,14 @@ namespace Atom
             << SDL_GetRevision()
             << '\n';
 
+        if (!OnInitialize())
+        {
+            Shutdown();
+            return false;
+        }
+
+        m_time.Reset();
+
         return true;
     }
 
@@ -83,6 +99,13 @@ namespace Atom
         while (m_running)
         {
             ProcessEvents();
+
+            OnUpdate(m_time.Tick());
+
+            if (!m_running)
+            {
+                break;
+            }
 
             if (!m_renderer.Render())
             {
@@ -100,10 +123,14 @@ namespace Atom
 
     void Application::ProcessEvents()
     {
+        m_input.BeginFrame();
+
         SDL_Event event;
 
         while (SDL_PollEvent(&event))
         {
+            m_input.HandleEvent(event);
+
             if (event.type == SDL_EVENT_QUIT)
             {
                 m_running = false;
@@ -113,8 +140,18 @@ namespace Atom
 
     void Application::Shutdown()
     {
+        if (!m_initialized)
+        {
+            return;
+        }
+
+        m_initialized = false;
+
+        OnShutdown();
+
         std::cout << "Shutting down AtomEngine...\n";
 
+        m_audio.Shutdown();
         m_renderer.Shutdown();
         m_window.Destroy();
 
