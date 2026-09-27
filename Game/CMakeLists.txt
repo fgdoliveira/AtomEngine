@@ -3,6 +3,8 @@ add_executable(
     Main.cpp
     DemoApp.cpp
     DemoApp.h
+    PlayerController.cpp
+    PlayerController.h
 )
 
 target_link_libraries(

@@ -10,6 +10,7 @@ target_sources(
         Renderer/Mesh.cpp
         Renderer/Renderer.cpp
         Renderer/Shader.cpp
+        Scene/Camera.cpp
 
     PUBLIC
         Core/Application.h
@@ -19,6 +20,7 @@ target_sources(
         Renderer/Mesh.h
         Renderer/Renderer.h
         Renderer/Shader.h
+        Scene/Camera.h
 )
 
 target_include_directories(

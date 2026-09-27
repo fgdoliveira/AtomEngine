@@ -85,27 +85,23 @@ namespace AtomGame
             return false;
         }
 
+        m_player.SetFeetPosition(glm::vec3{ 0.0f, 0.0f, 6.0f });
+
         return GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
     }
 
-    void DemoApp::OnUpdate(float /*deltaSeconds*/)
+    void DemoApp::OnUpdate(float deltaSeconds)
     {
         UpdateMouseCapture();
 
-        const float time = static_cast<float>(GetTime().GetElapsedSeconds());
-        Atom::Renderer& renderer = GetRenderer();
+        m_player.Update(GetInput(), m_camera, deltaSeconds);
 
-        // Slow orbit until the first-person camera lands in M4.
-        const glm::vec3 eye{
-            glm::sin(time * 0.2f) * 6.0f,
-            2.5f,
-            glm::cos(time * 0.2f) * 6.0f
-        };
+        Atom::Renderer& renderer = GetRenderer();
         renderer.SetCamera(
-            glm::lookAt(eye, glm::vec3{ 0.0f, 0.5f, 0.0f }, glm::vec3{ 0, 1, 0 }),
-            glm::radians(60.0f),
-            0.1f,
-            100.0f
+            m_camera.GetViewMatrix(),
+            m_camera.verticalFov,
+            m_camera.nearPlane,
+            m_camera.farPlane
         );
 
         renderer.Submit(
@@ -113,18 +109,27 @@ namespace AtomGame
             glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.05f, 0.0f })
         );
 
-        for (int x = -2; x <= 2; ++x)
+        // A loose grid of 1 m crates as a scale reference while walking.
+        for (int x = -3; x <= 3; ++x)
         {
-            glm::mat4 model = glm::translate(
-                glm::mat4{ 1.0f },
-                glm::vec3{ x * 1.8f, 0.5f, (x % 2) * 1.5f }
-            );
-            model = glm::rotate(
-                model,
-                time * 0.6f + static_cast<float>(x),
-                glm::vec3{ 0.0f, 1.0f, 0.0f }
-            );
-            renderer.Submit(*m_cubeMesh, model);
+            for (int z = -3; z <= 3; ++z)
+            {
+                if ((x + z) % 2 != 0 || (x == 0 && z == 0))
+                {
+                    continue;
+                }
+
+                glm::mat4 model = glm::translate(
+                    glm::mat4{ 1.0f },
+                    glm::vec3{ x * 4.0f, 0.5f, z * 4.0f }
+                );
+                model = glm::rotate(
+                    model,
+                    static_cast<float>(x * 7 + z * 3) * 0.3f,
+                    glm::vec3{ 0.0f, 1.0f, 0.0f }
+                );
+                renderer.Submit(*m_cubeMesh, model);
+            }
         }
     }
 
