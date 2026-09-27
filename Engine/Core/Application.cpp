@@ -32,6 +32,10 @@ namespace Atom
         RendererConfig rendererConfig{};
         rendererConfig.gpuPreference = GPUPreference::LowPower;
 
+        // ATOM_VSYNC=0 uncaps the frame rate for profiling.
+        const char* vsync = SDL_getenv("ATOM_VSYNC");
+        rendererConfig.vsync = !(vsync && SDL_strcmp(vsync, "0") == 0);
+
         if (!m_renderer.Initialize(
             m_window.GetSDLWindow(),
             rendererConfig

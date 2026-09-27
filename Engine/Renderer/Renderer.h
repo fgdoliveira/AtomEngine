@@ -2,16 +2,20 @@
 
 #include "Renderer/Material.h"
 #include "Renderer/Mesh.h"
+#include "Renderer/RenderSettings.h"
+#include "Renderer/RenderTargets.h"
 #include "Renderer/Texture.h"
 
 #include <glm/mat4x4.hpp>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <vector>
 
 struct SDL_Window;
+struct SDL_GPUCommandBuffer;
 struct SDL_GPUDevice;
 struct SDL_GPUGraphicsPipeline;
 struct SDL_GPUSampler;
@@ -28,12 +32,16 @@ namespace Atom
     struct RendererConfig
     {
         GPUPreference gpuPreference = GPUPreference::LowPower;
+        bool vsync = true;
     };
 
     struct FrameStats
     {
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
+        std::uint32_t sceneWidth = 0;
+        std::uint32_t sceneHeight = 0;
+        std::uint32_t msaaSamples = 0;
     };
 
     class Renderer
@@ -84,6 +92,10 @@ namespace Atom
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
 
+        // Takes effect on the next Render(); targets are rebuilt as needed.
+        void SetSettings(const RenderSettings& settings);
+        const RenderSettings& GetSettings() const { return m_settings; }
+
     private:
         struct DrawCommand
         {
@@ -101,20 +113,30 @@ namespace Atom
         };
 
         bool CreateAndClaimGPUDevice(GPUPreference preference);
-        bool CreateBasicPipeline();
         bool CreateDefaultResources();
-        bool EnsureDepthTexture(std::uint32_t width, std::uint32_t height);
+        bool CreatePostPipeline();
+        // Scene pipelines depend on the MSAA sample count; built lazily.
+        SDL_GPUGraphicsPipeline* GetScenePipeline(std::uint32_t samples);
+
+        bool RenderScenePass(SDL_GPUCommandBuffer* commandBuffer);
+        bool RenderPostPass(
+            SDL_GPUCommandBuffer* commandBuffer,
+            SDL_GPUTexture* swapchainTexture
+        );
 
         SDL_GPUDevice* m_device = nullptr;
         SDL_Window* m_window = nullptr;
         bool m_windowClaimed = false;
 
-        SDL_GPUGraphicsPipeline* m_basicPipeline = nullptr;
-        SDL_GPUSampler* m_sampler = nullptr;
+        // Indexed by log2(samples): 1x, 2x, 4x.
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_scenePipelines{};
+        SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
+        SDL_GPUSampler* m_sampler = nullptr;      // material textures
+        SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
         std::unique_ptr<Texture> m_whiteTexture;
-        SDL_GPUTexture* m_depthTexture = nullptr;
-        std::uint32_t m_depthWidth = 0;
-        std::uint32_t m_depthHeight = 0;
+
+        RenderSettings m_settings;
+        RenderTargets m_targets;
 
         Camera m_camera;
         std::vector<DrawCommand> m_drawCommands;

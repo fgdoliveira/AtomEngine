@@ -19,6 +19,7 @@ namespace AtomGame
 
     private:
         void UpdateMouseCapture();
+        void UpdateRenderSettings();
         void UpdateWindowTitle(float deltaSeconds);
 
         std::unique_ptr<Atom::Model> m_street;

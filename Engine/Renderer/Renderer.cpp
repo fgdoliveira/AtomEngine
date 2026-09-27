@@ -6,6 +6,8 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -14,9 +16,6 @@ namespace Atom
 {
     namespace
     {
-        constexpr SDL_GPUTextureFormat DepthFormat =
-            SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
-
         // Overcast sky grey (linear; ~0.62 sRGB). The fog pass will match
         // this later.
         constexpr SDL_FColor ClearColor{ 0.34f, 0.35f, 0.37f, 1.0f };
@@ -218,46 +217,54 @@ namespace Atom
             return false;
         }
 
-        if (!SDL_GPUTextureSupportsFormat(
-            m_device,
-            DepthFormat,
-            SDL_GPU_TEXTURETYPE_2D,
-            SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET
-        ))
-        {
-            std::cerr << "GPU does not support a D32 depth target.\n";
-            return false;
-        }
-
         // Shaders work in linear space (textures are sampled as sRGB), so
         // let the swapchain do the linear -> sRGB encode on write.
-        if (SDL_WindowSupportsGPUSwapchainComposition(
-            m_device,
-            m_window,
-            SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR
-        ))
-        {
-            if (!SDL_SetGPUSwapchainParameters(
-                m_device,
-                m_window,
-                SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR,
-                SDL_GPU_PRESENTMODE_VSYNC
-            ))
-            {
-                std::cerr
-                    << "Failed to set sRGB swapchain: "
-                    << SDL_GetError()
-                    << '\n';
-                return false;
-            }
-        }
-        else
+        SDL_GPUSwapchainComposition composition =
+            SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
+        if (!SDL_WindowSupportsGPUSwapchainComposition(
+            m_device, m_window, composition))
         {
             std::cerr
                 << "sRGB swapchain unsupported; colors will look dark.\n";
+            composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
         }
 
-        return CreateBasicPipeline() && CreateDefaultResources();
+        // Without vsync prefer tearing-free MAILBOX, else IMMEDIATE.
+        SDL_GPUPresentMode presentMode = SDL_GPU_PRESENTMODE_VSYNC;
+        if (!config.vsync)
+        {
+            for (const SDL_GPUPresentMode mode : {
+                SDL_GPU_PRESENTMODE_MAILBOX,
+                SDL_GPU_PRESENTMODE_IMMEDIATE })
+            {
+                if (SDL_WindowSupportsGPUPresentMode(m_device, m_window, mode))
+                {
+                    presentMode = mode;
+                    break;
+                }
+            }
+        }
+
+        if (!SDL_SetGPUSwapchainParameters(
+            m_device, m_window, composition, presentMode))
+        {
+            std::cerr
+                << "Failed to set swapchain parameters: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+
+        return m_targets.Initialize(m_device)
+            && CreateDefaultResources()
+            && CreatePostPipeline()
+            && GetScenePipeline(m_targets.ClampSampleCount(m_settings.msaaSamples));
+    }
+
+    void Renderer::SetSettings(const RenderSettings& settings)
+    {
+        m_settings = settings;
+        m_settings.renderScale = std::clamp(m_settings.renderScale, 0.1f, 1.0f);
     }
 
     bool Renderer::CreateDefaultResources()
@@ -272,10 +279,22 @@ namespace Atom
         samplerInfo.max_lod = 1000.0f;
 
         m_sampler = SDL_CreateGPUSampler(m_device, &samplerInfo);
-        if (!m_sampler)
+
+        // Scene upscale: bilinear, no mips, clamped at the edges.
+        SDL_GPUSamplerCreateInfo postInfo{};
+        postInfo.min_filter = SDL_GPU_FILTER_LINEAR;
+        postInfo.mag_filter = SDL_GPU_FILTER_LINEAR;
+        postInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+        postInfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        postInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        postInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+
+        m_postSampler = SDL_CreateGPUSampler(m_device, &postInfo);
+
+        if (!m_sampler || !m_postSampler)
         {
             std::cerr
-                << "Failed to create sampler: "
+                << "Failed to create samplers: "
                 << SDL_GetError()
                 << '\n';
             return false;
@@ -286,8 +305,14 @@ namespace Atom
         return m_whiteTexture != nullptr;
     }
 
-    bool Renderer::CreateBasicPipeline()
+    SDL_GPUGraphicsPipeline* Renderer::GetScenePipeline(std::uint32_t samples)
     {
+        const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        if (m_scenePipelines[slot])
+        {
+            return m_scenePipelines[slot];
+        }
+
         SDL_GPUShader* vertexShader = LoadShader(
             m_device,
             "Basic.vert",
@@ -311,7 +336,7 @@ namespace Atom
             {
                 SDL_ReleaseGPUShader(m_device, fragmentShader);
             }
-            return false;
+            return nullptr;
         }
 
         SDL_GPUVertexBufferDescription vertexBuffer{};
@@ -331,8 +356,7 @@ namespace Atom
         attributes[2].offset = offsetof(Vertex, uv);
 
         SDL_GPUColorTargetDescription colorTarget{};
-        colorTarget.format =
-            SDL_GetGPUSwapchainTextureFormat(m_device, m_window);
+        colorTarget.format = m_targets.GetColorFormat();
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
@@ -348,75 +372,94 @@ namespace Atom
         createInfo.rasterizer_state.front_face =
             SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
         createInfo.rasterizer_state.enable_depth_clip = true;
+        createInfo.multisample_state.sample_count = slot == 2
+            ? SDL_GPU_SAMPLECOUNT_4
+            : slot == 1 ? SDL_GPU_SAMPLECOUNT_2 : SDL_GPU_SAMPLECOUNT_1;
         createInfo.depth_stencil_state.enable_depth_test = true;
         createInfo.depth_stencil_state.enable_depth_write = true;
         createInfo.depth_stencil_state.compare_op =
             SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
         createInfo.target_info.color_target_descriptions = &colorTarget;
         createInfo.target_info.num_color_targets = 1;
-        createInfo.target_info.depth_stencil_format = DepthFormat;
+        createInfo.target_info.depth_stencil_format =
+            RenderTargets::GetDepthFormat();
         createInfo.target_info.has_depth_stencil_target = true;
 
-        m_basicPipeline = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+        SDL_GPUGraphicsPipeline* pipeline =
+            SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
 
         // Pipelines keep what they need; the shader objects can go.
         SDL_ReleaseGPUShader(m_device, vertexShader);
         SDL_ReleaseGPUShader(m_device, fragmentShader);
 
-        if (!m_basicPipeline)
+        if (!pipeline)
         {
             std::cerr
-                << "Failed to create basic graphics pipeline: "
+                << "Failed to create scene pipeline: "
                 << SDL_GetError()
                 << '\n';
-            return false;
+            return nullptr;
         }
 
-        return true;
+        m_scenePipelines[slot] = pipeline;
+        return pipeline;
     }
 
-    bool Renderer::EnsureDepthTexture(
-        std::uint32_t width,
-        std::uint32_t height
-    )
+    bool Renderer::CreatePostPipeline()
     {
-        if (m_depthTexture
-            && m_depthWidth == width
-            && m_depthHeight == height)
-        {
-            return true;
-        }
+        SDL_GPUShader* vertexShader = LoadShader(
+            m_device,
+            "Fullscreen.vert",
+            SDL_GPU_SHADERSTAGE_VERTEX,
+            ShaderResources{}
+        );
+        SDL_GPUShader* fragmentShader = LoadShader(
+            m_device,
+            "Post.frag",
+            SDL_GPU_SHADERSTAGE_FRAGMENT,
+            ShaderResources{ .samplers = 1 }
+        );
 
-        if (m_depthTexture)
+        if (!vertexShader || !fragmentShader)
         {
-            SDL_ReleaseGPUTexture(m_device, m_depthTexture);
-            m_depthTexture = nullptr;
-        }
-
-        SDL_GPUTextureCreateInfo createInfo{};
-        createInfo.type = SDL_GPU_TEXTURETYPE_2D;
-        createInfo.format = DepthFormat;
-        createInfo.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
-        createInfo.width = width;
-        createInfo.height = height;
-        createInfo.layer_count_or_depth = 1;
-        createInfo.num_levels = 1;
-        createInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
-
-        m_depthTexture = SDL_CreateGPUTexture(m_device, &createInfo);
-        if (!m_depthTexture)
-        {
-            std::cerr
-                << "Failed to create depth texture: "
-                << SDL_GetError()
-                << '\n';
-            m_depthWidth = 0;
-            m_depthHeight = 0;
+            if (vertexShader)
+            {
+                SDL_ReleaseGPUShader(m_device, vertexShader);
+            }
+            if (fragmentShader)
+            {
+                SDL_ReleaseGPUShader(m_device, fragmentShader);
+            }
             return false;
         }
 
-        m_depthWidth = width;
-        m_depthHeight = height;
+        SDL_GPUColorTargetDescription colorTarget{};
+        colorTarget.format =
+            SDL_GetGPUSwapchainTextureFormat(m_device, m_window);
+
+        SDL_GPUGraphicsPipelineCreateInfo createInfo{};
+        createInfo.vertex_shader = vertexShader;
+        createInfo.fragment_shader = fragmentShader;
+        createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+        createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+        createInfo.target_info.color_target_descriptions = &colorTarget;
+        createInfo.target_info.num_color_targets = 1;
+
+        m_postPipeline = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+
+        SDL_ReleaseGPUShader(m_device, vertexShader);
+        SDL_ReleaseGPUShader(m_device, fragmentShader);
+
+        if (!m_postPipeline)
+        {
+            std::cerr
+                << "Failed to create post pipeline: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+
         return true;
     }
 
@@ -519,6 +562,7 @@ namespace Atom
 
         if (!swapchainTexture)
         {
+            // Minimised or occluded: nothing to draw into this frame.
             if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
             {
                 std::cerr
@@ -530,26 +574,44 @@ namespace Atom
             return true;
         }
 
-        if (!EnsureDepthTexture(swapchainWidth, swapchainHeight))
+        const auto scaled = [&](Uint32 size) {
+            return std::max<std::uint32_t>(1, static_cast<std::uint32_t>(
+                std::lround(size * m_settings.renderScale)));
+        };
+
+        const bool ok =
+            m_targets.Ensure(
+                scaled(swapchainWidth),
+                scaled(swapchainHeight),
+                m_settings.msaaSamples)
+            && RenderScenePass(commandBuffer)
+            && RenderPostPass(commandBuffer, swapchainTexture);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
-            SDL_SubmitGPUCommandBuffer(commandBuffer);
+            std::cerr
+                << "Failed to submit GPU command buffer: "
+                << SDL_GetError()
+                << '\n';
             return false;
         }
 
-        SDL_GPUColorTargetInfo colorTarget{};
-        colorTarget.texture = swapchainTexture;
-        colorTarget.clear_color = ClearColor;
-        colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
-        colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+        return ok;
+    }
 
-        SDL_GPUDepthStencilTargetInfo depthTarget{};
-        depthTarget.texture = m_depthTexture;
-        depthTarget.clear_depth = 1.0f;
-        depthTarget.load_op = SDL_GPU_LOADOP_CLEAR;
-        depthTarget.store_op = SDL_GPU_STOREOP_DONT_CARE;
-        depthTarget.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
-        depthTarget.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
-        depthTarget.cycle = true;
+    bool Renderer::RenderScenePass(SDL_GPUCommandBuffer* commandBuffer)
+    {
+        SDL_GPUGraphicsPipeline* pipeline =
+            GetScenePipeline(m_targets.GetSamples());
+        if (!pipeline)
+        {
+            return false;
+        }
+
+        const SDL_GPUColorTargetInfo colorTarget =
+            m_targets.MakeColorTargetInfo(ClearColor);
+        const SDL_GPUDepthStencilTargetInfo depthTarget =
+            m_targets.MakeDepthTargetInfo();
 
         SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(
             commandBuffer,
@@ -559,29 +621,16 @@ namespace Atom
         );
         if (!renderPass)
         {
-            const std::string renderPassError = SDL_GetError();
-            const bool submitted = SDL_SubmitGPUCommandBuffer(commandBuffer);
-            const std::string submissionError = submitted
-                ? ""
-                : SDL_GetError();
-
             std::cerr
-                << "Failed to begin GPU render pass: "
-                << renderPassError
+                << "Failed to begin scene render pass: "
+                << SDL_GetError()
                 << '\n';
-            if (!submitted)
-            {
-                std::cerr
-                    << "Failed to submit GPU command buffer during cleanup: "
-                    << submissionError
-                    << '\n';
-            }
             return false;
         }
 
         const float aspect =
-            static_cast<float>(swapchainWidth)
-            / static_cast<float>(swapchainHeight);
+            static_cast<float>(m_targets.GetWidth())
+            / static_cast<float>(m_targets.GetHeight());
         const glm::mat4 projection = glm::perspective(
             m_camera.verticalFov,
             aspect,
@@ -592,11 +641,14 @@ namespace Atom
         ObjectUniforms uniforms{};
         uniforms.viewProjection = projection * m_camera.view;
 
-        SDL_BindGPUGraphicsPipeline(renderPass, m_basicPipeline);
+        SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 
         const Frustum frustum = ExtractFrustum(uniforms.viewProjection);
         m_stats = FrameStats{};
         m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
+        m_stats.sceneWidth = m_targets.GetWidth();
+        m_stats.sceneHeight = m_targets.GetHeight();
+        m_stats.msaaSamples = m_targets.GetSamples();
 
         for (const DrawCommand& command : m_drawCommands)
         {
@@ -661,16 +713,44 @@ namespace Atom
         }
 
         SDL_EndGPURenderPass(renderPass);
+        return true;
+    }
 
-        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+    bool Renderer::RenderPostPass(
+        SDL_GPUCommandBuffer* commandBuffer,
+        SDL_GPUTexture* swapchainTexture
+    )
+    {
+        SDL_GPUColorTargetInfo colorTarget{};
+        colorTarget.texture = swapchainTexture;
+        colorTarget.load_op = SDL_GPU_LOADOP_DONT_CARE; // fully overwritten
+        colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+
+        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(
+            commandBuffer,
+            &colorTarget,
+            1,
+            nullptr
+        );
+        if (!renderPass)
         {
             std::cerr
-                << "Failed to submit GPU command buffer: "
+                << "Failed to begin post render pass: "
                 << SDL_GetError()
                 << '\n';
             return false;
         }
 
+        SDL_BindGPUGraphicsPipeline(renderPass, m_postPipeline);
+
+        const SDL_GPUTextureSamplerBinding sceneBinding{
+            m_targets.GetSceneTexture(),
+            m_postSampler
+        };
+        SDL_BindGPUFragmentSamplers(renderPass, 0, &sceneBinding, 1);
+        SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
+
+        SDL_EndGPURenderPass(renderPass);
         return true;
     }
 
@@ -681,17 +761,25 @@ namespace Atom
         if (m_device)
         {
             m_whiteTexture.reset();
-            if (m_sampler)
+            m_targets.Release();
+
+            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler })
             {
-                SDL_ReleaseGPUSampler(m_device, m_sampler);
+                if (sampler)
+                {
+                    SDL_ReleaseGPUSampler(m_device, sampler);
+                }
             }
-            if (m_depthTexture)
+            for (SDL_GPUGraphicsPipeline* pipeline : m_scenePipelines)
             {
-                SDL_ReleaseGPUTexture(m_device, m_depthTexture);
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
             }
-            if (m_basicPipeline)
+            if (m_postPipeline)
             {
-                SDL_ReleaseGPUGraphicsPipeline(m_device, m_basicPipeline);
+                SDL_ReleaseGPUGraphicsPipeline(m_device, m_postPipeline);
             }
 
             if (m_windowClaimed && m_window)
@@ -702,11 +790,10 @@ namespace Atom
             SDL_DestroyGPUDevice(m_device);
         }
 
-        m_depthTexture = nullptr;
-        m_depthWidth = 0;
-        m_depthHeight = 0;
-        m_basicPipeline = nullptr;
+        m_scenePipelines = {};
+        m_postPipeline = nullptr;
         m_sampler = nullptr;
+        m_postSampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
         m_windowClaimed = false;

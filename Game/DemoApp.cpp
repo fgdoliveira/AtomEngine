@@ -5,7 +5,9 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <cstddef>
 #include <cstdio>
+#include <iterator>
 #include <string>
 
 namespace AtomGame
@@ -32,6 +34,7 @@ namespace AtomGame
     void DemoApp::OnUpdate(float deltaSeconds)
     {
         UpdateMouseCapture();
+        UpdateRenderSettings();
 
         m_player.Update(GetInput(), m_camera, &m_collision, deltaSeconds);
 
@@ -70,8 +73,13 @@ namespace AtomGame
         std::snprintf(
             title,
             sizeof(title),
-            "AtomEngine | %.0f fps | draws %u/%u | pos %.1f %.2f %.1f",
+            "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | draws %u/%u"
+            " | pos %.1f %.2f %.1f",
             m_titleFrames / m_titleTimer,
+            stats.sceneWidth,
+            stats.sceneHeight,
+            GetRenderer().GetSettings().renderScale * 100.0f,
+            stats.msaaSamples,
             stats.drawn,
             stats.submitted,
             feet.x,
@@ -82,6 +90,39 @@ namespace AtomGame
 
         m_titleTimer = 0.0f;
         m_titleFrames = 0;
+    }
+
+    void DemoApp::UpdateRenderSettings()
+    {
+        const Atom::Input& input = GetInput();
+        Atom::Renderer& renderer = GetRenderer();
+        Atom::RenderSettings settings = renderer.GetSettings();
+
+        // F2: render scale 100 -> 85 -> 75 -> 50 -> 100 %.
+        if (input.WasKeyPressed(SDL_SCANCODE_F2))
+        {
+            constexpr float scales[] = { 1.0f, 0.85f, 0.75f, 0.5f };
+            std::size_t next = 0;
+            for (std::size_t i = 0; i < std::size(scales); ++i)
+            {
+                if (settings.renderScale >= scales[i] - 0.001f)
+                {
+                    next = (i + 1) % std::size(scales);
+                    break;
+                }
+            }
+            settings.renderScale = scales[next];
+            renderer.SetSettings(settings);
+        }
+
+        // F4: MSAA 4x -> 2x -> 1x -> 4x.
+        if (input.WasKeyPressed(SDL_SCANCODE_F4))
+        {
+            settings.msaaSamples = settings.msaaSamples > 1
+                ? settings.msaaSamples / 2
+                : 4;
+            renderer.SetSettings(settings);
+        }
     }
 
     void DemoApp::UpdateMouseCapture()

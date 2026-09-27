@@ -20,6 +20,8 @@ message(STATUS "AtomEngine shader compiler: ${ATOM_DXC}")
 set(ATOM_SHADER_SOURCES
     Basic.vert.hlsl
     Basic.frag.hlsl
+    Fullscreen.vert.hlsl
+    Post.frag.hlsl
 )
 
 get_property(ATOM_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)

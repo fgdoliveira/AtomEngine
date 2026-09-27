@@ -11,6 +11,7 @@ target_sources(
         Platform/Input.cpp
         Platform/Window.cpp
         Renderer/Mesh.cpp
+        Renderer/RenderTargets.cpp
         Renderer/Renderer.cpp
         Renderer/Shader.cpp
         Renderer/Texture.cpp
@@ -25,6 +26,8 @@ target_sources(
         Platform/Window.h
         Renderer/Material.h
         Renderer/Mesh.h
+        Renderer/RenderSettings.h
+        Renderer/RenderTargets.h
         Renderer/Renderer.h
         Renderer/Shader.h
         Renderer/Texture.h
