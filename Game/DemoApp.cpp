@@ -243,7 +243,7 @@ namespace AtomGame
         std::snprintf(
             title,
             sizeof(title),
-            "AtomEngine | %s | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
+            "AtomEngine " ATOM_VERSION " | %s | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
             " | shadows %s | post %s | draws %u/%u (+%u) | particles %u"
             " | pos %.1f %.2f %.1f%s",
             m_levels->GetLevel() ? m_levels->GetLevel()->GetName().c_str() : "-",
@@ -253,7 +253,7 @@ namespace AtomGame
             GetRenderer().GetSettings().renderScale * 100.0f,
             stats.msaaSamples,
             FogPresets[m_fogPreset].name,
-            m_shadowsEnabled ? "on" : "off",
+            GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
             m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
             stats.drawn,
             stats.submitted,
@@ -334,7 +334,7 @@ namespace AtomGame
             stats.drawn, stats.submitted, stats.shadowDrawn,
             stats.particles,
             FogPresets[m_fogPreset].name,
-            m_shadowsEnabled ? "on" : "off",
+            GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
             m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
             m_atmosphere.IsEnabled() ? "on" : "off",
             m_unease.IsEnabled() ? "on" : "off",

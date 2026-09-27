@@ -62,6 +62,7 @@ target_compile_definitions(
     AtomEngine
     PUBLIC
         GLM_FORCE_DEPTH_ZERO_TO_ONE
+        ATOM_VERSION="${PROJECT_VERSION}"
         GLM_FORCE_RADIANS
 )
 

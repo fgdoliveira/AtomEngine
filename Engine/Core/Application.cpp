@@ -8,7 +8,7 @@ namespace Atom
 {
     bool Application::Initialize()
     {
-        std::cout << "Starting AtomEngine...\n";
+        std::cout << "Starting AtomEngine " ATOM_VERSION "...\n";
 
         if (!SDL_Init(SDL_INIT_VIDEO))
         {
