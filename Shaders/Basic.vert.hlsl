@@ -14,9 +14,10 @@ struct VSInput
 
 struct VSOutput
 {
-    float4 position    : SV_Position;
-    float3 worldNormal : TEXCOORD0;
-    float2 uv          : TEXCOORD1;
+    float4 position      : SV_Position;
+    float3 worldNormal   : TEXCOORD0;
+    float2 uv            : TEXCOORD1;
+    float3 worldPosition : TEXCOORD2;
 };
 
 VSOutput main(VSInput input)
@@ -29,5 +30,6 @@ VSOutput main(VSInput input)
     // inverse-transpose once non-uniform scaling shows up.
     output.worldNormal = mul((float3x3)u_model, input.normal);
     output.uv = input.uv;
+    output.worldPosition = worldPosition.xyz;
     return output;
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Renderer/Lighting.h"
 #include "Renderer/Material.h"
 #include "Renderer/Mesh.h"
 #include "Renderer/RenderSettings.h"
@@ -96,6 +97,11 @@ namespace Atom
         void SetSettings(const RenderSettings& settings);
         const RenderSettings& GetSettings() const { return m_settings; }
 
+        // Lighting and fog for the next Render(). The sky clears to the fog
+        // colour so distant geometry dissolves into it.
+        void SetLighting(const SceneLighting& lighting) { m_lighting = lighting; }
+        const SceneLighting& GetLighting() const { return m_lighting; }
+
     private:
         struct DrawCommand
         {
@@ -136,6 +142,7 @@ namespace Atom
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;
+        SceneLighting m_lighting;
         RenderTargets m_targets;
 
         Camera m_camera;

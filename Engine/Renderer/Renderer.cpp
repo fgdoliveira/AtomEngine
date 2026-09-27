@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/matrix.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,10 +17,6 @@ namespace Atom
 {
     namespace
     {
-        // Overcast sky grey (linear; ~0.62 sRGB). The fog pass will match
-        // this later.
-        constexpr SDL_FColor ClearColor{ 0.34f, 0.35f, 0.37f, 1.0f };
-
         // Mirrors the cbuffer in Shaders/Basic.vert.hlsl.
         struct ObjectUniforms
         {
@@ -84,12 +81,46 @@ namespace Atom
             return true;
         }
 
-        // Mirrors the cbuffer in Shaders/Basic.frag.hlsl.
+        // Mirrors the cbuffers in Shaders/Basic.frag.hlsl.
         struct MaterialUniforms
         {
             glm::vec4 baseColorFactor;
             glm::vec4 emissiveFactor;
         };
+
+        struct SceneUniforms
+        {
+            glm::vec4 sunDirection;
+            glm::vec4 sunColor;
+            glm::vec4 skyColor;
+            glm::vec4 groundColor;
+            glm::vec4 fogColor;       // w: density
+            glm::vec4 cameraPosition; // w: height falloff
+            glm::vec4 fogParams;      // x: base height
+        };
+
+        SceneUniforms MakeSceneUniforms(
+            const SceneLighting& lighting,
+            const glm::mat4& view
+        )
+        {
+            // The camera sits at the translation of the inverse view.
+            const glm::vec3 cameraPosition{ glm::inverse(view)[3] };
+
+            SceneUniforms uniforms{};
+            uniforms.sunDirection =
+                glm::vec4{ glm::normalize(lighting.sunDirection), 0.0f };
+            uniforms.sunColor = glm::vec4{ lighting.sunColor, 0.0f };
+            uniforms.skyColor = glm::vec4{ lighting.skyColor, 0.0f };
+            uniforms.groundColor = glm::vec4{ lighting.groundColor, 0.0f };
+            uniforms.fogColor =
+                glm::vec4{ lighting.fogColor, lighting.fogDensity };
+            uniforms.cameraPosition =
+                glm::vec4{ cameraPosition, lighting.fogHeightFalloff };
+            uniforms.fogParams =
+                glm::vec4{ lighting.fogBaseHeight, 0.0f, 0.0f, 0.0f };
+            return uniforms;
+        }
 
         const char* GetPreferenceName(GPUPreference preference)
         {
@@ -323,7 +354,7 @@ namespace Atom
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 1, .uniformBuffers = 1 }
+            ShaderResources{ .samplers = 1, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -608,8 +639,14 @@ namespace Atom
             return false;
         }
 
+        const SDL_FColor clearColor{
+            m_lighting.fogColor.r,
+            m_lighting.fogColor.g,
+            m_lighting.fogColor.b,
+            1.0f
+        };
         const SDL_GPUColorTargetInfo colorTarget =
-            m_targets.MakeColorTargetInfo(ClearColor);
+            m_targets.MakeColorTargetInfo(clearColor);
         const SDL_GPUDepthStencilTargetInfo depthTarget =
             m_targets.MakeDepthTargetInfo();
 
@@ -642,6 +679,16 @@ namespace Atom
         uniforms.viewProjection = projection * m_camera.view;
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+
+        // Once per frame; stays bound for every draw in this command buffer.
+        const SceneUniforms sceneUniforms =
+            MakeSceneUniforms(m_lighting, m_camera.view);
+        SDL_PushGPUFragmentUniformData(
+            commandBuffer,
+            1,
+            &sceneUniforms,
+            sizeof(sceneUniforms)
+        );
 
         const Frustum frustum = ExtractFrustum(uniforms.viewProjection);
         m_stats = FrameStats{};

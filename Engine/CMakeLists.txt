@@ -24,6 +24,7 @@ target_sources(
         Physics/CollisionWorld.h
         Platform/Input.h
         Platform/Window.h
+        Renderer/Lighting.h
         Renderer/Material.h
         Renderer/Mesh.h
         Renderer/RenderSettings.h

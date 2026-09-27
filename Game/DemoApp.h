@@ -6,6 +6,7 @@
 #include "PlayerController.h"
 #include "Scene/Camera.h"
 
+#include <cstddef>
 #include <memory>
 
 namespace AtomGame
@@ -20,6 +21,7 @@ namespace AtomGame
     private:
         void UpdateMouseCapture();
         void UpdateRenderSettings();
+        void ApplyLighting();
         void UpdateWindowTitle(float deltaSeconds);
 
         std::unique_ptr<Atom::Model> m_street;
@@ -27,6 +29,8 @@ namespace AtomGame
 
         Atom::Camera m_camera;
         PlayerController m_player;
+
+        std::size_t m_fogPreset = 0;
 
         float m_titleTimer = 0.0f;
         int m_titleFrames = 0;

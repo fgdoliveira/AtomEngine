@@ -12,6 +12,23 @@
 
 namespace AtomGame
 {
+    namespace
+    {
+        struct FogPreset
+        {
+            const char* name;
+            float density; // ~3/density metres until fully fogged
+        };
+
+        constexpr FogPreset FogPresets[] = {
+            { "dense", 0.13f },
+            { "medium", 0.085f },
+            { "light", 0.045f },
+            { "off", 0.0f },
+        };
+        constexpr std::size_t DefaultFogPreset = 1;
+    }
+
     bool DemoApp::OnInitialize()
     {
         const char* basePath = SDL_GetBasePath();
@@ -23,6 +40,9 @@ namespace AtomGame
         {
             return false;
         }
+
+        m_fogPreset = DefaultFogPreset;
+        ApplyLighting();
 
         // East end of the street, looking west along it.
         m_player.SetFeetPosition(glm::vec3{ 36.0f, 0.0f, 1.0f });
@@ -69,17 +89,18 @@ namespace AtomGame
         const Atom::FrameStats& stats = GetRenderer().GetLastFrameStats();
         const glm::vec3& feet = m_player.GetFeetPosition();
 
-        char title[160];
+        char title[192];
         std::snprintf(
             title,
             sizeof(title),
-            "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | draws %u/%u"
-            " | pos %.1f %.2f %.1f",
+            "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
+            " | draws %u/%u | pos %.1f %.2f %.1f",
             m_titleFrames / m_titleTimer,
             stats.sceneWidth,
             stats.sceneHeight,
             GetRenderer().GetSettings().renderScale * 100.0f,
             stats.msaaSamples,
+            FogPresets[m_fogPreset].name,
             stats.drawn,
             stats.submitted,
             feet.x,
@@ -115,6 +136,13 @@ namespace AtomGame
             renderer.SetSettings(settings);
         }
 
+        // F5: fog dense -> medium -> light -> off.
+        if (input.WasKeyPressed(SDL_SCANCODE_F5))
+        {
+            m_fogPreset = (m_fogPreset + 1) % std::size(FogPresets);
+            ApplyLighting();
+        }
+
         // F4: MSAA 4x -> 2x -> 1x -> 4x.
         if (input.WasKeyPressed(SDL_SCANCODE_F4))
         {
@@ -123,6 +151,16 @@ namespace AtomGame
                 : 4;
             renderer.SetSettings(settings);
         }
+    }
+
+    void DemoApp::ApplyLighting()
+    {
+        // Overcast daylight; the sky is the fog colour.
+        Atom::SceneLighting lighting{};
+        lighting.fogColor = glm::vec3{ 0.46f, 0.47f, 0.47f };
+        lighting.fogDensity = FogPresets[m_fogPreset].density;
+        lighting.fogHeightFalloff = 0.08f;
+        GetRenderer().SetLighting(lighting);
     }
 
     void DemoApp::UpdateMouseCapture()
