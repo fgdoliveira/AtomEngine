@@ -7,14 +7,18 @@ target_sources(
         Core/Time.cpp
         Platform/Input.cpp
         Platform/Window.cpp
+        Renderer/Mesh.cpp
         Renderer/Renderer.cpp
+        Renderer/Shader.cpp
 
     PUBLIC
         Core/Application.h
         Core/Time.h
         Platform/Input.h
         Platform/Window.h
+        Renderer/Mesh.h
         Renderer/Renderer.h
+        Renderer/Shader.h
 )
 
 target_include_directories(

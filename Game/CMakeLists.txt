@@ -11,6 +11,8 @@ target_link_libraries(
         AtomEngine
 )
 
+add_dependencies(AtomGame AtomShaders)
+
 set_property(
     DIRECTORY ${CMAKE_SOURCE_DIR}
     PROPERTY VS_STARTUP_PROJECT AtomGame

@@ -22,6 +22,7 @@ option(
 add_subdirectory(external/SDL)
 add_subdirectory(external/glm)
 
+add_subdirectory(Shaders)
 add_subdirectory(Engine)
 add_subdirectory(Game)
 
