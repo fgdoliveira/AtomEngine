@@ -43,6 +43,7 @@ namespace Atom
             return false;
         }
 
+        m_initialized = true;
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
@@ -70,6 +71,14 @@ namespace Atom
             << SDL_GetRevision()
             << '\n';
 
+        if (!OnInitialize())
+        {
+            Shutdown();
+            return false;
+        }
+
+        m_time.Reset();
+
         return true;
     }
 
@@ -83,6 +92,13 @@ namespace Atom
         while (m_running)
         {
             ProcessEvents();
+
+            OnUpdate(m_time.Tick());
+
+            if (!m_running)
+            {
+                break;
+            }
 
             if (!m_renderer.Render())
             {
@@ -100,10 +116,14 @@ namespace Atom
 
     void Application::ProcessEvents()
     {
+        m_input.BeginFrame();
+
         SDL_Event event;
 
         while (SDL_PollEvent(&event))
         {
+            m_input.HandleEvent(event);
+
             if (event.type == SDL_EVENT_QUIT)
             {
                 m_running = false;
@@ -113,6 +133,15 @@ namespace Atom
 
     void Application::Shutdown()
     {
+        if (!m_initialized)
+        {
+            return;
+        }
+
+        m_initialized = false;
+
+        OnShutdown();
+
         std::cout << "Shutting down AtomEngine...\n";
 
         m_renderer.Shutdown();

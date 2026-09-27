@@ -20,6 +20,7 @@ option(
 
 # third party libraries
 add_subdirectory(external/SDL)
+add_subdirectory(external/glm)
 
 add_subdirectory(Engine)
 add_subdirectory(Game)

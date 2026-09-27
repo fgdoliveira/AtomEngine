@@ -1,6 +1,8 @@
 add_executable(
     AtomGame
     Main.cpp
+    DemoApp.cpp
+    DemoApp.h
 )
 
 target_link_libraries(
