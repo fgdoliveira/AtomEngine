@@ -118,7 +118,7 @@ namespace Atom
 
         Shutdown();
 
-        return 0;
+        return m_exitCode;
     }
 
     void Application::ProcessEvents()

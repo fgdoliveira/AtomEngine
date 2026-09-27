@@ -9,6 +9,7 @@
 #include "Interaction/MessageFeed.h"
 #include "Level/LevelManager.h"
 #include "PlayerController.h"
+#include "Testing/TestScript.h"
 #include "Scene/Camera.h"
 #include "UI/Font.h"
 #include "UneaseDirector.h"
@@ -24,7 +25,7 @@ namespace AtomGame
     // The game. It owns only what persists for the whole session (player,
     // camera, progress, systems, UI); everything that belongs to a place
     // lives in the current Level, owned by the LevelManager.
-    class DemoApp final : public Atom::Application
+    class DemoApp final : public Atom::Application, private TestHooks
     {
     protected:
         bool OnInitialize() override;
@@ -53,12 +54,32 @@ namespace AtomGame
         bool BeginDialogue(const std::string& dialogueId);
         void UpdateDialogue(float deltaSeconds);
         void TurnCameraToward(const glm::vec3& point, float deltaSeconds);
-        void Interact(const Entity& target);
+        void InteractWith(const Entity& target);
+        const Entity* FindEntity(const std::string& name);
+        void LoadTestScript();
+        void UpdateTestScript(float deltaSeconds);
+
+        // TestHooks: what scripted tests may see and do (ATOM_TEST_SCRIPT).
+        bool TeleportTo(const std::string& entity, float distance) override;
+        void Teleport(const glm::vec3& feet, float yawDegrees) override;
+        bool Face(const std::string& entity) override;
+        std::string CurrentTarget() override;
+        bool Interact() override;
+        bool Choose(int index) override;
+        void Advance() override;
+        bool HasFlag(const std::string& flag) const override;
+        std::string LevelName() const override;
+        std::string ModeName() const override;
+        std::string Message() const override;
+        std::string DialogueNodeId() const override;
+        std::size_t VoiceCount() const override;
+        void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
         const Atom::CollisionWorld* CurrentCollision() const;
 
         std::string m_assetRoot;
+        std::unique_ptr<TestRunner> m_testRunner;
         std::unique_ptr<LevelManager> m_levels;
 
         Atom::Camera m_camera;

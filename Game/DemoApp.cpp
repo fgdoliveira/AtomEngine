@@ -88,7 +88,11 @@ namespace AtomGame
             << "  F2 render scale  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
-        return GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+        LoadTestScript();
+
+        // A scripted run doesn't need the mouse (and may not have focus).
+        const bool captured = GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+        return captured || m_testRunner != nullptr;
     }
 
     void DemoApp::OnLevelUnloading(Level& /*outgoing*/)
@@ -139,6 +143,7 @@ namespace AtomGame
     {
         UpdateMouseCapture();
         UpdateRenderSettings();
+        UpdateTestScript(deltaSeconds);
 
         m_time += deltaSeconds;
         m_messages.Update(deltaSeconds);
@@ -424,7 +429,7 @@ namespace AtomGame
     {
         const Atom::Input& input = GetInput();
         GameWorld* world = CurrentWorld();
-        if (!input.IsMouseCaptured() || !world)
+        if ((!input.IsMouseCaptured() && !m_testRunner) || !world)
         {
             m_target = {};
             return;
@@ -436,11 +441,11 @@ namespace AtomGame
         const Entity* target = world->Find(m_target);
         if (target && input.WasKeyPressed(SDL_SCANCODE_E))
         {
-            Interact(*target);
+            InteractWith(*target);
         }
     }
 
-    void DemoApp::Interact(const Entity& target)
+    void DemoApp::InteractWith(const Entity& target)
     {
         ActionContext context{
             m_gameState,
@@ -596,5 +601,227 @@ namespace AtomGame
         {
             input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
         }
+    }
+
+    // --- Scripted tests ------------------------------------------------------
+
+    void DemoApp::LoadTestScript()
+    {
+        const char* path = SDL_getenv("ATOM_TEST_SCRIPT");
+        if (!path)
+        {
+            return;
+        }
+
+        size_t size = 0;
+        void* text = SDL_LoadFile(path, &size);
+        if (!text)
+        {
+            std::cerr << "[test] cannot read script '" << path << "'\n";
+            RequestQuit(2);
+            return;
+        }
+        TestScriptParseResult parsed = ParseTestScript(
+            std::string_view(static_cast<const char*>(text), size));
+        SDL_free(text);
+
+        if (!parsed.error.empty())
+        {
+            std::cerr << "[test] invalid script: " << parsed.error << '\n';
+            RequestQuit(2);
+            return;
+        }
+        std::cout << "[test] running '" << path << "' (" << parsed.commands.size() << " commands)\n";
+        m_testRunner = std::make_unique<TestRunner>(std::move(parsed.commands));
+    }
+
+    void DemoApp::UpdateTestScript(float deltaSeconds)
+    {
+        if (!m_testRunner || m_testRunner->IsFinished())
+        {
+            return;
+        }
+        m_testRunner->Update(deltaSeconds, *this);
+        if (m_testRunner->IsFinished())
+        {
+            if (m_testRunner->Passed())
+            {
+                std::cout << "[test] PASS\n";
+                RequestQuit(0);
+            }
+            else
+            {
+                std::cout << "[test] FAIL " << m_testRunner->GetFailure() << '\n';
+                RequestQuit(1);
+            }
+        }
+    }
+
+    const Entity* DemoApp::FindEntity(const std::string& name)
+    {
+        GameWorld* world = CurrentWorld();
+        const Entity* found = nullptr;
+        if (world)
+        {
+            world->ForEach([&](EntityId, const Entity& entity) {
+                if (entity.name == name)
+                {
+                    found = &entity;
+                }
+            });
+        }
+        return found;
+    }
+
+    bool DemoApp::TeleportTo(const std::string& name, float distance)
+    {
+        const Entity* entity = FindEntity(name);
+        if (!entity)
+        {
+            return false;
+        }
+        const glm::vec3 focus = entity->position
+            + (entity->interactable ? entity->interactable->focusOffset : glm::vec3{ 0.0f, 1.2f, 0.0f });
+
+        // Stand `distance` away on the side the player is already on.
+        glm::vec3 away = m_player.GetFeetPosition() - focus;
+        away.y = 0.0f;
+        const float length = glm::length(away);
+        away = length > 0.01f ? away / length : glm::vec3{ 0.0f, 0.0f, 1.0f };
+
+        glm::vec3 feet = focus + away * distance;
+        float floor = 0.0f;
+        if (const Atom::CollisionWorld* collision = CurrentCollision())
+        {
+            floor = collision->FindFloor({ feet.x, focus.y + 3.0f, feet.z }, 20.0f).value_or(0.0f);
+        }
+        feet.y = floor;
+        m_player.SetFeetPosition(feet);
+        m_camera.SetPosition(feet + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f });
+        return Face(name);
+    }
+
+    void DemoApp::Teleport(const glm::vec3& feet, float yawDegrees)
+    {
+        m_player.SetFeetPosition(feet);
+        m_camera.SetPosition(feet + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f });
+        m_camera.SetRotation(glm::radians(yawDegrees), 0.0f);
+    }
+
+    bool DemoApp::Face(const std::string& name)
+    {
+        const Entity* entity = FindEntity(name);
+        if (!entity)
+        {
+            return false;
+        }
+        const glm::vec3 focus = entity->position
+            + (entity->interactable ? entity->interactable->focusOffset : glm::vec3{ 0.0f, 1.2f, 0.0f });
+        const glm::vec3 eye = m_player.GetFeetPosition() + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f };
+        const glm::vec3 offset = focus - eye;
+        m_camera.SetRotation(
+            std::atan2(offset.x, -offset.z),
+            std::atan2(offset.y, std::sqrt(offset.x * offset.x + offset.z * offset.z)));
+        return true;
+    }
+
+    std::string DemoApp::CurrentTarget()
+    {
+        GameWorld* world = CurrentWorld();
+        if (!world || m_mode != Mode::Exploring)
+        {
+            return {};
+        }
+        const EntityId id = InteractionSystem::FindTarget(
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+        const Entity* entity = world->Find(id);
+        return entity ? entity->name : std::string{};
+    }
+
+    bool DemoApp::Interact()
+    {
+        GameWorld* world = CurrentWorld();
+        if (!world || m_mode != Mode::Exploring)
+        {
+            return false;
+        }
+        m_target = InteractionSystem::FindTarget(
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+        const Entity* entity = world->Find(m_target);
+        if (!entity)
+        {
+            return false;
+        }
+        InteractWith(*entity);
+        return true;
+    }
+
+    bool DemoApp::Choose(int index)
+    {
+        if (m_mode != Mode::InDialogue)
+        {
+            return false;
+        }
+        if (m_dialogue.GetState() == DialogueRunner::State::Revealing)
+        {
+            m_dialogue.Advance(); // finish the line first, as a player would
+        }
+        if (index < 0 || index >= static_cast<int>(m_dialogue.GetVisibleChoices().size()))
+        {
+            return false;
+        }
+        m_dialogue.SelectIndex(index);
+        m_dialogue.Confirm();
+        return true;
+    }
+
+    void DemoApp::Advance()
+    {
+        if (m_mode == Mode::InDialogue)
+        {
+            m_dialogue.Confirm();
+        }
+    }
+
+    bool DemoApp::HasFlag(const std::string& flag) const
+    {
+        return m_gameState.HasFlag(flag);
+    }
+
+    std::string DemoApp::LevelName() const
+    {
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        return level ? level->GetName() : std::string{};
+    }
+
+    std::string DemoApp::ModeName() const
+    {
+        switch (m_mode)
+        {
+        case Mode::InDialogue: return "dialogue";
+        case Mode::Transitioning: return "transitioning";
+        default: return "exploring";
+        }
+    }
+
+    std::string DemoApp::Message() const
+    {
+        return m_messages.GetText();
+    }
+
+    std::string DemoApp::DialogueNodeId() const
+    {
+        const AtomGame::DialogueNode* node = m_dialogue.GetNode();
+        return node && m_dialogue.IsActive() ? node->id : std::string{};
+    }
+
+    std::size_t DemoApp::VoiceCount() const
+    {
+        return const_cast<DemoApp*>(this)->GetAudio().GetVoiceCount();
+    }
+
+    void DemoApp::Log(const std::string& text)
+    {
+        std::cout << "[test] " << text << '\n';
     }
 }

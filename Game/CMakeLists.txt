@@ -14,6 +14,8 @@ add_library(
     DemoApp.h
     PlayerController.cpp
     PlayerController.h
+    Testing/TestScript.cpp
+    Testing/TestScript.h
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h
     Dialogue/DialogueRunner.cpp
