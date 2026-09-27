@@ -94,7 +94,7 @@ namespace Atom
         {
             glm::vec4 tint;   // w: enabled
             glm::vec4 params; // exposure, saturation, grain, vignette
-            glm::vec4 output; // width, height, frame index
+            glm::vec4 output; // width, height, frame index, fade
         };
 
         constexpr std::uint32_t MaxParticles = 4096;
@@ -1327,7 +1327,7 @@ namespace Atom
                 static_cast<float>(outputHeight),
                 // Wrapped so the float keeps integer precision.
                 static_cast<float>(m_frameIndex % 4096),
-                0.0f
+                std::clamp(m_fade, 0.0f, 1.0f)
             }
         };
         SDL_PushGPUFragmentUniformData(

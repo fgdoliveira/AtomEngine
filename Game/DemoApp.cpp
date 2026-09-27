@@ -39,27 +39,17 @@ namespace AtomGame
     bool DemoApp::OnInitialize()
     {
         const char* basePath = SDL_GetBasePath();
-        const std::string streetPath =
-            std::string(basePath ? basePath : "") + "Assets/Street/";
-
-        m_street = Atom::Model::Load(GetRenderer(), streetPath + "street.glb");
-        if (!m_street || !m_collision.Load(streetPath + "street_col.glb"))
-        {
-            return false;
-        }
+        m_assetRoot = basePath ? basePath : "";
 
         m_fogPreset = DefaultFogPreset;
-        ApplyLighting();
-
         m_audioScape.Initialize(GetAudio());
 
-        if (!m_atmosphere.Initialize(GetRenderer()))
+        if (!m_atmosphere.Initialize(GetRenderer()) || !m_unease.Initialize(GetRenderer()))
         {
             return false;
         }
 
-        const std::string fontPath = std::string(basePath ? basePath : "")
-            + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
+        const std::string fontPath = m_assetRoot + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
         m_smallFont = Atom::Font::Load(GetRenderer(), fontPath, 19.0f);
         if (!m_font || !m_smallFont)
@@ -67,33 +57,82 @@ namespace AtomGame
             return false;
         }
 
-        // Blender material names survive into glTF ("atom_" + kit name).
-        if (!m_unease.Initialize(
-            GetRenderer(), m_street->FindMaterial("atom_vending_front")))
+        m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+
+        // Levels get the persistent services they need; the manager tells
+        // us when one goes away and when the next one is ready.
+        m_levels = std::make_unique<LevelManager>(Level::Services{
+            GetRenderer(), GetAudio(), m_audioScape, m_assetRoot });
+        m_levels->onUnloading = [this](Level& outgoing) { OnLevelUnloading(outgoing); };
+        m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
+            OnLevelLoaded(incoming, spawn);
+        };
+
+        // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
+        std::string startLevel = "street";
+        std::string startSpawn;
+        if (const char* start = SDL_getenv("ATOM_START_LEVEL"))
+        {
+            const std::string value = start;
+            const std::size_t colon = value.find(':');
+            startLevel = value.substr(0, colon);
+            startSpawn = colon == std::string::npos ? "" : value.substr(colon + 1);
+        }
+        if (!m_levels->Load(startLevel, startSpawn))
         {
             return false;
         }
-
-        const std::string root = basePath ? basePath : "";
-        m_dialogues.LoadDirectory(root + "Assets/Dialogue");
-        m_keeperModel = Atom::Model::Load(GetRenderer(), root + "Assets/Kit/keeper.glb");
-        if (!m_keeperModel)
-        {
-            return false;
-        }
-
-        SpawnStreetEntities();
 
         std::cout
             << "Controls: WASD move, Shift jog, mouse look, E interact, Esc release/quit\n"
             << "  F2 render scale  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
-        // East end of the street, looking west along it.
-        m_player.SetFeetPosition(glm::vec3{ 36.0f, 0.0f, 1.0f });
-        m_camera.SetRotation(-glm::half_pi<float>(), 0.0f);
-
         return GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+    }
+
+    void DemoApp::OnLevelUnloading(Level& /*outgoing*/)
+    {
+        // Drop everything that points into the level that's about to die.
+        m_target = {};
+        m_speaker = {};
+        if (m_dialogue.IsActive())
+        {
+            m_dialogue.Close();
+        }
+        m_unease.Configure({}, nullptr);
+        m_audioScape.SetSurfaceProvider(nullptr);
+    }
+
+    void DemoApp::OnLevelLoaded(Level& incoming, const SpawnPoint& spawn)
+    {
+        const LevelData& data = incoming.GetData();
+
+        m_player.SetFeetPosition(spawn.position);
+        m_camera.SetRotation(glm::radians(spawn.yawDegrees), 0.0f);
+
+        m_atmosphere.Configure(data.leaves, data.fogBanks);
+        m_unease.Configure(data.unease, &incoming);
+        m_audioScape.SetOutdoor(data.outdoor);
+        m_audioScape.SetSurfaceProvider([&incoming](float x, float z) {
+            return incoming.GetData().SurfaceAt(x, z);
+        });
+        ApplyLighting();
+
+        m_mode = Mode::Exploring;
+        std::cout << "Entered level '" << data.name << "'\n";
+    }
+
+    GameWorld* DemoApp::CurrentWorld()
+    {
+        Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        return level ? &level->GetWorld() : nullptr;
+    }
+
+    const Atom::CollisionWorld* DemoApp::CurrentCollision() const
+    {
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        return level ? &level->GetCollision() : nullptr;
     }
 
     void DemoApp::OnUpdate(float deltaSeconds)
@@ -103,14 +142,30 @@ namespace AtomGame
 
         m_time += deltaSeconds;
         m_messages.Update(deltaSeconds);
-        if (m_mode == Mode::Exploring)
+
+        m_levels->Update(deltaSeconds);
+        GetRenderer().SetFade(m_levels->GetFade());
+        if (m_levels->IsTransitioning())
         {
-            m_player.Update(GetInput(), m_camera, &m_collision, deltaSeconds);
-            UpdateInteraction(deltaSeconds);
+            m_mode = Mode::Transitioning;
         }
-        else
+        else if (m_mode == Mode::Transitioning)
         {
+            m_mode = Mode::Exploring;
+        }
+
+        switch (m_mode)
+        {
+        case Mode::Exploring:
+            m_player.Update(GetInput(), m_camera, CurrentCollision(), deltaSeconds);
+            UpdateInteraction();
+            break;
+        case Mode::InDialogue:
             UpdateDialogue(deltaSeconds);
+            break;
+        case Mode::Transitioning:
+            m_target = {};
+            break;
         }
 
         const Atom::Input& input = GetInput();
@@ -133,8 +188,10 @@ namespace AtomGame
             m_camera.farPlane
         );
 
-        m_street->Submit(renderer, glm::mat4{ 1.0f });
-        SubmitEntities();
+        if (Level* level = m_levels->GetLevel())
+        {
+            level->Submit(renderer);
+        }
 
         // Fog banks stay faintly visible with fog off: morning haze.
         const Atom::SceneLighting& lighting = renderer.GetLighting();
@@ -156,13 +213,12 @@ namespace AtomGame
     void DemoApp::OnShutdown()
     {
         GetRenderer().SetParticleAtlas(nullptr, 1);
+        m_unease.Configure({}, nullptr);
+        m_levels.reset(); // the current level cleans itself up
         m_smallFont.reset();
         m_font.reset();
         m_unease.Shutdown();
         m_atmosphere.Shutdown();
-        m_world.Clear();
-        m_keeperModel.reset();
-        m_street.reset();
     }
 
     void DemoApp::UpdateWindowTitle(float deltaSeconds)
@@ -182,9 +238,10 @@ namespace AtomGame
         std::snprintf(
             title,
             sizeof(title),
-            "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
+            "AtomEngine | %s | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
             " | shadows %s | post %s | draws %u/%u (+%u) | particles %u"
             " | pos %.1f %.2f %.1f%s",
+            m_levels->GetLevel() ? m_levels->GetLevel()->GetName().c_str() : "-",
             m_titleFrames / m_titleTimer,
             stats.sceneWidth,
             stats.sceneHeight,
@@ -234,7 +291,7 @@ namespace AtomGame
         {
             m_dialogueView.Draw(ui, *m_font, *m_smallFont, m_dialogue, scale, m_time);
         }
-        else
+        else if (m_mode == Mode::Exploring)
         {
             DrawInteractionPrompt(scale);
             if (hintAlpha <= 0.0f)
@@ -264,7 +321,8 @@ namespace AtomGame
             "Particles %u\n"
             "Fog %s   Shadows %s   Post %s\n"
             "Particles %s   Unease %s   Audio %s\n"
-            "Position %.1f  %.2f  %.1f",
+            "Position %.1f  %.2f  %.1f\n"
+            "Level %s   voices %zu   flags %zu",
             m_smoothedFrameMs,
             m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f,
             stats.sceneWidth, stats.sceneHeight, settings.renderScale * 100.0f, stats.msaaSamples,
@@ -276,7 +334,10 @@ namespace AtomGame
             m_atmosphere.IsEnabled() ? "on" : "off",
             m_unease.IsEnabled() ? "on" : "off",
             m_audioScape.IsMuted() ? "muted" : "on",
-            feet.x, feet.y, feet.z);
+            feet.x, feet.y, feet.z,
+            m_levels->GetLevel() ? m_levels->GetLevel()->GetName().c_str() : "-",
+            GetAudio().GetVoiceCount(),
+            m_gameState.FlagCount());
 
         const float padding = 10.0f * scale;
         const glm::vec2 size = ui.MeasureText(*m_smallFont, text, scale);
@@ -284,105 +345,6 @@ namespace AtomGame
             { 0.04f, 0.04f, 0.05f, 0.85f });
         ui.DrawText(*m_smallFont, text,
             glm::vec2{ 12.0f * scale + padding }, { 0.88f, 0.90f, 0.86f, 1.0f }, scale);
-    }
-
-    void DemoApp::SpawnStreetEntities()
-    {
-        // Placeholders in code until levels load entities from data (M12).
-        // Positions are glTF space; the kit's fronts face +Z on the north
-        // side of the road and -Z on the south side.
-        const auto vending = [&](glm::vec3 position, float facing) {
-            Entity entity;
-            entity.name = "vending_machine";
-            entity.position = position;
-            Interactable use{ "Buy a drink", ShowMessage{
-                "The coin drops. Something rattles inside... nothing comes out." } };
-            use.focusOffset = { 0.0f, 1.1f, 0.45f * facing };
-            entity.interactable = std::move(use);
-            m_world.Spawn(std::move(entity));
-        };
-        vending({ -20.0f, 0.0f, -4.1f }, 1.0f);
-        vending({ 29.8f, 0.0f, -4.1f }, 1.0f);
-        vending({ -2.6f, 0.0f, 4.1f }, -1.0f);
-
-        // Bow at the torii before approaching the shrine.
-        Entity torii;
-        torii.name = "torii";
-        torii.position = { -14.0f, 0.0f, 5.5f };
-        Interactable bow{ "Bow", SetFlag{ "bowed_at_torii",
-            "You bow before passing beneath the torii." } };
-        bow.focusOffset = { 0.0f, 1.6f, 0.0f };
-        bow.radius = 2.5f;
-        torii.interactable = std::move(bow);
-        m_world.Spawn(std::move(torii));
-
-        // The hokora answers only if you bowed first: a flag-gated action,
-        // the same mechanism the shrine gate will use in M12.
-        Entity hokora;
-        hokora.name = "hokora";
-        hokora.position = { -14.0f, 0.0f, 11.0f };
-        Interactable pray{ "Pray", SetFlag{ "prayed_at_hokora",
-            "You put your hands together. For a moment, the cicadas fall silent." } };
-        pray.focusOffset = { 0.0f, 1.0f, -0.7f };
-        pray.requiresFlag = "bowed_at_torii";
-        pray.lockedAction = ShowMessage{
-            "It feels wrong to come this close without bowing at the torii first." };
-        hokora.interactable = std::move(pray);
-        m_world.Spawn(std::move(hokora));
-
-        // The shrine keeper stands by the torii, facing the road. An NPC is
-        // just an entity that is drawn and can be talked to.
-        Entity keeper;
-        keeper.name = "shrine_keeper";
-        keeper.position = { -11.4f, 0.0f, 3.9f };
-        keeper.renderable = Renderable{ m_keeperModel.get(), glm::pi<float>() };
-        Interactable talk{ "Talk", StartDialogue{ "shrine_keeper" } };
-        talk.focusOffset = { 0.0f, 1.45f, 0.0f };
-        talk.radius = 2.6f;
-        keeper.interactable = std::move(talk);
-        m_world.Spawn(std::move(keeper));
-        AddBoxCollider({ -11.4f, 0.85f, 3.9f }, { 0.3f, 0.85f, 0.25f });
-
-        std::cout << "Spawned " << m_world.Count() << " street entities\n";
-    }
-
-    void DemoApp::AddBoxCollider(const glm::vec3& center, const glm::vec3& half)
-    {
-        // Twelve triangles of an axis-aligned box.
-        const auto corner = [&](int x, int y, int z) {
-            return center + glm::vec3{ x ? half.x : -half.x, y ? half.y : -half.y, z ? half.z : -half.z };
-        };
-        const int faces[6][4][3] = {
-            { { 1, 0, 0 }, { 1, 1, 0 }, { 1, 1, 1 }, { 1, 0, 1 } },
-            { { 0, 0, 1 }, { 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0 } },
-            { { 0, 1, 0 }, { 0, 1, 1 }, { 1, 1, 1 }, { 1, 1, 0 } },
-            { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 0, 1 }, { 0, 0, 1 } },
-            { { 0, 0, 1 }, { 1, 0, 1 }, { 1, 1, 1 }, { 0, 1, 1 } },
-            { { 1, 0, 0 }, { 0, 0, 0 }, { 0, 1, 0 }, { 1, 1, 0 } },
-        };
-        for (const auto& face : faces)
-        {
-            const glm::vec3 a = corner(face[0][0], face[0][1], face[0][2]);
-            const glm::vec3 b = corner(face[1][0], face[1][1], face[1][2]);
-            const glm::vec3 c = corner(face[2][0], face[2][1], face[2][2]);
-            const glm::vec3 d = corner(face[3][0], face[3][1], face[3][2]);
-            m_collision.AddTriangle(a, b, c);
-            m_collision.AddTriangle(a, c, d);
-        }
-    }
-
-    void DemoApp::SubmitEntities()
-    {
-        Atom::Renderer& renderer = GetRenderer();
-        m_world.ForEach([&](EntityId, const Entity& entity) {
-            if (!entity.renderable || !entity.renderable->model)
-            {
-                return;
-            }
-            glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
-            transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
-            entity.renderable->model->Submit(renderer, transform);
-        });
     }
 
     bool DemoApp::BeginDialogue(const std::string& dialogueId)
@@ -428,7 +390,8 @@ namespace AtomGame
         }
 
         // Face whoever is speaking.
-        if (const Entity* speaker = m_world.Find(m_speaker))
+        GameWorld* world = CurrentWorld();
+        if (const Entity* speaker = world ? world->Find(m_speaker) : nullptr)
         {
             const glm::vec3 focus = speaker->position
                 + (speaker->interactable ? speaker->interactable->focusOffset : glm::vec3{ 0.0f, 1.5f, 0.0f });
@@ -457,33 +420,44 @@ namespace AtomGame
             m_camera.GetPitch() + (targetPitch - m_camera.GetPitch()) * blend);
     }
 
-    void DemoApp::UpdateInteraction(float /*deltaSeconds*/)
+    void DemoApp::UpdateInteraction()
     {
         const Atom::Input& input = GetInput();
-        if (!input.IsMouseCaptured())
+        GameWorld* world = CurrentWorld();
+        if (!input.IsMouseCaptured() || !world)
         {
             m_target = {};
             return;
         }
 
         m_target = InteractionSystem::FindTarget(
-            m_world, &m_collision, m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
 
-        const Entity* target = m_world.Find(m_target);
+        const Entity* target = world->Find(m_target);
         if (target && input.WasKeyPressed(SDL_SCANCODE_E))
         {
-            ActionContext context{ m_gameState, m_messages,
-                [this](const std::string& id) { return BeginDialogue(id); } };
-            ExecuteAction(
-                InteractionSystem::ResolveAction(*target->interactable, m_gameState),
-                context);
-            std::cout << "Interacted with " << target->name << '\n';
+            Interact(*target);
         }
+    }
+
+    void DemoApp::Interact(const Entity& target)
+    {
+        ActionContext context{
+            m_gameState,
+            m_messages,
+            [this](const std::string& id) { return BeginDialogue(id); },
+            [this](const std::string& level, const std::string& spawn) {
+                m_levels->RequestChange(level, spawn);
+            },
+        };
+        std::cout << "Interacted with " << target.name << '\n';
+        ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
     }
 
     void DemoApp::DrawInteractionPrompt(float scale)
     {
-        const Entity* target = m_world.Find(m_target);
+        GameWorld* world = CurrentWorld();
+        const Entity* target = world ? world->Find(m_target) : nullptr;
         if (!target || m_messages.IsVisible())
         {
             return;
@@ -583,15 +557,21 @@ namespace AtomGame
 
     void DemoApp::ApplyLighting()
     {
-        // Overcast daylight; the sky is the fog colour.
+        // The level decides the light; the player's toggles (fog preset,
+        // shadows) apply on top wherever they are.
         Atom::SceneLighting lighting{};
-        lighting.fogColor = glm::vec3{ 0.46f, 0.47f, 0.47f };
+        if (const Level* level = m_levels ? m_levels->GetLevel() : nullptr)
+        {
+            const LevelLighting& l = level->GetData().lighting;
+            lighting.sunDirection = l.sunDirection;
+            lighting.sunColor = l.sunColor;
+            lighting.skyColor = l.skyColor;
+            lighting.groundColor = l.groundColor;
+            lighting.fogColor = l.fogColor;
+            lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
+        }
         lighting.fogDensity = FogPresets[m_fogPreset].density;
         lighting.fogHeightFalloff = 0.08f;
-        lighting.shadowsEnabled = m_shadowsEnabled;
-        // Afternoon sun low in the north-east: the north-side houses throw
-        // long, soft shadows across the road.
-        lighting.sunDirection = glm::vec3{ 0.35f, 0.6f, -0.55f };
         GetRenderer().SetLighting(lighting);
     }
 

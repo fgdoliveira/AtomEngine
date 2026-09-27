@@ -6,6 +6,7 @@ add_executable(
     RaycastTests.cpp
     InteractionTests.cpp
     DialogueTests.cpp
+    LevelTests.cpp
 )
 
 target_link_libraries(

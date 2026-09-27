@@ -19,6 +19,7 @@ namespace AtomGame
         MessageFeed& messages;
         // Hooks into systems the executor shouldn't depend on directly.
         std::function<bool(const std::string& dialogueId)> startDialogue;
+        std::function<void(const std::string& level, const std::string& spawn)> changeLevel;
     };
 
     void ExecuteAction(const Action& action, ActionContext& context);

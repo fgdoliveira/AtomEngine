@@ -39,10 +39,14 @@ namespace AtomGame
                 }
             },
             [&](const ChangeLevel& change) {
-                // Wired to the level manager in M12.
-                std::cout << "ChangeLevel '" << change.level << "' at '"
-                          << change.spawn << "' (M12)\n";
-                context.messages.Show("The way is shut, for now.");
+                if (context.changeLevel)
+                {
+                    context.changeLevel(change.level, change.spawn);
+                }
+                else
+                {
+                    context.messages.Show("The way is shut.");
+                }
             },
         }, action);
     }

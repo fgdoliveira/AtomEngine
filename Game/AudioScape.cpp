@@ -9,16 +9,6 @@
 
 namespace AtomGame
 {
-    namespace
-    {
-        // Vending machines in street.glb (glTF space: Blender Y -> -Z).
-        constexpr glm::vec3 VendingMachines[] = {
-            { -20.0f, 1.0f, -4.1f },
-            { 29.8f, 1.0f, -4.1f },
-            { -2.6f, 1.0f, 4.1f },
-        };
-    }
-
     void AudioScape::Initialize(Atom::AudioSystem& audio)
     {
         m_audio = &audio;
@@ -27,32 +17,16 @@ namespace AtomGame
             return;
         }
 
-        // Beds: everywhere, unpositioned.
-        Atom::PlayParams bed{};
-        bed.loop = true;
+        // The library levels draw from. Synthesised once; levels only start
+        // and stop voices that play these buffers.
+        m_library["wind"] = SoundSynth::Wind();
+        m_library["cicadas"] = SoundSynth::CicadaBed();
+        m_library["drone"] = SoundSynth::Drone();
+        m_library["vending_hum"] = SoundSynth::VendingHum();
+        m_library["static"] = SoundSynth::RadioStatic();
+        m_library["room_tone"] = SoundSynth::RoomTone();
 
-        bed.gain = 0.55f;
-        audio.Play(SoundSynth::Wind(), bed);
-        bed.gain = 0.18f;
-        audio.Play(SoundSynth::CicadaBed(), bed);
-        bed.gain = 0.16f;
-        audio.Play(SoundSynth::Drone(), bed);
-
-        // Vending machines hum where they stand.
-        const Atom::SoundHandle hum = SoundSynth::VendingHum();
-        for (const glm::vec3& position : VendingMachines)
-        {
-            Atom::PlayParams params{};
-            params.loop = true;
-            params.gain = 0.22f;
-            params.spatial = true;
-            params.position = position;
-            params.minDistance = 1.5f;
-            params.maxDistance = 14.0f;
-            m_humVoices.push_back(audio.Play(hum, params));
-        }
-
-        for (int surface = 0; surface < 4; ++surface)
+        for (int surface = 0; surface < SurfaceCount; ++surface)
         {
             for (int variant = 0; variant < FootstepVariants; ++variant)
             {
@@ -68,36 +42,38 @@ namespace AtomGame
             m_higurashi.push_back(SoundSynth::Higurashi(seed));
         }
 
-        // Static loops silently until an unease beat raises it.
-        m_static = SoundSynth::RadioStatic();
+        // Static follows the player between levels; silent until an unease
+        // beat raises it.
         Atom::PlayParams staticParams{};
         staticParams.loop = true;
         staticParams.gain = 0.0f;
-        m_staticVoice = audio.Play(m_static, staticParams);
+        m_staticVoice = audio.Play(m_library["static"], staticParams);
 
-        std::cout << "AudioScape: sounds synthesised\n";
+        std::cout << "AudioScape: " << m_library.size() << " library sounds synthesised\n";
     }
 
-    SoundSynth::Surface AudioScape::SurfaceAt(const glm::vec3& position)
+    Atom::SoundHandle AudioScape::GetSound(std::string_view name) const
+    {
+        const auto found = m_library.find(std::string(name));
+        if (found == m_library.end())
+        {
+            if (m_audio && m_audio->IsAvailable())
+            {
+                std::cerr << "Unknown sound '" << name << "'\n";
+            }
+            return nullptr;
+        }
+        return found->second;
+    }
+
+    SoundSynth::Surface AudioScape::SurfaceUnderfoot(const glm::vec3& position) const
     {
         using SoundSynth::Surface;
-
-        // Shrine approach (stone path behind the torii).
-        if (position.x > -14.8f && position.x < -13.2f
-            && position.z > 4.9f && position.z < 10.3f)
-        {
-            return Surface::Stone;
-        }
-
-        const float side = std::abs(position.z);
-        if (side < 3.0f)
-        {
-            return Surface::Asphalt;
-        }
-        if (side < 3.65f)
-        {
-            return Surface::Concrete; // gutter and curb
-        }
+        const std::string_view name = m_surfaceAt ? m_surfaceAt(position.x, position.z) : "dirt";
+        if (name == "asphalt") { return Surface::Asphalt; }
+        if (name == "concrete") { return Surface::Concrete; }
+        if (name == "stone") { return Surface::Stone; }
+        if (name == "wood") { return Surface::Wood; }
         return Surface::Dirt;
     }
 
@@ -120,7 +96,7 @@ namespace AtomGame
             m_lastStep = listener.stepCount;
             if (listener.grounded)
             {
-                const auto surface = static_cast<int>(SurfaceAt(listener.feetPosition));
+                const auto surface = static_cast<int>(SurfaceUnderfoot(listener.feetPosition));
                 std::uniform_int_distribution<int> pick(0, FootstepVariants - 1);
                 std::uniform_real_distribution<float> vary(0.94f, 1.06f);
 
@@ -132,6 +108,10 @@ namespace AtomGame
         }
 
         // Now and then an evening cicada calls from somewhere in the fog.
+        if (!m_outdoor)
+        {
+            return;
+        }
         m_higurashiTimer -= deltaSeconds;
         if (m_higurashiTimer <= 0.0f)
         {
@@ -160,18 +140,6 @@ namespace AtomGame
         if (m_audio && m_staticVoice)
         {
             m_audio->SetVoiceGain(m_staticVoice, 0.45f * level);
-        }
-    }
-
-    void AudioScape::SetHumLevel(float level)
-    {
-        if (!m_audio)
-        {
-            return;
-        }
-        for (const Atom::VoiceId voice : m_humVoices)
-        {
-            m_audio->SetVoiceGain(voice, 0.22f * level);
         }
     }
 

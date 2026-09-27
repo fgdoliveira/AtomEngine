@@ -8,7 +8,7 @@ cbuffer PostUniforms : register(b0, space3)
 {
     float4 u_tint;       // rgb tint, w: enabled
     float4 u_params;     // x: exposure, y: saturation, z: grain, w: vignette
-    float4 u_output;     // xy: output size in pixels, z: frame index
+    float4 u_output;     // xy: output size in pixels, z: frame index, w: fade to black
 };
 
 struct PSInput
@@ -41,9 +41,10 @@ float4 main(PSInput input) : SV_Target0
 {
     float3 color = SceneTexture.Sample(SceneSampler, input.uv).rgb;
 
+    const float visible = 1.0 - u_output.w; // level transitions fade through black
     if (u_tint.w <= 0.0)
     {
-        return float4(color, 1.0);
+        return float4(color * visible, 1.0);
     }
 
     color = TonemapAces(color * u_params.x);
@@ -70,5 +71,5 @@ float4 main(PSInput input) : SV_Target0
         color *= 1.0 - u_params.w * falloff;
     }
 
-    return float4(saturate(color), 1.0);
+    return float4(saturate(color) * visible, 1.0);
 }

@@ -241,6 +241,12 @@ namespace Atom
         }
     }
 
+    std::size_t AudioSystem::GetVoiceCount() const
+    {
+        const StreamLock lock(m_stream);
+        return m_voices.size();
+    }
+
     AudioSystem::Voice* AudioSystem::FindVoice(VoiceId id)
     {
         for (Voice& voice : m_voices)

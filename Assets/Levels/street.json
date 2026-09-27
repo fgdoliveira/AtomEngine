@@ -1,0 +1,103 @@
+{
+  "name": "street",
+  "model": "Street/street.glb",
+  "collision": "Street/street_col.glb",
+  "defaultSpawn": "east_end",
+  "spawns": {
+    "east_end":    { "position": [36.0, 0.0, 1.0], "yaw": -90 }
+  },
+  "lighting": {
+    "sunDirection": [0.35, 0.6, -0.55],
+    "sunColor": [0.45, 0.45, 0.45],
+    "skyColor": [0.75, 0.77, 0.80],
+    "groundColor": [0.20, 0.19, 0.17],
+    "fogColor": [0.46, 0.47, 0.47],
+    "shadows": true
+  },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.55 },
+      { "sound": "cicadas", "gain": 0.18 },
+      { "sound": "drone", "gain": 0.16 }
+    ],
+    "emitters": [
+      { "sound": "vending_hum", "group": "vending", "position": [-20.0, 1.0, -4.1], "gain": 0.22, "minDistance": 1.5, "maxDistance": 14 },
+      { "sound": "vending_hum", "group": "vending", "position": [29.8, 1.0, -4.1], "gain": 0.22, "minDistance": 1.5, "maxDistance": 14 },
+      { "sound": "vending_hum", "group": "vending", "position": [-2.6, 1.0, 4.1], "gain": 0.22, "minDistance": 1.5, "maxDistance": 14 }
+    ]
+  },
+  "surfaces": {
+    "default": "dirt",
+    "zones": [
+      { "min": [-14.8, 0, 4.9], "max": [-13.2, 0, 10.3], "surface": "stone" },
+      { "min": [-60, 0, -3.0], "max": [60, 0, 3.0], "surface": "asphalt" },
+      { "min": [-60, 0, -3.65], "max": [60, 0, 3.65], "surface": "concrete" }
+    ]
+  },
+  "particles": { "leaves": true, "fogBanks": true },
+  "unease": {
+    "figure": true,
+    "figureSpots": [
+      [-36.0, 0.0, 0.8], [-30.0, 0.0, -4.0], [-15.0, 0.0, 15.8],
+      [24.0, 0.0, 12.0], [6.0, 0.0, 4.2], [38.0, 0.0, -1.2]
+    ],
+    "flickerMaterial": "atom_vending_front",
+    "flickerSites": [[-20.0, 0.0, -4.1], [29.8, 0.0, -4.1], [-2.6, 0.0, 4.1]]
+  },
+  "entities": [
+    {
+      "name": "vending_machine_west",
+      "position": [-20.0, 0.0, -4.1],
+      "interactable": {
+        "prompt": "Buy a drink", "focus": [0.0, 1.1, 0.45],
+        "action": { "type": "message", "text": "The coin drops. Something rattles inside... nothing comes out." }
+      }
+    },
+    {
+      "name": "vending_machine_east",
+      "position": [29.8, 0.0, -4.1],
+      "interactable": {
+        "prompt": "Buy a drink", "focus": [0.0, 1.1, 0.45],
+        "action": { "type": "message", "text": "The coin drops. Something rattles inside... nothing comes out." }
+      }
+    },
+    {
+      "name": "vending_machine_south",
+      "position": [-2.6, 0.0, 4.1],
+      "interactable": {
+        "prompt": "Buy a drink", "focus": [0.0, 1.1, -0.45],
+        "action": { "type": "message", "text": "The coin drops. Something rattles inside... nothing comes out." }
+      }
+    },
+    {
+      "name": "torii",
+      "position": [-14.0, 0.0, 5.5],
+      "interactable": {
+        "prompt": "Bow", "focus": [0.0, 1.6, 0.0], "radius": 2.5,
+        "action": { "type": "setFlag", "flag": "bowed_at_torii", "message": "You bow before passing beneath the torii." }
+      }
+    },
+    {
+      "name": "hokora",
+      "position": [-14.0, 0.0, 11.0],
+      "interactable": {
+        "prompt": "Pray", "focus": [0.0, 1.0, -0.7],
+        "requires": "bowed_at_torii",
+        "action": { "type": "setFlag", "flag": "prayed_at_hokora", "message": "You put your hands together. For a moment, the cicadas fall silent." },
+        "locked": { "type": "message", "text": "It feels wrong to come this close without bowing at the torii first." }
+      }
+    },
+    {
+      "name": "shrine_keeper",
+      "position": [-11.4, 0.0, 3.9],
+      "yaw": 180,
+      "model": "Kit/keeper.glb",
+      "collider": { "center": [0.0, 0.85, 0.0], "halfExtents": [0.3, 0.85, 0.25] },
+      "interactable": {
+        "prompt": "Talk", "focus": [0.0, 1.45, 0.0], "radius": 2.6,
+        "action": { "type": "dialogue", "id": "shrine_keeper" }
+      }
+    }
+  ]
+}

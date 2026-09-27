@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Renderer/Material.h"
+#include "Level/LevelData.h"
 #include "Renderer/Mesh.h"
 
 #include <glm/vec3.hpp>
@@ -17,6 +18,7 @@ namespace Atom
 namespace AtomGame
 {
     class AudioScape;
+    class Level;
 
     // Quiet "is something there?" moments, never a jump scare:
     //  - a dark figure stands far off in the fog and is gone once you get
@@ -26,7 +28,9 @@ namespace AtomGame
     class UneaseDirector
     {
     public:
-        bool Initialize(Atom::Renderer& renderer, Atom::Material* vendingScreen);
+        bool Initialize(Atom::Renderer& renderer);
+        // Per level: where the figure may stand, what flickers.
+        void Configure(const LevelUnease& config, Level* level);
         void Shutdown();
 
         void Update(
@@ -55,8 +59,10 @@ namespace AtomGame
         float m_figureCooldown = 8.0f;
         float m_staticLevel = 0.0f;
 
-        Atom::Material* m_vendingScreen = nullptr;
-        glm::vec3 m_vendingEmission{ 0.0f };
+        LevelUnease m_config;
+        Level* m_level = nullptr;
+        Atom::Material* m_flickerScreen = nullptr;
+        glm::vec3 m_flickerEmission{ 0.0f };
         float m_flickerCooldown = 20.0f;
         float m_flickerTime = -1.0f; // < 0 when not flickering
 

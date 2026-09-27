@@ -21,6 +21,12 @@ add_library(
     Dialogue/DialogueView.cpp
     Dialogue/DialogueView.h
     Interaction/Actions.h
+    Level/Level.cpp
+    Level/Level.h
+    Level/LevelData.cpp
+    Level/LevelData.h
+    Level/LevelManager.cpp
+    Level/LevelManager.h
     Interaction/ActionExecutor.cpp
     Interaction/ActionExecutor.h
     Interaction/InteractionSystem.cpp

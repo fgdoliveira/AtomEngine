@@ -100,6 +100,10 @@ namespace Atom
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
 
+        // 0 = normal, 1 = black. Applied in the post pass, before the UI.
+        void SetFade(float fade) { m_fade = fade; }
+        float GetFade() const { return m_fade; }
+
         // 2D overlay drawn on top of the final image (text, panels).
         UIRenderer& GetUI() { return m_ui; }
 
@@ -208,5 +212,6 @@ namespace Atom
         std::vector<DrawCommand> m_drawCommands;
         FrameStats m_stats;
         std::uint64_t m_frameIndex = 0; // animates film grain
+        float m_fade = 0.0f;
     };
 }
