@@ -22,6 +22,8 @@ set(ATOM_SHADER_SOURCES
     Basic.frag.hlsl
     Fullscreen.vert.hlsl
     Post.frag.hlsl
+    Shadow.vert.hlsl
+    Shadow.frag.hlsl
 )
 
 get_property(ATOM_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)

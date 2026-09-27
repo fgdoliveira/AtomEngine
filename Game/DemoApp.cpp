@@ -94,15 +94,17 @@ namespace AtomGame
             title,
             sizeof(title),
             "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
-            " | draws %u/%u | pos %.1f %.2f %.1f",
+            " | shadows %s | draws %u/%u (+%u) | pos %.1f %.2f %.1f",
             m_titleFrames / m_titleTimer,
             stats.sceneWidth,
             stats.sceneHeight,
             GetRenderer().GetSettings().renderScale * 100.0f,
             stats.msaaSamples,
             FogPresets[m_fogPreset].name,
+            m_shadowsEnabled ? "on" : "off",
             stats.drawn,
             stats.submitted,
+            stats.shadowDrawn,
             feet.x,
             feet.y,
             feet.z
@@ -143,6 +145,13 @@ namespace AtomGame
             ApplyLighting();
         }
 
+        // F6: sun shadows on/off.
+        if (input.WasKeyPressed(SDL_SCANCODE_F6))
+        {
+            m_shadowsEnabled = !m_shadowsEnabled;
+            ApplyLighting();
+        }
+
         // F4: MSAA 4x -> 2x -> 1x -> 4x.
         if (input.WasKeyPressed(SDL_SCANCODE_F4))
         {
@@ -160,6 +169,10 @@ namespace AtomGame
         lighting.fogColor = glm::vec3{ 0.46f, 0.47f, 0.47f };
         lighting.fogDensity = FogPresets[m_fogPreset].density;
         lighting.fogHeightFalloff = 0.08f;
+        lighting.shadowsEnabled = m_shadowsEnabled;
+        // Afternoon sun low in the north-east: the north-side houses throw
+        // long, soft shadows across the road.
+        lighting.sunDirection = glm::vec3{ 0.35f, 0.6f, -0.55f };
         GetRenderer().SetLighting(lighting);
     }
 

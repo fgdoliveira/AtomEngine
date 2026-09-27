@@ -21,5 +21,11 @@ namespace Atom
         float fogDensity = 0.0f;        // per metre at fogBaseHeight; 0 = off
         float fogHeightFalloff = 0.08f; // per metre; higher = thinner up high
         float fogBaseHeight = 0.0f;     // world Y where density applies
+
+        // Sun shadow map, centred on the camera.
+        bool shadowsEnabled = true;
+        float shadowHalfExtent = 30.0f;   // metres covered either side
+        float shadowAmbientShare = 0.35f; // how much sky light shadows block
+        float shadowNormalOffset = 0.06f; // metres; fights shadow acne
     };
 }

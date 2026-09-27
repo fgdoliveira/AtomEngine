@@ -88,8 +88,13 @@ namespace Atom
             glm::vec4 emissiveFactor;
         };
 
+        constexpr std::uint32_t ShadowMapSize = 2048;
+        constexpr SDL_GPUTextureFormat ShadowMapFormat =
+            SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
+
         struct SceneUniforms
         {
+            glm::mat4 lightViewProjection;
             glm::vec4 sunDirection;
             glm::vec4 sunColor;
             glm::vec4 skyColor;
@@ -97,17 +102,26 @@ namespace Atom
             glm::vec4 fogColor;       // w: density
             glm::vec4 cameraPosition; // w: height falloff
             glm::vec4 fogParams;      // x: base height
+            glm::vec4 shadowParams;   // enabled, texel uv, ambient share, normal offset
         };
 
         SceneUniforms MakeSceneUniforms(
             const SceneLighting& lighting,
-            const glm::mat4& view
+            const glm::mat4& view,
+            const glm::mat4& lightViewProjection
         )
         {
             // The camera sits at the translation of the inverse view.
             const glm::vec3 cameraPosition{ glm::inverse(view)[3] };
 
             SceneUniforms uniforms{};
+            uniforms.lightViewProjection = lightViewProjection;
+            uniforms.shadowParams = glm::vec4{
+                lighting.shadowsEnabled ? 1.0f : 0.0f,
+                1.0f / static_cast<float>(ShadowMapSize),
+                lighting.shadowAmbientShare,
+                lighting.shadowNormalOffset
+            };
             uniforms.sunDirection =
                 glm::vec4{ glm::normalize(lighting.sunDirection), 0.0f };
             uniforms.sunColor = glm::vec4{ lighting.sunColor, 0.0f };
@@ -289,6 +303,7 @@ namespace Atom
         return m_targets.Initialize(m_device)
             && CreateDefaultResources()
             && CreatePostPipeline()
+            && CreateShadowResources()
             && GetScenePipeline(m_targets.ClampSampleCount(m_settings.msaaSamples));
     }
 
@@ -354,7 +369,7 @@ namespace Atom
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 1, .uniformBuffers = 2 }
+            ShaderResources{ .samplers = 2, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -610,12 +625,18 @@ namespace Atom
                 std::lround(size * m_settings.renderScale)));
         };
 
+        m_stats = FrameStats{};
+        m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
+
+        const glm::mat4 lightViewProjection = ComputeLightViewProjection();
+
         const bool ok =
             m_targets.Ensure(
                 scaled(swapchainWidth),
                 scaled(swapchainHeight),
                 m_settings.msaaSamples)
-            && RenderScenePass(commandBuffer)
+            && RenderShadowPass(commandBuffer, lightViewProjection)
+            && RenderScenePass(commandBuffer, lightViewProjection)
             && RenderPostPass(commandBuffer, swapchainTexture);
 
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
@@ -630,7 +651,287 @@ namespace Atom
         return ok;
     }
 
-    bool Renderer::RenderScenePass(SDL_GPUCommandBuffer* commandBuffer)
+    bool Renderer::CreateShadowResources()
+    {
+        constexpr SDL_GPUTextureUsageFlags usage =
+            SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET
+            | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        if (!SDL_GPUTextureSupportsFormat(
+            m_device, ShadowMapFormat, SDL_GPU_TEXTURETYPE_2D, usage))
+        {
+            std::cerr << "GPU cannot sample a D32 shadow map.\n";
+            return false;
+        }
+
+        SDL_GPUTextureCreateInfo textureInfo{};
+        textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        textureInfo.format = ShadowMapFormat;
+        textureInfo.usage = usage;
+        textureInfo.width = ShadowMapSize;
+        textureInfo.height = ShadowMapSize;
+        textureInfo.layer_count_or_depth = 1;
+        textureInfo.num_levels = 1;
+        textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        m_shadowMap = SDL_CreateGPUTexture(m_device, &textureInfo);
+
+        // Hardware PCF: each tap compares and bilinearly blends 2x2 texels.
+        SDL_GPUSamplerCreateInfo samplerInfo{};
+        samplerInfo.min_filter = SDL_GPU_FILTER_LINEAR;
+        samplerInfo.mag_filter = SDL_GPU_FILTER_LINEAR;
+        samplerInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+        samplerInfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        samplerInfo.enable_compare = true;
+        samplerInfo.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        m_shadowSampler = SDL_CreateGPUSampler(m_device, &samplerInfo);
+
+        if (!m_shadowMap || !m_shadowSampler)
+        {
+            std::cerr
+                << "Failed to create shadow map resources: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+
+        SDL_GPUShader* vertexShader = LoadShader(
+            m_device,
+            "Shadow.vert",
+            SDL_GPU_SHADERSTAGE_VERTEX,
+            ShaderResources{ .uniformBuffers = 1 }
+        );
+        SDL_GPUShader* fragmentShader = LoadShader(
+            m_device,
+            "Shadow.frag",
+            SDL_GPU_SHADERSTAGE_FRAGMENT,
+            ShaderResources{}
+        );
+
+        if (!vertexShader || !fragmentShader)
+        {
+            if (vertexShader)
+            {
+                SDL_ReleaseGPUShader(m_device, vertexShader);
+            }
+            if (fragmentShader)
+            {
+                SDL_ReleaseGPUShader(m_device, fragmentShader);
+            }
+            return false;
+        }
+
+        // Same vertex buffers as the scene; only the position is read.
+        SDL_GPUVertexBufferDescription vertexBuffer{};
+        vertexBuffer.slot = 0;
+        vertexBuffer.pitch = sizeof(Vertex);
+        vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+
+        SDL_GPUVertexAttribute position{};
+        position.location = 0;
+        position.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        position.offset = offsetof(Vertex, position);
+
+        SDL_GPUGraphicsPipelineCreateInfo createInfo{};
+        createInfo.vertex_shader = vertexShader;
+        createInfo.fragment_shader = fragmentShader;
+        createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
+        createInfo.vertex_input_state.num_vertex_buffers = 1;
+        createInfo.vertex_input_state.vertex_attributes = &position;
+        createInfo.vertex_input_state.num_vertex_attributes = 1;
+        createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+        createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+        // Kit pieces include single-sided quads (doors, ground); let both
+        // faces cast.
+        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+        createInfo.rasterizer_state.front_face =
+            SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+        // Slope bias pushes steep surfaces away from the light; the shader
+        // adds a normal offset for the rest.
+        createInfo.rasterizer_state.enable_depth_bias = true;
+        createInfo.rasterizer_state.depth_bias_slope_factor = 1.5f;
+        createInfo.rasterizer_state.enable_depth_clip = true;
+        createInfo.depth_stencil_state.enable_depth_test = true;
+        createInfo.depth_stencil_state.enable_depth_write = true;
+        createInfo.depth_stencil_state.compare_op =
+            SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        createInfo.target_info.depth_stencil_format = ShadowMapFormat;
+        createInfo.target_info.has_depth_stencil_target = true;
+
+        m_shadowPipeline = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+
+        SDL_ReleaseGPUShader(m_device, vertexShader);
+        SDL_ReleaseGPUShader(m_device, fragmentShader);
+
+        if (!m_shadowPipeline)
+        {
+            std::cerr
+                << "Failed to create shadow pipeline: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+
+        return true;
+    }
+
+    glm::mat4 Renderer::ComputeLightViewProjection() const
+    {
+        const glm::vec3 toSun = glm::normalize(m_lighting.sunDirection);
+        const glm::vec3 up = std::abs(toSun.y) > 0.99f
+            ? glm::vec3{ 0.0f, 0.0f, 1.0f }
+            : glm::vec3{ 0.0f, 1.0f, 0.0f };
+
+        // Fixed orientation, origin at the world origin: only the ortho box
+        // moves, so snapping it to whole texels keeps the rasterisation of
+        // static geometry identical from frame to frame.
+        const glm::mat4 lightView =
+            glm::lookAt(glm::vec3{ 0.0f }, -toSun, up);
+
+        const glm::vec3 cameraPosition{ glm::inverse(m_camera.view)[3] };
+        glm::vec3 center{ lightView * glm::vec4{ cameraPosition, 1.0f } };
+
+        const float halfExtent = m_lighting.shadowHalfExtent;
+        const float texel = 2.0f * halfExtent / static_cast<float>(ShadowMapSize);
+        center.x = std::floor(center.x / texel) * texel;
+        center.y = std::floor(center.y / texel) * texel;
+
+        // Deep enough to catch roofs and poles well above/below the camera.
+        constexpr float DepthRange = 150.0f;
+        const glm::mat4 projection = glm::ortho(
+            center.x - halfExtent,
+            center.x + halfExtent,
+            center.y - halfExtent,
+            center.y + halfExtent,
+            -center.z - DepthRange,
+            -center.z + DepthRange
+        );
+
+        return projection * lightView;
+    }
+
+    std::uint32_t Renderer::DrawQueue(
+        SDL_GPURenderPass* renderPass,
+        SDL_GPUCommandBuffer* commandBuffer,
+        const glm::mat4& viewProjection,
+        bool bindMaterials
+    )
+    {
+        const Frustum frustum = ExtractFrustum(viewProjection);
+
+        ObjectUniforms uniforms{};
+        uniforms.viewProjection = viewProjection;
+
+        std::uint32_t drawn = 0;
+        for (const DrawCommand& command : m_drawCommands)
+        {
+            if (!IsVisible(frustum, *command.mesh, command.model))
+            {
+                continue;
+            }
+            ++drawn;
+
+            uniforms.model = command.model;
+            SDL_PushGPUVertexUniformData(
+                commandBuffer,
+                0,
+                &uniforms,
+                sizeof(uniforms)
+            );
+
+            if (bindMaterials)
+            {
+                const Material& material = *command.material;
+                const MaterialUniforms materialUniforms{
+                    material.baseColorFactor,
+                    glm::vec4{ material.emissiveFactor, 0.0f }
+                };
+                SDL_PushGPUFragmentUniformData(
+                    commandBuffer,
+                    0,
+                    &materialUniforms,
+                    sizeof(materialUniforms)
+                );
+
+                const Texture* baseColor = material.baseColorTexture
+                    ? material.baseColorTexture
+                    : m_whiteTexture.get();
+                const SDL_GPUTextureSamplerBinding textureBinding{
+                    baseColor->GetGPUTexture(),
+                    m_sampler
+                };
+                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+            }
+
+            const SDL_GPUBufferBinding vertexBinding{
+                command.mesh->GetVertexBuffer(),
+                0
+            };
+            const SDL_GPUBufferBinding indexBinding{
+                command.mesh->GetIndexBuffer(),
+                0
+            };
+            SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
+            SDL_BindGPUIndexBuffer(
+                renderPass,
+                &indexBinding,
+                SDL_GPU_INDEXELEMENTSIZE_32BIT
+            );
+            SDL_DrawGPUIndexedPrimitives(
+                renderPass,
+                command.mesh->GetIndexCount(),
+                1,
+                0,
+                0,
+                0
+            );
+        }
+
+        return drawn;
+    }
+
+    bool Renderer::RenderShadowPass(
+        SDL_GPUCommandBuffer* commandBuffer,
+        const glm::mat4& lightViewProjection
+    )
+    {
+        if (!m_lighting.shadowsEnabled)
+        {
+            return true;
+        }
+
+        SDL_GPUDepthStencilTargetInfo depthTarget{};
+        depthTarget.texture = m_shadowMap;
+        depthTarget.clear_depth = 1.0f;
+        depthTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        depthTarget.store_op = SDL_GPU_STOREOP_STORE; // sampled by the scene
+        depthTarget.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+        depthTarget.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+        depthTarget.cycle = true;
+
+        SDL_GPURenderPass* renderPass =
+            SDL_BeginGPURenderPass(commandBuffer, nullptr, 0, &depthTarget);
+        if (!renderPass)
+        {
+            std::cerr
+                << "Failed to begin shadow render pass: "
+                << SDL_GetError()
+                << '\n';
+            return false;
+        }
+
+        SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipeline);
+        m_stats.shadowDrawn =
+            DrawQueue(renderPass, commandBuffer, lightViewProjection, false);
+
+        SDL_EndGPURenderPass(renderPass);
+        return true;
+    }
+
+    bool Renderer::RenderScenePass(
+        SDL_GPUCommandBuffer* commandBuffer,
+        const glm::mat4& lightViewProjection
+    )
     {
         SDL_GPUGraphicsPipeline* pipeline =
             GetScenePipeline(m_targets.GetSamples());
@@ -675,14 +976,11 @@ namespace Atom
             m_camera.farPlane
         );
 
-        ObjectUniforms uniforms{};
-        uniforms.viewProjection = projection * m_camera.view;
-
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 
         // Once per frame; stays bound for every draw in this command buffer.
-        const SceneUniforms sceneUniforms =
-            MakeSceneUniforms(m_lighting, m_camera.view);
+        const SceneUniforms sceneUniforms = MakeSceneUniforms(
+            m_lighting, m_camera.view, lightViewProjection);
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
             1,
@@ -690,74 +988,17 @@ namespace Atom
             sizeof(sceneUniforms)
         );
 
-        const Frustum frustum = ExtractFrustum(uniforms.viewProjection);
-        m_stats = FrameStats{};
-        m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
+        const SDL_GPUTextureSamplerBinding shadowBinding{
+            m_shadowMap,
+            m_shadowSampler
+        };
+        SDL_BindGPUFragmentSamplers(renderPass, 1, &shadowBinding, 1);
+
         m_stats.sceneWidth = m_targets.GetWidth();
         m_stats.sceneHeight = m_targets.GetHeight();
         m_stats.msaaSamples = m_targets.GetSamples();
-
-        for (const DrawCommand& command : m_drawCommands)
-        {
-            if (!IsVisible(frustum, *command.mesh, command.model))
-            {
-                continue;
-            }
-            ++m_stats.drawn;
-
-            const SDL_GPUBufferBinding vertexBinding{
-                command.mesh->GetVertexBuffer(),
-                0
-            };
-            const SDL_GPUBufferBinding indexBinding{
-                command.mesh->GetIndexBuffer(),
-                0
-            };
-
-            uniforms.model = command.model;
-            SDL_PushGPUVertexUniformData(
-                commandBuffer,
-                0,
-                &uniforms,
-                sizeof(uniforms)
-            );
-
-            const Material& material = *command.material;
-            const MaterialUniforms materialUniforms{
-                material.baseColorFactor,
-                glm::vec4{ material.emissiveFactor, 0.0f }
-            };
-            SDL_PushGPUFragmentUniformData(
-                commandBuffer,
-                0,
-                &materialUniforms,
-                sizeof(materialUniforms)
-            );
-
-            const Texture* baseColor = material.baseColorTexture
-                ? material.baseColorTexture
-                : m_whiteTexture.get();
-            const SDL_GPUTextureSamplerBinding textureBinding{
-                baseColor->GetGPUTexture(),
-                m_sampler
-            };
-            SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
-
-            SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
-            SDL_BindGPUIndexBuffer(
-                renderPass,
-                &indexBinding,
-                SDL_GPU_INDEXELEMENTSIZE_32BIT
-            );
-            SDL_DrawGPUIndexedPrimitives(
-                renderPass,
-                command.mesh->GetIndexCount(),
-                1,
-                0,
-                0,
-                0
-            );
-        }
+        m_stats.drawn = DrawQueue(
+            renderPass, commandBuffer, projection * m_camera.view, true);
 
         SDL_EndGPURenderPass(renderPass);
         return true;
@@ -828,6 +1069,18 @@ namespace Atom
             {
                 SDL_ReleaseGPUGraphicsPipeline(m_device, m_postPipeline);
             }
+            if (m_shadowPipeline)
+            {
+                SDL_ReleaseGPUGraphicsPipeline(m_device, m_shadowPipeline);
+            }
+            if (m_shadowSampler)
+            {
+                SDL_ReleaseGPUSampler(m_device, m_shadowSampler);
+            }
+            if (m_shadowMap)
+            {
+                SDL_ReleaseGPUTexture(m_device, m_shadowMap);
+            }
 
             if (m_windowClaimed && m_window)
             {
@@ -839,6 +1092,9 @@ namespace Atom
 
         m_scenePipelines = {};
         m_postPipeline = nullptr;
+        m_shadowPipeline = nullptr;
+        m_shadowSampler = nullptr;
+        m_shadowMap = nullptr;
         m_sampler = nullptr;
         m_postSampler = nullptr;
         m_device = nullptr;

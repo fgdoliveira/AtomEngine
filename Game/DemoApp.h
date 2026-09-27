@@ -31,6 +31,7 @@ namespace AtomGame
         PlayerController m_player;
 
         std::size_t m_fogPreset = 0;
+        bool m_shadowsEnabled = true;
 
         float m_titleTimer = 0.0f;
         int m_titleFrames = 0;

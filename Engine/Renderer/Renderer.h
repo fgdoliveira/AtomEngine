@@ -17,6 +17,7 @@
 
 struct SDL_Window;
 struct SDL_GPUCommandBuffer;
+struct SDL_GPURenderPass;
 struct SDL_GPUDevice;
 struct SDL_GPUGraphicsPipeline;
 struct SDL_GPUSampler;
@@ -40,6 +41,7 @@ namespace Atom
     {
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
+        std::uint32_t shadowDrawn = 0;
         std::uint32_t sceneWidth = 0;
         std::uint32_t sceneHeight = 0;
         std::uint32_t msaaSamples = 0;
@@ -121,10 +123,31 @@ namespace Atom
         bool CreateAndClaimGPUDevice(GPUPreference preference);
         bool CreateDefaultResources();
         bool CreatePostPipeline();
+        bool CreateShadowResources();
         // Scene pipelines depend on the MSAA sample count; built lazily.
         SDL_GPUGraphicsPipeline* GetScenePipeline(std::uint32_t samples);
 
-        bool RenderScenePass(SDL_GPUCommandBuffer* commandBuffer);
+        // Light view-projection for the sun, fitted around the camera and
+        // snapped to shadow-map texels so shadows don't swim when moving.
+        glm::mat4 ComputeLightViewProjection() const;
+
+        // Draws the queued commands visible from `viewProjection`. Material
+        // binding is skipped for depth-only passes. Returns draws issued.
+        std::uint32_t DrawQueue(
+            SDL_GPURenderPass* renderPass,
+            SDL_GPUCommandBuffer* commandBuffer,
+            const glm::mat4& viewProjection,
+            bool bindMaterials
+        );
+
+        bool RenderShadowPass(
+            SDL_GPUCommandBuffer* commandBuffer,
+            const glm::mat4& lightViewProjection
+        );
+        bool RenderScenePass(
+            SDL_GPUCommandBuffer* commandBuffer,
+            const glm::mat4& lightViewProjection
+        );
         bool RenderPostPass(
             SDL_GPUCommandBuffer* commandBuffer,
             SDL_GPUTexture* swapchainTexture
@@ -137,6 +160,9 @@ namespace Atom
         // Indexed by log2(samples): 1x, 2x, 4x.
         std::array<SDL_GPUGraphicsPipeline*, 3> m_scenePipelines{};
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
+        SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
+        SDL_GPUTexture* m_shadowMap = nullptr;
+        SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
         SDL_GPUSampler* m_sampler = nullptr;      // material textures
         SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
         std::unique_ptr<Texture> m_whiteTexture;
