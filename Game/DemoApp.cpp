@@ -1,5 +1,8 @@
 #include "DemoApp.h"
 
+#include "Interaction/ActionExecutor.h"
+#include "Interaction/InteractionSystem.h"
+
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/constants.hpp>
@@ -69,8 +72,10 @@ namespace AtomGame
             return false;
         }
 
+        SpawnStreetEntities();
+
         std::cout
-            << "Controls: WASD move, Shift jog, mouse look, Esc release/quit\n"
+            << "Controls: WASD move, Shift jog, mouse look, E interact, Esc release/quit\n"
             << "  F2 render scale  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
@@ -87,6 +92,7 @@ namespace AtomGame
         UpdateRenderSettings();
 
         m_player.Update(GetInput(), m_camera, &m_collision, deltaSeconds);
+        UpdateInteraction(deltaSeconds);
 
         const Atom::Input& input = GetInput();
         if (input.WasKeyPressed(SDL_SCANCODE_M))
@@ -192,7 +198,7 @@ namespace AtomGame
         const float hintAlpha = std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f);
         if (hintAlpha > 0.0f)
         {
-            const char* hint = "WASD move   Shift jog   Mouse look   F1 debug";
+            const char* hint = "WASD move   Shift jog   Mouse look   E interact   F1 debug";
             const glm::vec2 size = ui.MeasureText(*m_font, hint, scale * 0.8f);
             const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y - size.y - 40.0f * scale };
             // A soft shadow keeps light text legible over the pale fog.
@@ -200,6 +206,12 @@ namespace AtomGame
                 { 0.0f, 0.0f, 0.0f, 0.55f * hintAlpha }, scale * 0.8f);
             ui.DrawText(*m_font, hint, position,
                 { 0.92f, 0.90f, 0.84f, hintAlpha }, scale * 0.8f);
+        }
+
+        DrawInteractionPrompt(scale);
+        if (hintAlpha <= 0.0f)
+        {
+            m_messages.Draw(ui, *m_font, scale * 0.85f);
         }
 
         // Frame time, smoothed so the numbers are readable.
@@ -243,6 +255,98 @@ namespace AtomGame
             { 0.04f, 0.04f, 0.05f, 0.85f });
         ui.DrawText(*m_smallFont, text,
             glm::vec2{ 12.0f * scale + padding }, { 0.88f, 0.90f, 0.86f, 1.0f }, scale);
+    }
+
+    void DemoApp::SpawnStreetEntities()
+    {
+        // Placeholders in code until levels load entities from data (M12).
+        // Positions are glTF space; the kit's fronts face +Z on the north
+        // side of the road and -Z on the south side.
+        const auto vending = [&](glm::vec3 position, float facing) {
+            Entity entity;
+            entity.name = "vending_machine";
+            entity.position = position;
+            Interactable use{ "Buy a drink", ShowMessage{
+                "The coin drops. Something rattles inside... nothing comes out." } };
+            use.focusOffset = { 0.0f, 1.1f, 0.45f * facing };
+            entity.interactable = std::move(use);
+            m_world.Spawn(std::move(entity));
+        };
+        vending({ -20.0f, 0.0f, -4.1f }, 1.0f);
+        vending({ 29.8f, 0.0f, -4.1f }, 1.0f);
+        vending({ -2.6f, 0.0f, 4.1f }, -1.0f);
+
+        // Bow at the torii before approaching the shrine.
+        Entity torii;
+        torii.name = "torii";
+        torii.position = { -14.0f, 0.0f, 5.5f };
+        Interactable bow{ "Bow", SetFlag{ "bowed_at_torii",
+            "You bow before passing beneath the torii." } };
+        bow.focusOffset = { 0.0f, 1.6f, 0.0f };
+        bow.radius = 2.5f;
+        torii.interactable = std::move(bow);
+        m_world.Spawn(std::move(torii));
+
+        // The hokora answers only if you bowed first: a flag-gated action,
+        // the same mechanism the shrine gate will use in M12.
+        Entity hokora;
+        hokora.name = "hokora";
+        hokora.position = { -14.0f, 0.0f, 11.0f };
+        Interactable pray{ "Pray", SetFlag{ "prayed_at_hokora",
+            "You put your hands together. For a moment, the cicadas fall silent." } };
+        pray.focusOffset = { 0.0f, 1.0f, -0.7f };
+        pray.requiresFlag = "bowed_at_torii";
+        pray.lockedAction = ShowMessage{
+            "It feels wrong to come this close without bowing at the torii first." };
+        hokora.interactable = std::move(pray);
+        m_world.Spawn(std::move(hokora));
+
+        std::cout << "Spawned " << m_world.Count() << " street entities\n";
+    }
+
+    void DemoApp::UpdateInteraction(float deltaSeconds)
+    {
+        m_messages.Update(deltaSeconds);
+
+        const Atom::Input& input = GetInput();
+        if (!input.IsMouseCaptured())
+        {
+            m_target = {};
+            return;
+        }
+
+        m_target = InteractionSystem::FindTarget(
+            m_world, &m_collision, m_camera.GetPosition(), m_camera.GetForward());
+
+        const Entity* target = m_world.Find(m_target);
+        if (target && input.WasKeyPressed(SDL_SCANCODE_E))
+        {
+            ActionContext context{ m_gameState, m_messages };
+            ExecuteAction(
+                InteractionSystem::ResolveAction(*target->interactable, m_gameState),
+                context);
+            std::cout << "Interacted with " << target->name << '\n';
+        }
+    }
+
+    void DemoApp::DrawInteractionPrompt(float scale)
+    {
+        const Entity* target = m_world.Find(m_target);
+        if (!target || m_messages.IsVisible())
+        {
+            return;
+        }
+
+        Atom::UIRenderer& ui = GetRenderer().GetUI();
+        const glm::vec2 screen = ui.GetScreenSize();
+        const std::string prompt = "[E]  " + target->interactable->prompt;
+        const float textScale = scale * 0.9f;
+        const glm::vec2 size = ui.MeasureText(*m_font, prompt, textScale);
+        const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y * 0.62f };
+
+        ui.DrawText(*m_font, prompt, position + glm::vec2{ 2.0f * scale },
+            { 0.0f, 0.0f, 0.0f, 0.6f }, textScale);
+        ui.DrawText(*m_font, prompt, position, { 0.95f, 0.93f, 0.86f, 1.0f }, textScale);
     }
 
     void DemoApp::UpdateRenderSettings()

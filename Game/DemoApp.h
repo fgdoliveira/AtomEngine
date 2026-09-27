@@ -4,6 +4,9 @@
 #include "Atmosphere.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
+#include "Interaction/MessageFeed.h"
+#include "World/GameState.h"
+#include "World/GameWorld.h"
 #include "Physics/CollisionWorld.h"
 #include "PlayerController.h"
 #include "Scene/Camera.h"
@@ -28,6 +31,9 @@ namespace AtomGame
         void ApplyLighting();
         void UpdateWindowTitle(float deltaSeconds);
         void DrawOverlay(float deltaSeconds);
+        void SpawnStreetEntities();
+        void UpdateInteraction(float deltaSeconds);
+        void DrawInteractionPrompt(float scale);
 
         std::unique_ptr<Atom::Model> m_street;
         Atom::CollisionWorld m_collision;
@@ -37,6 +43,12 @@ namespace AtomGame
         AudioScape m_audioScape;
         Atmosphere m_atmosphere;
         UneaseDirector m_unease;
+
+        // Gameplay: persistent progress, this world's entities, feedback.
+        GameState m_gameState;
+        GameWorld m_world;
+        MessageFeed m_messages;
+        EntityId m_target{};
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;

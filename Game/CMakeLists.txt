@@ -1,6 +1,7 @@
-add_executable(
-    AtomGame
-    Main.cpp
+# Gameplay code as a library so both the game and the unit tests use it.
+add_library(
+    AtomGameLib
+    STATIC
     Atmosphere.cpp
     Atmosphere.h
     AudioScape.cpp
@@ -13,12 +14,38 @@ add_executable(
     DemoApp.h
     PlayerController.cpp
     PlayerController.h
+    Interaction/Actions.h
+    Interaction/ActionExecutor.cpp
+    Interaction/ActionExecutor.h
+    Interaction/InteractionSystem.cpp
+    Interaction/InteractionSystem.h
+    Interaction/MessageFeed.cpp
+    Interaction/MessageFeed.h
+    World/GameState.h
+    World/GameWorld.h
+)
+
+target_include_directories(
+    AtomGameLib
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    AtomGameLib
+    PUBLIC
+        AtomEngine
+)
+
+add_executable(
+    AtomGame
+    Main.cpp
 )
 
 target_link_libraries(
     AtomGame
     PRIVATE
-        AtomEngine
+        AtomGameLib
 )
 
 add_dependencies(AtomGame AtomShaders)

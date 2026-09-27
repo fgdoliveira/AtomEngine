@@ -26,6 +26,12 @@ add_subdirectory(Shaders)
 add_subdirectory(Engine)
 add_subdirectory(Game)
 
+option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
+if(ATOM_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(Tests)
+endif()
+
 if(WIN32 AND ATOM_BUILD_PRESENTATION_PROBE)
     add_subdirectory(Tools/PresentationProbe)
 endif()
