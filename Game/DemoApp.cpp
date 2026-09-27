@@ -5,6 +5,7 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
@@ -48,6 +49,15 @@ namespace AtomGame
         m_audioScape.Initialize(GetAudio());
 
         if (!m_atmosphere.Initialize(GetRenderer()))
+        {
+            return false;
+        }
+
+        const std::string fontPath = std::string(basePath ? basePath : "")
+            + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
+        m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
+        m_smallFont = Atom::Font::Load(GetRenderer(), fontPath, 19.0f);
+        if (!m_font || !m_smallFont)
         {
             return false;
         }
@@ -113,12 +123,15 @@ namespace AtomGame
         m_unease.Update(deltaSeconds, m_camera, m_player.GetFeetPosition(), m_audioScape);
         m_unease.Submit(renderer);
 
+        DrawOverlay(deltaSeconds);
         UpdateWindowTitle(deltaSeconds);
     }
 
     void DemoApp::OnShutdown()
     {
         GetRenderer().SetParticleAtlas(nullptr, 1);
+        m_smallFont.reset();
+        m_font.reset();
         m_unease.Shutdown();
         m_atmosphere.Shutdown();
         m_street.reset();
@@ -167,6 +180,71 @@ namespace AtomGame
         m_titleFrames = 0;
     }
 
+    void DemoApp::DrawOverlay(float deltaSeconds)
+    {
+        Atom::UIRenderer& ui = GetRenderer().GetUI();
+        const glm::vec2 screen = ui.GetScreenSize();
+        // Lay out for a 720-line screen and scale with the window.
+        const float scale = std::clamp(screen.y / 720.0f, 0.75f, 2.0f);
+
+        // Controls hint: shown on arrival, then fades away.
+        m_hintTime += deltaSeconds;
+        const float hintAlpha = std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f);
+        if (hintAlpha > 0.0f)
+        {
+            const char* hint = "WASD move   Shift jog   Mouse look   F1 debug";
+            const glm::vec2 size = ui.MeasureText(*m_font, hint, scale * 0.8f);
+            const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y - size.y - 40.0f * scale };
+            // A soft shadow keeps light text legible over the pale fog.
+            ui.DrawText(*m_font, hint, position + glm::vec2{ 2.0f * scale },
+                { 0.0f, 0.0f, 0.0f, 0.55f * hintAlpha }, scale * 0.8f);
+            ui.DrawText(*m_font, hint, position,
+                { 0.92f, 0.90f, 0.84f, hintAlpha }, scale * 0.8f);
+        }
+
+        // Frame time, smoothed so the numbers are readable.
+        const float frameMs = deltaSeconds * 1000.0f;
+        m_smoothedFrameMs += (frameMs - m_smoothedFrameMs) * 0.05f;
+
+        if (!m_showDebugOverlay)
+        {
+            return;
+        }
+
+        const Atom::FrameStats& stats = GetRenderer().GetLastFrameStats();
+        const Atom::RenderSettings& settings = GetRenderer().GetSettings();
+        const glm::vec3& feet = m_player.GetFeetPosition();
+
+        char text[640];
+        std::snprintf(text, sizeof(text),
+            "%.2f ms  (%.0f fps)\n"
+            "Scene %ux%u  (%.0f%%)  MSAA %ux\n"
+            "Draws %u / %u   shadow casters %u\n"
+            "Particles %u\n"
+            "Fog %s   Shadows %s   Post %s\n"
+            "Particles %s   Unease %s   Audio %s\n"
+            "Position %.1f  %.2f  %.1f",
+            m_smoothedFrameMs,
+            m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f,
+            stats.sceneWidth, stats.sceneHeight, settings.renderScale * 100.0f, stats.msaaSamples,
+            stats.drawn, stats.submitted, stats.shadowDrawn,
+            stats.particles,
+            FogPresets[m_fogPreset].name,
+            m_shadowsEnabled ? "on" : "off",
+            m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
+            m_atmosphere.IsEnabled() ? "on" : "off",
+            m_unease.IsEnabled() ? "on" : "off",
+            m_audioScape.IsMuted() ? "muted" : "on",
+            feet.x, feet.y, feet.z);
+
+        const float padding = 10.0f * scale;
+        const glm::vec2 size = ui.MeasureText(*m_smallFont, text, scale);
+        ui.DrawRect({ 12.0f * scale, 12.0f * scale }, size + glm::vec2{ 2.0f * padding },
+            { 0.04f, 0.04f, 0.05f, 0.85f });
+        ui.DrawText(*m_smallFont, text,
+            glm::vec2{ 12.0f * scale + padding }, { 0.88f, 0.90f, 0.86f, 1.0f }, scale);
+    }
+
     void DemoApp::UpdateRenderSettings()
     {
         const Atom::Input& input = GetInput();
@@ -210,6 +288,12 @@ namespace AtomGame
                 settings.post.vignette = 0.0f;
             }
             renderer.SetSettings(settings);
+        }
+
+        // F1: debug overlay.
+        if (input.WasKeyPressed(SDL_SCANCODE_F1))
+        {
+            m_showDebugOverlay = !m_showDebugOverlay;
         }
 
         // F8: particles (leaves, ash, fog banks) on/off.

@@ -26,6 +26,8 @@ set(ATOM_SHADER_SOURCES
     Shadow.frag.hlsl
     Particle.vert.hlsl
     Particle.frag.hlsl
+    UI.vert.hlsl
+    UI.frag.hlsl
 )
 
 # Headers every shader may include; a change recompiles all shaders.

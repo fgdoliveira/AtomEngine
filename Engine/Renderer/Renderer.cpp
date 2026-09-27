@@ -336,6 +336,8 @@ namespace Atom
             && CreatePostPipeline()
             && CreateShadowResources()
             && CreateParticleResources()
+            && m_ui.Initialize(
+                m_device, SDL_GetGPUSwapchainTextureFormat(m_device, m_window))
             && GetScenePipeline(m_targets.ClampSampleCount(m_settings.msaaSamples));
     }
 
@@ -593,8 +595,13 @@ namespace Atom
         struct ClearOnExit
         {
             std::vector<DrawCommand>& commands;
-            ~ClearOnExit() { commands.clear(); }
-        } clearDrawCommands{ m_drawCommands };
+            UIRenderer& ui;
+            ~ClearOnExit()
+            {
+                commands.clear();
+                ui.EndFrame();
+            }
+        } clearDrawCommands{ m_drawCommands, m_ui };
 
         SDL_GPUCommandBuffer* commandBuffer =
             SDL_AcquireGPUCommandBuffer(m_device);
@@ -675,9 +682,15 @@ namespace Atom
                 scaled(swapchainHeight),
                 m_settings.msaaSamples)
             && UploadParticles(commandBuffer)
+            && m_ui.Upload(commandBuffer)
             && RenderShadowPass(commandBuffer, lightViewProjection)
             && RenderScenePass(commandBuffer, lightViewProjection)
             && RenderPostPass(
+                commandBuffer,
+                swapchainTexture,
+                swapchainWidth,
+                swapchainHeight)
+            && m_ui.Render(
                 commandBuffer,
                 swapchainTexture,
                 swapchainWidth,
@@ -1341,6 +1354,7 @@ namespace Atom
 
         if (m_device)
         {
+            m_ui.Shutdown();
             m_whiteTexture.reset();
             m_targets.Release();
 
