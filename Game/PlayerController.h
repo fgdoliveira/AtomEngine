@@ -25,6 +25,13 @@ namespace AtomGame
         }
 
         const glm::vec3& GetFeetPosition() const { return m_feetPosition; }
+        bool IsGrounded() const { return m_grounded; }
+
+        // Increments once per footfall (one head-bob cycle).
+        int GetStepCount() const
+        {
+            return static_cast<int>(m_bobPhase / 3.14159265f);
+        }
 
         // Applies mouse look and movement, then places the camera at eye
         // height including head-bob. With no world, walks on y = 0.

@@ -44,6 +44,8 @@ namespace AtomGame
         m_fogPreset = DefaultFogPreset;
         ApplyLighting();
 
+        m_audioScape.Initialize(GetAudio());
+
         // East end of the street, looking west along it.
         m_player.SetFeetPosition(glm::vec3{ 36.0f, 0.0f, 1.0f });
         m_camera.SetRotation(-glm::half_pi<float>(), 0.0f);
@@ -57,6 +59,18 @@ namespace AtomGame
         UpdateRenderSettings();
 
         m_player.Update(GetInput(), m_camera, &m_collision, deltaSeconds);
+
+        const Atom::Input& input = GetInput();
+        if (input.WasKeyPressed(SDL_SCANCODE_M))
+        {
+            m_audioScape.ToggleMute();
+        }
+        m_audioScape.Update(deltaSeconds, m_camera, AudioScape::Listener{
+            m_player.GetFeetPosition(),
+            m_player.GetStepCount(),
+            m_player.IsGrounded(),
+            input.IsKeyDown(SDL_SCANCODE_LSHIFT)
+        });
 
         Atom::Renderer& renderer = GetRenderer();
         renderer.SetCamera(

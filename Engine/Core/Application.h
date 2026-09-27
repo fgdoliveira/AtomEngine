@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Audio/AudioSystem.h"
 #include "Core/Time.h"
 #include "Platform/Input.h"
 #include "Platform/Window.h"
@@ -31,6 +32,7 @@ namespace Atom
         Window& GetWindow() { return m_window; }
         Input& GetInput() { return m_input; }
         Renderer& GetRenderer() { return m_renderer; }
+        AudioSystem& GetAudio() { return m_audio; }
         const Time& GetTime() const { return m_time; }
 
     private:
@@ -41,6 +43,7 @@ namespace Atom
 
         Window m_window;
         Renderer m_renderer;
+        AudioSystem m_audio;
         Input m_input;
         Time m_time;
     };

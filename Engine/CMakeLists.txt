@@ -4,6 +4,7 @@ target_sources(
     AtomEngine
     PRIVATE
         Assets/Model.cpp
+        Audio/AudioSystem.cpp
         Assets/ThirdParty.cpp
         Core/Application.cpp
         Core/Time.cpp
@@ -19,6 +20,7 @@ target_sources(
 
     PUBLIC
         Assets/Model.h
+        Audio/AudioSystem.h
         Core/Application.h
         Core/Time.h
         Physics/CollisionWorld.h

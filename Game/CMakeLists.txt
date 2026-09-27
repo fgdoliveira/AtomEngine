@@ -1,6 +1,10 @@
 add_executable(
     AtomGame
     Main.cpp
+    AudioScape.cpp
+    AudioScape.h
+    SoundSynth.cpp
+    SoundSynth.h
     DemoApp.cpp
     DemoApp.h
     PlayerController.cpp

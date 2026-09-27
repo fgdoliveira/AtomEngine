@@ -47,6 +47,9 @@ namespace Atom
             return false;
         }
 
+        // Audio is optional: without a device the game runs silently.
+        m_audio.Initialize();
+
         m_initialized = true;
         m_running = true;
 
@@ -148,6 +151,7 @@ namespace Atom
 
         std::cout << "Shutting down AtomEngine...\n";
 
+        m_audio.Shutdown();
         m_renderer.Shutdown();
         m_window.Destroy();
 
