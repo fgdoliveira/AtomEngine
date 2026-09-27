@@ -1,8 +1,8 @@
-#include "Core/Application.h"
+#include "DemoApp.h"
 
 int main()
 {
-    Atom::Application application;
+    AtomGame::DemoApp application;
 
     return application.Run();
 }
