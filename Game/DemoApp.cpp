@@ -26,7 +26,7 @@ namespace AtomGame
             { "light", 0.045f },
             { "off", 0.0f },
         };
-        constexpr std::size_t DefaultFogPreset = 1;
+        constexpr std::size_t DefaultFogPreset = 3; // off
     }
 
     bool DemoApp::OnInitialize()
@@ -89,12 +89,12 @@ namespace AtomGame
         const Atom::FrameStats& stats = GetRenderer().GetLastFrameStats();
         const glm::vec3& feet = m_player.GetFeetPosition();
 
-        char title[192];
+        char title[224];
         std::snprintf(
             title,
             sizeof(title),
             "AtomEngine | %.0f fps | scene %ux%u %.0f%% MSAA %ux | fog %s"
-            " | shadows %s | draws %u/%u (+%u) | pos %.1f %.2f %.1f",
+            " | shadows %s | post %s | draws %u/%u (+%u) | pos %.1f %.2f %.1f",
             m_titleFrames / m_titleTimer,
             stats.sceneWidth,
             stats.sceneHeight,
@@ -102,6 +102,7 @@ namespace AtomGame
             stats.msaaSamples,
             FogPresets[m_fogPreset].name,
             m_shadowsEnabled ? "on" : "off",
+            m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
             stats.drawn,
             stats.submitted,
             stats.shadowDrawn,
@@ -143,6 +144,21 @@ namespace AtomGame
         {
             m_fogPreset = (m_fogPreset + 1) % std::size(FogPresets);
             ApplyLighting();
+        }
+
+        // F7: post look full -> grade only (no grain/vignette) -> off.
+        if (input.WasKeyPressed(SDL_SCANCODE_F7))
+        {
+            m_postMode = (m_postMode + 1) % 3;
+            const Atom::PostSettings defaults{};
+            settings.post = defaults;
+            settings.post.enabled = m_postMode != 2;
+            if (m_postMode == 1)
+            {
+                settings.post.grain = 0.0f;
+                settings.post.vignette = 0.0f;
+            }
+            renderer.SetSettings(settings);
         }
 
         // F6: sun shadows on/off.

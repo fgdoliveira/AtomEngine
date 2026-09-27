@@ -150,7 +150,9 @@ namespace Atom
         );
         bool RenderPostPass(
             SDL_GPUCommandBuffer* commandBuffer,
-            SDL_GPUTexture* swapchainTexture
+            SDL_GPUTexture* swapchainTexture,
+            std::uint32_t outputWidth,
+            std::uint32_t outputHeight
         );
 
         SDL_GPUDevice* m_device = nullptr;
@@ -174,5 +176,6 @@ namespace Atom
         Camera m_camera;
         std::vector<DrawCommand> m_drawCommands;
         FrameStats m_stats;
+        std::uint64_t m_frameIndex = 0; // animates film grain
     };
 }

@@ -32,6 +32,7 @@ namespace AtomGame
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;
+        int m_postMode = 0; // 0 full, 1 grade only, 2 off
 
         float m_titleTimer = 0.0f;
         int m_titleFrames = 0;

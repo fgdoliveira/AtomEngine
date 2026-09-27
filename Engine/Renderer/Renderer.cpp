@@ -88,6 +88,14 @@ namespace Atom
             glm::vec4 emissiveFactor;
         };
 
+        // Mirrors the cbuffer in Shaders/Post.frag.hlsl.
+        struct PostUniforms
+        {
+            glm::vec4 tint;   // w: enabled
+            glm::vec4 params; // exposure, saturation, grain, vignette
+            glm::vec4 output; // width, height, frame index
+        };
+
         constexpr std::uint32_t ShadowMapSize = 2048;
         constexpr SDL_GPUTextureFormat ShadowMapFormat =
             SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -463,7 +471,7 @@ namespace Atom
             m_device,
             "Post.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 1 }
+            ShaderResources{ .samplers = 1, .uniformBuffers = 1 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -637,7 +645,13 @@ namespace Atom
                 m_settings.msaaSamples)
             && RenderShadowPass(commandBuffer, lightViewProjection)
             && RenderScenePass(commandBuffer, lightViewProjection)
-            && RenderPostPass(commandBuffer, swapchainTexture);
+            && RenderPostPass(
+                commandBuffer,
+                swapchainTexture,
+                swapchainWidth,
+                swapchainHeight);
+
+        ++m_frameIndex;
 
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
@@ -1006,7 +1020,9 @@ namespace Atom
 
     bool Renderer::RenderPostPass(
         SDL_GPUCommandBuffer* commandBuffer,
-        SDL_GPUTexture* swapchainTexture
+        SDL_GPUTexture* swapchainTexture,
+        std::uint32_t outputWidth,
+        std::uint32_t outputHeight
     )
     {
         SDL_GPUColorTargetInfo colorTarget{};
@@ -1030,6 +1046,25 @@ namespace Atom
         }
 
         SDL_BindGPUGraphicsPipeline(renderPass, m_postPipeline);
+
+        const PostSettings& post = m_settings.post;
+        const PostUniforms postUniforms{
+            glm::vec4{ post.tint, post.enabled ? 1.0f : 0.0f },
+            glm::vec4{ post.exposure, post.saturation, post.grain, post.vignette },
+            glm::vec4{
+                static_cast<float>(outputWidth),
+                static_cast<float>(outputHeight),
+                // Wrapped so the float keeps integer precision.
+                static_cast<float>(m_frameIndex % 4096),
+                0.0f
+            }
+        };
+        SDL_PushGPUFragmentUniformData(
+            commandBuffer,
+            0,
+            &postUniforms,
+            sizeof(postUniforms)
+        );
 
         const SDL_GPUTextureSamplerBinding sceneBinding{
             m_targets.GetSceneTexture(),
