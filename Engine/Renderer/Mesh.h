@@ -18,6 +18,7 @@ namespace Atom
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec2 uv;
+        glm::vec2 lightmapUv{ 0.0f }; // TEXCOORD_1 (M16)
         // Baked light (linear, 0..1 as 16-bit fixed point); white = unlit
         // by any bake. Read in the shader as a float4.
         std::array<std::uint16_t, 4> color{ 65535, 65535, 65535, 65535 };

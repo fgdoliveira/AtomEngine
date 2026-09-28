@@ -74,13 +74,14 @@ namespace Atom
 
         const cgltf_accessor* FindAttribute(
             const cgltf_primitive& primitive,
-            cgltf_attribute_type type
+            cgltf_attribute_type type,
+            cgltf_int index = 0
         )
         {
             for (cgltf_size i = 0; i < primitive.attributes_count; ++i)
             {
                 const cgltf_attribute& attribute = primitive.attributes[i];
-                if (attribute.type == type && attribute.index == 0)
+                if (attribute.type == type && attribute.index == index)
                 {
                     return attribute.data;
                 }
@@ -131,6 +132,8 @@ namespace Atom
                 FindAttribute(primitive, cgltf_attribute_type_normal);
             const cgltf_accessor* uvs =
                 FindAttribute(primitive, cgltf_attribute_type_texcoord);
+            const cgltf_accessor* lightmapUvs =
+                FindAttribute(primitive, cgltf_attribute_type_texcoord, 1);
             const cgltf_accessor* colors =
                 FindAttribute(primitive, cgltf_attribute_type_color);
             if (!positions)
@@ -140,6 +143,7 @@ namespace Atom
 
             PrimitiveGeometry geometry;
             geometry.hasBakedLight = colors != nullptr;
+            geometry.hasLightmapUv = lightmapUvs != nullptr;
             geometry.vertices.resize(positions->count);
             for (cgltf_size v = 0; v < positions->count; ++v)
             {
@@ -157,6 +161,11 @@ namespace Atom
                 {
                     cgltf_accessor_read_float(
                         uvs, v, glm::value_ptr(vertex.uv), 2);
+                }
+                if (lightmapUvs)
+                {
+                    cgltf_accessor_read_float(
+                        lightmapUvs, v, glm::value_ptr(vertex.lightmapUv), 2);
                 }
                 if (colors)
                 {
@@ -363,6 +372,15 @@ namespace Atom
             << model->m_textures.size() << " textures\n";
 
         return model;
+    }
+
+    void Model::SetLightmap(const Texture* lightmap, float intensity)
+    {
+        for (Material& material : m_materials)
+        {
+            material.lightmap = lightmap;
+            material.lightmapIntensity = intensity;
+        }
     }
 
     Material* Model::FindMaterial(std::string_view name)

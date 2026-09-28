@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
 
 struct SDL_Window;
@@ -81,6 +82,9 @@ namespace Atom
             const std::uint8_t* pixels,
             bool srgb = true
         );
+
+        // Loads a PNG/JPG/... file; nullptr (with a message) on failure.
+        std::unique_ptr<Texture> LoadTexture(const std::string& path, bool srgb = true);
 
         // The projection is built at render time from the swapchain size so
         // it always matches the window.
@@ -202,6 +206,7 @@ namespace Atom
         std::uint32_t m_particleAtlasColumns = 1;
         SDL_GPUSampler* m_sampler = nullptr;      // material textures
         SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
+        SDL_GPUSampler* m_lightmapSampler = nullptr; // clamped, few mips
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;

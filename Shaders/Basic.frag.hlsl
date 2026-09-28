@@ -8,11 +8,15 @@ SamplerState BaseColorSampler : register(s0, space2);
 Texture2D<float> ShadowMap : register(t1, space2);
 SamplerComparisonState ShadowSampler : register(s1, space2);
 
+Texture2D<float4> Lightmap : register(t2, space2);
+SamplerState LightmapSampler : register(s2, space2);
+
 // Per draw.
 cbuffer MaterialUniforms : register(b0, space3)
 {
     float4 u_baseColorFactor;
     float4 u_emissiveFactor; // w: baked-light weight (0 = none)
+    float4 u_lightmap;       // x: intensity, y: weight (0 = no lightmap)
 };
 
 struct PSInput
@@ -22,6 +26,7 @@ struct PSInput
     float2 uv            : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
     float4 color         : TEXCOORD3; // baked light, linear
+    float2 lightmapUv    : TEXCOORD4;
 };
 
 // 1 = fully lit, 0 = fully shadowed. The comparison sampler already blends
@@ -77,7 +82,12 @@ float4 main(PSInput input) : SV_Target0
     // bounces, reaches this point, so it already holds the orientation and
     // the occlusion the hemisphere term only approximates.
     const float3 bakedAmbient = u_skyColor.rgb * input.color.rgb;
-    const float3 ambient = lerp(hemisphereAmbient, bakedAmbient, u_emissiveFactor.w)
+    float3 ambient = lerp(hemisphereAmbient, bakedAmbient, u_emissiveFactor.w);
+    // Lightmap (M16): baked direct + bounced light of the level's own
+    // lights, resolved across each face. Replaces the ambient estimate.
+    const float3 lightmap =
+        Lightmap.Sample(LightmapSampler, input.lightmapUv).rgb * u_lightmap.x;
+    ambient = lerp(ambient, lightmap, u_lightmap.y)
         * lerp(1.0, shadow, u_shadowParams.z);
     const float3 sun =
         saturate(dot(normal, u_sunDirection.xyz)) * u_sunColor.rgb * shadow;

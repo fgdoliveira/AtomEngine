@@ -2,6 +2,7 @@
   "name": "machiya_interior",
   "model": "Interior/interior.glb",
   "collision": "Interior/interior_col.glb",
+  "lightmap": { "texture": "Interior/interior_lm.png", "intensity": 1.0 },
   "defaultSpawn": "entrance",
   "spawns": {
     "entrance": { "position": [0.0, 0.0, -1.0], "yaw": 0 }

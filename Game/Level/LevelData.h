@@ -87,11 +87,20 @@ namespace AtomGame
         std::vector<glm::vec3> flickerSites;
     };
 
+    // Baked light texture for the scene model (M16), mapped by its second
+    // UV set. Written by the asset build next to the model.
+    struct LevelLightmap
+    {
+        std::string texture;    // relative to Assets/
+        float intensity = 1.0f;
+    };
+
     struct LevelData
     {
         std::string name;
         std::string model;     // relative to Assets/
         std::string collision; // relative to Assets/
+        std::optional<LevelLightmap> lightmap;
         std::string defaultSpawn;
         std::unordered_map<std::string, SpawnPoint> spawns;
         LevelLighting lighting;

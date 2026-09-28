@@ -11,6 +11,7 @@ struct VSInput
     float3 normal   : TEXCOORD1;
     float2 uv       : TEXCOORD2;
     float4 color    : TEXCOORD3; // baked light, linear
+    float2 lightmapUv : TEXCOORD4;
 };
 
 struct VSOutput
@@ -20,6 +21,7 @@ struct VSOutput
     float2 uv            : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
     float4 color         : TEXCOORD3;
+    float2 lightmapUv    : TEXCOORD4;
 };
 
 VSOutput main(VSInput input)
@@ -34,5 +36,6 @@ VSOutput main(VSInput input)
     output.uv = input.uv;
     output.worldPosition = worldPosition.xyz;
     output.color = input.color;
+    output.lightmapUv = input.lightmapUv;
     return output;
 }

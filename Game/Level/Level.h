@@ -15,6 +15,7 @@ namespace Atom
 {
     class Model;
     class Renderer;
+    class Texture;
     struct Material;
 }
 
@@ -81,6 +82,7 @@ namespace AtomGame
         LevelData m_data;
         Atom::AudioSystem& m_audio;
 
+        std::unique_ptr<Atom::Texture> m_lightmap; // declared first: outlives the scene
         std::unique_ptr<Atom::Model> m_scene;
         std::unordered_map<std::string, std::unique_ptr<Atom::Model>> m_models;
         Atom::CollisionWorld m_collision;

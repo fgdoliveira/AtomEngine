@@ -22,6 +22,7 @@ namespace Atom
         std::vector<Vertex> vertices;
         std::vector<std::uint32_t> indices;
         bool hasBakedLight = false; // had COLOR_0
+        bool hasLightmapUv = false; // had TEXCOORD_1
     };
 
     // Every triangle primitive of a glTF file, in file order. For tools and
@@ -55,6 +56,10 @@ namespace Atom
         // Materials can be tweaked at runtime (e.g. flickering emission);
         // every part using the material follows. nullptr if not found.
         Material* FindMaterial(std::string_view name);
+
+        // Every part is lit by this baked texture (its TEXCOORD_1) instead
+        // of the ambient term. The texture must outlive the model's use.
+        void SetLightmap(const Texture* lightmap, float intensity);
 
     private:
         std::vector<std::unique_ptr<Texture>> m_textures;

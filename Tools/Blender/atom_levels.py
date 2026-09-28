@@ -162,3 +162,17 @@ LEVELS = [
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.
 BAKE_MODES = {"interior": "ao"}
+
+# Levels that also get a lightmap (atom_lightmap), with the bake-only lights
+# that make it: (location, rotation in degrees, (width, height), watts, rgb).
+# The interior: warm daylight through each shoji panel (just in front of it,
+# facing into the room) and cooler light through the entrance lattice.
+_SHOJI_LIGHT = (1.0, 0.93, 0.82)
+LIGHTMAPS = {
+    "interior": [
+        ((3.95, 3.4 + i * 1.7 + 0.8, 1.5), (0, 90, 0), (1.8, 1.6), 80.0, _SHOJI_LIGHT)
+        for i in range(4)
+    ] + [
+        ((0.0, 0.05, 1.0), (90, 0, 0), (1.4, 2.0), 25.0, (0.85, 0.9, 1.0)),
+    ],
+}

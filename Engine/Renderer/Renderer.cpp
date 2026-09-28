@@ -2,6 +2,8 @@
 
 #include "Renderer/Shader.h"
 
+#include <stb_image.h>
+
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -87,6 +89,7 @@ namespace Atom
         {
             glm::vec4 baseColorFactor;
             glm::vec4 emissiveFactor; // w: baked-light weight for this draw
+            glm::vec4 lightmap;       // x: intensity, y: weight (0 = none)
         };
 
         // Mirrors the cbuffer in Shaders/Post.frag.hlsl.
@@ -371,7 +374,15 @@ namespace Atom
 
         m_postSampler = SDL_CreateGPUSampler(m_device, &postInfo);
 
-        if (!m_sampler || !m_postSampler)
+        // Lightmaps: charts are packed with a few texels of margin, so
+        // clamp at the edges and stop after two mip levels - smaller mips
+        // would average neighbouring charts into each other.
+        SDL_GPUSamplerCreateInfo lightmapInfo = postInfo;
+        lightmapInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+        lightmapInfo.max_lod = 2.0f;
+        m_lightmapSampler = SDL_CreateGPUSampler(m_device, &lightmapInfo);
+
+        if (!m_sampler || !m_postSampler || !m_lightmapSampler)
         {
             std::cerr
                 << "Failed to create samplers: "
@@ -403,7 +414,7 @@ namespace Atom
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 2, .uniformBuffers = 2 }
+            ShaderResources{ .samplers = 3, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -424,7 +435,7 @@ namespace Atom
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute attributes[4]{};
+        SDL_GPUVertexAttribute attributes[5]{};
         attributes[0].location = 0;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[0].offset = offsetof(Vertex, position);
@@ -437,6 +448,9 @@ namespace Atom
         attributes[3].location = 3;
         attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_USHORT4_NORM;
         attributes[3].offset = offsetof(Vertex, color);
+        attributes[4].location = 4;
+        attributes[4].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+        attributes[4].offset = offsetof(Vertex, lightmapUv);
 
         SDL_GPUColorTargetDescription colorTarget{};
         colorTarget.format = m_targets.GetColorFormat();
@@ -448,7 +462,7 @@ namespace Atom
             &vertexBuffer;
         createInfo.vertex_input_state.num_vertex_buffers = 1;
         createInfo.vertex_input_state.vertex_attributes = attributes;
-        createInfo.vertex_input_state.num_vertex_attributes = 4;
+        createInfo.vertex_input_state.num_vertex_attributes = 5;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
@@ -563,6 +577,23 @@ namespace Atom
     )
     {
         return Texture::Create(m_device, width, height, pixels, srgb);
+    }
+
+    std::unique_ptr<Texture> Renderer::LoadTexture(const std::string& path, bool srgb)
+    {
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        stbi_uc* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
+        if (!pixels)
+        {
+            std::cerr << "Failed to load texture '" << path << "': " << stbi_failure_reason() << '\n';
+            return nullptr;
+        }
+        auto texture = CreateTexture(
+            static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), pixels, srgb);
+        stbi_image_free(pixels);
+        return texture;
     }
 
     void Renderer::SetCamera(
@@ -911,7 +942,12 @@ namespace Atom
                     command.mesh->HasBakedLight() ? m_lighting.bakedLight : 0.0f;
                 const MaterialUniforms materialUniforms{
                     material.baseColorFactor,
-                    glm::vec4{ material.emissiveFactor, bakedWeight }
+                    glm::vec4{ material.emissiveFactor, bakedWeight },
+                    glm::vec4{
+                        material.lightmapIntensity,
+                        material.lightmap ? m_lighting.bakedLight : 0.0f,
+                        0.0f,
+                        0.0f }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,
@@ -928,6 +964,15 @@ namespace Atom
                     m_sampler
                 };
                 SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+
+                const Texture* lightmap = material.lightmap
+                    ? material.lightmap
+                    : m_whiteTexture.get();
+                const SDL_GPUTextureSamplerBinding lightmapBinding{
+                    lightmap->GetGPUTexture(),
+                    m_lightmapSampler
+                };
+                SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
             }
 
             const SDL_GPUBufferBinding vertexBinding{
@@ -1366,7 +1411,7 @@ namespace Atom
             m_whiteTexture.reset();
             m_targets.Release();
 
-            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler })
+            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler })
             {
                 if (sampler)
                 {
@@ -1432,6 +1477,7 @@ namespace Atom
         m_shadowMap = nullptr;
         m_sampler = nullptr;
         m_postSampler = nullptr;
+        m_lightmapSampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
         m_windowClaimed = false;

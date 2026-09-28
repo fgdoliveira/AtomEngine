@@ -11,6 +11,14 @@
   Per-level `lighting.bakedLight`, **F3** to compare. The bake is
   deterministic (rebuilds stay byte-identical) and a bake that is all black
   or all white fails the asset build.
+- **Lightmaps (M16):** the machiya interior is lit by a baked 512² lightmap
+  (second UV set, `TEXCOORD_1`): Cycles bakes direct and bounced light from
+  bake-only lights at the shoji and the entrance, written as a
+  deterministic sRGB PNG. Levels name it with `lightmap` (texture,
+  intensity); a missing lightmap fails the load. It replaces the ambient
+  term and follows F3. The build lints lightmap UVs (inside 0..1, no
+  overlapping faces); the sampler clamps and stops at two mip levels so
+  charts don't bleed.
 
 ## 0.0.2 — Interaction, dialogue and levels
 

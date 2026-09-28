@@ -142,6 +142,15 @@ namespace AtomGame
             level.name = String(root, "name");
             level.model = String(root, "model");
             level.collision = String(root, "collision");
+            if (const auto lightmap = root.find("lightmap"); lightmap != root.end())
+            {
+                LevelLightmap map{ String(*lightmap, "texture"), Number(*lightmap, "intensity", 1.0f) };
+                if (map.texture.empty() || map.intensity < 0.0f)
+                {
+                    throw LevelError("lightmap needs \"texture\" and a non-negative \"intensity\"");
+                }
+                level.lightmap = map;
+            }
             if (level.name.empty() || level.model.empty() || level.collision.empty())
             {
                 throw LevelError("needs \"name\", \"model\" and \"collision\"");

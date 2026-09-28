@@ -117,6 +117,27 @@ TEST_CASE("Broken level data is rejected with a reason")
     CHECK_FALSE(badDefaultSurface.level.has_value());
 }
 
+TEST_CASE("A lightmap is optional, and needs a texture when given")
+{
+    const auto withLightmap = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "lightmap": { "texture": "Interior/lm.png", "intensity": 0.8 } })");
+    REQUIRE(withLightmap.level.has_value());
+    REQUIRE(withLightmap.level->lightmap.has_value());
+    CHECK(withLightmap.level->lightmap->texture == "Interior/lm.png");
+    CHECK(withLightmap.level->lightmap->intensity == doctest::Approx(0.8f));
+
+    const auto without = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } } })");
+    REQUIRE(without.level.has_value());
+    CHECK_FALSE(without.level->lightmap.has_value());
+
+    const auto noTexture = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } }, "lightmap": { "intensity": 1 } })");
+    CHECK_FALSE(noTexture.level.has_value());
+    CHECK(noTexture.error.find("lightmap") != std::string::npos);
+}
+
 TEST_CASE("Every shipped level file is valid")
 {
     const std::filesystem::path folder = ATOM_SOURCE_DIR "/Assets/Levels";
@@ -130,6 +151,18 @@ TEST_CASE("Every shipped level file is valid")
         const LevelParseResult result = LoadLevelFile(entry.path().string());
         INFO(entry.path().filename().string() << ": " << result.error);
         CHECK(result.level.has_value());
+        // Referenced files exist (a level naming a missing lightmap would
+        // fail to load in the game).
+        if (result.level)
+        {
+            const std::string assets = ATOM_SOURCE_DIR "/Assets/";
+            CHECK(std::filesystem::exists(assets + result.level->model));
+            CHECK(std::filesystem::exists(assets + result.level->collision));
+            if (result.level->lightmap)
+            {
+                CHECK(std::filesystem::exists(assets + result.level->lightmap->texture));
+            }
+        }
         ++count;
     }
     CHECK(count >= 1);

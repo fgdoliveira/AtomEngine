@@ -17,5 +17,10 @@ namespace Atom
         // emission from the same image as the base color, so a separate
         // emissive texture is not needed yet.
         glm::vec3 emissiveFactor{ 0.0f };
+
+        // Baked light texture (M16), mapped by the mesh's second UV set.
+        // When present it replaces the ambient term; intensity scales it.
+        const Texture* lightmap = nullptr;
+        float lightmapIntensity = 1.0f;
     };
 }

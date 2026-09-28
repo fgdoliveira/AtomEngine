@@ -31,6 +31,7 @@ import atom_kit  # noqa: E402
 import atom_street  # noqa: E402
 import atom_levels  # noqa: E402
 import atom_bake  # noqa: E402
+import atom_lightmap  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
@@ -38,6 +39,7 @@ importlib.reload(atom_kit)
 importlib.reload(atom_street)
 importlib.reload(atom_levels)
 importlib.reload(atom_bake)
+importlib.reload(atom_lightmap)
 
 
 def parse_args():
@@ -170,6 +172,16 @@ def main():
     atom_bake.bake(scene, street.visual)
     for folder, level in levels:
         atom_bake.bake(scene, level.visual, atom_levels.BAKE_MODES.get(folder, "sky"))
+    # Lightmaps (M16) where vertex light isn't enough; written next to the
+    # level's glb, whose second UV set (TEXCOORD_1) maps them.
+    for folder, level in levels:
+        lights = atom_levels.LIGHTMAPS.get(folder)
+        if lights:
+            mesh = next(obj for obj in level.visual if obj.name == folder)
+            level_dir = os.path.join(args.out, folder.capitalize())
+            os.makedirs(level_dir, exist_ok=True)
+            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"))
+
     if atom_kit.LINT_ERRORS:
         for error in atom_kit.LINT_ERRORS:
             print("lint ERROR: " + error)

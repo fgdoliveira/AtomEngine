@@ -2,6 +2,8 @@
 
 #include <doctest/doctest.h>
 
+#include <glm/common.hpp>
+
 #include <algorithm>
 #include <filesystem>
 #include <string>
@@ -65,6 +67,28 @@ TEST_CASE("Models without COLOR_0 read as white and unbaked")
         CHECK_FALSE(primitive.hasBakedLight);
         REQUIRE_FALSE(primitive.vertices.empty());
         CHECK(Luminance(primitive.vertices.front()) == doctest::Approx(1.0f));
+    }
+}
+
+TEST_CASE("The interior carries lightmap UVs inside the texture")
+{
+    const auto primitives = LoadModelGeometry(Assets + "Interior/interior.glb");
+    REQUIRE_FALSE(primitives.empty());
+    for (const PrimitiveGeometry& primitive : primitives)
+    {
+        REQUIRE(primitive.hasLightmapUv);
+        glm::vec2 low{ 1.0f };
+        glm::vec2 high{ 0.0f };
+        for (const Vertex& vertex : primitive.vertices)
+        {
+            low = glm::min(low, vertex.lightmapUv);
+            high = glm::max(high, vertex.lightmapUv);
+        }
+        CHECK(low.x >= 0.0f);
+        CHECK(low.y >= 0.0f);
+        CHECK(high.x <= 1.0f);
+        CHECK(high.y <= 1.0f);
+        CHECK(high.x > low.x); // not collapsed to a point
     }
 }
 

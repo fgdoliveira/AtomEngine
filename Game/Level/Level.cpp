@@ -77,6 +77,18 @@ namespace AtomGame
             std::cerr << "Level '" << d.name << "': failed to load its scene or collision\n";
             return nullptr;
         }
+        if (d.lightmap)
+        {
+            // A level that names a lightmap is lit by it; without it the
+            // room would silently fall back to flat light, so it's an error.
+            level->m_lightmap = services.renderer.LoadTexture(assets + d.lightmap->texture);
+            if (!level->m_lightmap)
+            {
+                std::cerr << "Level '" << d.name << "': missing lightmap " << d.lightmap->texture << '\n';
+                return nullptr;
+            }
+            level->m_scene->SetLightmap(level->m_lightmap.get(), d.lightmap->intensity);
+        }
 
         for (const EntityData& data : d.entities)
         {
