@@ -28,11 +28,13 @@ if SCRIPT_DIR not in sys.path:
 import atom_textures  # noqa: E402
 import atom_kit  # noqa: E402
 import atom_street  # noqa: E402
+import atom_levels  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
 importlib.reload(atom_kit)
 importlib.reload(atom_street)
+importlib.reload(atom_levels)
 
 
 def parse_args():
@@ -127,6 +129,20 @@ def main():
     scene.collection.children.link(street_collection)
     street = atom_street.build_street(pieces, collision, materials, street_collection)
 
+    # Levels B and C, each in its own collection around its own origin.
+    levels = []
+    for folder, build in atom_levels.LEVELS:
+        level_collection = bpy.data.collections.new(folder.capitalize())
+        scene.collection.children.link(level_collection)
+        levels.append((folder, build(pieces, collision, materials, level_collection)))
+
+    # Geometry that would z-fight is a build error, like a compile error:
+    # nothing is exported until it is fixed.
+    if atom_kit.LINT_ERRORS:
+        print(f"lint: {len(atom_kit.LINT_ERRORS)} error(s); nothing exported")
+        sys.exit(1)
+    print("lint: no z-fighting between pieces")
+
     if args.no_export:
         return
 
@@ -147,6 +163,13 @@ def main():
     export_objects(street.visual, scene, os.path.join(street_dir, "street.glb"))
     export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
                    materials=False)
+
+    for folder, level in levels:
+        level_dir = os.path.join(args.out, folder.capitalize())
+        os.makedirs(level_dir, exist_ok=True)
+        export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
+        export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),
+                       materials=False)
 
 
 main()

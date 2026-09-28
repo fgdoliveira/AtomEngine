@@ -1,0 +1,68 @@
+{
+  "id": "shrine_keeper",
+  "start": "greet",
+  "nodes": [
+    {
+      "id": "greet",
+      "speaker": "Shrine keeper",
+      "text": "You walk this road in the fog? Few do, these days. Fewer come back the same.",
+      "choices": [
+        { "text": "Who are you?", "next": "who" },
+        { "text": "What lies beyond the shrine gate?", "next": "gate", "requiresNot": "keeper_permission" },
+        { "text": "Thank you for opening the gate.", "next": "thanks", "requires": "keeper_permission" },
+        { "text": "Goodbye.", "next": "farewell" }
+      ]
+    },
+    {
+      "id": "who",
+      "speaker": "Shrine keeper",
+      "text": "I have kept this shrine since before the fields were flooded. Someone must sweep the steps, even when no one climbs them.",
+      "next": "anything_else"
+    },
+    {
+      "id": "gate",
+      "speaker": "Shrine keeper",
+      "text": "The grounds behind the gate are not for idle visitors. Why would you go there?",
+      "choices": [
+        { "text": "I only want to pay my respects.", "next": "respects", "requires": "bowed_at_torii" },
+        { "text": "I heard something calling from inside.", "next": "calling" },
+        { "text": "Never mind.", "next": "anything_else" }
+      ]
+    },
+    {
+      "id": "respects",
+      "speaker": "Shrine keeper",
+      "text": "You bowed at the torii. I saw. Very well... the gate will open for you. Do not stay after the cicadas stop.",
+      "sets": "keeper_permission",
+      "next": "end"
+    },
+    {
+      "id": "calling",
+      "speaker": "Shrine keeper",
+      "text": "Then you should go home. Things that call from behind that gate are not asking for visitors.",
+      "next": "anything_else"
+    },
+    {
+      "id": "thanks",
+      "speaker": "Shrine keeper",
+      "text": "Do not thank me yet.",
+      "next": "end"
+    },
+    {
+      "id": "anything_else",
+      "speaker": "Shrine keeper",
+      "text": "Is there something else?",
+      "choices": [
+        { "text": "Who are you?", "next": "who" },
+        { "text": "What lies beyond the shrine gate?", "next": "gate", "requiresNot": "keeper_permission" },
+        { "text": "Goodbye.", "next": "farewell" }
+      ]
+    },
+    {
+      "id": "farewell",
+      "speaker": "Shrine keeper",
+      "text": "Keep to the road.",
+      "next": "end"
+    }
+  ]
+}

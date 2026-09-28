@@ -24,8 +24,10 @@ namespace Atom
         virtual void OnUpdate(float /*deltaSeconds*/) {}
         virtual void OnShutdown() {}
 
-        void RequestQuit()
+        // exitCode becomes the process exit code (e.g. 1 = a test failed).
+        void RequestQuit(int exitCode = 0)
         {
+            m_exitCode = exitCode;
             m_running = false;
         }
 
@@ -39,6 +41,7 @@ namespace Atom
         void ProcessEvents();
 
         bool m_running = false;
+        int m_exitCode = 0;
         bool m_initialized = false;
 
         Window m_window;

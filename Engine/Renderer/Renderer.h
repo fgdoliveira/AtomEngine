@@ -7,6 +7,7 @@
 #include "Renderer/RenderSettings.h"
 #include "Renderer/RenderTargets.h"
 #include "Renderer/Texture.h"
+#include "UI/UIRenderer.h"
 
 #include <glm/mat4x4.hpp>
 
@@ -98,6 +99,13 @@ namespace Atom
         );
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
+
+        // 0 = normal, 1 = black. Applied in the post pass, before the UI.
+        void SetFade(float fade) { m_fade = fade; }
+        float GetFade() const { return m_fade; }
+
+        // 2D overlay drawn on top of the final image (text, panels).
+        UIRenderer& GetUI() { return m_ui; }
 
         // Queues billboards for this frame (sorted and drawn after opaque
         // geometry). The atlas is split into `columns` equal cells.
@@ -196,6 +204,7 @@ namespace Atom
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;
+        UIRenderer m_ui;
         SceneLighting m_lighting;
         RenderTargets m_targets;
 
@@ -203,5 +212,6 @@ namespace Atom
         std::vector<DrawCommand> m_drawCommands;
         FrameStats m_stats;
         std::uint64_t m_frameIndex = 0; // animates film grain
+        float m_fade = 0.0f;
     };
 }

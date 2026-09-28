@@ -1,6 +1,7 @@
 #include "UneaseDirector.h"
 
 #include "AudioScape.h"
+#include "Level/Level.h"
 #include "Renderer/Renderer.h"
 #include "Scene/Camera.h"
 
@@ -18,25 +19,6 @@ namespace AtomGame
 {
     namespace
     {
-        // Where the figure may stand (glTF space, feet on the ground). Each
-        // is visible from the road beyond the vanish distance: the west end
-        // of the road, the mouths of the alleys between houses, behind the
-        // shrine, out in the rice paddies, and the east end.
-        constexpr glm::vec3 FigureSpots[] = {
-            { -36.0f, 0.0f, 0.8f },
-            { -30.0f, 0.0f, -4.0f },
-            { -15.0f, 0.0f, 15.8f },
-            { 24.0f, 0.0f, 12.0f },
-            { 6.0f, 0.0f, 4.2f },
-            { 38.0f, 0.0f, -1.2f },
-        };
-
-        constexpr glm::vec3 VendingMachines[] = {
-            { -20.0f, 0.0f, -4.1f },
-            { 29.8f, 0.0f, -4.1f },
-            { -2.6f, 0.0f, 4.1f },
-        };
-
         constexpr float VanishDistance = 14.0f;   // too close: it's gone
         constexpr float MinAppearDistance = 28.0f;
         constexpr float StaticFullDistance = 20.0f;
@@ -101,17 +83,31 @@ namespace AtomGame
         }
     }
 
-    bool UneaseDirector::Initialize(Atom::Renderer& renderer, Atom::Material* vendingScreen)
+    bool UneaseDirector::Initialize(Atom::Renderer& renderer)
     {
         m_figureMesh = BuildFigure(renderer);
         m_figureMaterial.baseColorFactor = glm::vec4{ 0.012f, 0.012f, 0.014f, 1.0f };
-
-        m_vendingScreen = vendingScreen;
-        if (m_vendingScreen)
-        {
-            m_vendingEmission = m_vendingScreen->emissiveFactor;
-        }
         return m_figureMesh != nullptr;
+    }
+
+    void UneaseDirector::Configure(const LevelUnease& config, Level* level)
+    {
+        // Called on every level change. Never touch the previous level's
+        // material here: it may already be gone.
+        m_config = config;
+        m_level = level;
+        m_flickerScreen = level && !config.flickerMaterial.empty()
+            ? level->FindSceneMaterial(config.flickerMaterial)
+            : nullptr;
+        if (m_flickerScreen)
+        {
+            m_flickerEmission = m_flickerScreen->emissiveFactor;
+        }
+
+        m_figureVisible = false;
+        m_figureCooldown = 8.0f;
+        m_flickerTime = -1.0f;
+        m_flickerCooldown = 20.0f;
     }
 
     void UneaseDirector::Shutdown()
@@ -126,9 +122,9 @@ namespace AtomGame
         {
             m_figureVisible = false;
             m_flickerTime = -1.0f;
-            if (m_vendingScreen)
+            if (m_flickerScreen)
             {
-                m_vendingScreen->emissiveFactor = m_vendingEmission;
+                m_flickerScreen->emissiveFactor = m_flickerEmission;
             }
         }
     }
@@ -139,7 +135,11 @@ namespace AtomGame
         // the fog keeps it ambiguous.
         const glm::vec3 forward = camera.GetFlatForward();
         std::vector<glm::vec3> candidates;
-        for (const glm::vec3& spot : FigureSpots)
+        if (!m_config.figure)
+        {
+            return false;
+        }
+        for (const glm::vec3& spot : m_config.figureSpots)
         {
             const float distance = Horizontal(spot, playerFeet);
             if (distance < MinAppearDistance)
@@ -215,10 +215,10 @@ namespace AtomGame
     void UneaseDirector::UpdateFlicker(
         float deltaSeconds,
         const glm::vec3& playerFeet,
-        AudioScape& audio
+        AudioScape& /*audio*/
     )
     {
-        if (!m_vendingScreen)
+        if (!m_flickerScreen)
         {
             return;
         }
@@ -227,7 +227,7 @@ namespace AtomGame
         {
             m_flickerCooldown -= deltaSeconds;
             bool nearMachine = false;
-            for (const glm::vec3& machine : VendingMachines)
+            for (const glm::vec3& machine : m_config.flickerSites)
             {
                 nearMachine = nearMachine || Horizontal(machine, playerFeet) < 7.0f;
             }
@@ -260,8 +260,11 @@ namespace AtomGame
             m_flickerCooldown = wait(m_random);
         }
 
-        m_vendingScreen->emissiveFactor = on ? m_vendingEmission : glm::vec3{ 0.0f };
-        audio.SetHumLevel(on ? 1.0f : 0.15f);
+        m_flickerScreen->emissiveFactor = on ? m_flickerEmission : glm::vec3{ 0.0f };
+        if (m_level)
+        {
+            m_level->SetGroupGain("vending", on ? 1.0f : 0.15f);
+        }
     }
 
     void UneaseDirector::Update(
@@ -275,7 +278,10 @@ namespace AtomGame
         {
             m_staticLevel = 0.0f;
             audio.SetStaticLevel(0.0f);
-            audio.SetHumLevel(1.0f);
+            if (m_level)
+            {
+                m_level->SetGroupGain("vending", 1.0f);
+            }
             return;
         }
 

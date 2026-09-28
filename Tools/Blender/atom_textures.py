@@ -311,3 +311,82 @@ def paddy(size=256, seed=18):
     shoots = clumps & (fbm(size, size, 16, 2, rng) > 0.4)
     rgb = np.where(shoots[:, :, None], _tint(water, (0.30, 0.38, 0.18)), rgb)
     return _rgba(rgb)
+
+
+def tatami(size=256, seed=19):
+    """Woven rush mat: fine horizontal weave, a dark cloth border."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size] / size
+    weave = 0.8 + 0.2 * np.sin(ys * size * np.pi * 0.5) ** 2
+    tone = weave * (0.85 + 0.15 * fbm(size, size, 6, 3, rng, stretch=(8, 1)))
+    rgb = _tint(tone * _grime(size, rng, 0.25), (0.58, 0.54, 0.36))
+    border = (xs < 0.05) | (xs > 0.95)
+    rgb = np.where(border[:, :, None], _tint(0.8 + 0.2 * weave, (0.10, 0.10, 0.09)), rgb)
+    return _rgba(rgb)
+
+
+def gravel(size=256, seed=20):
+    """Raked pale shrine gravel."""
+    rng = np.random.default_rng(seed)
+    ys = np.mgrid[0:size, 0:size][0] / size
+    stones = 0.7 + 0.3 * rng.random((size, size))
+    stones = 0.5 * stones + 0.5 * (0.75 + 0.25 * fbm(size, size, 32, 2, rng))
+    raked = 0.9 + 0.1 * np.sin(ys * np.pi * 16) ** 2
+    return _rgba(_tint(stones * raked * _grime(size, rng, 0.2), (0.62, 0.61, 0.57)))
+
+
+def bark(size=128, seed=22):
+    rng = np.random.default_rng(seed)
+    value = 0.6 + 0.4 * fbm(size, size, 6, 4, rng, stretch=(1, 8))
+    return _rgba(_tint(value, (0.26, 0.17, 0.12)))
+
+
+def foliage(size=128, seed=23):
+    rng = np.random.default_rng(seed)
+    value = 0.55 + 0.45 * fbm(size, size, 12, 3, rng)
+    return _rgba(_tint(value, (0.10, 0.16, 0.09)))
+
+
+def wood_floor(size=256, seed=24, color=(0.36, 0.25, 0.16)):
+    """Polished floorboards running along one axis."""
+    rng = np.random.default_rng(seed)
+    ys = np.arange(size)
+    board = ys * 6 // size
+    tones = 0.8 + 0.3 * rng.random(6)
+    tone = tones[board][:, None].repeat(size, 1)
+    grain = fbm(size, size, 4, 4, rng, stretch=(12, 1))
+    value = tone * (0.75 + 0.35 * grain)
+    gap = ((ys % (size // 6)) < 2)[:, None].repeat(size, 1)
+    value = np.where(gap, value * 0.4, value)
+    return _rgba(_tint(value, color))
+
+
+def fusuma(size=128, seed=25):
+    """Sliding paper door: faded washi with a faint pattern and a dark frame."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size] / size
+    paper = 0.85 + 0.15 * fbm(size, size, 5, 3, rng)
+    pattern = 0.94 + 0.06 * np.sin(xs * 40 + np.sin(ys * 12) * 2)
+    rgb = _tint(paper * pattern * _grime(size, rng, 0.35), (0.66, 0.62, 0.52))
+    frame = (xs < 0.04) | (xs > 0.96) | (ys < 0.03) | (ys > 0.97)
+    rgb = np.where(frame[:, :, None], _tint(paper, (0.12, 0.09, 0.07)), rgb)
+    return _rgba(rgb)
+
+
+def scroll(width=64, height=192, seed=26):
+    """Hanging scroll: silk mount and a column of dark brushed marks."""
+    rng = np.random.default_rng(seed)
+    rgb = np.zeros((height, width, 3)) + np.array([0.30, 0.26, 0.20])
+    rgb[int(height * 0.12):int(height * 0.9), int(width * 0.12):int(width * 0.88)] = (0.72, 0.68, 0.58)
+    ink = fbm(width, height, 3, 4, rng, stretch=(1, 3))
+    column = (np.abs(np.arange(width) - width / 2) < width * 0.12)[None, :]
+    rows = np.arange(height)[:, None]
+    strokes = column & (ink > 0.52) & (rows > height * 0.2) & (rows < height * 0.82)
+    rgb = np.where(strokes[:, :, None], np.array([0.06, 0.05, 0.05]), rgb)
+    return _rgba(rgb * (0.9 + 0.1 * fbm(width, height, 4, 3, rng))[:, :, None])
+
+
+def lantern_paper(size=64, seed=27):
+    rng = np.random.default_rng(seed)
+    value = 0.8 + 0.2 * fbm(size, size, 4, 3, rng)
+    return _rgba(_tint(value, (0.95, 0.72, 0.42)))
