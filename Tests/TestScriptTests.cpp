@@ -49,6 +49,11 @@ namespace
         bool animationPlaying = false;
         std::optional<float> AnimationTime(const std::string&) const override { return animationTime; }
         bool AnimationPlaying(const std::string&) const override { return animationPlaying; }
+        std::string reloadError;
+        int reloads = 0;
+        glm::vec3 feet{ 0.0f };
+        std::string ReloadLevel() override { ++reloads; return reloadError; }
+        glm::vec3 FeetPosition() const override { return feet; }
         void Log(const std::string&) override {}
     };
 
@@ -207,6 +212,26 @@ TEST_CASE("expect_animating needs a clip that advances; wait_for_animation its e
     TestRunner forever(Parse("wait_for_animation windmill 1"));
     Run(forever, moving);
     CHECK_FALSE(forever.Passed());
+}
+
+TEST_CASE("reload_level fails with the reload's error; expect_near checks the feet")
+{
+    FakeGame game;
+    game.feet = { 3.0f, 0.0f, 5.0f };
+    TestRunner passes(Parse("reload_level\nexpect_near 3 0 5"));
+    Run(passes, game);
+    CHECK(passes.Passed());
+    CHECK(game.reloads == 1);
+
+    TestRunner far(Parse("expect_near 3 0 6 0.5"));
+    Run(far, game);
+    CHECK_FALSE(far.Passed());
+
+    FakeGame broken;
+    broken.reloadError = "street.json:/entities/2/interactable/action/type: unknown action type";
+    TestRunner fails(Parse("reload_level"));
+    Run(fails, broken);
+    CHECK(fails.GetFailure().find("/entities/2") != std::string::npos);
 }
 
 TEST_CASE("expect_surface compares the footstep surface underfoot")

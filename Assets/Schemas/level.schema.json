@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "atomengine/level.schema.json",
+  "title": "AtomEngine level",
+  "description": "A level: its models, spawns, light, sound and entities. The C++ parser (Game/Level/LevelData.cpp) is the authority; this schema gives editors completion and early warnings. Positions are in game space (metres, Y up); yaw in degrees (0 looks down -Z, 90 down +X). Spawn and entity positions may come from Blender markers (<level>.markers.json) instead.",
+  "type": "object",
+  "required": ["name", "model", "collision"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "description": "Must match the file name." },
+    "model": { "type": "string", "description": "Scene glb, relative to Assets/." },
+    "collision": { "type": "string", "description": "Collision glb, relative to Assets/." },
+    "lightmap": {
+      "type": "object",
+      "description": "Baked light texture mapped by the model's second UV set (M16).",
+      "required": ["texture"],
+      "additionalProperties": false,
+      "properties": {
+        "texture": { "type": "string" },
+        "intensity": { "type": "number", "minimum": 0, "default": 1 }
+      }
+    },
+    "defaultSpawn": { "type": "string", "description": "Defaults to the first spawn by name." },
+    "spawns": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "position": { "$ref": "#/definitions/vec3", "description": "Omit to take it from a spawn:<name> marker." },
+          "yaw": { "type": "number" }
+        }
+      }
+    },
+    "lighting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sunDirection": { "$ref": "#/definitions/vec3" },
+        "sunColor": { "$ref": "#/definitions/vec3" },
+        "skyColor": { "$ref": "#/definitions/vec3" },
+        "groundColor": { "$ref": "#/definitions/vec3" },
+        "fogColor": { "$ref": "#/definitions/vec3" },
+        "shadows": { "type": "boolean" },
+        "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." }
+      }
+    },
+    "outdoor": { "type": "boolean", "default": true },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "beds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sound"],
+            "additionalProperties": false,
+            "properties": {
+              "sound": { "$ref": "#/definitions/sound" },
+              "gain": { "type": "number" }
+            }
+          }
+        },
+        "emitters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sound", "position"],
+            "additionalProperties": false,
+            "properties": {
+              "sound": { "$ref": "#/definitions/sound" },
+              "group": { "type": "string" },
+              "position": { "$ref": "#/definitions/vec3" },
+              "gain": { "type": "number" },
+              "minDistance": { "type": "number" },
+              "maxDistance": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": { "$ref": "#/definitions/surface" },
+        "zones": {
+          "type": "array",
+          "description": "Rectangles on the ground (x and z of min/max); the first match wins.",
+          "items": {
+            "type": "object",
+            "required": ["min", "max", "surface"],
+            "additionalProperties": false,
+            "properties": {
+              "min": { "$ref": "#/definitions/vec3" },
+              "max": { "$ref": "#/definitions/vec3" },
+              "surface": { "$ref": "#/definitions/surface" }
+            }
+          }
+        }
+      }
+    },
+    "particles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "leaves": { "type": "boolean" },
+        "fogBanks": { "type": "boolean" }
+      }
+    },
+    "unease": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "figure": { "type": "boolean" },
+        "figureSpots": { "type": "array", "items": { "$ref": "#/definitions/vec3" } },
+        "flickerMaterial": { "type": "string" },
+        "flickerSites": { "type": "array", "items": { "$ref": "#/definitions/vec3" } }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/entity" }
+    }
+  },
+  "definitions": {
+    "vec3": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "surface": { "enum": ["asphalt", "concrete", "dirt", "stone", "wood"] },
+    "sound": {
+      "type": "string",
+      "description": "A sound from the library (Game/AudioScape.cpp).",
+      "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak"]
+    },
+    "entity": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "Unique in the level; scripts and markers use it." },
+        "position": { "$ref": "#/definitions/vec3", "description": "Omit to take it from an entity:<name> marker." },
+        "yaw": { "type": "number" },
+        "model": { "type": "string", "description": "glb relative to Assets/." },
+        "collider": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "center": { "$ref": "#/definitions/vec3" },
+            "halfExtents": { "$ref": "#/definitions/vec3" }
+          }
+        },
+        "interactable": {
+          "type": "object",
+          "required": ["action"],
+          "additionalProperties": false,
+          "properties": {
+            "prompt": { "type": "string", "description": "Shown as [E] <prompt>." },
+            "focus": { "$ref": "#/definitions/vec3" },
+            "radius": { "type": "number" },
+            "requires": { "type": "string", "description": "Flag needed; otherwise \"locked\" runs." },
+            "action": { "$ref": "#/definitions/action" },
+            "locked": { "$ref": "#/definitions/action" }
+          }
+        },
+        "animation": {
+          "type": "object",
+          "required": ["clip"],
+          "additionalProperties": false,
+          "properties": {
+            "clip": { "type": "string" },
+            "loop": { "type": "boolean", "default": true },
+            "autoplay": { "type": "boolean", "default": true },
+            "speed": { "type": "number" },
+            "sound": { "$ref": "#/definitions/sound" },
+            "soundsPerLoop": { "type": "integer", "minimum": 1 },
+            "soundOffset": { "$ref": "#/definitions/vec3" }
+          }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation"] }
+      },
+      "oneOf": [
+        {
+          "properties": { "type": { "const": "message" }, "text": { "type": "string" } },
+          "required": ["text"], "additionalProperties": false
+        },
+        {
+          "properties": { "type": { "const": "setFlag" }, "flag": { "type": "string" }, "message": { "type": "string" } },
+          "required": ["flag"], "additionalProperties": false
+        },
+        {
+          "properties": { "type": { "const": "dialogue" }, "id": { "type": "string" } },
+          "required": ["id"], "additionalProperties": false
+        },
+        {
+          "properties": { "type": { "const": "changeLevel" }, "level": { "type": "string" }, "spawn": { "type": "string" } },
+          "required": ["level"], "additionalProperties": false
+        },
+        {
+          "properties": {
+            "type": { "const": "playAnimation" }, "entity": { "type": "string" },
+            "clip": { "type": "string" }, "message": { "type": "string" }
+          },
+          "required": ["entity", "clip"], "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

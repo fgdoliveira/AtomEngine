@@ -1,4 +1,5 @@
 {
+  "$schema": "../Schemas/level.schema.json",
   "name": "street",
   "model": "Street/street.glb",
   "collision": "Street/street_col.glb",

@@ -69,6 +69,9 @@ namespace Atom
         void SetMasterGain(float gain);
         float GetMasterGain() const { return m_masterGain; }
         std::size_t GetVoiceCount() const;
+        // Looping voices only: the ones that play until stopped, so a leak
+        // shows up here (one-shots end by themselves).
+        std::size_t GetLoopingVoiceCount() const;
 
     private:
         struct Voice

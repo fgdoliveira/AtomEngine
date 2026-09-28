@@ -13,6 +13,8 @@ and nothing is exported.
 
 import argparse
 import importlib
+import json
+import math
 import os
 import sys
 import time
@@ -106,6 +108,41 @@ def export_objects(objects, scene, path, materials=True):
             print(f"Export of {os.path.basename(path)} failed ({error}); retrying")
             time.sleep(0.5)
     print("Exported", os.path.relpath(path, REPO_ROOT))
+
+
+def write_markers(collection, path):
+    """Writes the level's spawn:/entity: empties as game-space placements
+    (glTF axes: x, z, -y). Spawn yaw: the empty looks along its local +Y,
+    game yaw 0 looks down -Z, so yaw = -rotation. Entity yaw: the model
+    turns like a kit piece, yaw = rotation. Sorted and rounded, so the file
+    is byte-identical across rebuilds. Returns the number of markers."""
+    placements = {"spawns": {}, "entities": {}}
+    for obj in collection.all_objects:
+        if obj.type != "EMPTY" or ":" not in obj.name:
+            continue
+        kind, name = obj.name.split(":", 1)
+        if kind not in ("spawn", "entity") or "." in name:
+            atom_kit.LINT_ERRORS.append(f"marker {obj.name}: expected spawn:<name> or entity:<name>, unique")
+            continue
+        x, y, z = obj.matrix_world.translation
+        rotation = math.degrees(obj.matrix_world.to_euler("XYZ").z)
+        yaw = -rotation if kind == "spawn" else rotation
+        placements["spawns" if kind == "spawn" else "entities"][name] = {
+            "position": [round(x, 3), round(z, 3), round(-y, 3)],
+            "yaw": round((yaw + 180.0) % 360.0 - 180.0, 2) + 0.0,
+        }
+    count = len(placements["spawns"]) + len(placements["entities"])
+    if not count:
+        if os.path.exists(path):
+            os.remove(path)
+        return 0
+    document = {"_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit"}
+    document.update(placements)
+    with open(path, "w", encoding="utf-8", newline="\n") as file:
+        json.dump(document, file, indent=2, sort_keys=True)
+        file.write("\n")
+    print("Exported", os.path.relpath(path, REPO_ROOT), f"({count} markers)")
+    return count
 
 
 def export_piece(obj, scene, out_dir):
@@ -214,6 +251,14 @@ def main():
         export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
         export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),
                        materials=False)
+        write_markers(level.collection, os.path.join(
+            args.out, "Levels", atom_levels.LEVEL_FILES[folder] + ".markers.json"))
 
 
-main()
+# Blender exits 0 even when the script raises; make a failed build fail.
+try:
+    main()
+except Exception:
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)

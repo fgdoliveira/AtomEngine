@@ -74,6 +74,7 @@ Developer switches (environment variables):
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
+| `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 
 ## Testing
 
@@ -110,7 +111,13 @@ byte-identical.
 blender -b --factory-startup -P Tools/Blender/build_assets.py
 ```
 
-Levels are JSON files in `Assets/Levels/`, dialogue in `Assets/Dialogue/`.
+Levels are JSON files in `Assets/Levels/`, dialogue in `Assets/Dialogue/`;
+both declare a schema from `Assets/Schemas/` for editor completion and
+checks. Level builders in Blender can place spawns and entities with
+`spawn:<name>` / `entity:<name>` empties, exported to
+`Assets/Levels/<level>.markers.json`. Run the game with
+`ATOM_ASSET_ROOT=<repo>` to see edits to level files, markers, models and
+dialogue within a second, without restarting.
 
 ## Layout
 

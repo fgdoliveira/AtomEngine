@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace AtomGame
 {
@@ -24,6 +25,16 @@ namespace AtomGame
         bool Load(const std::string& levelName, const std::string& spawnName);
 
         void RequestChange(const std::string& levelName, const std::string& spawnName);
+
+        // Hot reload (M20): loads the current level's files again and swaps
+        // it in right away, without a fade; the player stays where they are.
+        // Returns an empty string on success; on failure the error, and the
+        // old level stays.
+        std::string Reload();
+
+        // Every file the current level was built from (level file, markers,
+        // models, collision, lightmap), for watching.
+        std::vector<std::string> GetSourceFiles() const;
         void Update(float deltaSeconds);
 
         Level* GetLevel() { return m_level.get(); }
@@ -36,6 +47,8 @@ namespace AtomGame
         std::function<void(Level& outgoing)> onUnloading;
         // Called once the new level is current, with the chosen spawn.
         std::function<void(Level& incoming, const SpawnPoint& spawn)> onLoaded;
+        // Called after a hot reload replaced the level in place.
+        std::function<void(Level& incoming)> onReloaded;
 
         float fadeOutSeconds = 0.6f;
         float fadeInSeconds = 0.9f;

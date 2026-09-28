@@ -10,6 +10,7 @@ add_executable(
     TestScriptTests.cpp
     ModelTests.cpp
     AnimationTests.cpp
+    AuthoringTests.cpp
 )
 
 target_link_libraries(

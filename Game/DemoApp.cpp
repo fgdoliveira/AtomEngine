@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -40,6 +41,18 @@ namespace AtomGame
     {
         const char* basePath = SDL_GetBasePath();
         m_assetRoot = basePath ? basePath : "";
+        // ATOM_ASSET_ROOT=<folder containing Assets/> reads the source tree
+        // instead of the build's copy, and turns on hot reload.
+        if (const char* root = SDL_getenv("ATOM_ASSET_ROOT"); root && *root)
+        {
+            m_assetRoot = root;
+            if (m_assetRoot.back() != '/' && m_assetRoot.back() != '\\')
+            {
+                m_assetRoot += '/';
+            }
+            m_hotReload = true;
+            std::cout << "Hot reload on: assets from " << m_assetRoot << '\n';
+        }
 
         m_fogPreset = DefaultFogPreset;
         m_audioScape.Initialize(GetAudio());
@@ -67,6 +80,7 @@ namespace AtomGame
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
             OnLevelLoaded(incoming, spawn);
         };
+        m_levels->onReloaded = [this](Level& incoming) { OnLevelReloaded(incoming); };
 
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
@@ -119,6 +133,21 @@ namespace AtomGame
         m_arrivalYaw = glm::radians(spawn.yawDegrees);
         m_arriving = true;
 
+        ConfigureForLevel(incoming);
+        m_mode = Mode::Exploring;
+        std::cout << "Entered level '" << data.name << "'\n";
+    }
+
+    void DemoApp::OnLevelReloaded(Level& incoming)
+    {
+        // Same place, same view: only the level's content changed.
+        ConfigureForLevel(incoming);
+        m_mode = Mode::Exploring;
+    }
+
+    void DemoApp::ConfigureForLevel(Level& incoming)
+    {
+        const LevelData& data = incoming.GetData();
         m_atmosphere.Configure(data.leaves, data.fogBanks);
         m_unease.Configure(data.unease, &incoming);
         m_audioScape.SetOutdoor(data.outdoor);
@@ -126,9 +155,72 @@ namespace AtomGame
             return incoming.GetData().SurfaceAt(x, z);
         });
         ApplyLighting();
+        WatchLevelFiles();
+    }
 
-        m_mode = Mode::Exploring;
-        std::cout << "Entered level '" << data.name << "'\n";
+    void DemoApp::WatchLevelFiles()
+    {
+        if (!m_hotReload)
+        {
+            return;
+        }
+        m_levelFiles.Watch(m_levels->GetSourceFiles());
+        std::vector<std::string> dialogues;
+        std::error_code error;
+        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Dialogue", error))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                dialogues.push_back(entry.path().string());
+            }
+        }
+        m_dialogueFiles.Watch(std::move(dialogues));
+    }
+
+    void DemoApp::UpdateHotReload(float deltaSeconds)
+    {
+        // Once a second, and only while walking: never mid-dialogue or
+        // mid-transition.
+        m_reloadTimer += deltaSeconds;
+        if (!m_hotReload || m_reloadTimer < 1.0f || m_mode != Mode::Exploring)
+        {
+            return;
+        }
+        m_reloadTimer = 0.0f;
+
+        if (!m_dialogueFiles.Poll().empty())
+        {
+            m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+            m_messages.Show("Dialogue reloaded");
+        }
+        const std::vector<std::string> changed = m_levelFiles.Poll();
+        if (changed.empty())
+        {
+            return;
+        }
+        std::cout << "Changed: " << changed.front() << (changed.size() > 1 ? " (and more)" : "") << '\n';
+        if (const std::string error = ReloadLevel(); !error.empty())
+        {
+            // Keep playing the old level; say what's wrong where you look.
+            std::cerr << "Reload failed: " << error << '\n';
+            m_messages.Show("Reload failed - " + error);
+        }
+        else
+        {
+            m_messages.Show("Level reloaded");
+        }
+    }
+
+    std::string DemoApp::ReloadLevel()
+    {
+        const std::string error = m_levels->Reload();
+        if (!error.empty())
+        {
+            // Don't retry the same broken files every second: wait for the
+            // next edit.
+            m_levelFiles.Poll();
+        }
+        return error;
     }
 
     GameWorld* DemoApp::CurrentWorld()
@@ -154,6 +246,7 @@ namespace AtomGame
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
+        UpdateHotReload(deltaSeconds);
         if (Level* level = m_levels->GetLevel())
         {
             level->Update(deltaSeconds);
@@ -845,7 +938,9 @@ namespace AtomGame
 
     std::size_t DemoApp::VoiceCount() const
     {
-        return const_cast<DemoApp*>(this)->GetAudio().GetVoiceCount();
+        // Leak checks count what plays until stopped; a cicada call or a
+        // footstep in flight isn't a leak.
+        return const_cast<DemoApp*>(this)->GetAudio().GetLoopingVoiceCount();
     }
 
     std::string DemoApp::SurfaceName() const

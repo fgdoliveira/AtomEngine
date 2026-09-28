@@ -1,6 +1,7 @@
 #include "Testing/TestScript.h"
 
 #include <charconv>
+#include <cmath>
 #include <sstream>
 #include <unordered_map>
 
@@ -39,6 +40,8 @@ namespace AtomGame
                 { "expect_surface", { 1, 1 } },     // footstep surface name
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
+                { "reload_level", { 0, 0 } },       // hot reload in place
+                { "expect_near", { 3, 4 } },        // x y z [metres]: the player's feet
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -375,6 +378,27 @@ namespace AtomGame
                 return true;
             }
             return false;
+        }
+        if (name == "reload_level")
+        {
+            if (const std::string error = game.ReloadLevel(); !error.empty())
+            {
+                Fail(command, "reload failed: " + error);
+            }
+            return true;
+        }
+        if (name == "expect_near")
+        {
+            const glm::vec3 wanted{ number(0, 0), number(1, 0), number(2, 0) };
+            const glm::vec3 feet = game.FeetPosition();
+            const glm::vec3 d = feet - wanted;
+            if (std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z) > number(3, 0.1f))
+            {
+                std::ostringstream where;
+                where << "player is at " << feet.x << ' ' << feet.y << ' ' << feet.z;
+                Fail(command, where.str());
+            }
+            return true;
         }
         if (name == "expect_surface")
         {

@@ -144,9 +144,10 @@ TEST_CASE("Every shipped level file is valid")
     int count = 0;
     for (const auto& entry : std::filesystem::directory_iterator(folder))
     {
-        if (entry.path().extension() != ".json")
+        if (entry.path().extension() != ".json"
+            || entry.path().filename().string().ends_with(".markers.json"))
         {
-            continue;
+            continue; // markers are read with their level
         }
         const LevelParseResult result = LoadLevelFile(entry.path().string());
         INFO(entry.path().filename().string() << ": " << result.error);

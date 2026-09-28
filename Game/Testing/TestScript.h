@@ -40,13 +40,17 @@ namespace AtomGame
         virtual std::string ModeName() const = 0;  // exploring | dialogue | transitioning
         virtual std::string Message() const = 0;
         virtual std::string DialogueNodeId() const = 0;
-        virtual std::size_t VoiceCount() const = 0;
+        virtual std::size_t VoiceCount() const = 0; // looping voices (leak checks)
         virtual std::string SurfaceName() const = 0; // footstep surface underfoot
         virtual ArrivalError Arrival() const = 0;
         // Animation of a named entity (M19): time into its clip, nullopt if
         // it has none; and whether it is still playing.
         virtual std::optional<float> AnimationTime(const std::string& entity) const = 0;
         virtual bool AnimationPlaying(const std::string& entity) const = 0;
+        // Hot reload (M20): reloads the current level in place; empty string
+        // on success, else the error.
+        virtual std::string ReloadLevel() = 0;
+        virtual glm::vec3 FeetPosition() const = 0;
         virtual void Log(const std::string& text) = 0;
     };
 

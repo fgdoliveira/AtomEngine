@@ -181,6 +181,14 @@ def build_windmill_field(pieces, collision, materials, collection):
     long grass, shrubs and a few trees under the fog."""
     level = Street(pieces, collision, materials, collection)
 
+    # Where things are (markers, M20); windmill_field.json says what they do.
+    windmill, shed = (0.0, 12.0), (6.0, 8.0)
+    level.add_marker("spawn", "from_street", 0.0, -18.0, 0.0)
+    level.add_marker("entity", "windmill", *windmill)
+    level.add_marker("entity", "shed", *shed)
+    level.add_marker("entity", "hanging_sign", -3.0, -10.0)
+    level.add_marker("entity", "path_back", 0.0, -21.0)
+
     m = kit.MeshBuilder(grid=2.0)
     _flat(m, "dirt", -60, -60, 60, 60, 0.0)
     _flat(m, "paddy", -40, -45, -12, -26, 0.01)   # 1 cm: clear of the dirt's plane
@@ -201,7 +209,7 @@ def build_windmill_field(pieces, collision, materials, collection):
         x, y = rand() * 50 - 25, rand() * 50 - 22
         if abs(x) < 2.0 and y < 9.0:
             continue  # keep the track clear
-        if math.hypot(x, y - 12) < 3.5 or math.hypot(x - 6, y - 8) < 2.5:
+        if math.hypot(x - windmill[0], y - windmill[1]) < 3.5 or math.hypot(x - shed[0], y - shed[1]) < 2.5:
             continue  # not under the windmill or the shed
         level.place("grass_tuft", x, y, rand() * 360)
     for x, y in ((-9, 4), (8.5, -6), (-14, -14), (15, 14), (-6, 18), (11, 2)):
@@ -224,6 +232,9 @@ LEVELS = [
     ("interior", build_machiya_interior),
     ("fields", build_windmill_field),
 ]
+
+# The level file each Blender level belongs to (markers are written next to it).
+LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.

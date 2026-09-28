@@ -7,6 +7,7 @@
 #include <glm/vec3.hpp>
 
 #include <array>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -85,6 +86,8 @@ namespace AtomGame
         std::string name;
         glm::vec3 position{ 0.0f };
         float yawDegrees = 0.0f;
+        bool hasPosition = false; // written in the file (or set from a marker)
+        bool hasYaw = false;
         std::string model; // optional, relative to Assets/
         std::optional<ColliderBox> collider;
         std::optional<Interactable> interactable;
@@ -136,6 +139,13 @@ namespace AtomGame
         std::string error;
     };
 
-    LevelParseResult ParseLevel(std::string_view json);
+    // Errors name the place: "line 4, column 9: ..." for syntax, a JSON
+    // Pointer ("/entities/3/interactable/action/type: ...") for content.
+    // `markers` is the optional <level>.markers.json written from Blender.
+    LevelParseResult ParseLevel(std::string_view json, std::string_view markers = {});
+
+    // Reads the file and its markers file beside it, if any; errors are
+    // prefixed with the file name.
     LevelParseResult LoadLevelFile(const std::string& path);
+    std::string MarkersPathFor(const std::string& levelPath);
 }

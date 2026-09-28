@@ -50,6 +50,18 @@ class Street:
             self.colliders.append(col)
         return obj
 
+    def add_marker(self, kind, name, x, y, yaw_degrees=0.0, z=0.0):
+        """An empty named "<kind>:<name>" (kind: spawn or entity). Levels say
+        in JSON what things do; markers say where they are (M20). Spawn
+        markers look along their local +Y; entity markers turn the model
+        like any kit piece."""
+        obj = bpy.data.objects.new(f"{kind}:{name}", None)
+        obj.empty_display_type = "SINGLE_ARROW" if kind == "spawn" else "PLAIN_AXES"
+        obj.location = (x, y, z)
+        obj.rotation_euler = (0.0, 0.0, math.radians(yaw_degrees))
+        self.collection.objects.link(obj)
+        return obj
+
     def add_visual(self, name, builder):
         obj = builder.build(name, self.materials, self.collection)
         self.visual.append(obj)

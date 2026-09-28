@@ -78,7 +78,7 @@ expect_flag read_letter
 teleport_to field_path
 interact field_path
 wait_for_level windmill_field
-expect_voices_max 5                  # 3 beds + static + a creak in flight
+expect_voices_max 4                  # 3 beds + static (one-shot creaks don't count)
 expect_animating windmill
 expect_animating hanging_sign
 teleport 0 0 16 0

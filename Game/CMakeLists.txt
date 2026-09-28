@@ -18,6 +18,8 @@ add_library(
     Testing/TestScript.h
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h
+    Level/FileWatcher.h
+    Level/JsonText.h
     Dialogue/DialogueRunner.cpp
     Dialogue/DialogueRunner.h
     Dialogue/DialogueView.cpp

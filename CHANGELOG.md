@@ -55,6 +55,28 @@
   ([E] at the field path): a windmill whose sails turn and creak on every
   quarter, a hanging sign that swings, a shed whose door slides open, long
   grass, shrubs and trees. Included in the `levels_roundtrip` scenario.
+- **Authoring (M20):**
+  - JSON schemas (`Assets/Schemas/`) for levels and dialogue; every file
+    names its schema with `$schema`, so editors complete keys and flag
+    typos while you type. The C++ parsers stay the authority.
+  - Errors say where: `line 20, column 19: ...` for syntax,
+    `street.json:/entities/3/interactable/action/type: ...` for content.
+    A value of the wrong type is now an error instead of a silent default.
+  - Hot reload: with `ATOM_ASSET_ROOT=<repo>` the game reads the source
+    tree and, once a second, reloads the level when its JSON, markers,
+    models, collision or lightmap change (and dialogue when a dialogue
+    file does). The player stays put; a broken file keeps the old level
+    and shows the error on screen. `reload_level` / `expect_near` in the
+    harness; `hot_reload` scenario.
+  - Blender markers: `spawn:<name>` / `entity:<name>` empties are written
+    to `<level>.markers.json`; the level file may leave out positions and
+    take them from the markers (the file wins when both give one). The
+    windmill field is placed this way.
+
+### Changed
+- Voice-leak checks count looping voices only; one-shots (a cicada call,
+  a creak) end by themselves and made the checks flaky.
+- The asset build exits with an error when its script fails.
 
 ## 0.0.2 — Interaction, dialogue and levels
 
