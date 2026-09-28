@@ -6,6 +6,7 @@
 #include "Renderer/Renderer.h"
 #include "Physics/CollisionWorld.h"
 #include "World/GameWorld.h"
+#include "World/Impostors.h"
 
 #include <memory>
 #include <string>
@@ -113,6 +114,16 @@ namespace AtomGame
             int cell = -1; // index into m_data.cells
         };
         std::vector<Chunk> m_chunks;
+        std::unordered_map<std::string, std::unique_ptr<ImpostorSet>> m_impostorSets;
+        struct Impostor
+        {
+            const ImpostorSet* set = nullptr;
+            glm::vec3 position{ 0.0f };
+            float yaw = 0.0f; // radians
+            Atom::RenderLayer layer = Atom::RenderLayer::Far;
+            mutable int view = -1; // shown last frame (hysteresis)
+        };
+        std::vector<Impostor> m_impostors;
         std::unordered_map<std::string, std::shared_ptr<Atom::Model>> m_models;
         Atom::CollisionWorld m_collision;
         GameWorld m_world; // after the models: entities die first

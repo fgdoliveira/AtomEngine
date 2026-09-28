@@ -412,6 +412,25 @@ namespace AtomGame
                 level.halos.push_back(h);
             }
 
+            std::size_t impostorIndex = 0;
+            for (const Json& impostor : Array(root, "impostors", ""))
+            {
+                const std::string at = JsonPath("/impostors", impostorIndex++);
+                ImpostorData d;
+                d.set = String(impostor, "set", at);
+                d.position = Vec3(impostor, "position", d.position, at);
+                d.yawDegrees = Number(impostor, "yaw", at, 0.0f);
+                const std::string layer = String(impostor, "layer", at, "far");
+                if (layer == "mid") d.layer = ChunkLayer::Mid;
+                else if (layer == "far") d.layer = ChunkLayer::Far;
+                else throw LevelError(JsonPath(at, "layer"), "must be \"mid\" or \"far\"");
+                if (d.set.empty() || !impostor.contains("position"))
+                {
+                    throw LevelError(at, "an impostor needs \"set\" and \"position\"");
+                }
+                level.impostors.push_back(d);
+            }
+
             std::size_t chunkIndex = 0;
             for (const Json& chunk : Array(root, "chunks", ""))
             {

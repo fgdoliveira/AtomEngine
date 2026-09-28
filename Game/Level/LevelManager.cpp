@@ -102,6 +102,10 @@ namespace AtomGame
                 files.push_back(assets + chunk.collision);
             }
         }
+        for (const ImpostorData& impostor : data.impostors)
+        {
+            files.push_back(assets + impostor.set);
+        }
         for (const EntityData& entity : data.entities)
         {
             if (!entity.model.empty())

@@ -98,6 +98,21 @@
         "intensity": { "type": "number", "minimum": 0, "default": 1 }
       }
     },
+    "impostors": {
+      "type": "array",
+      "description": "Pre-rendered buildings on camera-facing cards (M24).",
+      "items": {
+        "type": "object",
+        "required": ["set", "position"],
+        "additionalProperties": false,
+        "properties": {
+          "set": { "type": "string", "description": "Impostor descriptor (.json) relative to Assets/." },
+          "position": { "$ref": "#/definitions/vec3", "description": "Centre of the building's footprint." },
+          "yaw": { "type": "number" },
+          "layer": { "enum": ["mid", "far"], "default": "far" }
+        }
+      }
+    },
     "halos": {
       "type": "array",
       "description": "Soft additive glows around lights (M23).",

@@ -12,6 +12,7 @@ add_executable(
     AnimationTests.cpp
     AuthoringTests.cpp
     CollisionGridTests.cpp
+    ImpostorTests.cpp
 )
 
 target_link_libraries(

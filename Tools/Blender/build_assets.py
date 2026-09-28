@@ -35,6 +35,7 @@ import atom_street  # noqa: E402
 import atom_levels  # noqa: E402
 import atom_bake  # noqa: E402
 import atom_lightmap  # noqa: E402
+import atom_city  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
@@ -43,6 +44,7 @@ importlib.reload(atom_street)
 importlib.reload(atom_levels)
 importlib.reload(atom_bake)
 importlib.reload(atom_lightmap)
+importlib.reload(atom_city)
 
 
 def parse_args():
@@ -215,6 +217,14 @@ def main():
         scene.collection.children.link(level_collection)
         levels.append((folder, build(pieces, collision, materials, level_collection)))
 
+    # City layers (M24): middle shells, far skyline, and the impostor source.
+    city_collection = bpy.data.collections.new("City")
+    scene.collection.children.link(city_collection)
+    mid_blocks = atom_city.build_mid_blocks(materials, city_collection)
+    skyline = atom_city.build_skyline(materials, city_collection)
+    tower = atom_city.build_impostor_tower(materials, city_collection)
+    tower.location = (0.0, -600.0, 0.0)  # out of the way of the other scenes
+
     # Geometry that would z-fight is a build error, like a compile error:
     # nothing is exported until it is fixed.
     if atom_kit.LINT_ERRORS:
@@ -285,6 +295,16 @@ def main():
         export_objects(objects, scene, os.path.join(street_dir, "street_" + name + ".glb"))
     export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
                    materials=False)
+
+    # Mid and far layers aren't baked: lit windows come from their emissive
+    # masks, the rest from the level's ambient.
+    city_dir = os.path.join(args.out, "City")
+    os.makedirs(city_dir, exist_ok=True)
+    export_objects([mid_blocks], scene, os.path.join(city_dir, "mid_blocks.glb"))
+    export_objects([skyline], scene, os.path.join(city_dir, "skyline.glb"))
+    atom_city.render_impostor(scene, tower, os.path.join(city_dir, "tower_impostor.png"),
+                              os.path.join(city_dir, "tower_impostor.json"))
+    print("Exported", os.path.relpath(os.path.join(city_dir, "tower_impostor.png"), REPO_ROOT))
 
     for folder, level in levels:
         level_dir = os.path.join(args.out, folder.capitalize())

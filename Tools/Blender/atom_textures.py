@@ -643,3 +643,79 @@ def lamp_glass(size=16):
     """Warm lamp glass: base and mask both flat (the whole face glows)."""
     flat = np.ones((size, size, 3)) * np.array([1.0, 0.86, 0.62])
     return _rgba(flat * 0.9), _rgba(flat)
+
+
+# --------------------------------------------------------------------------
+# City layers (M24)
+# --------------------------------------------------------------------------
+
+# Facade atlas styles, one per quadrant (column, row) of the atlas:
+# (wall colour, window columns, window rows, window fill, lit share).
+FACADE_STYLES = [
+    ((0.46, 0.45, 0.43), 4, 8, 0.55, 0.35),   # concrete office block
+    ((0.52, 0.47, 0.40), 3, 8, 0.45, 0.45),   # tiled apartments
+    ((0.33, 0.24, 0.20), 5, 8, 0.35, 0.25),   # dark brick, narrow windows
+    ((0.30, 0.31, 0.33), 4, 7, 0.60, 0.30),   # grey tower, shops below
+]
+
+
+def facade_atlas(size=256, seed=70):
+    """Four facades in the quadrants of one texture (rows bottom first).
+    Returns (base, emissive mask): by day a grid of dark glass, by night a
+    scatter of lit windows - warm, a few cold fluorescent."""
+    rng = np.random.default_rng(seed)
+    half = size // 2
+    base = np.zeros((size, size, 3))
+    mask = np.zeros((size, size, 3))
+    for index, (wall, columns, rows, fill, lit) in enumerate(FACADE_STYLES):
+        x0, y0 = (index % 2) * half, (index // 2) * half
+        grime = 0.8 + 0.2 * fbm(half, half, 6, 3, rng)
+        region = _tint(grime, wall)
+        glow = np.zeros((half, half, 3))
+        cell_w, cell_h = half / columns, half / rows
+        for row in range(rows):
+            for column in range(columns):
+                wx0 = int(column * cell_w + cell_w * (1 - fill) / 2)
+                wx1 = int((column + 1) * cell_w - cell_w * (1 - fill) / 2)
+                wy0 = int(row * cell_h + cell_h * 0.25)
+                wy1 = int((row + 1) * cell_h - cell_h * 0.2)
+                shop = index == 3 and row == 0
+                if shop:  # a lit shopfront across the ground floor
+                    wx0, wx1, wy0, wy1 = int(column * cell_w) + 1, int((column + 1) * cell_w) - 1, 2, int(cell_h) - 2
+                region[wy0:wy1, wx0:wx1] = (0.07, 0.08, 0.09)
+                if shop or rng.random() < lit:
+                    tint = (1.0, 0.82, 0.55) if rng.random() > 0.2 else (0.75, 0.9, 1.0)
+                    dim = rng.uniform(0.5, 1.0)
+                    glow[wy0:wy1, wx0:wx1] = np.array(tint) * dim
+                    region[wy0:wy1, wx0:wx1] = np.array(tint) * 0.35
+        base[y0:y0 + half, x0:x0 + half] = region
+        mask[y0:y0 + half, x0:x0 + half] = glow
+    return _rgba(base), _rgba(mask)
+
+
+def skyline(width=1024, height=256, seed=71):
+    """A horizontally tileable strip of building silhouettes (rows bottom
+    first): dark shapes with scattered lit windows, antennas on some roofs.
+    Returns (base with alpha, emissive mask)."""
+    rng = np.random.default_rng(seed)
+    alpha = np.zeros((height, width))
+    windows = np.zeros((height, width), bool)
+    x = 0
+    while x < width:
+        w = int(rng.integers(18, 70))
+        w = min(w, width - x)
+        top = int(height * rng.uniform(0.25, 0.92))
+        alpha[:top, x:x + w] = 1.0
+        # Lit windows: a sparse grid inside the building.
+        for wy in range(6, top - 4, 7):
+            for wx in range(x + 3, x + w - 3, 6):
+                if rng.random() < 0.18:
+                    windows[wy:wy + 3, wx:wx + 2] = True
+        if rng.random() < 0.3 and w > 10:  # an antenna
+            ax = x + w // 2
+            alpha[top:min(height, top + int(height * 0.08)), ax:ax + 1] = 1.0
+        x += w
+    base = np.zeros((height, width, 3)) + np.array([0.035, 0.038, 0.05])
+    base = np.where(windows[:, :, None], np.array([0.6, 0.5, 0.35]), base)
+    mask = np.where(windows[:, :, None], np.array([1.0, 0.8, 0.55]), np.zeros((height, width, 3)))
+    return _with_alpha(base, alpha), _rgba(mask)

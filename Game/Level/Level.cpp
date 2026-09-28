@@ -88,6 +88,24 @@ namespace AtomGame
             }
         }
 
+        // Impostors (M24): each set loaded once, instances share it.
+        for (const ImpostorData& data : d.impostors)
+        {
+            auto& set = level->m_impostorSets[data.set];
+            if (!set)
+            {
+                set = ImpostorSet::Load(services.renderer, assets + data.set);
+                if (!set)
+                {
+                    std::cerr << "Level '" << d.name << "': impostor " << data.set << " failed to load\n";
+                    return nullptr;
+                }
+            }
+            level->m_impostors.push_back(Impostor{
+                set.get(), data.position, glm::radians(data.yawDegrees),
+                static_cast<Atom::RenderLayer>(data.layer) });
+        }
+
         // Chunks (M22): their models through the shared cache, their
         // collision added to the level's.
         for (const ChunkData& data : d.chunks)
@@ -302,6 +320,27 @@ namespace AtomGame
                 halos.push_back(p);
             }
             renderer.SubmitHalos(halos);
+        }
+
+        // Impostors (M24): the card turns to face the viewer; the view shown
+        // is the one rendered from closest to that direction.
+        constexpr float Hysteresis = 0.13f; // radians, ~7.5 degrees
+        for (const Impostor& impostor : m_impostors)
+        {
+            const ImpostorDescriptor& d = impostor.set->GetDescriptor();
+            const glm::vec3 toViewer = viewer - impostor.position;
+            const float facing = std::atan2(toViewer.x, toViewer.z); // card normal +Z toward the viewer
+            impostor.view = SelectImpostorView(impostor.view, facing - impostor.yaw, d.views, Hysteresis);
+
+            const glm::vec3 half{ d.width * 0.5f, 0.0f, d.width * 0.5f };
+            renderer.BeginChunk(Atom::ChunkInfo{
+                impostor.position - half,
+                impostor.position + half + glm::vec3{ 0.0f, d.height, 0.0f },
+                impostor.layer, false });
+            const glm::mat4 transform = glm::rotate(
+                glm::translate(glm::mat4{ 1.0f }, impostor.position), facing, glm::vec3{ 0.0f, 1.0f, 0.0f });
+            renderer.Submit(impostor.set->GetView(impostor.view), impostor.set->GetMaterial(), transform);
+            renderer.EndChunk();
         }
 
         const std::vector<bool> visibleCells = VisibleCells(m_data.cells, viewer);

@@ -78,6 +78,9 @@ MATERIALS = {
     # Night (M23): these take their emission from a mask (see EMISSIVE).
     "neon_sign": (lambda: tex.neon_sign()[0], 1.0, 0.5, 0.0),
     "lamp_glass": (lambda: tex.lamp_glass()[0], 1.0, 0.3, 0.0),
+    # City layers (M24).
+    "facade_atlas": (lambda: tex.facade_atlas()[0], 1.0, 0.9, 0.0),
+    "skyline": (lambda: tex.skyline()[0], 1.0, 1.0, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
@@ -87,11 +90,14 @@ MATERIALS = {
 EMISSIVE = {
     "neon_sign": (lambda: tex.neon_sign()[1], 5.0, 0.35),
     "lamp_glass": (lambda: tex.lamp_glass()[1], 4.0, 0.45),
+    "facade_atlas": (lambda: tex.facade_atlas()[1], 2.0, 0.7),
+    "skyline": (lambda: tex.skyline()[1], 1.5, 0.25),
 }
 
 # Alpha-tested materials (M17): name -> alpha cutoff. Pixels below it are
 # not drawn; the cards are double-sided. Exported as glTF alphaMode MASK.
 MASKED = {
+    "skyline": 0.5,
     "leaves": 0.5,
     "grass": 0.5,
     "noren": 0.5,

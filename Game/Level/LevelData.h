@@ -151,6 +151,15 @@ namespace AtomGame
         std::vector<std::string> neighbours;
     };
 
+    // A pre-rendered building on a camera-facing card (M24).
+    struct ImpostorData
+    {
+        std::string set;      // descriptor, relative to Assets/
+        glm::vec3 position{ 0.0f };
+        float yawDegrees = 0.0f;
+        ChunkLayer layer = ChunkLayer::Far;
+    };
+
     // Which cells are drawn from `position`: its cell and that cell's
     // neighbours. Outside every cell (or with no cells), all of them.
     std::vector<bool> VisibleCells(const std::vector<CellData>& cells, const glm::vec3& position);
@@ -185,6 +194,7 @@ namespace AtomGame
         std::vector<EntityData> entities;
         std::optional<LevelSky> sky;
         std::vector<HaloData> halos;
+        std::vector<ImpostorData> impostors;
 
         const SpawnPoint* FindSpawn(std::string_view spawnName) const;
         std::string_view SurfaceAt(float x, float z) const;

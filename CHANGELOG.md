@@ -34,6 +34,17 @@
   - Kit: a street lamp and a neon sign; a `night_test` level
     (`ATOM_START_LEVEL=night_test`) and scenario; `goto_level` in the
     harness.
+- **Middle and far layers (M24):**
+  - **Mid buildings:** low-poly shells with a facade atlas (four styles)
+    and lit windows from an emissive mask; no collision, shadows or bake.
+  - **Impostors:** a building rendered by Blender (Cycles, CPU, fixed
+    seed: byte-identical) from 8 directions into an alpha-dilated atlas
+    with a descriptor; the engine draws a camera-facing card showing the
+    nearest view, with 7.5 degrees of hysteresis (`impostors` in levels).
+  - **Skyline:** three rings of alpha-tested silhouette cards (180, 260,
+    380 m) with lit windows and reduced fog, in front of the panorama.
+  - All on `night_test`; the F1 layer stats show mid and far chunks
+    culled per chunk and never in the shadow pass.
 
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 

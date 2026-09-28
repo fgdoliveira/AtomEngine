@@ -40,6 +40,8 @@ add_library(
     Interaction/MessageFeed.h
     World/GameState.h
     World/GameWorld.h
+    World/Impostors.cpp
+    World/Impostors.h
 )
 
 target_include_directories(

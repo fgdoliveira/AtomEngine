@@ -3,6 +3,20 @@
   "name": "night_test",
   "model": "Fields/fields.glb",
   "collision": "Fields/fields_col.glb",
+  "chunks": [
+    { "name": "mid_blocks", "model": "City/mid_blocks.glb", "layer": "mid" },
+    { "name": "skyline", "model": "City/skyline.glb", "layer": "far" }
+  ],
+  "impostors": [
+    { "set": "City/tower_impostor.json", "position": [120.0, 0.0, 20.0], "yaw": 90 },
+    { "set": "City/tower_impostor.json", "position": [100.0, 0.0, -80.0], "yaw": 30 },
+    { "set": "City/tower_impostor.json", "position": [-30.0, 0.0, -130.0], "yaw": 0 },
+    { "set": "City/tower_impostor.json", "position": [-110.0, 0.0, -60.0], "yaw": 200 },
+    { "set": "City/tower_impostor.json", "position": [-125.0, 0.0, 40.0], "yaw": 270 },
+    { "set": "City/tower_impostor.json", "position": [-40.0, 0.0, 120.0], "yaw": 160 },
+    { "set": "City/tower_impostor.json", "position": [70.0, 0.0, 110.0], "yaw": 45 },
+    { "set": "City/tower_impostor.json", "position": [140.0, 0.0, -20.0], "yaw": 120 }
+  ],
   "defaultSpawn": "start",
   "spawns": {
     "start": { "position": [0.0, 0.0, 18.0], "yaw": 0 }
