@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.0.3 — in progress
+## 0.0.3 — Baked light, alpha materials, animation and authoring
+
+The look moves toward early-2000s baked lighting; foliage, cloth, grime and
+moving parts fill the scenes; a fourth level; and content iterates without
+restarting.
 
 ### Added
 - **Baked lighting, vertex colours (M15):** Blender (Cycles) bakes light into
@@ -77,6 +81,15 @@
 - Voice-leak checks count looping voices only; one-shots (a cicada call,
   a creak) end by themselves and made the checks flaky.
 - The asset build exits with an error when its script fails.
+
+### Measured
+Release, uncapped, Iris Xe, 1280×720, at each level's default spawn:
+street ≈ 3.5 ms (0.0.2: 2.6), shrine grounds ≈ 2.9 ms (1.8), interior
+≈ 1.5 ms (1.5), windmill field ≈ 2.2 ms (new). The extra cost outdoors is
+the denser, per-placement geometry of the bake, and alpha-tested cards in
+both the scene and the shadow pass. Alpha-to-coverage is inactive on this
+machine (R11G11B10 scene target). A 144 Hz frame (6.9 ms) still has ample
+room.
 
 ## 0.0.2 — Interaction, dialogue and levels
 
