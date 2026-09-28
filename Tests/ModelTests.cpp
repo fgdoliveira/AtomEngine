@@ -143,6 +143,35 @@ TEST_CASE("Masks ship double-sided, decals as blend, everything else opaque")
     CHECK(decalsSeen >= 10);
 }
 
+TEST_CASE("Night lights ship an emissive mask and cut through fog")
+{
+    for (const char* file : { "Kit/neon_sign.glb", "Kit/street_lamp.glb" })
+    {
+        INFO(file);
+        int lights = 0;
+        for (const MaterialInfo& material : LoadModelMaterials(Assets + file))
+        {
+            INFO(material.name);
+            if (material.name == "atom_neon_sign" || material.name == "atom_lamp_glass")
+            {
+                ++lights;
+                CHECK(material.hasEmissiveTexture);  // a mask, not the base colour
+                CHECK(material.fogAmount < 1.0f);     // "atom_fog" from the glTF extras
+            }
+            else
+            {
+                CHECK(material.fogAmount == doctest::Approx(1.0f));
+            }
+        }
+        CHECK(lights == 1);
+    }
+    // Older glowing pieces keep glowing by their base colour.
+    for (const MaterialInfo& material : LoadModelMaterials(Assets + "Kit/vending_machine.glb"))
+    {
+        CHECK(material.fogAmount == doctest::Approx(1.0f));
+    }
+}
+
 TEST_CASE("A missing model file loads no geometry")
 {
     CHECK(LoadModelGeometry(Assets + "nope.glb").empty());

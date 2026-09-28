@@ -214,3 +214,35 @@ TEST_CASE("Visible cells: the player's cell and its neighbours, or everything wh
 
     CHECK(VisibleCells({}, { 0, 0, 0 }).empty());
 }
+
+TEST_CASE("Night settings parse: sky, halos and glow, with checked values")
+{
+    const auto result = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "lighting": { "glow": { "strength": 0.9, "threshold": 0.6 } },
+        "sky": { "panorama": "Sky/night_sky.png", "intensity": 0.8 },
+        "halos": [ { "position": [1,4,2], "size": 1.5, "color": [1,0.8,0.5], "intensity": 0.3, "flicker": 0.5 },
+                   { "position": [0,1,0] } ])"));
+    INFO(result.error);
+    REQUIRE(result.level.has_value());
+    const LevelData& data = *result.level;
+    CHECK(data.lighting.glowStrength == doctest::Approx(0.9f));
+    CHECK(data.lighting.glowThreshold == doctest::Approx(0.6f));
+    REQUIRE(data.sky.has_value());
+    CHECK(data.sky->panorama == "Sky/night_sky.png");
+    REQUIRE(data.halos.size() == 2);
+    CHECK(data.halos[0].flicker == doctest::Approx(0.5f));
+    CHECK(data.halos[1].size == doctest::Approx(1.0f)); // defaults
+
+    const auto day = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } })"));
+    REQUIRE(day.level.has_value());
+    CHECK_FALSE(day.level->sky.has_value());
+    CHECK(day.level->lighting.glowStrength > 0.0f); // gentle glow by default
+
+    const auto noPosition = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "halos": [ { "size": 1 } ])"));
+    CHECK(noPosition.error.rfind("/halos/0:", 0) == 0);
+
+    const auto badGlow = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "lighting": { "glow": { "threshold": 0 } })"));
+    CHECK(badGlow.error.rfind("/lighting/glow:", 0) == 0);
+}

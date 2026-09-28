@@ -571,3 +571,75 @@ def road_diamond(width=64, height=192, seed=54):
     alpha = np.where(outline, np.clip(wear * 1.6 - 0.25, 0, 0.9), 0.0)
     rgb = np.zeros((height, width, 3)) + np.array([0.85, 0.85, 0.82])
     return _with_alpha(rgb, alpha * (alpha > 0.03))
+
+
+# --------------------------------------------------------------------------
+# Night (M23)
+# --------------------------------------------------------------------------
+
+def night_sky(width=1024, height=512, seed=60):
+    """Equirectangular night sky, rows TOP FIRST (it's written as a PNG, not
+    a Blender image): row 0 is the zenith, the middle row the horizon.
+    Deep blue overhead; a low orange band where a city's lights stain the
+    haze; a few stars above it; faint clouds lit from below. sRGB."""
+    rng = np.random.default_rng(seed)
+    rows = np.linspace(0.0, 1.0, height)[:, None]          # 0 zenith .. 1 nadir
+    height_above = np.clip((0.5 - rows) * 2.0, 0.0, 1.0)    # 1 zenith .. 0 horizon
+    zenith = np.array([0.045, 0.055, 0.110])
+    horizon = np.array([0.300, 0.200, 0.175])
+    glow = np.exp(-height_above * 5.0)                       # city light, low
+    rgb = zenith[None, None, :] * (1.0 - glow[:, :, None]) + horizon[None, None, :] * glow[:, :, None]
+    rgb = np.broadcast_to(rgb, (height, width, 3)).copy()
+
+    # Clouds: tileable around the horizon (value noise wraps in x).
+    clouds = fbm(width, height, 8, 4, rng, stretch=(1, 3))
+    cover = np.clip(clouds * 1.8 - 0.8, 0.0, 1.0) * (height_above > 0.02)
+    lit_below = np.array([0.20, 0.13, 0.11]) * (0.3 + 0.7 * glow)[:, :, None]
+    rgb = rgb * (1.0 - 0.45 * cover[:, :, None]) + lit_below * cover[:, :, None] * 0.35
+
+    # Stars, fewer toward the horizon's haze, hidden by clouds.
+    stars = rng.random((height, width)) > 0.9985
+    twinkle = rng.uniform(0.35, 0.9, (height, width))
+    star = stars * twinkle * np.clip(height_above * 2.0 - 0.15, 0.0, 1.0) * (1.0 - cover)
+    rgb += star[:, :, None] * np.array([0.85, 0.87, 0.95])
+
+    # Below the horizon: the dark ground the fog covers anyway.
+    below = rows > 0.5
+    rgb = np.where(below[:, :, None], horizon[None, None, :] * 0.6, rgb)
+    return np.clip(rgb, 0.0, 1.0).astype(np.float32)
+
+
+def neon_sign(width=64, height=256, seed=61):
+    """A vertical shop sign: dark lacquered board, tube lettering. Returns
+    (base, emissive mask), rows bottom first like the other materials.
+    Unlit, the tubes read as pale glass; the mask lights exactly them."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    board = 0.8 + 0.2 * fbm(width, height, 4, 3, rng, stretch=(1, 4))
+    base = _tint(board, (0.08, 0.06, 0.07))
+    frame = (xs < 3) | (xs > width - 4) | (ys < 3) | (ys > height - 4)
+
+    # Four "characters": rectangles of tube strokes, pink and a cyan border.
+    tube = np.zeros((height, width), bool)
+    for k in range(4):
+        y0 = int(height * (0.08 + 0.225 * k))
+        y1 = y0 + int(height * 0.17)
+        cell = (ys >= y0) & (ys < y1) & (xs > width * 0.2) & (xs < width * 0.8)
+        pattern = fbm(width, height, 5, 1, rng) > 0.3
+        strokes = cell & (((ys - y0) % 12 < 3) | ((xs - int(width * 0.2)) % 14 < 3)) & pattern
+        tube |= strokes
+    border = (((xs >= 5) & (xs <= 7)) | ((xs >= width - 8) & (xs <= width - 6)) |
+              ((ys >= 5) & (ys <= 7)) | ((ys >= height - 8) & (ys <= height - 6))) & ~frame
+    base = np.where(frame[:, :, None], np.array([0.20, 0.18, 0.16]), base)
+    base = np.where((tube | border)[:, :, None], np.array([0.55, 0.50, 0.55]), base)
+
+    mask = np.zeros((height, width, 3))
+    mask = np.where(tube[:, :, None], np.array([1.0, 0.25, 0.55]), mask)   # pink
+    mask = np.where(border[:, :, None], np.array([0.25, 0.85, 1.0]), mask)  # cyan
+    return _rgba(base), _rgba(mask)
+
+
+def lamp_glass(size=16):
+    """Warm lamp glass: base and mask both flat (the whole face glows)."""
+    flat = np.ones((size, size, 3)) * np.array([1.0, 0.86, 0.62])
+    return _rgba(flat * 0.9), _rgba(flat)

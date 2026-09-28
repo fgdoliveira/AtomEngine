@@ -71,11 +71,12 @@ def _add_lights(lights, collection):
     return objects
 
 
-def _write_png(path, size, rgb_bytes):
-    """Minimal deterministic PNG (8-bit RGB, no metadata)."""
+def _write_png(path, width, rgb_bytes, height=None):
+    """Minimal deterministic PNG (8-bit RGB, no metadata), rows top first."""
+    height = width if height is None else height
     rows = bytearray()
-    stride = size * 3
-    for y in range(size):
+    stride = width * 3
+    for y in range(height):
         rows.append(0)  # filter: none
         rows.extend(rgb_bytes[y * stride:(y + 1) * stride])
 
@@ -83,7 +84,7 @@ def _write_png(path, size, rgb_bytes):
         body = kind + data
         return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
 
-    header = struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     with open(path, "wb") as file:
         file.write(b"\x89PNG\r\n\x1a\n")
         file.write(chunk(b"IHDR", header))

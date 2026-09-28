@@ -82,6 +82,10 @@ namespace AtomGame
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;
+        void RequestLevel(const std::string& level, const std::string& spawn) override
+        {
+            m_levels->RequestChange(level, spawn);
+        }
         glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
         void Log(const std::string& text) override;

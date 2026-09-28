@@ -75,6 +75,18 @@ MATERIALS = {
     "shop_sign": (lambda: tex.shop_sign(), 1.0, 0.8, 0.0),
     "ofuda": (lambda: tex.ofuda(), 1.0, 0.9, 0.0),
     "road_diamond": (lambda: tex.road_diamond(), 1.0, 0.8, 0.0),
+    # Night (M23): these take their emission from a mask (see EMISSIVE).
+    "neon_sign": (lambda: tex.neon_sign()[0], 1.0, 0.5, 0.0),
+    "lamp_glass": (lambda: tex.lamp_glass()[0], 1.0, 0.3, 0.0),
+}
+
+# Emissive masks (M23): material -> (mask generator, strength, fog amount).
+# The mask says exactly which pixels glow; the base colour keeps the unlit
+# look. Fog amount < 1 lets the light cut through fog (glTF extras
+# "atom_fog", read by the engine).
+EMISSIVE = {
+    "neon_sign": (lambda: tex.neon_sign()[1], 5.0, 0.35),
+    "lamp_glass": (lambda: tex.lamp_glass()[1], 4.0, 0.45),
 }
 
 # Alpha-tested materials (M17): name -> alpha cutoff. Pixels below it are
@@ -141,6 +153,15 @@ def _make_material(name):
     if emission > 0.0:
         links.new(texture.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = emission
+
+    if name in EMISSIVE:
+        mask_generator, strength, fog = EMISSIVE[name]
+        mask = nodes.new("ShaderNodeTexImage")
+        mask.image = _make_image(name + "_emissive", mask_generator())
+        mask.interpolation = "Linear"
+        links.new(mask.outputs["Color"], bsdf.inputs["Emission Color"])
+        bsdf.inputs["Emission Strength"].default_value = strength
+        material["atom_fog"] = fog  # exported as material extras
 
     if name in MASKED:
         _make_masked(material, texture, bsdf, name, image)
@@ -867,6 +888,33 @@ def build_hanging_sign(materials, collection):
     return post
 
 
+def build_street_lamp(materials, collection):
+    """A city street lamp: a pole, an arm, and a head whose glass faces down
+    (the glow comes from its emissive mask, the light from the bake)."""
+    m = MeshBuilder()
+    m.cylinder((0, 0, 0), 0.07, 4.6, "metal_dark", segments=8)
+    m.box((0.55, 0, 4.55), (1.1, 0.08, 0.08), "metal_dark")
+    m.box((1.05, 0, 4.47), (0.42, 0.26, 0.14), "metal_dark", faces=NO_BOTTOM)
+    m.quad([(0.86, 0.12, 4.40), (1.24, 0.12, 4.40), (1.24, -0.12, 4.40), (0.86, -0.12, 4.40)], "lamp_glass")
+    return m.build("street_lamp", materials, collection)
+
+
+def build_neon_sign(materials, collection):
+    """A vertical shop sign on a bracket, lettered both sides."""
+    m = MeshBuilder()
+    m.box((0, 0, 3.2), (0.1, 0.5, 0.06), "metal_dark")               # bracket
+    m.box((0, -0.35, 2.05), (0.06, 0.06, 2.4), "metal_dark")          # rail
+    board_x0, board_x1, z0, z1 = -0.3, 0.3, 1.0, 3.1
+    for y, flip in ((-0.03, False), (0.03, True)):
+        xs = (board_x1, board_x0) if flip else (board_x0, board_x1)
+        m.quad([(xs[0], y, z0), (xs[1], y, z0), (xs[1], y, z1), (xs[0], y, z1)], "neon_sign",
+               uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
+    m.box((0, 0, (z0 + z1) / 2), (0.62, 0.05, z1 - z0 + 0.02), "metal_dark", faces=SIDES[:2])
+    m.box((0, 0, z1 + 0.02), (0.62, 0.06, 0.04), "metal_dark")
+    m.box((0, 0, z0 - 0.02), (0.62, 0.06, 0.04), "metal_dark")
+    return m.build("neon_sign", materials, collection)
+
+
 def build_signpost(materials, collection):
     """A wooden field-path marker (static)."""
     m = MeshBuilder()
@@ -958,6 +1006,8 @@ PIECES = [
     build_shed,
     build_hanging_sign,
     build_signpost,
+    build_street_lamp,
+    build_neon_sign,
 ]
 
 

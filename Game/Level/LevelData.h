@@ -38,6 +38,25 @@ namespace AtomGame
         glm::vec3 fogColor{ 0.46f, 0.47f, 0.47f };
         bool shadows = true;
         float bakedLight = 1.0f; // weight of the vertex-colour bake (M15)
+        float glowStrength = 0.35f; // M23: 0 = no glow
+        float glowThreshold = 1.0f;
+    };
+
+    // Night sky (M23): an equirectangular panorama behind everything.
+    struct LevelSky
+    {
+        std::string panorama; // relative to Assets/
+        float intensity = 1.0f;
+    };
+
+    // A soft additive glow around a light (M23), drawn as a billboard.
+    struct HaloData
+    {
+        glm::vec3 position{ 0.0f };
+        float size = 1.0f;          // metres across
+        glm::vec3 color{ 1.0f };    // linear
+        float intensity = 1.0f;
+        float flicker = 0.0f;       // 0..1: how much it stutters
     };
 
     struct AudioBed
@@ -164,6 +183,8 @@ namespace AtomGame
         bool fogBanks = true;
         LevelUnease unease;
         std::vector<EntityData> entities;
+        std::optional<LevelSky> sky;
+        std::vector<HaloData> halos;
 
         const SpawnPoint* FindSpawn(std::string_view spawnName) const;
         std::string_view SurfaceAt(float x, float z) const;

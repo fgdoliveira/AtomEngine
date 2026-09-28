@@ -714,6 +714,10 @@ namespace AtomGame
             lighting.fogColor = l.fogColor;
             lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
             lighting.bakedLight = m_bakedLightEnabled ? l.bakedLight : 0.0f;
+            lighting.glowStrength = l.glowStrength;
+            lighting.glowThreshold = l.glowThreshold;
+            lighting.skyPanorama = level->GetSkyPanorama();
+            lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;
         }
         lighting.fogDensity = FogPresets[m_fogPreset].density;
         lighting.fogHeightFalloff = 0.08f;

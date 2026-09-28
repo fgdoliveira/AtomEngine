@@ -78,6 +78,16 @@ namespace AtomGame
             return nullptr;
         }
 
+        if (d.sky)
+        {
+            level->m_skyPanorama = services.renderer.LoadTexture(assets + d.sky->panorama);
+            if (!level->m_skyPanorama)
+            {
+                std::cerr << "Level '" << d.name << "': missing sky " << d.sky->panorama << '\n';
+                return nullptr;
+            }
+        }
+
         // Chunks (M22): their models through the shared cache, their
         // collision added to the level's.
         for (const ChunkData& data : d.chunks)
@@ -268,6 +278,32 @@ namespace AtomGame
 
         // Near chunks of far-away cells are skipped altogether; the layout
         // (bends, alley mouths) hides them. Mid and far always draw.
+        // Halos (M23): a flickering one stutters like a failing tube -
+        // mostly on, with short irregular drops.
+        if (!m_data.halos.empty())
+        {
+            std::vector<Atom::Particle> halos;
+            halos.reserve(m_data.halos.size());
+            for (std::size_t i = 0; i < m_data.halos.size(); ++i)
+            {
+                const HaloData& h = m_data.halos[i];
+                float intensity = h.intensity;
+                if (h.flicker > 0.0f)
+                {
+                    const float t = m_time * 7.0f + static_cast<float>(i) * 13.1f;
+                    const float wobble = std::sin(t) * std::sin(t * 2.3f + 1.0f) * std::sin(t * 0.37f);
+                    intensity *= wobble > 0.55f ? 1.0f - h.flicker : 1.0f;
+                }
+                Atom::Particle p{};
+                p.position = h.position;
+                p.size = h.size;
+                p.color = glm::vec4{ h.color * intensity, 1.0f };
+                p.atlasCell = 0.0f; // the soft round puff
+                halos.push_back(p);
+            }
+            renderer.SubmitHalos(halos);
+        }
+
         const std::vector<bool> visibleCells = VisibleCells(m_data.cells, viewer);
         for (const Chunk& chunk : m_chunks)
         {
@@ -299,6 +335,7 @@ namespace AtomGame
 
     void Level::Update(float deltaSeconds)
     {
+        m_time += deltaSeconds;
         m_world.ForEach([&](EntityId, Entity& entity) {
             if (!entity.animated || !entity.animated->playing)
             {

@@ -300,6 +300,15 @@ namespace AtomGame
                 l.fogColor = Vec3(*light, "fogColor", l.fogColor, at);
                 l.shadows = Bool(*light, "shadows", at, l.shadows);
                 l.bakedLight = Number(*light, "bakedLight", at, l.bakedLight);
+                if (const auto glow = light->find("glow"); glow != light->end())
+                {
+                    l.glowStrength = Number(*glow, "strength", "/lighting/glow", l.glowStrength);
+                    l.glowThreshold = Number(*glow, "threshold", "/lighting/glow", l.glowThreshold);
+                    if (l.glowStrength < 0.0f || l.glowThreshold <= 0.0f)
+                    {
+                        throw LevelError("/lighting/glow", "strength must be >= 0 and threshold > 0");
+                    }
+                }
                 if (l.bakedLight < 0.0f || l.bakedLight > 1.0f)
                 {
                     throw LevelError("/lighting/bakedLight", "must be between 0 and 1");
@@ -375,6 +384,32 @@ namespace AtomGame
                 {
                     level.unease.flickerSites.push_back(Vec3(site, JsonPath("/unease/flickerSites", index++)));
                 }
+            }
+
+            if (const auto sky = root.find("sky"); sky != root.end())
+            {
+                LevelSky s{ String(*sky, "panorama", "/sky"), Number(*sky, "intensity", "/sky", 1.0f) };
+                if (s.panorama.empty())
+                {
+                    throw LevelError("/sky", "sky needs a \"panorama\"");
+                }
+                level.sky = s;
+            }
+            std::size_t haloIndex = 0;
+            for (const Json& halo : Array(root, "halos", ""))
+            {
+                const std::string at = JsonPath("/halos", haloIndex++);
+                HaloData h;
+                h.position = Vec3(halo, "position", h.position, at);
+                h.size = Number(halo, "size", at, h.size);
+                h.color = Vec3(halo, "color", h.color, at);
+                h.intensity = Number(halo, "intensity", at, h.intensity);
+                h.flicker = Number(halo, "flicker", at, h.flicker);
+                if (!halo.contains("position"))
+                {
+                    throw LevelError(at, "a halo needs a \"position\"");
+                }
+                level.halos.push_back(h);
             }
 
             std::size_t chunkIndex = 0;

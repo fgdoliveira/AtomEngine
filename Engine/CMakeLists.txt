@@ -12,6 +12,7 @@ target_sources(
         Physics/CollisionWorld.cpp
         Platform/Input.cpp
         Platform/Window.cpp
+        Renderer/Glow.cpp
         Renderer/Mesh.cpp
         Renderer/RenderTargets.cpp
         Renderer/Renderer.cpp
@@ -30,6 +31,7 @@ target_sources(
         Physics/CollisionWorld.h
         Platform/Input.h
         Platform/Window.h
+        Renderer/Glow.h
         Renderer/Lighting.h
         Renderer/Material.h
         Renderer/Mesh.h

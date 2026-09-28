@@ -53,6 +53,8 @@ namespace
         int reloads = 0;
         glm::vec3 feet{ 0.0f };
         std::string ReloadLevel() override { ++reloads; return reloadError; }
+        std::string requestedLevel;
+        void RequestLevel(const std::string& level, const std::string&) override { requestedLevel = level; }
         glm::vec3 FeetPosition() const override { return feet; }
         void Log(const std::string&) override {}
     };

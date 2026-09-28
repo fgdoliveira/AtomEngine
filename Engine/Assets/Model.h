@@ -35,6 +35,8 @@ namespace Atom
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
+        bool hasEmissiveTexture = false;
+        float fogAmount = 1.0f;
     };
 
     // Every material of a glTF file, in file order; empty on failure.

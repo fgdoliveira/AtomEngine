@@ -11,13 +11,18 @@ SamplerComparisonState ShadowSampler : register(s1, space2);
 Texture2D<float4> Lightmap : register(t2, space2);
 SamplerState LightmapSampler : register(s2, space2);
 
+// Which pixels glow (M23); used when u_alpha.z says the material has one.
+Texture2D<float4> EmissiveTexture : register(t3, space2);
+SamplerState EmissiveSampler : register(s3, space2);
+
 // Per draw.
 cbuffer MaterialUniforms : register(b0, space3)
 {
     float4 u_baseColorFactor;
     float4 u_emissiveFactor; // w: baked-light weight (0 = none)
     float4 u_lightmap;       // x: intensity, y: weight (0 = no lightmap)
-    float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage
+    float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
+                             // z: has emissive texture, w: fog amount
 };
 
 struct PSInput
@@ -117,9 +122,14 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     const float3 sun = sunLight * u_sunColor.rgb * shadow;
 
     const float3 lit = baseColor.rgb * (ambient + sun);
-    const float3 emitted = baseColor.rgb * u_emissiveFactor.rgb;
+    // An emissive mask says exactly what glows; without one, the base
+    // colour does (older kit pieces: vending screens, shoji).
+    const float3 emissiveSource = u_alpha.z > 0.0
+        ? EmissiveTexture.Sample(EmissiveSampler, input.uv).rgb
+        : baseColor.rgb;
+    const float3 emitted = emissiveSource * u_emissiveFactor.rgb;
 
-    const float fog = ComputeFog(input.worldPosition);
+    const float fog = ComputeFog(input.worldPosition) * u_alpha.w;
     const float3 color = lerp(lit + emitted, u_fogColor.rgb, fog);
 
     return float4(color, baseColor.a);

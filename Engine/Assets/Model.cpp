@@ -11,6 +11,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -123,6 +125,18 @@ namespace Atom
         // glTF alpha: OPAQUE, MASK (with a cutoff) or BLEND (decals).
         void ReadAlpha(const cgltf_material& source, Material& material)
         {
+            // AtomEngine's own settings travel in the material's glTF extras
+            // (Blender custom properties): {"atom_fog": 0.5}.
+            if (source.extras.data)
+            {
+                if (const char* key = std::strstr(source.extras.data, "\"atom_fog\""))
+                {
+                    if (const char* colon = std::strchr(key, ':'))
+                    {
+                        material.fogAmount = std::clamp(std::strtof(colon + 1, nullptr), 0.0f, 1.0f);
+                    }
+                }
+            }
             material.doubleSided = source.double_sided != 0;
             if (source.alpha_mode == cgltf_alpha_mode_mask)
             {
@@ -314,7 +328,9 @@ namespace Atom
                 source.name ? source.name : "",
                 material.alphaMode,
                 material.alphaCutoff,
-                material.doubleSided });
+                material.doubleSided,
+                source.emissive_texture.texture != nullptr,
+                material.fogAmount });
         }
         return result;
     }
@@ -415,6 +431,20 @@ namespace Atom
             }
             material.emissiveFactor =
                 glm::make_vec3(source.emissive_factor) * emissiveStrength;
+            // An emissive texture that is just the base colour again (older
+            // kit pieces glow by their base colour) is left out: same look,
+            // one binding fewer.
+            if (const cgltf_texture* emissive = source.emissive_texture.texture;
+                emissive && emissive->image
+                && !(source.has_pbr_metallic_roughness
+                     && source.pbr_metallic_roughness.base_color_texture.texture
+                     && source.pbr_metallic_roughness.base_color_texture.texture->image == emissive->image))
+            {
+                if (const auto found = textures.find(emissive->image); found != textures.end())
+                {
+                    material.emissiveTexture = found->second;
+                }
+            }
             ReadAlpha(source, material);
 
             materials[&source] = model->m_materials.size();

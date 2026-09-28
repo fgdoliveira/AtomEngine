@@ -1,0 +1,12 @@
+# Night rendering (M23): the night test level loads with its sky
+# panorama, emissive kit pieces and halos; the arrival check applies.
+expect_level street
+goto_level night_test
+wait_for_level night_test
+expect_mode exploring
+expect_voices_max 3                  # 2 beds + static
+wait 1
+goto_level street
+wait_for_level street
+expect_voices_max 7
+log night test done

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Renderer/Glow.h"
 #include "Renderer/Lighting.h"
 #include "Renderer/Material.h"
 #include "Renderer/Mesh.h"
@@ -157,6 +158,8 @@ namespace Atom
         // Queues billboards for this frame (sorted and drawn after opaque
         // geometry). The atlas is split into `columns` equal cells.
         void SubmitParticles(std::span<const Particle> particles);
+        // Additive glows around lights (M23), same billboards as particles.
+        void SubmitHalos(std::span<const Particle> halos);
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
@@ -194,7 +197,7 @@ namespace Atom
         bool CreatePostPipeline();
         bool CreateShadowResources();
         bool CreateParticleResources();
-        SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples);
+        SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples, bool additive = false);
         // Sorts back to front and copies this frame's particles to the GPU.
         bool UploadParticles(SDL_GPUCommandBuffer* commandBuffer);
         void DrawParticles(
@@ -203,6 +206,7 @@ namespace Atom
             const glm::mat4& viewProjection
         );
         bool CanUseAlphaToCoverage(std::uint32_t samples) const;
+        bool GlowActive() const;
 
         // Decals: alpha blending, no depth writes, a depth bias toward the
         // camera so they win against the surface they lie on.
@@ -263,6 +267,14 @@ namespace Atom
         SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
 
         std::array<SDL_GPUGraphicsPipeline*, 3> m_particlePipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_haloPipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_skyPipelines{};
+        SDL_GPUGraphicsPipeline* GetSkyPipeline(std::uint32_t samples);
+        void DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
+                     const glm::mat4& projection);
+        Glow m_glow;
+        std::vector<Particle> m_halos;
+        std::uint32_t m_uploadedHalos = 0;
         SDL_GPUBuffer* m_particleBuffer = nullptr;
         SDL_GPUTransferBuffer* m_particleTransfer = nullptr;
         std::vector<Particle> m_particles;

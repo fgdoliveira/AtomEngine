@@ -76,7 +76,42 @@
         "groundColor": { "$ref": "#/definitions/vec3" },
         "fogColor": { "$ref": "#/definitions/vec3" },
         "shadows": { "type": "boolean" },
-        "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." }
+        "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." },
+        "glow": {
+          "type": "object",
+          "description": "Bright parts blurred and added back (M23).",
+          "additionalProperties": false,
+          "properties": {
+            "strength": { "type": "number", "minimum": 0, "default": 0.35 },
+            "threshold": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
+          }
+        }
+      }
+    },
+    "sky": {
+      "type": "object",
+      "description": "Night sky panorama (equirectangular) behind everything (M23). Match fogColor to its horizon.",
+      "required": ["panorama"],
+      "additionalProperties": false,
+      "properties": {
+        "panorama": { "type": "string", "description": "Texture relative to Assets/." },
+        "intensity": { "type": "number", "minimum": 0, "default": 1 }
+      }
+    },
+    "halos": {
+      "type": "array",
+      "description": "Soft additive glows around lights (M23).",
+      "items": {
+        "type": "object",
+        "required": ["position"],
+        "additionalProperties": false,
+        "properties": {
+          "position": { "$ref": "#/definitions/vec3" },
+          "size": { "type": "number", "description": "Metres across." },
+          "color": { "$ref": "#/definitions/vec3", "description": "Linear RGB." },
+          "intensity": { "type": "number" },
+          "flicker": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
       }
     },
     "outdoor": { "type": "boolean", "default": true },

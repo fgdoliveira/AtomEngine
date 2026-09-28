@@ -41,6 +41,7 @@ namespace AtomGame
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "reload_level", { 0, 0 } },       // hot reload in place
+                { "goto_level", { 1, 2 } },         // level [spawn]: change as a door would
                 { "expect_near", { 3, 4 } },        // x y z [metres]: the player's feet
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
@@ -378,6 +379,11 @@ namespace AtomGame
                 return true;
             }
             return false;
+        }
+        if (name == "goto_level")
+        {
+            game.RequestLevel(args[0], args.size() > 1 ? args[1] : std::string{});
+            return true;
         }
         if (name == "reload_level")
         {

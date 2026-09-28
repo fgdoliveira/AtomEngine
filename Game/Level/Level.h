@@ -68,6 +68,9 @@ namespace AtomGame
         // Advances animations and fires their sounds.
         void Update(float deltaSeconds);
 
+        // The level's night sky panorama, if it has one.
+        const Atom::Texture* GetSkyPanorama() const { return m_skyPanorama.get(); }
+
         // Starts `clip` on the named entity's model. A finished one-shot
         // clip stays finished (a door opened once stays open).
         bool PlayAnimation(const std::string& entity, const std::string& clip);
@@ -99,6 +102,8 @@ namespace AtomGame
         Atom::AudioSystem& m_audio;
 
         std::unique_ptr<Atom::Texture> m_lightmap; // declared first: outlives the scene
+        std::unique_ptr<Atom::Texture> m_skyPanorama;
+        float m_time = 0.0f; // for halo flicker
         std::shared_ptr<Atom::Model> m_scene;
         struct Chunk
         {

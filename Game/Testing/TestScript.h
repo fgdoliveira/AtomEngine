@@ -50,6 +50,8 @@ namespace AtomGame
         // Hot reload (M20): reloads the current level in place; empty string
         // on success, else the error.
         virtual std::string ReloadLevel() = 0;
+        // Starts a level change as a door would (with the fade).
+        virtual void RequestLevel(const std::string& level, const std::string& spawn) = 0;
         virtual glm::vec3 FeetPosition() const = 0;
         virtual void Log(const std::string& text) = 0;
     };

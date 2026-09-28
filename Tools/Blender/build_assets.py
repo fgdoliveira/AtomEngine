@@ -97,7 +97,7 @@ def export_objects(objects, scene, path, materials=True):
                 export_image_format="AUTO",
                 export_cameras=False,
                 export_lights=False,
-                export_extras=False,
+                export_extras=True,  # material custom props (atom_fog)
                 export_vertex_color="NAME",
                 export_vertex_color_name=atom_bake.ATTRIBUTE,
                 export_all_vertex_colors=False,
@@ -254,6 +254,19 @@ def main():
         # scene lags the window scene), so exports are headless only.
         print("Preview built in scene", SCENE_NAME, "- export with blender -b")
         return
+
+    # Night sky panorama (M23), written like the lightmaps: our own PNG
+    # writer, so it's byte-identical across rebuilds.
+    sky_dir = os.path.join(args.out, "Sky")
+    os.makedirs(sky_dir, exist_ok=True)
+    sky = atom_textures.night_sky()
+    height, width = sky.shape[:2]
+    encoded = bytearray(width * height * 3)
+    flat = sky.reshape(-1)
+    for i in range(width * height * 3):
+        encoded[i] = int(round(float(flat[i]) * 255.0))
+    atom_lightmap._write_png(os.path.join(sky_dir, "night_sky.png"), width, encoded, height)
+    print("Exported", os.path.relpath(os.path.join(sky_dir, "night_sky.png"), REPO_ROOT))
 
     kit_dir = os.path.join(args.out, "Kit")
     street_dir = os.path.join(args.out, "Street")
