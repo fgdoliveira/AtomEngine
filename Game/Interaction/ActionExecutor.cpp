@@ -38,6 +38,18 @@ namespace AtomGame
                     context.messages.Show("...");
                 }
             },
+            [&](const PlayAnimation& play) {
+                if (!context.playAnimation || !context.playAnimation(play.entity, play.clip))
+                {
+                    std::cerr << "Cannot play '" << play.clip << "' on '" << play.entity << "'\n";
+                    context.messages.Show("Nothing happens.");
+                    return;
+                }
+                if (!play.message.empty())
+                {
+                    context.messages.Show(play.message);
+                }
+            },
             [&](const ChangeLevel& change) {
                 if (context.changeLevel)
                 {

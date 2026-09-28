@@ -1,4 +1,5 @@
 {
+  "$schema": "../Schemas/dialogue.schema.json",
   "id": "shrine_keeper",
   "start": "greet",
   "nodes": [

@@ -33,6 +33,7 @@ set(ATOM_SHADER_SOURCES
 # Headers every shader may include; a change recompiles all shaders.
 set(ATOM_SHADER_INCLUDES
     Common.hlsli
+    Sway.hlsli
 )
 list(TRANSFORM ATOM_SHADER_INCLUDES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/" OUTPUT_VARIABLE ATOM_SHADER_INCLUDE_PATHS)
 

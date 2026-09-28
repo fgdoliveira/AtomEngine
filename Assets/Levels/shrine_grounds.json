@@ -1,4 +1,5 @@
 {
+  "$schema": "../Schemas/level.schema.json",
   "name": "shrine_grounds",
   "model": "Shrine/shrine.glb",
   "collision": "Shrine/shrine_col.glb",

@@ -45,6 +45,15 @@ namespace
         std::size_t VoiceCount() const override { return voices; }
         std::string SurfaceName() const override { return surface; }
         ArrivalError Arrival() const override { return arrival; }
+        std::optional<float> animationTime;
+        bool animationPlaying = false;
+        std::optional<float> AnimationTime(const std::string&) const override { return animationTime; }
+        bool AnimationPlaying(const std::string&) const override { return animationPlaying; }
+        std::string reloadError;
+        int reloads = 0;
+        glm::vec3 feet{ 0.0f };
+        std::string ReloadLevel() override { ++reloads; return reloadError; }
+        glm::vec3 FeetPosition() const override { return feet; }
         void Log(const std::string&) override {}
     };
 
@@ -70,6 +79,10 @@ namespace
                     game.mode = "exploring";
                     game.arrival = game.arrivalAfterChange;
                 }
+            }
+            if (game.animationPlaying && game.animationTime)
+            {
+                *game.animationTime += 1.0f / 60.0f;
             }
             runner.Update(1.0f / 60.0f, game);
         }
@@ -170,6 +183,55 @@ TEST_CASE("Entering a level away from its spawn fails the script")
     // The v0.0.2 bug: the new level drawn from the old level's position.
     CHECK(run({ 34.2f, 0.0f }).find("shrine_grounds") != std::string::npos);
     CHECK_FALSE(run({ 0.0f, 90.0f }).empty());
+}
+
+TEST_CASE("expect_animating needs a clip that advances; wait_for_animation its end")
+{
+    FakeGame moving;
+    moving.animationTime = 0.0f;
+    moving.animationPlaying = true;
+    TestRunner passes(Parse("expect_animating windmill"));
+    Run(passes, moving);
+    CHECK(passes.Passed());
+
+    FakeGame still;
+    still.animationTime = 2.0f;
+    TestRunner fails(Parse("expect_animating windmill"));
+    Run(fails, still);
+    CHECK_FALSE(fails.Passed());
+
+    FakeGame none;
+    TestRunner missing(Parse("expect_animating windmill"));
+    Run(missing, none);
+    CHECK(missing.GetFailure().find("no animation") != std::string::npos);
+
+    TestRunner done(Parse("wait_for_animation shed"));
+    Run(done, still);
+    CHECK(done.Passed());
+
+    TestRunner forever(Parse("wait_for_animation windmill 1"));
+    Run(forever, moving);
+    CHECK_FALSE(forever.Passed());
+}
+
+TEST_CASE("reload_level fails with the reload's error; expect_near checks the feet")
+{
+    FakeGame game;
+    game.feet = { 3.0f, 0.0f, 5.0f };
+    TestRunner passes(Parse("reload_level\nexpect_near 3 0 5"));
+    Run(passes, game);
+    CHECK(passes.Passed());
+    CHECK(game.reloads == 1);
+
+    TestRunner far(Parse("expect_near 3 0 6 0.5"));
+    Run(far, game);
+    CHECK_FALSE(far.Passed());
+
+    FakeGame broken;
+    broken.reloadError = "street.json:/entities/2/interactable/action/type: unknown action type";
+    TestRunner fails(Parse("reload_level"));
+    Run(fails, broken);
+    CHECK(fails.GetFailure().find("/entities/2") != std::string::npos);
 }
 
 TEST_CASE("expect_surface compares the footstep surface underfoot")

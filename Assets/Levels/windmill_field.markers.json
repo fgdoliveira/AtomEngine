@@ -1,0 +1,47 @@
+{
+  "_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit",
+  "entities": {
+    "hanging_sign": {
+      "position": [
+        -3.0,
+        0.0,
+        10.0
+      ],
+      "yaw": 0.0
+    },
+    "path_back": {
+      "position": [
+        0.0,
+        0.0,
+        21.0
+      ],
+      "yaw": 0.0
+    },
+    "shed": {
+      "position": [
+        6.0,
+        0.0,
+        -8.0
+      ],
+      "yaw": 0.0
+    },
+    "windmill": {
+      "position": [
+        0.0,
+        0.0,
+        -12.0
+      ],
+      "yaw": 0.0
+    }
+  },
+  "spawns": {
+    "from_street": {
+      "position": [
+        0.0,
+        0.0,
+        18.0
+      ],
+      "yaw": 0.0
+    }
+  }
+}

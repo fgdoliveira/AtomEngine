@@ -15,6 +15,7 @@ namespace Atom
 {
     class Model;
     class Renderer;
+    class Texture;
     struct Material;
 }
 
@@ -59,6 +60,13 @@ namespace AtomGame
 
         void Submit(Atom::Renderer& renderer) const;
 
+        // Advances animations and fires their sounds.
+        void Update(float deltaSeconds);
+
+        // Starts `clip` on the named entity's model. A finished one-shot
+        // clip stays finished (a door opened once stays open).
+        bool PlayAnimation(const std::string& entity, const std::string& clip);
+
         // Material of the level's scene model, for runtime effects.
         Atom::Material* FindSceneMaterial(std::string_view name);
 
@@ -81,6 +89,7 @@ namespace AtomGame
         LevelData m_data;
         Atom::AudioSystem& m_audio;
 
+        std::unique_ptr<Atom::Texture> m_lightmap; // declared first: outlives the scene
         std::unique_ptr<Atom::Model> m_scene;
         std::unordered_map<std::string, std::unique_ptr<Atom::Model>> m_models;
         Atom::CollisionWorld m_collision;

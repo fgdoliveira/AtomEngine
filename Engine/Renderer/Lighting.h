@@ -15,6 +15,11 @@ namespace Atom
         glm::vec3 skyColor{ 0.75f, 0.77f, 0.80f };
         glm::vec3 groundColor{ 0.20f, 0.19f, 0.17f };
 
+        // Baked light (vertex colours, M15): 0 = hemisphere ambient only,
+        // 1 = ambient from the bake (skyColor x baked sky visibility and
+        // bounce). Only affects meshes that carry a bake.
+        float bakedLight = 1.0f;
+
         // Exponential height fog. The sky is drawn in fogColor, so distant
         // geometry dissolves into it.
         glm::vec3 fogColor{ 0.34f, 0.35f, 0.37f };

@@ -50,6 +50,18 @@ class Street:
             self.colliders.append(col)
         return obj
 
+    def add_marker(self, kind, name, x, y, yaw_degrees=0.0, z=0.0):
+        """An empty named "<kind>:<name>" (kind: spawn or entity). Levels say
+        in JSON what things do; markers say where they are (M20). Spawn
+        markers look along their local +Y; entity markers turn the model
+        like any kit piece."""
+        obj = bpy.data.objects.new(f"{kind}:{name}", None)
+        obj.empty_display_type = "SINGLE_ARROW" if kind == "spawn" else "PLAIN_AXES"
+        obj.location = (x, y, z)
+        obj.rotation_euler = (0.0, 0.0, math.radians(yaw_degrees))
+        self.collection.objects.link(obj)
+        return obj
+
     def add_visual(self, name, builder):
         obj = builder.build(name, self.materials, self.collection)
         self.visual.append(obj)
@@ -133,8 +145,11 @@ def build_street(pieces, collision, materials, collection):
     street.place("vending_machine", 29.8, 4.1)
     for x in (0, 4):
         street.place("stone_wall", x, EDGE_OFFSET)
-    for x in (24, 28):
-        street.place("wood_fence", x, EDGE_OFFSET)
+    # The empty lot between two houses: a rusty chain-link section, a
+    # wooden one, and a tree growing behind them.
+    street.place("chain_fence", 24, EDGE_OFFSET)
+    street.place("wood_fence", 28, EDGE_OFFSET)
+    street.place("tree", 25.5, 7.5, 40)
 
     # South side: shrine wall with the torii, two houses, then the fence
     # that holds back the rice paddies.
@@ -152,11 +167,51 @@ def build_street(pieces, collision, materials, collection):
     for x in (16, 20, 24, 28, 32, 36, 40):
         street.place("wood_fence", x, -EDGE_OFFSET, 180)
 
+    # Overgrowth: shrubs over the shrine wall, grass along the verge.
+    for x, y in ((-36.5, -6.0), (-28.0, -6.3), (-21.0, -5.9), (-8.5, -6.1)):
+        street.place("bush", x, y, (x * 37) % 360)
+    for x, y in ((-24.0, -9.0), (-33.0, -9.5)):
+        street.place("tree", x, y, (x * 53) % 360)
+    for i, x in enumerate((14.5, 17.2, 21.8, 26.4, 29.9, 33.1, 37.6, 40.8)):
+        street.place("grass_tuft", x, -4.2 + 0.15 * (i % 2), i * 47 % 360)
+
     pole_xs = [-38.0, -22.0, -6.0, 10.0, 26.0, 42.0]
     for x in pole_xs:
         street.place("utility_pole", x, POLE_OFFSET, 90)
     _wires(street, pole_xs)
 
+    # West end: a marker where the path leaves the road for the fields.
+    street.place("signpost", -39.6, 3.2, 90)
+
+    _decals(street)
     _ground(street)
     _bounds(street)
     return street
+
+
+def _decals(street):
+    """Decals placed per spot (the kit pieces carry their own): stains on
+    the shrine wall, a faded sign on one house, and the worn diamonds
+    painted before a crossing."""
+    m = kit.MeshBuilder()
+    off = kit.DECAL_OFFSET
+
+    # South stone wall: its road-facing side is at y = -EDGE_OFFSET + 0.25.
+    wy = -EDGE_OFFSET + 0.25 + off
+    for x in (-36.0, -29.5, -20.5, -8.0):
+        m.quad([(x + 0.6, wy, 0.1), (x - 0.6, wy, 0.1), (x - 0.6, wy, 1.28), (x + 0.6, wy, 1.28)],
+               "water_stain")
+    for x in (-32.0, -24.5):
+        m.quad([(x + 0.7, wy, 0.0), (x - 0.7, wy, 0.0), (x - 0.7, wy, 0.8), (x + 0.7, wy, 0.8)], "grime")
+
+    # A faded sign left of the door of the house at x = -6 (front faces -Y).
+    hx, hy = -6.0, HOUSE_OFFSET - 4.0 - off
+    m.quad([(hx - 3.05, hy, 2.2), (hx - 0.95, hy, 2.2), (hx - 0.95, hy, 2.7), (hx - 3.05, hy, 2.7)],
+           "shop_sign")
+
+    # Crossing-ahead diamonds on the asphalt, one per lane.
+    for x, y in ((-12.0, -1.5), (6.0, 1.5)):
+        m.quad([(x - 1.6, y - 0.55, off), (x + 1.6, y - 0.55, off),
+                (x + 1.6, y + 0.55, off), (x - 1.6, y + 0.55, off)], "road_diamond",
+               uvs=[(0, 0), (0, 1), (1, 1), (1, 0)])
+    street.add_visual("decals", m)

@@ -31,5 +31,12 @@ namespace AtomGame
         std::string spawn;
     };
 
-    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel>;
+    struct PlayAnimation
+    {
+        std::string entity; // M19: which entity's model plays
+        std::string clip;
+        std::string message; // optional
+    };
+
+    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation>;
 }

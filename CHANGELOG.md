@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.0.3 — Baked light, alpha materials, animation and authoring
+
+The look moves toward early-2000s baked lighting; foliage, cloth, grime and
+moving parts fill the scenes; a fourth level; and content iterates without
+restarting.
+
+### Added
+- **Baked lighting, vertex colours (M15):** Blender (Cycles) bakes light into
+  every vertex (glTF `COLOR_0`): sky visibility and bounce outdoors, ambient
+  occlusion indoors. Large faces are split into a grid (1 m, 0.5 m indoors)
+  so the bake has vertices to live on. The shader blends the flat
+  hemisphere ambient toward the baked light per mesh; the sun stays dynamic.
+  Per-level `lighting.bakedLight`, **F3** to compare. The bake is
+  deterministic (rebuilds stay byte-identical) and a bake that is all black
+  or all white fails the asset build.
+- **Lightmaps (M16):** the machiya interior is lit by a baked 512² lightmap
+  (second UV set, `TEXCOORD_1`): Cycles bakes direct and bounced light from
+  bake-only lights at the shoji and the entrance, written as a
+  deterministic sRGB PNG. Levels name it with `lightmap` (texture,
+  intensity); a missing lightmap fails the load. It replaces the ambient
+  term and follows F3. The build lints lightmap UVs (inside 0..1, no
+  overlapping faces); the sampler clamps and stops at two mip levels so
+  charts don't bleed.
+- **Alpha-tested materials (M17):** glTF `alphaMode` MASK with a cutoff and
+  `doubleSided`; pixels below the cutoff are discarded in the scene and in
+  the shadow pass, so leaves cast leaf-shaped shadows. Double-sided cards
+  flip their normal on the back face and let half the sun through (leaves
+  lit from behind). Alpha-to-coverage is used when the scene target has an
+  alpha channel (RGBA16F), a plain alpha test otherwise (R11G11B10).
+- **Content:** leaf, grass, torn-noren and chain-link textures (alpha
+  dilated so filtering never pulls in black); bushes, grass tufts, a
+  broadleaf tree and a chain-link fence section; a noren at every machiya
+  door. Placed along the street and in the shrine grounds.
+- **Bake of cards:** a second vertex-bake pass for alpha-tested cards, so
+  vertices on transparent texels still receive light; masked materials
+  whose alpha never crosses the cutoff fail the asset build.
+- **Decals (M18):** glTF `alphaMode` BLEND materials are decals: drawn after
+  all other geometry with alpha blending, no depth writes and a depth bias
+  toward the camera; they cast no shadows. Water stains and grime on the
+  machiya, the shrine wall and the interior, a faded shop sign, ofuda on
+  the shrine gate, crossing diamonds on the road; the road lines became
+  decals too. Decals float 2 mm over their surface.
+- **Lint:** faces of different pieces closer than 5 mm, parallel and
+  overlapping, are now an error unless one is a decal (they z-fight at a
+  distance); it moved the stone lantern's paper windows out to 6 mm.
+- **Animation (M19):** rigid glTF node animation - clips of translation,
+  rotation (slerp) and scale keys, linear, step or cubic spline - sampled
+  per frame; only animated nodes are posed, static parts keep their baked
+  transforms. Entities gain an `animation` (clip, loop, autoplay, speed, a
+  sound fired N times per loop) and a `playAnimation` action; a finished
+  one-shot stays finished. Harness: `expect_animating`,
+  `wait_for_animation`.
+- **Vertex sway (M19):** grass, leaves and noren move in the wind in the
+  vertex shader (and the shadow pass), weighted per vertex through the
+  baked colour's alpha; the wind follows the level's gusts, still indoors.
+- **Level D, the windmill field (M19):** past the west end of the street
+  ([E] at the field path): a windmill whose sails turn and creak on every
+  quarter, a hanging sign that swings, a shed whose door slides open, long
+  grass, shrubs and trees. Included in the `levels_roundtrip` scenario.
+- **Authoring (M20):**
+  - JSON schemas (`Assets/Schemas/`) for levels and dialogue; every file
+    names its schema with `$schema`, so editors complete keys and flag
+    typos while you type. The C++ parsers stay the authority.
+  - Errors say where: `line 20, column 19: ...` for syntax,
+    `street.json:/entities/3/interactable/action/type: ...` for content.
+    A value of the wrong type is now an error instead of a silent default.
+  - Hot reload: with `ATOM_ASSET_ROOT=<repo>` the game reads the source
+    tree and, once a second, reloads the level when its JSON, markers,
+    models, collision or lightmap change (and dialogue when a dialogue
+    file does). The player stays put; a broken file keeps the old level
+    and shows the error on screen. `reload_level` / `expect_near` in the
+    harness; `hot_reload` scenario.
+  - Blender markers: `spawn:<name>` / `entity:<name>` empties are written
+    to `<level>.markers.json`; the level file may leave out positions and
+    take them from the markers (the file wins when both give one). The
+    windmill field is placed this way.
+
+### Changed
+- Voice-leak checks count looping voices only; one-shots (a cicada call,
+  a creak) end by themselves and made the checks flaky.
+- The asset build exits with an error when its script fails.
+
+### Measured
+Release, uncapped, Iris Xe, 1280×720, at each level's default spawn:
+street ≈ 3.5 ms (0.0.2: 2.6), shrine grounds ≈ 2.9 ms (1.8), interior
+≈ 1.5 ms (1.5), windmill field ≈ 2.2 ms (new). The extra cost outdoors is
+the denser, per-placement geometry of the bake, and alpha-tested cards in
+both the scene and the shadow pass. Alpha-to-coverage is inactive on this
+machine (R11G11B10 scene target). A 144 Hz frame (6.9 ms) still has ample
+room.
+
 ## 0.0.2 — Interaction, dialogue and levels
 
 The engine now represents several levels containing interactive objects and

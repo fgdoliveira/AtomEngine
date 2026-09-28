@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
 
 struct SDL_Window;
@@ -70,7 +71,8 @@ namespace Atom
 
         std::unique_ptr<Mesh> CreateMesh(
             std::span<const Vertex> vertices,
-            std::span<const std::uint32_t> indices
+            std::span<const std::uint32_t> indices,
+            bool hasBakedLight = false
         );
 
         // pixels: RGBA8, top row first.
@@ -80,6 +82,9 @@ namespace Atom
             const std::uint8_t* pixels,
             bool srgb = true
         );
+
+        // Loads a PNG/JPG/... file; nullptr (with a message) on failure.
+        std::unique_ptr<Texture> LoadTexture(const std::string& path, bool srgb = true);
 
         // The projection is built at render time from the swapchain size so
         // it always matches the window.
@@ -102,6 +107,9 @@ namespace Atom
 
         // 0 = normal, 1 = black. Applied in the post pass, before the UI.
         void SetFade(float fade) { m_fade = fade; }
+
+        // Wind for vertex sway (M19): velocity in m/s, and a time base.
+        void SetWind(const glm::vec3& wind, float time) { m_wind = glm::vec4{ wind, time }; }
         float GetFade() const { return m_fade; }
 
         // 2D overlay drawn on top of the final image (text, panels).
@@ -150,20 +158,35 @@ namespace Atom
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection
         );
-        // Scene pipelines depend on the MSAA sample count; built lazily.
-        SDL_GPUGraphicsPipeline* GetScenePipeline(std::uint32_t samples);
+        bool CanUseAlphaToCoverage(std::uint32_t samples) const;
+
+        // Decals: alpha blending, no depth writes, a depth bias toward the
+        // camera so they win against the surface they lie on.
+        SDL_GPUGraphicsPipeline* GetDecalPipeline(std::uint32_t samples);
+        SDL_GPUGraphicsPipeline* CreateScenePipeline(
+            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal);
+
+        // Scene pipelines depend on the MSAA sample count, face culling
+        // and alpha-to-coverage (masked materials with MSAA); built lazily.
+        SDL_GPUGraphicsPipeline* GetScenePipeline(
+            std::uint32_t samples,
+            bool doubleSided = false,
+            bool alphaToCoverage = false
+        );
 
         // Light view-projection for the sun, fitted around the camera and
         // snapped to shadow-map texels so shadows don't swim when moving.
         glm::mat4 ComputeLightViewProjection() const;
 
-        // Draws the queued commands visible from `viewProjection`. Material
-        // binding is skipped for depth-only passes. Returns draws issued.
+        // Draws the queued commands visible from `viewProjection`. The scene
+        // pass (sceneSamples > 0) binds full materials and switches pipeline
+        // per material; the depth-only pass binds only what alpha testing
+        // needs. Returns draws issued.
         std::uint32_t DrawQueue(
             SDL_GPURenderPass* renderPass,
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection,
-            bool bindMaterials
+            std::uint32_t sceneSamples
         );
 
         bool RenderShadowPass(
@@ -186,7 +209,10 @@ namespace Atom
         bool m_windowClaimed = false;
 
         // Indexed by log2(samples): 1x, 2x, 4x.
-        std::array<SDL_GPUGraphicsPipeline*, 3> m_scenePipelines{};
+        // [samples slot][double-sided][alpha-to-coverage]
+        std::array<SDL_GPUGraphicsPipeline*, 12> m_scenePipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_decalPipelines{}; // per samples slot
+        glm::vec4 m_wind{ 0.0f };
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
         SDL_GPUTexture* m_shadowMap = nullptr;
@@ -201,6 +227,7 @@ namespace Atom
         std::uint32_t m_particleAtlasColumns = 1;
         SDL_GPUSampler* m_sampler = nullptr;      // material textures
         SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
+        SDL_GPUSampler* m_lightmapSampler = nullptr; // clamped, few mips
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;

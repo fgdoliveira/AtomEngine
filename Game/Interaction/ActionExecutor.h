@@ -20,6 +20,7 @@ namespace AtomGame
         // Hooks into systems the executor shouldn't depend on directly.
         std::function<bool(const std::string& dialogueId)> startDialogue;
         std::function<void(const std::string& level, const std::string& spawn)> changeLevel;
+        std::function<bool(const std::string& entity, const std::string& clip)> playAnimation;
     };
 
     void ExecuteAction(const Action& action, ActionContext& context);

@@ -1,9 +1,11 @@
 #include "Level/LevelData.h"
 
-#include <nlohmann/json.hpp>
+#include "Level/JsonText.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -15,182 +17,314 @@ namespace AtomGame
 
         // Parse errors are reported as exceptions internally and turned into
         // a LevelParseResult at the boundary, so the helpers stay short.
+        // Every message starts with the JSON Pointer of the offending value
+        // ("/entities/3/interactable/action/type: ...").
         struct LevelError : std::runtime_error
         {
-            using std::runtime_error::runtime_error;
+            LevelError(const std::string& path, const std::string& message)
+                : std::runtime_error((path.empty() ? std::string("/") : path) + ": " + message) {}
         };
 
-        std::string String(const Json& object, const char* key, std::string fallback = {})
+        // Typed getters: a missing key gives the fallback, a key of the wrong
+        // type is an error (it used to fall back silently).
+        std::string String(const Json& object, const char* key, const std::string& path, std::string fallback = {})
         {
             const auto found = object.find(key);
-            return found != object.end() && found->is_string() ? found->get<std::string>() : fallback;
-        }
-
-        float Number(const Json& object, const char* key, float fallback)
-        {
-            const auto found = object.find(key);
-            return found != object.end() && found->is_number() ? found->get<float>() : fallback;
-        }
-
-        bool Bool(const Json& object, const char* key, bool fallback)
-        {
-            const auto found = object.find(key);
-            return found != object.end() && found->is_boolean() ? found->get<bool>() : fallback;
-        }
-
-        glm::vec3 Vec3(const Json& value, const std::string& where)
-        {
-            if (!value.is_array() || value.size() != 3)
+            if (found == object.end())
             {
-                throw LevelError(where + " must be [x, y, z]");
+                return fallback;
+            }
+            if (!found->is_string())
+            {
+                throw LevelError(JsonPath(path, key), "must be a string");
+            }
+            return found->get<std::string>();
+        }
+
+        float Number(const Json& object, const char* key, const std::string& path, float fallback)
+        {
+            const auto found = object.find(key);
+            if (found == object.end())
+            {
+                return fallback;
+            }
+            if (!found->is_number())
+            {
+                throw LevelError(JsonPath(path, key), "must be a number");
+            }
+            return found->get<float>();
+        }
+
+        bool Bool(const Json& object, const char* key, const std::string& path, bool fallback)
+        {
+            const auto found = object.find(key);
+            if (found == object.end())
+            {
+                return fallback;
+            }
+            if (!found->is_boolean())
+            {
+                throw LevelError(JsonPath(path, key), "must be true or false");
+            }
+            return found->get<bool>();
+        }
+
+        glm::vec3 Vec3(const Json& value, const std::string& path)
+        {
+            if (!value.is_array() || value.size() != 3
+                || !value[0].is_number() || !value[1].is_number() || !value[2].is_number())
+            {
+                throw LevelError(path, "must be [x, y, z]");
             }
             return { value[0].get<float>(), value[1].get<float>(), value[2].get<float>() };
         }
 
-        glm::vec3 Vec3(const Json& object, const char* key, glm::vec3 fallback, const std::string& where)
+        glm::vec3 Vec3(const Json& object, const char* key, glm::vec3 fallback, const std::string& path)
         {
             const auto found = object.find(key);
-            return found != object.end() ? Vec3(*found, where + "." + key) : fallback;
+            return found != object.end() ? Vec3(*found, JsonPath(path, key)) : fallback;
         }
 
-        Action ParseAction(const Json& json, const std::string& where)
+        const Json& Array(const Json& object, const char* key, const std::string& path)
         {
-            const std::string type = String(json, "type");
+            static const Json empty = Json::array();
+            const auto found = object.find(key);
+            if (found == object.end())
+            {
+                return empty;
+            }
+            if (!found->is_array())
+            {
+                throw LevelError(JsonPath(path, key), "must be an array");
+            }
+            return *found;
+        }
+
+        Action ParseAction(const Json& json, const std::string& path)
+        {
+            const std::string type = String(json, "type", path);
             if (type == "message")
             {
-                return ShowMessage{ String(json, "text") };
+                return ShowMessage{ String(json, "text", path) };
             }
             if (type == "setFlag")
             {
-                const std::string flag = String(json, "flag");
+                const std::string flag = String(json, "flag", path);
                 if (flag.empty())
                 {
-                    throw LevelError(where + ": setFlag needs \"flag\"");
+                    throw LevelError(path, "setFlag needs \"flag\"");
                 }
-                return SetFlag{ flag, String(json, "message") };
+                return SetFlag{ flag, String(json, "message", path) };
             }
             if (type == "dialogue")
             {
-                return StartDialogue{ String(json, "id") };
+                return StartDialogue{ String(json, "id", path) };
             }
             if (type == "changeLevel")
             {
-                const std::string level = String(json, "level");
+                const std::string level = String(json, "level", path);
                 if (level.empty())
                 {
-                    throw LevelError(where + ": changeLevel needs \"level\"");
+                    throw LevelError(path, "changeLevel needs \"level\"");
                 }
-                return ChangeLevel{ level, String(json, "spawn") };
+                return ChangeLevel{ level, String(json, "spawn", path) };
             }
-            throw LevelError(where + ": unknown action type \"" + type + "\"");
+            if (type == "playAnimation")
+            {
+                PlayAnimation play{ String(json, "entity", path), String(json, "clip", path), String(json, "message", path) };
+                if (play.entity.empty() || play.clip.empty())
+                {
+                    throw LevelError(path, "playAnimation needs \"entity\" and \"clip\"");
+                }
+                return play;
+            }
+            throw LevelError(JsonPath(path, "type"), "unknown action type \"" + type + "\"");
         }
 
-        EntityData ParseEntity(const Json& json, std::size_t index)
+        EntityData ParseEntity(const Json& json, const std::string& path)
         {
             EntityData entity;
-            entity.name = String(json, "name");
-            const std::string where = entity.name.empty()
-                ? "entity #" + std::to_string(index)
-                : "entity \"" + entity.name + "\"";
+            entity.name = String(json, "name", path);
             if (entity.name.empty())
             {
-                throw LevelError(where + " has no name");
+                throw LevelError(path, "entity has no \"name\"");
             }
-            entity.position = Vec3(json, "position", glm::vec3{ 0.0f }, where);
-            entity.yawDegrees = Number(json, "yaw", 0.0f);
-            entity.model = String(json, "model");
+            entity.hasPosition = json.contains("position");
+            entity.hasYaw = json.contains("yaw");
+            entity.position = Vec3(json, "position", glm::vec3{ 0.0f }, path);
+            entity.yawDegrees = Number(json, "yaw", path, 0.0f);
+            entity.model = String(json, "model", path);
 
             if (const auto collider = json.find("collider"); collider != json.end())
             {
+                const std::string at = JsonPath(path, "collider");
                 entity.collider = ColliderBox{
-                    Vec3(*collider, "center", glm::vec3{ 0.0f }, where + ".collider"),
-                    Vec3(*collider, "halfExtents", glm::vec3{ 0.5f }, where + ".collider"),
+                    Vec3(*collider, "center", glm::vec3{ 0.0f }, at),
+                    Vec3(*collider, "halfExtents", glm::vec3{ 0.5f }, at),
                 };
             }
 
             if (const auto use = json.find("interactable"); use != json.end())
             {
+                const std::string at = JsonPath(path, "interactable");
                 const auto action = use->find("action");
                 if (action == use->end())
                 {
-                    throw LevelError(where + ": interactable needs an \"action\"");
+                    throw LevelError(at, "interactable needs an \"action\"");
                 }
                 Interactable interactable{
-                    String(*use, "prompt", "Use"),
-                    ParseAction(*action, where + ".action"),
+                    String(*use, "prompt", at, "Use"),
+                    ParseAction(*action, JsonPath(at, "action")),
                 };
-                interactable.focusOffset = Vec3(*use, "focus", glm::vec3{ 0.0f, 1.2f, 0.0f }, where);
-                interactable.radius = Number(*use, "radius", 2.2f);
-                interactable.requiresFlag = String(*use, "requires");
+                interactable.focusOffset = Vec3(*use, "focus", glm::vec3{ 0.0f, 1.2f, 0.0f }, at);
+                interactable.radius = Number(*use, "radius", at, 2.2f);
+                interactable.requiresFlag = String(*use, "requires", at);
                 if (const auto locked = use->find("locked"); locked != use->end())
                 {
-                    interactable.lockedAction = ParseAction(*locked, where + ".locked");
+                    interactable.lockedAction = ParseAction(*locked, JsonPath(at, "locked"));
                 }
                 entity.interactable = std::move(interactable);
+            }
+
+            if (const auto animation = json.find("animation"); animation != json.end())
+            {
+                const std::string at = JsonPath(path, "animation");
+                EntityAnimation a;
+                a.clip = String(*animation, "clip", at);
+                a.loop = Bool(*animation, "loop", at, true);
+                a.autoplay = Bool(*animation, "autoplay", at, true);
+                a.speed = Number(*animation, "speed", at, 1.0f);
+                a.sound = String(*animation, "sound", at);
+                a.soundsPerLoop = static_cast<int>(Number(*animation, "soundsPerLoop", at, 1.0f));
+                a.soundOffset = Vec3(*animation, "soundOffset", a.soundOffset, at);
+                if (a.clip.empty() || entity.model.empty())
+                {
+                    throw LevelError(at, "animation needs a \"clip\" and the entity a \"model\"");
+                }
+                entity.animation = a;
             }
             return entity;
         }
 
-        LevelData Parse(const Json& root)
+        // Placement from Blender markers (<level>.markers.json, written by
+        // the asset build): positions and yaw of spawns and entities.
+        struct Placement
+        {
+            glm::vec3 position{ 0.0f };
+            float yawDegrees = 0.0f;
+        };
+
+        std::map<std::string, Placement> ParsePlacements(const Json& markers, const char* key)
+        {
+            std::map<std::string, Placement> placements;
+            const std::string path = JsonPath("", key);
+            const auto found = markers.find(key);
+            if (found == markers.end())
+            {
+                return placements;
+            }
+            if (!found->is_object())
+            {
+                throw LevelError("(markers)" + path, "must be an object");
+            }
+            for (const auto& [name, value] : found->items())
+            {
+                const std::string at = "(markers)" + JsonPath(path, name);
+                placements[name] = Placement{ Vec3(value, "position", glm::vec3{ 0.0f }, at),
+                                              Number(value, "yaw", at, 0.0f) };
+            }
+            return placements;
+        }
+
+        LevelData Parse(const Json& root, const Json* markers)
         {
             if (!root.is_object())
             {
-                throw LevelError("not valid JSON");
+                throw LevelError("", "the file must hold a JSON object");
             }
 
             LevelData level;
-            level.name = String(root, "name");
-            level.model = String(root, "model");
-            level.collision = String(root, "collision");
+            level.name = String(root, "name", "");
+            level.model = String(root, "model", "");
+            level.collision = String(root, "collision", "");
+            if (const auto lightmap = root.find("lightmap"); lightmap != root.end())
+            {
+                LevelLightmap map{ String(*lightmap, "texture", "/lightmap"), Number(*lightmap, "intensity", "/lightmap", 1.0f) };
+                if (map.texture.empty() || map.intensity < 0.0f)
+                {
+                    throw LevelError("/lightmap", "lightmap needs \"texture\" and a non-negative \"intensity\"");
+                }
+                level.lightmap = map;
+            }
             if (level.name.empty() || level.model.empty() || level.collision.empty())
             {
-                throw LevelError("needs \"name\", \"model\" and \"collision\"");
+                throw LevelError("", "needs \"name\", \"model\" and \"collision\"");
             }
 
+            // Spawns; a spawn may leave its position to a marker.
+            std::set<std::string> unplacedSpawns;
+            std::set<std::string> spawnsWithYaw;
             const auto spawns = root.find("spawns");
-            if (spawns == root.end() || !spawns->is_object() || spawns->empty())
+            if (spawns != root.end() && !spawns->is_object())
             {
-                throw LevelError("needs at least one spawn in \"spawns\"");
+                throw LevelError("/spawns", "must be an object");
             }
-            for (const auto& [name, spawn] : spawns->items())
+            if (spawns != root.end())
             {
-                level.spawns[name] = SpawnPoint{
-                    Vec3(spawn, "position", glm::vec3{ 0.0f }, "spawn \"" + name + "\""),
-                    Number(spawn, "yaw", 0.0f),
-                };
-            }
-            level.defaultSpawn = String(root, "defaultSpawn", spawns->begin().key());
-            if (!level.FindSpawn(level.defaultSpawn))
-            {
-                throw LevelError("defaultSpawn \"" + level.defaultSpawn + "\" does not exist");
+                for (const auto& [name, spawn] : spawns->items())
+                {
+                    const std::string at = JsonPath("/spawns", name);
+                    if (!spawn.contains("position"))
+                    {
+                        unplacedSpawns.insert(name);
+                    }
+                    if (spawn.contains("yaw"))
+                    {
+                        spawnsWithYaw.insert(name);
+                    }
+                    level.spawns[name] = SpawnPoint{
+                        Vec3(spawn, "position", glm::vec3{ 0.0f }, at),
+                        Number(spawn, "yaw", at, 0.0f),
+                    };
+                }
             }
 
             if (const auto light = root.find("lighting"); light != root.end())
             {
+                const std::string at = "/lighting";
                 LevelLighting& l = level.lighting;
-                l.sunDirection = Vec3(*light, "sunDirection", l.sunDirection, "lighting");
-                l.sunColor = Vec3(*light, "sunColor", l.sunColor, "lighting");
-                l.skyColor = Vec3(*light, "skyColor", l.skyColor, "lighting");
-                l.groundColor = Vec3(*light, "groundColor", l.groundColor, "lighting");
-                l.fogColor = Vec3(*light, "fogColor", l.fogColor, "lighting");
-                l.shadows = Bool(*light, "shadows", l.shadows);
+                l.sunDirection = Vec3(*light, "sunDirection", l.sunDirection, at);
+                l.sunColor = Vec3(*light, "sunColor", l.sunColor, at);
+                l.skyColor = Vec3(*light, "skyColor", l.skyColor, at);
+                l.groundColor = Vec3(*light, "groundColor", l.groundColor, at);
+                l.fogColor = Vec3(*light, "fogColor", l.fogColor, at);
+                l.shadows = Bool(*light, "shadows", at, l.shadows);
+                l.bakedLight = Number(*light, "bakedLight", at, l.bakedLight);
+                if (l.bakedLight < 0.0f || l.bakedLight > 1.0f)
+                {
+                    throw LevelError("/lighting/bakedLight", "must be between 0 and 1");
+                }
             }
 
             if (const auto audio = root.find("audio"); audio != root.end())
             {
-                for (const Json& bed : audio->value("beds", Json::array()))
+                std::size_t index = 0;
+                for (const Json& bed : Array(*audio, "beds", "/audio"))
                 {
-                    level.beds.push_back(AudioBed{ String(bed, "sound"), Number(bed, "gain", 1.0f) });
+                    const std::string at = JsonPath("/audio/beds", index++);
+                    level.beds.push_back(AudioBed{ String(bed, "sound", at), Number(bed, "gain", at, 1.0f) });
                 }
-                for (const Json& emitter : audio->value("emitters", Json::array()))
+                index = 0;
+                for (const Json& emitter : Array(*audio, "emitters", "/audio"))
                 {
+                    const std::string at = JsonPath("/audio/emitters", index++);
                     level.emitters.push_back(AudioEmitter{
-                        String(emitter, "sound"),
-                        String(emitter, "group"),
-                        Vec3(emitter, "position", glm::vec3{ 0.0f }, "audio emitter"),
-                        Number(emitter, "gain", 1.0f),
-                        Number(emitter, "minDistance", 1.0f),
-                        Number(emitter, "maxDistance", 20.0f),
+                        String(emitter, "sound", at),
+                        String(emitter, "group", at),
+                        Vec3(emitter, "position", glm::vec3{ 0.0f }, at),
+                        Number(emitter, "gain", at, 1.0f),
+                        Number(emitter, "minDistance", at, 1.0f),
+                        Number(emitter, "maxDistance", at, 20.0f),
                     });
                 }
             }
@@ -198,51 +332,126 @@ namespace AtomGame
             if (const auto surfaces = root.find("surfaces"); surfaces != root.end())
             {
                 // A misspelt surface would silently sound like the default.
-                const auto known = [](const std::string& surface) {
+                const auto known = [](const std::string& surface, const std::string& at) {
                     if (std::find(FootstepSurfaces.begin(), FootstepSurfaces.end(), surface) == FootstepSurfaces.end())
                     {
-                        throw LevelError("unknown footstep surface \"" + surface + "\"");
+                        throw LevelError(at, "unknown footstep surface \"" + surface + "\"");
                     }
                     return surface;
                 };
-                level.defaultSurface = known(String(*surfaces, "default", level.defaultSurface));
-                for (const Json& zone : surfaces->value("zones", Json::array()))
+                level.defaultSurface = known(String(*surfaces, "default", "/surfaces", level.defaultSurface),
+                                             "/surfaces/default");
+                std::size_t index = 0;
+                for (const Json& zone : Array(*surfaces, "zones", "/surfaces"))
                 {
-                    const glm::vec3 min = Vec3(zone, "min", glm::vec3{ 0.0f }, "surface zone");
-                    const glm::vec3 max = Vec3(zone, "max", glm::vec3{ 0.0f }, "surface zone");
+                    const std::string at = JsonPath("/surfaces/zones", index++);
+                    const glm::vec3 min = Vec3(zone, "min", glm::vec3{ 0.0f }, at);
+                    const glm::vec3 max = Vec3(zone, "max", glm::vec3{ 0.0f }, at);
                     level.surfaces.push_back(SurfaceZone{
-                        { min.x, min.z }, { max.x, max.z }, known(String(zone, "surface", level.defaultSurface)) });
+                        { min.x, min.z }, { max.x, max.z },
+                        known(String(zone, "surface", at, level.defaultSurface), JsonPath(at, "surface")) });
                 }
             }
 
-            level.outdoor = Bool(root, "outdoor", true);
+            level.outdoor = Bool(root, "outdoor", "", true);
 
             if (const auto particles = root.find("particles"); particles != root.end())
             {
-                level.leaves = Bool(*particles, "leaves", true);
-                level.fogBanks = Bool(*particles, "fogBanks", true);
+                level.leaves = Bool(*particles, "leaves", "/particles", true);
+                level.fogBanks = Bool(*particles, "fogBanks", "/particles", true);
             }
 
             if (const auto unease = root.find("unease"); unease != root.end())
             {
-                level.unease.figure = Bool(*unease, "figure", false);
-                for (const Json& spot : unease->value("figureSpots", Json::array()))
+                level.unease.figure = Bool(*unease, "figure", "/unease", false);
+                std::size_t index = 0;
+                for (const Json& spot : Array(*unease, "figureSpots", "/unease"))
                 {
-                    level.unease.figureSpots.push_back(Vec3(spot, "unease.figureSpots"));
+                    level.unease.figureSpots.push_back(Vec3(spot, JsonPath("/unease/figureSpots", index++)));
                 }
-                level.unease.flickerMaterial = String(*unease, "flickerMaterial");
-                for (const Json& site : unease->value("flickerSites", Json::array()))
+                level.unease.flickerMaterial = String(*unease, "flickerMaterial", "/unease");
+                index = 0;
+                for (const Json& site : Array(*unease, "flickerSites", "/unease"))
                 {
-                    level.unease.flickerSites.push_back(Vec3(site, "unease.flickerSites"));
+                    level.unease.flickerSites.push_back(Vec3(site, JsonPath("/unease/flickerSites", index++)));
                 }
             }
 
+            std::vector<std::string> entityPaths;
             std::size_t index = 0;
-            for (const Json& entity : root.value("entities", Json::array()))
+            for (const Json& entity : Array(root, "entities", ""))
             {
-                level.entities.push_back(ParseEntity(entity, index++));
+                entityPaths.push_back(JsonPath("/entities", index++));
+                level.entities.push_back(ParseEntity(entity, entityPaths.back()));
             }
 
+            // Markers (M20): Blender places spawns and entities; the level
+            // file says what they do. A value written in the level file wins.
+            if (markers)
+            {
+                for (const auto& [name, placement] : ParsePlacements(*markers, "spawns"))
+                {
+                    auto found = level.spawns.find(name);
+                    if (found == level.spawns.end())
+                    {
+                        level.spawns[name] = SpawnPoint{ placement.position, placement.yawDegrees };
+                        continue;
+                    }
+                    if (unplacedSpawns.erase(name) > 0)
+                    {
+                        found->second.position = placement.position;
+                    }
+                    if (!spawnsWithYaw.contains(name))
+                    {
+                        found->second.yawDegrees = placement.yawDegrees;
+                    }
+                }
+                for (const auto& [name, placement] : ParsePlacements(*markers, "entities"))
+                {
+                    const auto entity = std::find_if(level.entities.begin(), level.entities.end(),
+                        [&](const EntityData& e) { return e.name == name; });
+                    if (entity == level.entities.end())
+                    {
+                        throw LevelError("(markers)" + JsonPath("/entities", name),
+                                         "marker entity:" + name + " has no entity of that name in the level");
+                    }
+                    if (!entity->hasPosition)
+                    {
+                        entity->position = placement.position;
+                        entity->hasPosition = true;
+                    }
+                    if (!entity->hasYaw)
+                    {
+                        entity->yawDegrees = placement.yawDegrees;
+                    }
+                }
+            }
+            if (!unplacedSpawns.empty())
+            {
+                throw LevelError(JsonPath("/spawns", *unplacedSpawns.begin()),
+                                 "no \"position\" and no spawn:" + *unplacedSpawns.begin() + " marker");
+            }
+            for (std::size_t i = 0; i < level.entities.size(); ++i)
+            {
+                // Entities without a position used to sit at the origin; now
+                // only when that's written down or a marker says so.
+                if (!level.entities[i].hasPosition && markers)
+                {
+                    throw LevelError(entityPaths[i], "no \"position\" and no entity:"
+                                     + level.entities[i].name + " marker");
+                }
+            }
+
+            if (level.spawns.empty())
+            {
+                throw LevelError("/spawns", "needs at least one spawn in \"spawns\"");
+            }
+            // Without one, the first spawn by name (JSON objects are ordered by key).
+            level.defaultSpawn = String(root, "defaultSpawn", "", level.spawns.begin()->first);
+            if (!level.FindSpawn(level.defaultSpawn))
+            {
+                throw LevelError("/defaultSpawn", "defaultSpawn \"" + level.defaultSpawn + "\" does not exist");
+            }
             return level;
         }
     }
@@ -265,16 +474,24 @@ namespace AtomGame
         return defaultSurface;
     }
 
-    LevelParseResult ParseLevel(std::string_view text)
+    LevelParseResult ParseLevel(std::string_view text, std::string_view markersText)
     {
-        const Json root = Json::parse(text, nullptr, false);
-        if (root.is_discarded())
+        Json root;
+        if (std::string error = ParseJsonText(text, root); !error.empty())
         {
-            return { std::nullopt, "not valid JSON" };
+            return { std::nullopt, error };
+        }
+        Json markers;
+        if (!markersText.empty())
+        {
+            if (std::string error = ParseJsonText(markersText, markers); !error.empty())
+            {
+                return { std::nullopt, "(markers) " + error };
+            }
         }
         try
         {
-            return { Parse(root), {} };
+            return { Parse(root, markersText.empty() ? nullptr : &markers), {} };
         }
         catch (const LevelError& error)
         {
@@ -282,20 +499,49 @@ namespace AtomGame
         }
         catch (const Json::exception& error)
         {
-            // e.g. a string where a number was expected.
             return { std::nullopt, error.what() };
         }
     }
 
+    namespace
+    {
+        std::optional<std::string> ReadFile(const std::string& path)
+        {
+            std::ifstream file(path, std::ios::binary);
+            if (!file)
+            {
+                return std::nullopt;
+            }
+            std::stringstream contents;
+            contents << file.rdbuf();
+            return contents.str();
+        }
+    }
+
+    std::string MarkersPathFor(const std::string& levelPath)
+    {
+        std::filesystem::path path(levelPath);
+        return (path.parent_path() / (path.stem().string() + ".markers.json")).string();
+    }
+
     LevelParseResult LoadLevelFile(const std::string& path)
     {
-        std::ifstream file(path, std::ios::binary);
-        if (!file)
+        const std::optional<std::string> text = ReadFile(path);
+        if (!text)
         {
             return { std::nullopt, "cannot open " + path };
         }
-        std::stringstream contents;
-        contents << file.rdbuf();
-        return ParseLevel(contents.str());
+        const std::optional<std::string> markers = ReadFile(MarkersPathFor(path));
+        LevelParseResult result = ParseLevel(*text, markers ? std::string_view(*markers) : std::string_view{});
+        if (!result.error.empty())
+        {
+            // "machiya_interior.json:/entities/3/...: ..." - file, then place.
+            const std::string file = std::filesystem::path(path).filename().string();
+            const bool fromMarkers = result.error.rfind("(markers)", 0) == 0;
+            result.error = (fromMarkers
+                ? std::filesystem::path(MarkersPathFor(path)).filename().string() + ":" + result.error.substr(9)
+                : file + ":" + result.error);
+        }
+        return result;
     }
 }

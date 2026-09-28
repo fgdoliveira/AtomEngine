@@ -1,10 +1,11 @@
 #include "Dialogue/Dialogue.h"
 
-#include <nlohmann/json.hpp>
+#include "Level/JsonText.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
 
 namespace AtomGame
@@ -29,12 +30,16 @@ namespace AtomGame
 
     DialogueParseResult ParseDialogue(std::string_view text)
     {
-        // Parse without exceptions: malformed content is a data error to
-        // report, not a crash.
-        const Json root = Json::parse(text, nullptr, false);
-        if (root.is_discarded() || !root.is_object())
+        // Parse without exceptions escaping: malformed content is a data
+        // error to report - with its place - not a crash.
+        Json root;
+        if (std::string error = ParseJsonText(text, root); !error.empty())
         {
-            return { std::nullopt, "not valid JSON" };
+            return { std::nullopt, error };
+        }
+        if (!root.is_object())
+        {
+            return { std::nullopt, "/: the file must hold a JSON object" };
         }
 
         Dialogue dialogue;
@@ -42,17 +47,21 @@ namespace AtomGame
         dialogue.start = OptionalString(root, "start");
         if (dialogue.id.empty() || dialogue.start.empty())
         {
-            return { std::nullopt, "missing \"id\" or \"start\"" };
+            return { std::nullopt, "/: missing \"id\" or \"start\"" };
         }
 
         const auto nodes = root.find("nodes");
         if (nodes == root.end() || !nodes->is_array())
         {
-            return { std::nullopt, "missing \"nodes\" array" };
+            return { std::nullopt, "/nodes: missing \"nodes\" array" };
         }
 
+        // Where each node sits in the file, for messages about links.
+        std::map<std::string, std::string> nodePaths;
+        std::size_t index = 0;
         for (const Json& item : *nodes)
         {
+            const std::string path = JsonPath("/nodes", index++);
             DialogueNode node;
             node.id = OptionalString(item, "id");
             node.speaker = OptionalString(item, "speaker");
@@ -61,7 +70,7 @@ namespace AtomGame
             node.setsFlag = OptionalString(item, "sets");
             if (node.id.empty())
             {
-                return { std::nullopt, "a node has no \"id\"" };
+                return { std::nullopt, path + ": a node has no \"id\"" };
             }
 
             if (const auto choices = item.find("choices");
@@ -82,27 +91,32 @@ namespace AtomGame
             const std::string id = node.id;
             if (!dialogue.nodes.emplace(id, std::move(node)).second)
             {
-                return { std::nullopt, "duplicate node id \"" + id + "\"" };
+                return { std::nullopt, JsonPath(path, "id") + ": duplicate node id \"" + id + "\"" };
             }
+            nodePaths[id] = path;
         }
 
         // Every link must land somewhere: catch typos at load time rather
         // than mid-conversation.
         if (!dialogue.Find(dialogue.start))
         {
-            return { std::nullopt, "start node \"" + dialogue.start + "\" does not exist" };
+            return { std::nullopt, "/start: start node \"" + dialogue.start + "\" does not exist" };
         }
         for (const auto& [id, node] : dialogue.nodes)
         {
+            const std::string& path = nodePaths[id];
             if (!IsEnd(node.next) && !dialogue.Find(node.next))
             {
-                return { std::nullopt, "node \"" + id + "\" continues to unknown \"" + node.next + "\"" };
+                return { std::nullopt, JsonPath(path, "next") + ": node \"" + id
+                    + "\" continues to unknown \"" + node.next + "\"" };
             }
-            for (const DialogueChoice& choice : node.choices)
+            for (std::size_t c = 0; c < node.choices.size(); ++c)
             {
+                const DialogueChoice& choice = node.choices[c];
                 if (!IsEnd(choice.next) && !dialogue.Find(choice.next))
                 {
-                    return { std::nullopt, "a choice in \"" + id + "\" leads to unknown \"" + choice.next + "\"" };
+                    return { std::nullopt, JsonPath(JsonPath(JsonPath(path, "choices"), c), "next")
+                        + ": a choice in \"" + id + "\" leads to unknown \"" + choice.next + "\"" };
                 }
             }
         }
@@ -119,7 +133,12 @@ namespace AtomGame
         }
         std::stringstream contents;
         contents << file.rdbuf();
-        return ParseDialogue(contents.str());
+        DialogueParseResult result = ParseDialogue(contents.str());
+        if (!result.error.empty())
+        {
+            result.error = std::filesystem::path(path).filename().string() + ":" + result.error;
+        }
+        return result;
     }
 
     std::size_t DialogueLibrary::LoadDirectory(const std::string& directory)
