@@ -60,6 +60,13 @@ namespace AtomGame
 
         void Submit(Atom::Renderer& renderer) const;
 
+        // Advances animations and fires their sounds.
+        void Update(float deltaSeconds);
+
+        // Starts `clip` on the named entity's model. A finished one-shot
+        // clip stays finished (a door opened once stays open).
+        bool PlayAnimation(const std::string& entity, const std::string& clip);
+
         // Material of the level's scene model, for runtime effects.
         Atom::Material* FindSceneMaterial(std::string_view name);
 

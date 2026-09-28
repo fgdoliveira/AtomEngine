@@ -169,6 +169,7 @@ namespace AtomGame
         // Gusts: the wind breathes rather than blowing steadily.
         const float gust = 0.6f + 0.4f * std::sin(m_time * 0.37f) * std::sin(m_time * 0.11f + 1.0f);
         const glm::vec3 wind = m_wind * (0.5f + gust);
+        m_currentWind = wind;
 
         m_particles.clear();
 

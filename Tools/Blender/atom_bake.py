@@ -89,6 +89,7 @@ def bake(scene, objects, mode="sky"):
 
     for obj in meshes:
         _quantise(obj.data)
+        _apply_sway(obj)
         _check(obj)
     for obj in hidden:
         obj.hide_render = False
@@ -173,6 +174,33 @@ def _rebake_masked(meshes, mode):
         material.node_tree.links.new(socket, alpha)
     for obj in meshes:
         obj.select_set(True)
+
+
+def _apply_sway(obj):
+    """Writes each vertex's sway weight (M19) into the colour's alpha, as
+    1 - weight so everything else stays rigid (alpha 1). Per face: a
+    gradient from its rooted edge to its free edge."""
+    import atom_kit
+
+    mesh = obj.data
+    attribute = mesh.color_attributes[ATTRIBUTE]
+    for polygon in mesh.polygons:
+        material = obj.material_slots[polygon.material_index].material if obj.material_slots else None
+        name = material.name[len(atom_kit.PREFIX):] if material else ""
+        rule = atom_kit.SWAY.get(name)
+        if not rule:
+            continue
+        direction, strength = rule
+        zs = [mesh.vertices[v].co.z for v in polygon.vertices]
+        low, high = min(zs), max(zs)
+        span = max(high - low, 1e-6)
+        for v in polygon.vertices:
+            z = mesh.vertices[v].co.z
+            t = (z - low) / span if direction == "up" else (high - z) / span
+            weight = round(min(max(t, 0.0), 1.0) * strength * 255.0) / 255.0
+            color = list(attribute.data[v].color)
+            color[3] = 1.0 - weight
+            attribute.data[v].color = color
 
 
 def _check(obj):

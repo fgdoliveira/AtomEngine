@@ -3,6 +3,7 @@ add_library(AtomEngine STATIC)
 target_sources(
     AtomEngine
     PRIVATE
+        Assets/Animation.cpp
         Assets/Model.cpp
         Audio/AudioSystem.cpp
         Assets/ThirdParty.cpp
@@ -21,6 +22,7 @@ target_sources(
         UI/UIRenderer.cpp
 
     PUBLIC
+        Assets/Animation.h
         Assets/Model.h
         Audio/AudioSystem.h
         Core/Application.h

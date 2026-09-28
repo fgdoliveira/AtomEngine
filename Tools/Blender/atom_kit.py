@@ -86,6 +86,15 @@ MASKED = {
     "chain_link": 0.5,
 }
 
+# Vertex sway (M19): material -> (direction, strength). "up": a card's
+# bottom is rooted and its top moves; "down": it hangs from its top edge.
+# Written into the baked colour's alpha as 1 - weight (atom_bake).
+SWAY = {
+    "grass": ("up", 1.0),
+    "leaves": ("up", 0.45),
+    "noren": ("down", 0.8),
+}
+
 # Decals (M18): alpha-blended layers lying just over another surface
 # (DECAL_OFFSET in front of it), drawn after everything else with a depth
 # bias. Exported as glTF alphaMode BLEND. The only faces the lint allows to
@@ -759,6 +768,113 @@ def build_chain_fence(materials, collection):
     return m.build("chain_fence", materials, collection)
 
 
+def _animate(obj, action_name, data_path, keys, index=-1, interpolation="BEZIER"):
+    """Keyframes `data_path` of `obj` at (frame, value) pairs and names the
+    action, which the glTF exporter writes as an animation clip."""
+    preferences = bpy.context.preferences.edit
+    saved = preferences.keyframe_new_interpolation_type
+    preferences.keyframe_new_interpolation_type = interpolation
+    for frame, value in keys:
+        if index >= 0:
+            getattr(obj, data_path)[index] = value
+        else:
+            setattr(obj, data_path, value)
+        obj.keyframe_insert(data_path=data_path, index=index, frame=frame)
+    preferences.keyframe_new_interpolation_type = saved
+    obj.animation_data.action.name = action_name
+
+
+def _child(builder, name, materials, collection, parent, location):
+    obj = builder.build(name, materials, collection)
+    obj.parent = parent
+    obj.location = location
+    return obj
+
+
+def build_windmill(materials, collection):
+    """A wooden farm windmill: a tapering tower and a four-sailed rotor
+    (child object) turning on its hub. Clip "spin": one turn in 8 s."""
+    m = MeshBuilder()
+    m.box((0, 0, 0.25), (2.2, 2.2, 0.5), "stone")
+    for z0, z1, w in ((0.5, 2.9, 1.6), (2.9, 5.3, 1.3), (5.3, 7.4, 1.0)):
+        m.box((0, 0, (z0 + z1) / 2), (w, w, z1 - z0), "wood_dark")
+        m.box((0, 0, z1 - 0.04), (w + 0.12, w + 0.12, 0.1), "wood_light")  # trim band, 1 cm proud
+    for side in (-1, 1):
+        m.box((side * 0.32, 0, 7.75), (0.75, 1.5, 0.08), "roof_tile", rotation=rot_y(side * 32))
+    m.box((0, -0.62, 6.6), (0.5, 0.25, 0.5), "black")          # hatch
+    tower = m.build("windmill", materials, collection)
+
+    rotor = MeshBuilder()
+    rotor.box((0, 0, 0), (0.34, 0.5, 0.34), "wood_dark")        # hub
+    for i in range(4):
+        angle = 90.0 * i + 45.0
+        rotation = rot_y(angle)
+        # A spar from the hub, and a sail beside it (radial along local +Z).
+        rotor.box(tuple(rotation @ Vector((0, 0, 1.45))), (0.09, 0.09, 2.9), "wood_light", rotation=rotation)
+        rotor.box(tuple(rotation @ Vector((0.34, 0.03, 1.75))), (0.55, 0.02, 2.1), "cloth_white", rotation=rotation)
+    blades = _child(rotor, "windmill_rotor", materials, collection, tower, (0, -0.86, 6.9))
+    _animate(blades, "spin", "rotation_euler", [(0, 0.0), (192, -2.0 * math.pi)], index=1,
+             interpolation="LINEAR")
+    return tower
+
+
+def build_shed(materials, collection):
+    """A tool shed; its sliding door (child) opens with clip "open"."""
+    m = MeshBuilder()
+    width, depth, height = 3.2, 2.6, 2.4
+    front = -depth / 2
+    m.box((0, depth / 2 - 0.05, height / 2), (width, 0.1, height), "wood_dark")
+    for x in (-width / 2 + 0.05, width / 2 - 0.05):
+        m.box((x, 0, height / 2), (0.1, depth, height), "wood_dark")
+    # Front wall with a doorway 1.2 m wide, 2.0 m high.
+    m.box((-1.0, front + 0.05, height / 2), (1.2, 0.1, height), "wood_dark")
+    m.box((1.2, front + 0.05, height / 2), (0.8, 0.1, height), "wood_dark")
+    m.box((0.2, front + 0.05, 2.2), (1.2, 0.1, 0.4), "wood_dark")
+    m.box((0, 0.2, height - 0.2), (width - 0.2, depth - 0.3, 0.05), "black", faces=[(0, 0, -1)])  # inside ceiling
+    m.box((0, 0.1, 0.02), (width - 0.2, depth - 0.3, 0.04), "black", faces=[(0, 0, 1)])     # inside floor
+    m.box((0, depth / 2 - 0.12, height / 2), (width - 0.2, 0.04, height), "black", faces=[(0, -1, 0)])
+    for side in (-1, 1):
+        m.box((0, side * 0.72, height + 0.28), (width + 0.4, 1.7, 0.08), "roof_tile", rotation=rot_x(-side * 20))
+    shed = m.build("shed", materials, collection)
+
+    door = MeshBuilder()
+    door.box((0, 0, 1.0), (1.3, 0.05, 2.02), "wood_light")
+    for z in (0.5, 1.5):
+        door.box((0, -0.035, z), (1.2, 0.02, 0.08), "wood_dark")
+    board = _child(door, "shed_door", materials, collection, shed, (0.2, front - 0.06, 0.0))
+    _animate(board, "open", "location", [(0, 0.2), (36, -1.15)], index=0)
+    return shed
+
+
+def build_hanging_sign(materials, collection):
+    """A signboard hanging from a post's arm; the board (child) swings on
+    its pivot with clip "swing"."""
+    m = MeshBuilder()
+    m.box((0, 0, 1.3), (0.14, 0.14, 2.6), "wood_dark")
+    m.box((0.45, 0, 2.5), (0.9, 0.1, 0.1), "wood_dark")
+    post = m.build("hanging_sign", materials, collection)
+
+    sign = MeshBuilder()
+    sign.box((0, 0, -0.42), (0.8, 0.04, 0.5), "wood_light")
+    for y in (-0.02 - DECAL_OFFSET, 0.02 + DECAL_OFFSET):
+        facing = -1 if y < 0 else 1
+        x0, x1 = (-0.36, 0.36) if facing < 0 else (0.36, -0.36)
+        sign.quad([(x0, y, -0.62), (x1, y, -0.62), (x1, y, -0.22), (x0, y, -0.22)], "shop_sign")
+    board = _child(sign, "hanging_sign_board", materials, collection, post, (0.7, 0, 2.45))
+    swing = math.radians(9.0)
+    _animate(board, "swing", "rotation_euler",
+             [(0, 0.0), (18, swing), (36, 0.0), (54, -swing), (72, 0.0)], index=0)
+    return post
+
+
+def build_signpost(materials, collection):
+    """A wooden field-path marker (static)."""
+    m = MeshBuilder()
+    m.box((0, 0, 0.8), (0.12, 0.12, 1.6), "wood_dark")
+    m.box((0.3, 0, 1.35), (0.7, 0.05, 0.22), "wood_light")
+    return m.build("signpost", materials, collection)
+
+
 def build_haiden(materials, collection):
     """Main hall: raised platform with steps, lattice doors, deep gable roof.
     Front (-Y) steps rise 0.18 m each, low enough to walk up."""
@@ -838,6 +954,10 @@ PIECES = [
     build_grass_tuft,
     build_tree,
     build_chain_fence,
+    build_windmill,
+    build_shed,
+    build_hanging_sign,
+    build_signpost,
 ]
 
 

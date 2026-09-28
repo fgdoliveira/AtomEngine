@@ -1,4 +1,6 @@
 // Vertex uniforms live in (b[n], space1) for SDL_GPU on D3D12.
+#include "Sway.hlsli"
+
 cbuffer ObjectUniforms : register(b0, space1)
 {
     float4x4 u_viewProjection;
@@ -26,7 +28,8 @@ struct VSOutput
 
 VSOutput main(VSInput input)
 {
-    const float4 worldPosition = mul(u_model, float4(input.position, 1.0));
+    float4 worldPosition = mul(u_model, float4(input.position, 1.0));
+    worldPosition.xyz = ApplySway(worldPosition.xyz, 1.0 - input.color.a);
 
     VSOutput output;
     output.position = mul(u_viewProjection, worldPosition);

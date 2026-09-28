@@ -5,6 +5,8 @@
 #include <cgltf.h>
 #include <stb_image.h>
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
@@ -217,6 +219,84 @@ namespace Atom
         }
     }
 
+    namespace
+    {
+        std::vector<AnimationClip> ReadAnimations(const cgltf_data& data)
+        {
+            std::vector<AnimationClip> clips;
+            for (cgltf_size a = 0; a < data.animations_count; ++a)
+            {
+                const cgltf_animation& source = data.animations[a];
+                AnimationClip clip;
+                clip.name = source.name ? source.name : "";
+                for (cgltf_size c = 0; c < source.channels_count; ++c)
+                {
+                    const cgltf_animation_channel& from = source.channels[c];
+                    if (!from.target_node || !from.sampler)
+                    {
+                        continue;
+                    }
+                    AnimationChannel channel;
+                    channel.node = static_cast<int>(from.target_node - data.nodes);
+                    switch (from.target_path)
+                    {
+                    case cgltf_animation_path_type_translation:
+                        channel.path = AnimationPath::Translation;
+                        break;
+                    case cgltf_animation_path_type_rotation:
+                        channel.path = AnimationPath::Rotation;
+                        break;
+                    case cgltf_animation_path_type_scale:
+                        channel.path = AnimationPath::Scale;
+                        break;
+                    default:
+                        continue; // morph weights: not supported
+                    }
+                    switch (from.sampler->interpolation)
+                    {
+                    case cgltf_interpolation_type_step:
+                        channel.interpolation = Interpolation::Step;
+                        break;
+                    case cgltf_interpolation_type_cubic_spline:
+                        channel.interpolation = Interpolation::CubicSpline;
+                        break;
+                    default:
+                        channel.interpolation = Interpolation::Linear;
+                        break;
+                    }
+
+                    const cgltf_accessor* input = from.sampler->input;
+                    const cgltf_accessor* output = from.sampler->output;
+                    channel.times.resize(input->count);
+                    for (cgltf_size k = 0; k < input->count; ++k)
+                    {
+                        cgltf_accessor_read_float(input, k, &channel.times[k], 1);
+                    }
+                    const cgltf_size components = cgltf_num_components(output->type);
+                    channel.values.resize(output->count, glm::vec4{ 0.0f });
+                    for (cgltf_size k = 0; k < output->count; ++k)
+                    {
+                        cgltf_accessor_read_float(
+                            output, k, glm::value_ptr(channel.values[k]), components);
+                    }
+                    if (!channel.times.empty())
+                    {
+                        clip.duration = std::max(clip.duration, channel.times.back());
+                    }
+                    clip.channels.push_back(std::move(channel));
+                }
+                clips.push_back(std::move(clip));
+            }
+            return clips;
+        }
+    }
+
+    std::vector<AnimationClip> LoadModelAnimations(const std::string& path)
+    {
+        const GltfData data = ParseGltf(path);
+        return data ? ReadAnimations(*data) : std::vector<AnimationClip>{};
+    }
+
     std::vector<MaterialInfo> LoadModelMaterials(const std::string& path)
     {
         std::vector<MaterialInfo> result;
@@ -375,6 +455,48 @@ namespace Atom
             }
         }
 
+        // Node hierarchy and clips. A node moves if a clip targets it or
+        // any of its ancestors.
+        model->m_clips = ReadAnimations(*data);
+        model->m_nodes.resize(data->nodes_count);
+        for (cgltf_size n = 0; n < data->nodes_count; ++n)
+        {
+            const cgltf_node& source = data->nodes[n];
+            Node& node = model->m_nodes[n];
+            node.parent = source.parent ? static_cast<int>(source.parent - data->nodes) : -1;
+            if (source.has_translation)
+            {
+                node.translation = glm::make_vec3(source.translation);
+            }
+            if (source.has_rotation)
+            {
+                const float* r = source.rotation; // x y z w
+                node.rotation = glm::quat(r[3], r[0], r[1], r[2]);
+            }
+            if (source.has_scale)
+            {
+                node.scale = glm::make_vec3(source.scale);
+            }
+        }
+        std::vector<bool> targeted(data->nodes_count, false);
+        for (const AnimationClip& clip : model->m_clips)
+        {
+            for (const AnimationChannel& channel : clip.channels)
+            {
+                targeted[channel.node] = true;
+            }
+        }
+        const auto moves = [&](int node) {
+            for (; node >= 0; node = model->m_nodes[node].parent)
+            {
+                if (targeted[node])
+                {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         // Nodes -> parts, with baked world transforms.
         for (cgltf_size n = 0; n < data->nodes_count; ++n)
         {
@@ -386,6 +508,7 @@ namespace Atom
 
             glm::mat4 world{ 1.0f };
             cgltf_node_transform_world(&node, glm::value_ptr(world));
+            const int animatedNode = moves(static_cast<int>(n)) ? static_cast<int>(n) : -1;
 
             for (cgltf_size p = 0; p < node.mesh->primitives_count; ++p)
             {
@@ -399,7 +522,8 @@ namespace Atom
                 model->m_parts.push_back(Part{
                     found->second,
                     primitiveMaterials.at(primitive),
-                    world
+                    world,
+                    animatedNode
                 });
             }
         }
@@ -433,14 +557,71 @@ namespace Atom
         return nullptr;
     }
 
-    void Model::Submit(Renderer& renderer, const glm::mat4& transform) const
+    int Model::FindClip(std::string_view name) const
     {
+        for (std::size_t i = 0; i < m_clips.size(); ++i)
+        {
+            if (m_clips[i].name == name)
+            {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
+    }
+
+    const AnimationClip* Model::GetClip(int clip) const
+    {
+        return clip >= 0 && clip < static_cast<int>(m_clips.size()) ? &m_clips[clip] : nullptr;
+    }
+
+    void Model::Submit(Renderer& renderer, const glm::mat4& transform, int clip, float time) const
+    {
+        const AnimationClip* playing = GetClip(clip);
+
+        // Pose: rest transforms with the clip's channels applied.
+        std::vector<Node> pose;
+        std::vector<glm::mat4> world;
+        std::vector<bool> done;
+        if (playing)
+        {
+            pose = m_nodes;
+            for (const AnimationChannel& channel : playing->channels)
+            {
+                const glm::vec4 v = SampleChannel(channel, time);
+                Node& node = pose[channel.node];
+                switch (channel.path)
+                {
+                case AnimationPath::Translation: node.translation = glm::vec3{ v }; break;
+                case AnimationPath::Rotation: node.rotation = glm::quat(v.w, v.x, v.y, v.z); break;
+                case AnimationPath::Scale: node.scale = glm::vec3{ v }; break;
+                }
+            }
+            world.resize(pose.size());
+            done.resize(pose.size(), false);
+        }
+
+        // World matrix of a posed node: its local T*R*S under its parent's.
+        const auto nodeWorld = [&](int node, const auto& self) -> const glm::mat4& {
+            if (!done[node])
+            {
+                const Node& n = pose[node];
+                const glm::mat4 local = glm::translate(glm::mat4{ 1.0f }, n.translation)
+                    * glm::mat4_cast(n.rotation) * glm::scale(glm::mat4{ 1.0f }, n.scale);
+                world[node] = n.parent >= 0 ? self(n.parent, self) * local : local;
+                done[node] = true;
+            }
+            return world[node];
+        };
+
         for (const Part& part : m_parts)
         {
+            const glm::mat4 partTransform = playing && part.node >= 0
+                ? nodeWorld(part.node, nodeWorld)
+                : part.transform;
             renderer.Submit(
                 *part.mesh,
                 m_materials[part.materialIndex],
-                transform * part.transform
+                transform * partTransform
             );
         }
     }

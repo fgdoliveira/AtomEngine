@@ -109,10 +109,11 @@ def export_objects(objects, scene, path, materials=True):
 
 
 def export_piece(obj, scene, out_dir):
-    """Exports a kit piece centred on the origin."""
+    """Exports a kit piece centred on the origin, with its moving parts
+    (children) and their animation clips."""
     saved = obj.location.copy()
     obj.location = (0.0, 0.0, 0.0)
-    export_objects([obj], scene, os.path.join(out_dir, obj.name + ".glb"))
+    export_objects([obj] + list(obj.children_recursive), scene, os.path.join(out_dir, obj.name + ".glb"))
     obj.location = saved
 
 
@@ -168,7 +169,7 @@ def main():
     # Baked light (M15): each kit piece alone (entity models placed by
     # levels), then every level as a whole, so pieces shade each other.
     for obj in pieces.values():
-        atom_bake.bake(scene, [obj])
+        atom_bake.bake(scene, [obj] + list(obj.children_recursive))
     atom_bake.bake(scene, street.visual)
     for folder, level in levels:
         atom_bake.bake(scene, level.visual, atom_levels.BAKE_MODES.get(folder, "sky"))

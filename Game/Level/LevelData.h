@@ -69,6 +69,17 @@ namespace AtomGame
         glm::vec3 halfExtents{ 0.5f };
     };
 
+    struct EntityAnimation
+    {
+        std::string clip;
+        bool loop = true;
+        bool autoplay = true;
+        float speed = 1.0f;
+        std::string sound;        // optional, from the sound library
+        int soundsPerLoop = 1;
+        glm::vec3 soundOffset{ 0.0f, 1.0f, 0.0f };
+    };
+
     struct EntityData
     {
         std::string name;
@@ -77,6 +88,7 @@ namespace AtomGame
         std::string model; // optional, relative to Assets/
         std::optional<ColliderBox> collider;
         std::optional<Interactable> interactable;
+        std::optional<EntityAnimation> animation; // needs a model with the clip
     };
 
     struct LevelUnease

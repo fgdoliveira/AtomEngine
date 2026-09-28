@@ -107,6 +107,9 @@ namespace Atom
 
         // 0 = normal, 1 = black. Applied in the post pass, before the UI.
         void SetFade(float fade) { m_fade = fade; }
+
+        // Wind for vertex sway (M19): velocity in m/s, and a time base.
+        void SetWind(const glm::vec3& wind, float time) { m_wind = glm::vec4{ wind, time }; }
         float GetFade() const { return m_fade; }
 
         // 2D overlay drawn on top of the final image (text, panels).
@@ -209,6 +212,7 @@ namespace Atom
         // [samples slot][double-sided][alpha-to-coverage]
         std::array<SDL_GPUGraphicsPipeline*, 12> m_scenePipelines{};
         std::array<SDL_GPUGraphicsPipeline*, 3> m_decalPipelines{}; // per samples slot
+        glm::vec4 m_wind{ 0.0f };
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
         SDL_GPUTexture* m_shadowMap = nullptr;

@@ -6,7 +6,8 @@
   "spawns": {
     "east_end":    { "position": [36.0, 0.0, 1.0], "yaw": -90 },
     "from_shrine": { "position": [-14.0, 0.0, 12.6], "yaw": 0 },
-    "from_house":  { "position": [34.3, 0.0, -3.2], "yaw": 180 }
+    "from_house":  { "position": [34.3, 0.0, -3.2], "yaw": 180 },
+    "from_fields": { "position": [-37.5, 0.0, 0.0], "yaw": 90 }
   },
   "lighting": {
     "sunDirection": [0.35, 0.6, -0.55],
@@ -48,6 +49,14 @@
     "flickerSites": [[-20.0, 0.0, -4.1], [29.8, 0.0, -4.1], [-2.6, 0.0, 4.1]]
   },
   "entities": [
+    {
+      "name": "field_path",
+      "position": [-40.0, 0.0, -1.5],
+      "interactable": {
+        "prompt": "Take the path to the fields", "focus": [0.0, 1.0, 0.0], "radius": 3.0,
+        "action": { "type": "changeLevel", "level": "windmill_field", "spawn": "from_street" }
+      }
+    },
     {
       "name": "vending_machine_west",
       "position": [-20.0, 0.0, -4.1],

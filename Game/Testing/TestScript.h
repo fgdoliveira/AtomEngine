@@ -43,6 +43,10 @@ namespace AtomGame
         virtual std::size_t VoiceCount() const = 0;
         virtual std::string SurfaceName() const = 0; // footstep surface underfoot
         virtual ArrivalError Arrival() const = 0;
+        // Animation of a named entity (M19): time into its clip, nullopt if
+        // it has none; and whether it is still playing.
+        virtual std::optional<float> AnimationTime(const std::string& entity) const = 0;
+        virtual bool AnimationPlaying(const std::string& entity) const = 0;
         virtual void Log(const std::string& text) = 0;
     };
 
@@ -93,5 +97,6 @@ namespace AtomGame
         bool m_finished = false;
         std::string m_failure;
         std::string m_level; // level seen on the previous frame
+        float m_animationStart = 0.0f; // expect_animating: time when it began
     };
 }

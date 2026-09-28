@@ -451,7 +451,7 @@ namespace Atom
             m_device,
             "Basic.vert",
             SDL_GPU_SHADERSTAGE_VERTEX,
-            ShaderResources{ .uniformBuffers = 1 }
+            ShaderResources{ .uniformBuffers = 2 }
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
@@ -860,7 +860,7 @@ namespace Atom
             m_device,
             "Shadow.vert",
             SDL_GPU_SHADERSTAGE_VERTEX,
-            ShaderResources{ .uniformBuffers = 1 }
+            ShaderResources{ .uniformBuffers = 2 }
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
@@ -889,13 +889,16 @@ namespace Atom
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute attributes[2]{};
+        SDL_GPUVertexAttribute attributes[3]{};
         attributes[0].location = 0;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[0].offset = offsetof(Vertex, position);
         attributes[1].location = 1;
         attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         attributes[1].offset = offsetof(Vertex, uv);
+        attributes[2].location = 2; // alpha carries the sway weight
+        attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_USHORT4_NORM;
+        attributes[2].offset = offsetof(Vertex, color);
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
@@ -903,7 +906,7 @@ namespace Atom
         createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
         createInfo.vertex_input_state.num_vertex_buffers = 1;
         createInfo.vertex_input_state.vertex_attributes = attributes;
-        createInfo.vertex_input_state.num_vertex_attributes = 2;
+        createInfo.vertex_input_state.num_vertex_attributes = 3;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         // Kit pieces include single-sided quads (doors, ground); let both
@@ -1145,6 +1148,7 @@ namespace Atom
         }
 
         SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
         m_stats.shadowDrawn =
             DrawQueue(renderPass, commandBuffer, lightViewProjection, 0);
 
@@ -1201,6 +1205,7 @@ namespace Atom
         );
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
 
         // Once per frame; stays bound for every draw in this command buffer.
         const SceneUniforms sceneUniforms = MakeSceneUniforms(

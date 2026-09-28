@@ -154,6 +154,10 @@ namespace AtomGame
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
+        if (Level* level = m_levels->GetLevel())
+        {
+            level->Update(deltaSeconds);
+        }
         if (m_levels->IsTransitioning())
         {
             m_mode = Mode::Transitioning;
@@ -217,6 +221,9 @@ namespace AtomGame
             lighting.fogDensity > 0.0f ? 1.0f : 0.35f
         );
         m_atmosphere.Submit(renderer);
+        // Sway follows the gusts outdoors; indoors the air is still.
+        const Level* current = m_levels->GetLevel();
+        renderer.SetWind(current && current->GetData().outdoor ? m_atmosphere.GetWind() : glm::vec3{ 0.0f }, m_time);
 
         m_unease.Update(deltaSeconds, m_camera, m_player.GetFeetPosition(), m_audioScape);
         m_unease.Submit(renderer);
@@ -464,6 +471,10 @@ namespace AtomGame
             [this](const std::string& id) { return BeginDialogue(id); },
             [this](const std::string& level, const std::string& spawn) {
                 m_levels->RequestChange(level, spawn);
+            },
+            [this](const std::string& entity, const std::string& clip) {
+                Level* level = m_levels->GetLevel();
+                return level && level->PlayAnimation(entity, clip);
             },
         };
         std::cout << "Interacted with " << target.name << '\n';
@@ -851,6 +862,22 @@ namespace AtomGame
             glm::length(m_camera.GetPosition() - m_arrivalEye),
             std::abs(glm::degrees(yaw)),
         };
+    }
+
+    std::optional<float> DemoApp::AnimationTime(const std::string& name) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(name);
+        if (!entity || !entity->animated)
+        {
+            return std::nullopt;
+        }
+        return entity->animated->time;
+    }
+
+    bool DemoApp::AnimationPlaying(const std::string& name) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(name);
+        return entity && entity->animated && entity->animated->playing;
     }
 
     void DemoApp::Log(const std::string& text)

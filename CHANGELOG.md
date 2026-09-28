@@ -41,6 +41,20 @@
 - **Lint:** faces of different pieces closer than 5 mm, parallel and
   overlapping, are now an error unless one is a decal (they z-fight at a
   distance); it moved the stone lantern's paper windows out to 6 mm.
+- **Animation (M19):** rigid glTF node animation - clips of translation,
+  rotation (slerp) and scale keys, linear, step or cubic spline - sampled
+  per frame; only animated nodes are posed, static parts keep their baked
+  transforms. Entities gain an `animation` (clip, loop, autoplay, speed, a
+  sound fired N times per loop) and a `playAnimation` action; a finished
+  one-shot stays finished. Harness: `expect_animating`,
+  `wait_for_animation`.
+- **Vertex sway (M19):** grass, leaves and noren move in the wind in the
+  vertex shader (and the shadow pass), weighted per vertex through the
+  baked colour's alpha; the wind follows the level's gusts, still indoors.
+- **Level D, the windmill field (M19):** past the west end of the street
+  ([E] at the field path): a windmill whose sails turn and creak on every
+  quarter, a hanging sign that swings, a shed whose door slides open, long
+  grass, shrubs and trees. Included in the `levels_roundtrip` scenario.
 
 ## 0.0.2 — Interaction, dialogue and levels
 

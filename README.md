@@ -63,7 +63,8 @@ stb, nlohmann/json 3.12.0, doctest 2.5.3.
 | F8 / F9 / M | particles / unease events / mute |
 
 The demo: talk to the shrine keeper by the torii, find a way through the
-shrine gate, and try the door of the house at the east end of the street.
+shrine gate, try the door of the house at the east end of the street, and
+take the field path at the west end to the windmill.
 
 Developer switches (environment variables):
 

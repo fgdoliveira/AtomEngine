@@ -111,6 +111,30 @@ namespace AtomGame
             {
                 level->AddCollider(data.position, yaw, *data.collider);
             }
+            if (data.animation)
+            {
+                const Atom::Model* model = entity.renderable ? entity.renderable->model : nullptr;
+                const int clip = model ? model->FindClip(data.animation->clip) : -1;
+                if (clip < 0)
+                {
+                    std::cerr << "Level '" << d.name << "': entity '" << data.name
+                              << "' has no animation '" << data.animation->clip << "'\n";
+                    return nullptr;
+                }
+                Animated animated;
+                animated.clip = clip;
+                animated.duration = model->GetClip(clip)->duration;
+                animated.speed = data.animation->speed;
+                animated.loop = data.animation->loop;
+                animated.playing = data.animation->autoplay;
+                animated.soundsPerLoop = data.animation->soundsPerLoop;
+                animated.soundOffset = data.animation->soundOffset;
+                if (!data.animation->sound.empty())
+                {
+                    animated.sound = services.sounds.GetSound(data.animation->sound);
+                }
+                entity.animated = animated;
+            }
             level->m_world.Spawn(std::move(entity));
         }
 
@@ -212,8 +236,89 @@ namespace AtomGame
             }
             glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
             transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
-            entity.renderable->model->Submit(renderer, transform);
+            if (entity.animated)
+            {
+                entity.renderable->model->Submit(
+                    renderer, transform, entity.animated->clip, entity.animated->time);
+            }
+            else
+            {
+                entity.renderable->model->Submit(renderer, transform);
+            }
         });
+    }
+
+    void Level::Update(float deltaSeconds)
+    {
+        m_world.ForEach([&](EntityId, Entity& entity) {
+            if (!entity.animated || !entity.animated->playing)
+            {
+                return;
+            }
+            Animated& a = entity.animated.value();
+            const float previous = a.time;
+            a.time += deltaSeconds * a.speed;
+
+            if (!a.loop)
+            {
+                if (a.time >= a.duration)
+                {
+                    a.time = a.duration;
+                    a.playing = false;
+                }
+                return;
+            }
+
+            // Sounds on the beat: at every 1/soundsPerLoop of the loop.
+            if (a.sound && a.soundsPerLoop > 0 && a.duration > 0.0f)
+            {
+                const float beat = a.duration / static_cast<float>(a.soundsPerLoop);
+                if (std::floor(a.time / beat) != std::floor(previous / beat))
+                {
+                    Atom::PlayParams params{};
+                    params.spatial = true;
+                    params.position = entity.position + a.soundOffset;
+                    params.gain = 0.5f;
+                    params.minDistance = 3.0f;
+                    params.maxDistance = 40.0f;
+                    m_audio.Play(a.sound, params);
+                }
+            }
+            if (a.duration > 0.0f && a.time >= a.duration)
+            {
+                a.time = std::fmod(a.time, a.duration);
+            }
+        });
+    }
+
+    bool Level::PlayAnimation(const std::string& name, const std::string& clipName)
+    {
+        bool found = false;
+        m_world.ForEach([&](EntityId, Entity& entity) {
+            if (found || entity.name != name || !entity.renderable || !entity.renderable->model)
+            {
+                return;
+            }
+            const Atom::Model& model = *entity.renderable->model;
+            const int clip = model.FindClip(clipName);
+            if (clip < 0)
+            {
+                return;
+            }
+            found = true;
+            Animated& a = entity.animated ? *entity.animated : entity.animated.emplace();
+            const bool finishedOneShot = a.clip == clip && !a.loop && !a.playing && a.time >= a.duration;
+            if (finishedOneShot || (a.clip == clip && a.playing))
+            {
+                return; // already open, or already moving
+            }
+            a.clip = clip;
+            a.duration = model.GetClip(clip)->duration;
+            a.time = 0.0f;
+            a.loop = false;
+            a.playing = true;
+        });
+        return found;
     }
 
     Atom::Material* Level::FindSceneMaterial(std::string_view name)

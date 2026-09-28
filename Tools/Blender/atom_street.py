@@ -168,6 +168,9 @@ def build_street(pieces, collision, materials, collection):
         street.place("utility_pole", x, POLE_OFFSET, 90)
     _wires(street, pole_xs)
 
+    # West end: a marker where the path leaves the road for the fields.
+    street.place("signpost", -39.6, 3.2, 90)
+
     _decals(street)
     _ground(street)
     _bounds(street)

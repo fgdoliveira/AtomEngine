@@ -171,9 +171,58 @@ def build_machiya_interior(pieces, collision, materials, collection):
     return level
 
 
+# --------------------------------------------------------------------------
+# Level D: the windmill field
+# --------------------------------------------------------------------------
+
+def build_windmill_field(pieces, collision, materials, collection):
+    """Open fields past the west end of the street: a dirt track north to
+    a windmill (an entity, animated), a shed and a hanging sign (entities),
+    long grass, shrubs and a few trees under the fog."""
+    level = Street(pieces, collision, materials, collection)
+
+    m = kit.MeshBuilder(grid=2.0)
+    _flat(m, "dirt", -60, -60, 60, 60, 0.0)
+    _flat(m, "paddy", -40, -45, -12, -26, 0.01)   # 1 cm: clear of the dirt's plane
+    _flat(m, "paddy", 12, -40, 40, -24, 0.01)
+    level.add_visual("fields", m)
+    track = kit.MeshBuilder()
+    _flat(track, "gravel", -1.2, -24.0, 1.2, 8.0, 0.006)
+    level.add_visual("track", track)
+
+    # Deterministic scatter: a fixed linear congruential sequence.
+    state = [12345]
+
+    def rand():
+        state[0] = (state[0] * 1103515245 + 12345) % (2 ** 31)
+        return state[0] / 2 ** 31
+
+    for _ in range(90):
+        x, y = rand() * 50 - 25, rand() * 50 - 22
+        if abs(x) < 2.0 and y < 9.0:
+            continue  # keep the track clear
+        if math.hypot(x, y - 12) < 3.5 or math.hypot(x - 6, y - 8) < 2.5:
+            continue  # not under the windmill or the shed
+        level.place("grass_tuft", x, y, rand() * 360)
+    for x, y in ((-9, 4), (8.5, -6), (-14, -14), (15, 14), (-6, 18), (11, 2)):
+        level.place("bush", x, y, (x * 17 + y * 29) % 360)
+    for x, y in ((-18, 10), (19, -2), (-11, 24)):
+        level.place("tree", x, y, (x * 41) % 360)
+    for x in (-10.0, -6.0, 6.0, 10.0):
+        level.place("wood_fence", x, -24.0, 0)
+
+    level.add_collider("floor", [((0, 0, -0.5), (130, 130, 1.0))])
+    level.add_collider("bounds", [
+        ((-30, 2, 2), (1, 60, 4)), ((30, 2, 2), (1, 60, 4)),
+        ((0, 30, 2), (60, 1, 4)), ((0, -26, 2), (60, 1, 4)),
+    ])
+    return level
+
+
 LEVELS = [
     ("shrine", build_shrine_grounds),
     ("interior", build_machiya_interior),
+    ("fields", build_windmill_field),
 ]
 
 # How each level's light is baked (atom_bake): outdoors from the sky,

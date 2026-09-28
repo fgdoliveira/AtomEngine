@@ -75,6 +75,8 @@ namespace AtomGame
         std::size_t VoiceCount() const override;
         std::string SurfaceName() const override;
         ArrivalError Arrival() const override;
+        std::optional<float> AnimationTime(const std::string& entity) const override;
+        bool AnimationPlaying(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();

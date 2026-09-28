@@ -27,6 +27,7 @@ namespace AtomGame
         m_library["vending_hum"] = SoundSynth::VendingHum();
         m_library["static"] = SoundSynth::RadioStatic();
         m_library["room_tone"] = SoundSynth::RoomTone();
+        m_library["creak"] = SoundSynth::Creak();
 
         for (int surface = 0; surface < SurfaceCount; ++surface)
         {

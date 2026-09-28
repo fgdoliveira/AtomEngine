@@ -82,6 +82,15 @@ namespace AtomGame
                 }
                 return ChangeLevel{ level, String(json, "spawn") };
             }
+            if (type == "playAnimation")
+            {
+                PlayAnimation play{ String(json, "entity"), String(json, "clip"), String(json, "message") };
+                if (play.entity.empty() || play.clip.empty())
+                {
+                    throw LevelError(where + ": playAnimation needs \"entity\" and \"clip\"");
+                }
+                return play;
+            }
             throw LevelError(where + ": unknown action type \"" + type + "\"");
         }
 
@@ -127,6 +136,23 @@ namespace AtomGame
                     interactable.lockedAction = ParseAction(*locked, where + ".locked");
                 }
                 entity.interactable = std::move(interactable);
+            }
+
+            if (const auto animation = json.find("animation"); animation != json.end())
+            {
+                EntityAnimation a;
+                a.clip = String(*animation, "clip");
+                a.loop = Bool(*animation, "loop", true);
+                a.autoplay = Bool(*animation, "autoplay", true);
+                a.speed = Number(*animation, "speed", 1.0f);
+                a.sound = String(*animation, "sound");
+                a.soundsPerLoop = static_cast<int>(Number(*animation, "soundsPerLoop", 1.0f));
+                a.soundOffset = Vec3(*animation, "soundOffset", a.soundOffset, where + ".animation");
+                if (a.clip.empty() || entity.model.empty())
+                {
+                    throw LevelError(where + ": animation needs a \"clip\" and the entity a \"model\"");
+                }
+                entity.animation = a;
             }
             return entity;
         }
