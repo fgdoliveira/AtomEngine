@@ -137,6 +137,14 @@ def build_machiya_interior(pieces, collision, materials, collection):
     m.box((3.1, 14.55, ceiling / 2), (1.2, 0.1, ceiling), "black")
     m.box((3.1, 12.55, floor - 0.01), (1.0, 4.1, 0.02), "black", faces=[(0, 0, 1)])
 
+    # Decals: a leak stain from the ceiling above the fusuma, and grime by
+    # the corridor where hands have touched the plaster for decades.
+    off = kit.DECAL_OFFSET
+    wx = -4.0 + off
+    m.quad([(wx, 5.0, 2.1), (wx, 6.3, 2.1), (wx, 6.3, 2.9), (wx, 5.0, 2.9)], "water_stain")
+    ny = room_y1 - off
+    m.quad([(2.55, ny, 0.45), (1.3, ny, 0.45), (1.3, ny, 1.6), (2.55, ny, 1.6)], "grime")
+
     # Low table with a folded letter.
     m.box((0, 6.5, floor + 0.3), (1.2, 0.9, 0.06), "wood_dark")
     for x, y in ((-0.5, 6.15), (0.5, 6.15), (-0.5, 6.85), (0.5, 6.85)):

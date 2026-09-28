@@ -100,12 +100,16 @@ TEST_CASE("The interior carries lightmap UVs inside the texture")
     }
 }
 
-TEST_CASE("Alpha-tested materials ship as double-sided masks, the rest opaque")
+TEST_CASE("Masks ship double-sided, decals as blend, everything else opaque")
 {
-    // Names of the masked materials (Tools/Blender/atom_kit.py, MASKED).
+    // Tools/Blender/atom_kit.py: MASKED and DECALS.
     const std::vector<std::string> masked{ "atom_leaves", "atom_grass", "atom_noren", "atom_chain_link" };
+    const std::vector<std::string> decals{
+        "atom_water_stain", "atom_grime", "atom_shop_sign", "atom_ofuda", "atom_road_diamond", "atom_road_paint" };
     int maskedSeen = 0;
-    for (const char* file : { "Street/street.glb", "Shrine/shrine.glb", "Kit/bush.glb", "Kit/machiya.glb" })
+    int decalsSeen = 0;
+    for (const char* file : { "Street/street.glb", "Shrine/shrine.glb", "Kit/bush.glb", "Kit/machiya.glb",
+                              "Interior/interior.glb", "Kit/shrine_gate.glb" })
     {
         const auto materials = LoadModelMaterials(Assets + file);
         REQUIRE_FALSE(materials.empty());
@@ -114,7 +118,14 @@ TEST_CASE("Alpha-tested materials ship as double-sided masks, the rest opaque")
             INFO(file << ": " << material.name);
             const bool shouldMask =
                 std::find(masked.begin(), masked.end(), material.name) != masked.end();
-            if (shouldMask)
+            const bool isDecal =
+                std::find(decals.begin(), decals.end(), material.name) != decals.end();
+            if (isDecal)
+            {
+                ++decalsSeen;
+                CHECK(material.alphaMode == AlphaMode::Blend);
+            }
+            else if (shouldMask)
             {
                 ++maskedSeen;
                 CHECK(material.alphaMode == AlphaMode::Mask);
@@ -128,6 +139,7 @@ TEST_CASE("Alpha-tested materials ship as double-sided masks, the rest opaque")
         }
     }
     CHECK(maskedSeen >= 7);
+    CHECK(decalsSeen >= 10);
 }
 
 TEST_CASE("A missing model file loads no geometry")

@@ -422,10 +422,30 @@ namespace Atom
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
         alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
         const std::size_t index = slot * 4 + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
-        if (m_scenePipelines[index])
+        if (!m_scenePipelines[index])
         {
-            return m_scenePipelines[index];
+            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false);
         }
+        return m_scenePipelines[index];
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        if (!m_decalPipelines[slot])
+        {
+            m_decalPipelines[slot] = CreateScenePipeline(slot, false, false, true);
+        }
+        return m_decalPipelines[slot];
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::CreateScenePipeline(
+        std::size_t slot,
+        bool doubleSided,
+        bool alphaToCoverage,
+        bool decal
+    )
+    {
 
         SDL_GPUShader* vertexShader = LoadShader(
             m_device,
@@ -477,6 +497,17 @@ namespace Atom
 
         SDL_GPUColorTargetDescription colorTarget{};
         colorTarget.format = m_targets.GetColorFormat();
+        if (decal)
+        {
+            // Straight alpha over what's there: colour = src*a + dst*(1-a).
+            colorTarget.blend_state.enable_blend = true;
+            colorTarget.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+            colorTarget.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            colorTarget.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+            colorTarget.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ZERO;
+            colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+            colorTarget.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+        }
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
@@ -500,9 +531,19 @@ namespace Atom
         // soft, sorted-free edges on leaves instead of stair-steps.
         createInfo.multisample_state.enable_alpha_to_coverage = alphaToCoverage;
         createInfo.depth_stencil_state.enable_depth_test = true;
-        createInfo.depth_stencil_state.enable_depth_write = true;
+        // Decals test depth (hidden behind walls) but don't write it: the
+        // surface below keeps its depth, and overlapping decals both show.
+        createInfo.depth_stencil_state.enable_depth_write = !decal;
         createInfo.depth_stencil_state.compare_op =
             SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        if (decal)
+        {
+            // Pulled toward the camera, more on slanted views, so the 2 mm
+            // they float above their surface is never lost to precision.
+            createInfo.rasterizer_state.enable_depth_bias = true;
+            createInfo.rasterizer_state.depth_bias_constant_factor = -2.0f;
+            createInfo.rasterizer_state.depth_bias_slope_factor = -1.0f;
+        }
         createInfo.target_info.color_target_descriptions = &colorTarget;
         createInfo.target_info.num_color_targets = 1;
         createInfo.target_info.depth_stencil_format =
@@ -525,7 +566,6 @@ namespace Atom
             return nullptr;
         }
 
-        m_scenePipelines[index] = pipeline;
         return pipeline;
     }
 
@@ -950,8 +990,16 @@ namespace Atom
         uniforms.viewProjection = viewProjection;
 
         std::uint32_t drawn = 0;
+        // Phase 0: opaque and alpha-tested. Phase 1 (scene only): decals,
+        // over the finished surfaces; they cast no shadows.
+        for (int phase = 0; phase < (bindMaterials ? 2 : 1); ++phase)
         for (const DrawCommand& command : m_drawCommands)
         {
+            const bool isDecal = command.material->alphaMode == AlphaMode::Blend;
+            if (isDecal != (phase == 1))
+            {
+                continue;
+            }
             if (!IsVisible(frustum, *command.mesh, command.model))
             {
                 continue;
@@ -975,8 +1023,9 @@ namespace Atom
 
             if (bindMaterials)
             {
-                SDL_GPUGraphicsPipeline* pipeline =
-                    GetScenePipeline(sceneSamples, material.doubleSided, masked);
+                SDL_GPUGraphicsPipeline* pipeline = isDecal
+                    ? GetDecalPipeline(sceneSamples)
+                    : GetScenePipeline(sceneSamples, material.doubleSided, masked);
                 if (!pipeline)
                 {
                     continue;
@@ -1481,6 +1530,13 @@ namespace Atom
                     SDL_ReleaseGPUSampler(m_device, sampler);
                 }
             }
+            for (SDL_GPUGraphicsPipeline* pipeline : m_decalPipelines)
+            {
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
+            }
             for (SDL_GPUGraphicsPipeline* pipeline : m_scenePipelines)
             {
                 if (pipeline)
@@ -1529,6 +1585,7 @@ namespace Atom
         }
 
         m_scenePipelines = {};
+        m_decalPipelines = {};
         m_postPipeline = nullptr;
         m_shadowPipeline = nullptr;
         m_particlePipelines = {};

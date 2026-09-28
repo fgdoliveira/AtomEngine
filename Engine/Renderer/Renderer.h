@@ -157,6 +157,12 @@ namespace Atom
         );
         bool CanUseAlphaToCoverage(std::uint32_t samples) const;
 
+        // Decals: alpha blending, no depth writes, a depth bias toward the
+        // camera so they win against the surface they lie on.
+        SDL_GPUGraphicsPipeline* GetDecalPipeline(std::uint32_t samples);
+        SDL_GPUGraphicsPipeline* CreateScenePipeline(
+            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal);
+
         // Scene pipelines depend on the MSAA sample count, face culling
         // and alpha-to-coverage (masked materials with MSAA); built lazily.
         SDL_GPUGraphicsPipeline* GetScenePipeline(
@@ -202,6 +208,7 @@ namespace Atom
         // Indexed by log2(samples): 1x, 2x, 4x.
         // [samples slot][double-sided][alpha-to-coverage]
         std::array<SDL_GPUGraphicsPipeline*, 12> m_scenePipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_decalPipelines{}; // per samples slot
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
         SDL_GPUTexture* m_shadowMap = nullptr;

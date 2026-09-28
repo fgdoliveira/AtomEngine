@@ -106,8 +106,12 @@ def _run_bake(mode):
 
 
 def _is_masked(material):
+    """Cards and decals: materials whose alpha lets light through."""
     import atom_kit
-    return material is not None and material.name[len(atom_kit.PREFIX):] in atom_kit.MASKED
+    if material is None:
+        return False
+    name = material.name[len(atom_kit.PREFIX):]
+    return name in atom_kit.MASKED or name in atom_kit.DECALS
 
 
 def _rebake_masked(meshes, mode):

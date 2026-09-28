@@ -490,3 +490,84 @@ def chain_link(size=64, seed=43):
                np.zeros((size, size, 3)) + np.array([0.42, 0.26, 0.15]),
                np.clip(rust * 1.6 - 0.6, 0, 1))
     return _with_alpha(rgb, wire.astype(float))
+
+
+# --------------------------------------------------------------------------
+# Decals (M18): alpha-blended over the surface they lie on.
+# --------------------------------------------------------------------------
+
+def water_stain(size=128, seed=50, color=(0.20, 0.17, 0.12)):
+    """Streaks running down from a leak: strongest at the top, fading and
+    breaking up toward the bottom (rows run bottom to top)."""
+    rng = np.random.default_rng(seed)
+    streaks = fbm(size, size, 8, 4, rng, stretch=(1, 10))
+    ys = np.linspace(0.0, 1.0, size)[:, None]
+    xs = np.linspace(-1.0, 1.0, size)[None, :]
+    alpha = np.clip(streaks * 2.6 - 0.7, 0, 1) * np.clip(ys * 1.5, 0, 1)
+    alpha *= np.clip(1.2 - xs * xs, 0, 1)  # soft sides
+    alpha = np.clip(alpha, 0, 0.85)
+    rgb = _tint(0.8 + 0.2 * fbm(size, size, 6, 3, rng), color)
+    return _with_alpha(rgb, alpha * (alpha > 0.03))
+
+
+def grime(size=128, seed=51, color=(0.12, 0.11, 0.09)):
+    """A soft dark blotch, denser at the bottom where dirt splashes up."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size] / (size - 1.0)
+    radial = np.clip(1.0 - np.hypot((xs - 0.5) * 2.0, (ys - 0.35) * 2.2), 0, 1)
+    alpha = np.clip(radial * (0.7 + 1.1 * fbm(size, size, 6, 4, rng)) - 0.1, 0, 0.85)
+    alpha *= 1.0 - 0.5 * ys
+    rgb = _tint(0.8 + 0.2 * fbm(size, size, 8, 2, rng), color)
+    return _with_alpha(rgb, alpha * (alpha > 0.03))
+
+
+def shop_sign(width=256, height=64, seed=52):
+    """A painted shop sign, long faded: cream board, five dark red blocks
+    standing in for lettering, paint peeling off in patches."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    rgb = np.zeros((height, width, 3)) + np.array([0.70, 0.64, 0.50])
+    for k in range(5):
+        x0 = int(width * (0.08 + 0.18 * k))
+        glyph = (xs >= x0) & (xs < x0 + width * 0.12) & (ys > height * 0.2) & (ys < height * 0.8)
+        strokes = fbm(width, height, 12, 2, rng) > 0.45
+        rgb = np.where((glyph & strokes)[:, :, None], np.array([0.42, 0.10, 0.08]), rgb)
+    border = (xs < 3) | (xs > width - 4) | (ys < 3) | (ys > height - 4)
+    rgb = np.where(border[:, :, None], np.array([0.25, 0.18, 0.12]), rgb)
+    rgb *= (0.75 + 0.25 * fbm(width, height, 6, 3, rng))[:, :, None]
+    peel = fbm(width, height, 10, 3, rng)
+    alpha = np.where(peel > 0.62, 0.0, 0.92)
+    return _with_alpha(rgb, alpha)
+
+
+def ofuda(width=32, height=128, seed=53):
+    """A paper talisman strip: aged paper, a red seal and inked strokes,
+    edges torn."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    paper = 0.8 + 0.2 * fbm(width, height, 3, 3, rng)
+    rgb = _tint(paper, (0.82, 0.77, 0.62))
+    ink = (np.abs(xs - width / 2) < width * 0.18) & (fbm(width, height, 2, 3, rng, stretch=(1, 4)) > 0.5) \
+        & (ys > height * 0.1) & (ys < height * 0.72)
+    rgb = np.where(ink[:, :, None], np.array([0.08, 0.07, 0.07]), rgb)
+    seal = np.hypot(xs - width / 2, ys - height * 0.83) < width * 0.22
+    rgb = np.where(seal[:, :, None], np.array([0.55, 0.12, 0.08]), rgb)
+    edge = 1.0 + 1.5 * value_noise(width, height, 4, 16, rng)
+    torn = (xs < edge) | (xs > width - 1 - edge) | (ys < 2.0 * edge)
+    alpha = np.where(torn, 0.0, 0.95)
+    return _with_alpha(rgb, alpha)
+
+
+def road_diamond(width=64, height=192, seed=54):
+    """The worn white diamond painted before a crossing (a Japanese road
+    marking), drawn as an outline, long axis along the road."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    u = np.abs(xs - width / 2) / (width / 2)
+    v = np.abs(ys - height / 2) / (height / 2)
+    d = u + v
+    outline = (d < 0.95) & (d > 0.70)
+    wear = fbm(width, height, 6, 4, rng)
+    alpha = np.where(outline, np.clip(wear * 1.6 - 0.25, 0, 0.9), 0.0)
+    rgb = np.zeros((height, width, 3)) + np.array([0.85, 0.85, 0.82])
+    return _with_alpha(rgb, alpha * (alpha > 0.03))

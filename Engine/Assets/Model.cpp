@@ -118,8 +118,7 @@ namespace Atom
             return static_cast<std::uint16_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 65535.0f));
         }
 
-        // glTF alpha: OPAQUE, MASK (with a cutoff) or BLEND. Blend isn't
-        // supported (it needs sorting); it's treated as a mask at 0.5.
+        // glTF alpha: OPAQUE, MASK (with a cutoff) or BLEND (decals).
         void ReadAlpha(const cgltf_material& source, Material& material)
         {
             material.doubleSided = source.double_sided != 0;
@@ -130,8 +129,7 @@ namespace Atom
             }
             else if (source.alpha_mode == cgltf_alpha_mode_blend)
             {
-                material.alphaMode = AlphaMode::Mask;
-                material.alphaCutoff = 0.5f;
+                material.alphaMode = AlphaMode::Blend;
             }
         }
 

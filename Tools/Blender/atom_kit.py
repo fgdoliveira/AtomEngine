@@ -69,6 +69,12 @@ MATERIALS = {
     "grass": (lambda: tex.grass(), 1.0, 1.0, 0.0),
     "noren": (lambda: tex.noren(), 1.0, 0.95, 0.0),
     "chain_link": (lambda: tex.chain_link(), 0.5, 0.5, 0.0),
+    # Decals (see DECALS).
+    "water_stain": (lambda: tex.water_stain(), 1.0, 0.95, 0.0),
+    "grime": (lambda: tex.grime(), 1.0, 0.95, 0.0),
+    "shop_sign": (lambda: tex.shop_sign(), 1.0, 0.8, 0.0),
+    "ofuda": (lambda: tex.ofuda(), 1.0, 0.9, 0.0),
+    "road_diamond": (lambda: tex.road_diamond(), 1.0, 0.8, 0.0),
 }
 
 # Alpha-tested materials (M17): name -> alpha cutoff. Pixels below it are
@@ -80,12 +86,24 @@ MASKED = {
     "chain_link": 0.5,
 }
 
+# Decals (M18): alpha-blended layers lying just over another surface
+# (DECAL_OFFSET in front of it), drawn after everything else with a depth
+# bias. Exported as glTF alphaMode BLEND. The only faces the lint allows to
+# lie (nearly) in the plane of another piece's face.
+DECALS = {"water_stain", "grime", "shop_sign", "ofuda", "road_diamond", "road_paint"}
+DECAL_OFFSET = 0.002  # metres
+
+# Faces of different pieces closer than this, parallel and overlapping,
+# are treated as coplanar: they z-fight at a distance unless one is a decal.
+NEAR_COPLANAR = 0.005  # metres
+
 
 def _make_image(name, pixels):
     height, width = pixels.shape[:2]
-    image = bpy.data.images.new(PREFIX + name, width, height, alpha=name in MASKED)
+    has_alpha = name in MASKED or name in DECALS
+    image = bpy.data.images.new(PREFIX + name, width, height, alpha=has_alpha)
     image.colorspace_settings.name = "sRGB"
-    if name in MASKED:
+    if has_alpha:
         # Colour and alpha independent: premultiplying would blacken the
         # (dilated) colour of transparent texels, for filtering and bakes.
         image.alpha_mode = "CHANNEL_PACKED"
@@ -117,6 +135,9 @@ def _make_material(name):
 
     if name in MASKED:
         _make_masked(material, texture, bsdf, name, image)
+    elif name in DECALS:
+        # Alpha straight into the BSDF: the exporter writes alphaMode BLEND.
+        material.node_tree.links.new(texture.outputs["Alpha"], bsdf.inputs["Alpha"])
 
     return material
 
@@ -297,7 +318,7 @@ class MeshBuilder:
         Different materials are an error (visible flicker); the same material
         only a warning (identical texels, at most a lighting shimmer)."""
         min_area = 1e-4  # m^2 (1 cm^2)
-        groups = {}
+        groups = {}  # (axis, facing) -> faces, searched by plane offset
         for face_index, (indices, _, material, _) in enumerate(self.faces):
             points = [self.verts[i] for i in indices]
             normal = Vector((0.0, 0.0, 0.0))  # Newell's method
@@ -316,29 +337,40 @@ class MeshBuilder:
                 min(p[others[0]] for p in points), min(p[others[1]] for p in points),
                 max(p[others[0]] for p in points), max(p[others[1]] for p in points),
             )
-            key = (axis, normal[axis] > 0, round(points[0][axis] * 1e4))
-            groups.setdefault(key, []).append((rect, material, self.pieces[face_index]))
+            groups.setdefault((axis, normal[axis] > 0), []).append(
+                (points[0][axis], rect, material, self.pieces[face_index]))
 
         errors, warnings = [], 0
-        for (axis, positive, offset), faces in groups.items():
+        for (axis, positive), faces in groups.items():
+            faces.sort(key=lambda face: face[0])
+            others = [k for k in range(3) if k != axis]
             for i in range(len(faces)):
+                oa, ra, ma, pa = faces[i]
                 for j in range(i + 1, len(faces)):
-                    (ra, ma, pa), (rb, mb, pb) = faces[i], faces[j]
+                    ob, rb, mb, pb = faces[j]
+                    gap = ob - oa
+                    if gap >= NEAR_COPLANAR - 1e-6:
+                        break  # sorted: nothing further is near
                     if pa == pb:
                         continue
                     du = min(ra[2], rb[2]) - max(ra[0], rb[0])
                     dv = min(ra[3], rb[3]) - max(ra[1], rb[1])
                     if du <= 0 or dv <= 0 or du * dv < min_area:
                         continue
+                    if ma in DECALS or mb in DECALS:
+                        continue  # decals are meant to lie on surfaces
                     if ma == mb:
                         warnings += 1
                         continue
-                    others = [k for k in range(3) if k != axis]
-                    errors.append(
-                        f"{name}: {ma} and {mb} overlap in the plane "
-                        f"{'XYZ'[axis]}={offset / 1e4:+.3f} facing {'+' if positive else '-'}{'XYZ'[axis]}, "
-                        f"{'XYZ'[others[0]]} {max(ra[0], rb[0]):.2f}..{min(ra[2], rb[2]):.2f}, "
-                        f"{'XYZ'[others[1]]} {max(ra[1], rb[1]):.2f}..{min(ra[3], rb[3]):.2f}")
+                    where = (f"{'XYZ'[axis]}={oa:+.3f} facing {'+' if positive else '-'}{'XYZ'[axis]}, "
+                             f"{'XYZ'[others[0]]} {max(ra[0], rb[0]):.2f}..{min(ra[2], rb[2]):.2f}, "
+                             f"{'XYZ'[others[1]]} {max(ra[1], rb[1]):.2f}..{min(ra[3], rb[3]):.2f}")
+                    if gap < 1e-4:
+                        errors.append(f"{name}: {ma} and {mb} overlap in the plane {where}")
+                    else:
+                        errors.append(
+                            f"{name}: {ma} and {mb} overlap {gap * 1000:.1f} mm apart ({where}): "
+                            f"make one a decal or separate them by {NEAR_COPLANAR * 1000:.0f} mm")
         if warnings:
             print(f"lint: {name}: {warnings} same-material coplanar overlaps (not fatal)")
         for error in errors:
@@ -434,6 +466,10 @@ def build_machiya(materials, collection):
     for x in (-0.65, 1.25):
         m.box((x, front - 0.06, 1.35), (0.1, 0.12, 2.1), "wood_light")
     m.box((0.3, front - 0.06, 0.33), (2.0, 0.12, 0.06), "wood_light")
+    # Decals: grime splashed up the ground-floor boards beside the door.
+    gy = front - DECAL_OFFSET
+    for x0, x1 in ((-3.0, -1.9), (1.6, 2.9)):
+        m.quad([(x0, gy, 0.3), (x1, gy, 0.3), (x1, gy, 0.95), (x0, gy, 0.95)], "grime")
     # Noren: a torn shop curtain hanging from a rod in front of the door.
     y_noren = front - 0.3
     m.cylinder((-0.7, y_noren, 2.42), 0.02, 0.04, "wood_dark", segments=6)
@@ -457,6 +493,9 @@ def build_machiya(materials, collection):
     z0 = 0.3 + ground_h
     m.box((0, upper_center_y, z0 + upper_h / 2), (width, upper_depth, upper_h), "plaster", faces=NO_BOTTOM)
     m.box((0, upper_center_y, z0 + 0.12), (width + 0.04, upper_depth + 0.04, 0.24), "wood_dark")
+    # A leak has stained the plaster beside the upper window.
+    sy = upper_center_y - upper_depth / 2 - DECAL_OFFSET
+    m.quad([(2.1, sy, z0 + 0.35), (3.0, sy, z0 + 0.35), (3.0, sy, z0 + 2.2), (2.1, sy, z0 + 2.2)], "water_stain")
     uy = upper_center_y - upper_depth / 2 - 0.02
     m.quad([(-1.8, uy, z0 + 0.7), (1.8, uy, z0 + 0.7), (1.8, uy, z0 + 1.8), (-1.8, uy, z0 + 1.8)], "shoji",
            uvs=[(0, 0), (4, 0), (4, 1.2), (0, 1.2)])
@@ -627,6 +666,10 @@ def build_shrine_gate(materials, collection):
         m.box((x, -0.05, 1.8), (1.1, 0.03, 0.08), "metal_dark")      # iron bands
         m.box((x, -0.05, 0.6), (1.1, 0.03, 0.08), "metal_dark")
     m.box((0, -0.07, 1.25), (1.6, 0.06, 0.14), "wood_dark")          # the bar
+    # Paper talismans pasted on the doors, between the bar and the band.
+    oy = -0.04 - DECAL_OFFSET
+    for x in (-0.95, -0.35, 0.33, 0.92):
+        m.quad([(x - 0.06, oy, 1.36), (x + 0.06, oy, 1.36), (x + 0.06, oy, 1.74), (x - 0.06, oy, 1.74)], "ofuda")
     for side in (-1, 1):
         m.box((0, side * 0.42, 2.83), (3.7, 0.95, 0.09), "roof_tile", rotation=rot_x(-side * 24))
     m.box((0, 0, 3.02), (3.8, 0.18, 0.14), "roof_tile")
@@ -642,7 +685,8 @@ def build_toro(materials, collection):
     m.box((0, 0, 1.3), (0.42, 0.42, 0.4), "stone")
     for normal in ((0, -1), (0, 1), (-1, 0), (1, 0)):
         nx, ny = normal
-        x, y = nx * 0.212, ny * 0.212
+        # 6 mm proud of the firebox: closer would z-fight at a distance.
+        x, y = nx * 0.216, ny * 0.216
         tx, ty = -ny, nx  # tangent along the face
         corners = [
             (x - tx * 0.12, y - ty * 0.12, 1.18),

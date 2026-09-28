@@ -9,11 +9,14 @@ namespace Atom
 
     // Opaque: every pixel drawn. Mask: pixels whose alpha is below
     // alphaCutoff are discarded (alpha testing: leaves, grass, torn cloth,
-    // chain-link) - no sorting needed, depth still written.
+    // chain-link) - no sorting needed, depth still written. Blend: a decal
+    // (stains, signs, road markings) blended over the surface it lies on,
+    // drawn after everything else without writing depth.
     enum class AlphaMode
     {
         Opaque,
         Mask,
+        Blend,
     };
 
     struct Material

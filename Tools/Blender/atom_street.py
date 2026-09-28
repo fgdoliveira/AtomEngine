@@ -168,6 +168,35 @@ def build_street(pieces, collision, materials, collection):
         street.place("utility_pole", x, POLE_OFFSET, 90)
     _wires(street, pole_xs)
 
+    _decals(street)
     _ground(street)
     _bounds(street)
     return street
+
+
+def _decals(street):
+    """Decals placed per spot (the kit pieces carry their own): stains on
+    the shrine wall, a faded sign on one house, and the worn diamonds
+    painted before a crossing."""
+    m = kit.MeshBuilder()
+    off = kit.DECAL_OFFSET
+
+    # South stone wall: its road-facing side is at y = -EDGE_OFFSET + 0.25.
+    wy = -EDGE_OFFSET + 0.25 + off
+    for x in (-36.0, -29.5, -20.5, -8.0):
+        m.quad([(x + 0.6, wy, 0.1), (x - 0.6, wy, 0.1), (x - 0.6, wy, 1.28), (x + 0.6, wy, 1.28)],
+               "water_stain")
+    for x in (-32.0, -24.5):
+        m.quad([(x + 0.7, wy, 0.0), (x - 0.7, wy, 0.0), (x - 0.7, wy, 0.8), (x + 0.7, wy, 0.8)], "grime")
+
+    # A faded sign left of the door of the house at x = -6 (front faces -Y).
+    hx, hy = -6.0, HOUSE_OFFSET - 4.0 - off
+    m.quad([(hx - 3.05, hy, 2.2), (hx - 0.95, hy, 2.2), (hx - 0.95, hy, 2.7), (hx - 3.05, hy, 2.7)],
+           "shop_sign")
+
+    # Crossing-ahead diamonds on the asphalt, one per lane.
+    for x, y in ((-12.0, -1.5), (6.0, 1.5)):
+        m.quad([(x - 1.6, y - 0.55, off), (x + 1.6, y - 0.55, off),
+                (x + 1.6, y + 0.55, off), (x - 1.6, y + 0.55, off)], "road_diamond",
+               uvs=[(0, 0), (0, 1), (1, 1), (1, 0)])
+    street.add_visual("decals", m)

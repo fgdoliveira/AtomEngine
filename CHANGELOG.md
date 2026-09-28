@@ -32,6 +32,15 @@
 - **Bake of cards:** a second vertex-bake pass for alpha-tested cards, so
   vertices on transparent texels still receive light; masked materials
   whose alpha never crosses the cutoff fail the asset build.
+- **Decals (M18):** glTF `alphaMode` BLEND materials are decals: drawn after
+  all other geometry with alpha blending, no depth writes and a depth bias
+  toward the camera; they cast no shadows. Water stains and grime on the
+  machiya, the shrine wall and the interior, a faded shop sign, ofuda on
+  the shrine gate, crossing diamonds on the road; the road lines became
+  decals too. Decals float 2 mm over their surface.
+- **Lint:** faces of different pieces closer than 5 mm, parallel and
+  overlapping, are now an error unless one is a decal (they z-fight at a
+  distance); it moved the stone lantern's paper windows out to 6 mm.
 
 ## 0.0.2 — Interaction, dialogue and levels
 
