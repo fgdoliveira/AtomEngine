@@ -35,6 +35,13 @@ namespace AtomGame
         );
         void Submit(Atom::Renderer& renderer) const;
 
+        // Per level: which effects belong there (none indoors).
+        void Configure(bool leaves, bool fogBanks)
+        {
+            m_leaves = leaves;
+            m_fogBanks = fogBanks;
+        }
+
         void SetEnabled(bool enabled) { m_enabled = enabled; }
         bool IsEnabled() const { return m_enabled; }
 
@@ -69,6 +76,8 @@ namespace AtomGame
         glm::vec3 m_wind{ 0.45f, 0.0f, 0.15f };
         float m_time = 0.0f;
         bool m_enabled = true;
+        bool m_leaves = true;
+        bool m_fogBanks = true;
         bool m_seeded = false;
         std::mt19937 m_random{ 777 };
     };

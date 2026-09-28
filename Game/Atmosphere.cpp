@@ -174,6 +174,10 @@ namespace AtomGame
 
         for (Flake& flake : m_flakes)
         {
+            if (!m_leaves)
+            {
+                break;
+            }
             // Flutter: side-to-side sway while tumbling down.
             const float sway = std::sin(m_time * 1.7f + flake.phase);
             flake.position += (wind + glm::vec3{ sway * 0.35f, -flake.fallSpeed, 0.0f })
@@ -214,6 +218,10 @@ namespace AtomGame
 
         for (Bank& bank : m_banks)
         {
+            if (!m_fogBanks)
+            {
+                break;
+            }
             bank.age += deltaSeconds;
             bank.position += wind * 0.6f * deltaSeconds;
 

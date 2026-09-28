@@ -1,0 +1,48 @@
+# Street: the keeper's permission branch only opens after bowing.
+# Run: ATOM_TEST_SCRIPT=Tests/Scenarios/street_keeper.atomtest AtomGame
+
+expect_level street
+expect_mode exploring
+
+# Ask about the gate before bowing: the respectful answer isn't offered.
+teleport_to shrine_keeper
+expect_target shrine_keeper
+interact shrine_keeper
+expect_mode dialogue
+choose 2                         # "What lies beyond the shrine gate?"
+expect_dialogue_node gate
+choose 2                         # "Never mind." (only 2 choices without bowing)
+expect_dialogue_node anything_else
+choose 3                         # "Goodbye."
+finish_dialogue
+expect_mode exploring
+expect_no_flag keeper_permission
+
+# Bow at the torii, then ask again.
+teleport_to torii
+interact torii
+expect_flag bowed_at_torii
+expect_message You bow
+
+teleport_to shrine_keeper
+interact shrine_keeper
+choose 2                         # the gate
+choose 1                         # "I only want to pay my respects."
+expect_dialogue_node respects
+expect_flag keeper_permission
+finish_dialogue
+
+# With permission the greeting changes: the gate question is gone.
+interact shrine_keeper
+choose 2                         # now "Thank you for opening the gate."
+expect_dialogue_node thanks
+finish_dialogue
+
+# The hokora answers once you've bowed.
+teleport_to hokora
+interact hokora
+expect_flag prayed_at_hokora
+
+# 3 beds + 3 vending hums + the persistent static voice.
+expect_voices_max 7
+log street_keeper done

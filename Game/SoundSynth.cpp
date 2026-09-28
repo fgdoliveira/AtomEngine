@@ -278,6 +278,28 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle RoomTone(float seconds)
+    {
+        // A closed room: the street's wind heard through walls (a heavy
+        // low-pass), and a slow clock somewhere in the house.
+        std::vector<float> out(Frames(seconds));
+        Noise noise(801);
+        Wander gust(802, 0.3f);
+        OnePoleLowpass wall1, wall2;
+        Biquad tick = Biquad::Bandpass(2600.0f, 3.0f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            float s = wall2.Process(wall1.Process(noise(), 90.0f), 120.0f) * (0.5f + 0.5f * gust.Next()) * 6.0f;
+            const float sinceTick = std::fmod(t, 1.0f);
+            s += tick.Process(noise() * std::exp(-sinceTick / 0.004f)) * 0.9f;
+            out[i] = s;
+        }
+        MakeLoop(out, 0.5f);
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle Higurashi(std::uint32_t seed)
     {
         // The evening cicada's falling "kana-kana-kana": a train of short
@@ -351,6 +373,23 @@ namespace AtomGame::SoundSynth
                 float grains = noise.Uniform() < 0.02f * decay ? noise() * 4.0f : 0.0f;
                 out[i] = crunch.Process(grains + noise() * 0.3f) * decay * 1.5f
                     + body.Process(noise(), 500.0f) * std::exp(-t / 0.04f) * 1.2f;
+            }
+            break;
+        }
+        case Surface::Wood:
+        {
+            // Hollow floorboard: a low resonant knock, then a faint creak.
+            out.resize(Frames(0.28f));
+            Biquad body = Biquad::Bandpass(180.0f * pitch, 4.0f);
+            for (std::size_t i = 0; i < out.size(); ++i)
+            {
+                const float t = static_cast<float>(i) / Rate;
+                const float knock = body.Process(noise() * std::exp(-t / 0.008f)) * 6.0f
+                    + std::sin(TwoPi * 110.0f * pitch * t) * std::exp(-t / 0.05f) * 0.5f;
+                const float creakEnvelope = std::clamp((t - 0.06f) / 0.04f, 0.0f, 1.0f) * std::exp(-(t - 0.06f) / 0.07f);
+                const float creak = std::sin(TwoPi * (620.0f + 180.0f * t) * pitch * t)
+                    * (0.5f + 0.5f * std::sin(TwoPi * 37.0f * t)) * creakEnvelope * 0.25f;
+                out[i] = knock + creak;
             }
             break;
         }

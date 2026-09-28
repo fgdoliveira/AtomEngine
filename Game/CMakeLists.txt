@@ -1,6 +1,7 @@
-add_executable(
-    AtomGame
-    Main.cpp
+# Gameplay code as a library so both the game and the unit tests use it.
+add_library(
+    AtomGameLib
+    STATIC
     Atmosphere.cpp
     Atmosphere.h
     AudioScape.cpp
@@ -13,12 +14,53 @@ add_executable(
     DemoApp.h
     PlayerController.cpp
     PlayerController.h
+    Testing/TestScript.cpp
+    Testing/TestScript.h
+    Dialogue/Dialogue.cpp
+    Dialogue/Dialogue.h
+    Dialogue/DialogueRunner.cpp
+    Dialogue/DialogueRunner.h
+    Dialogue/DialogueView.cpp
+    Dialogue/DialogueView.h
+    Interaction/Actions.h
+    Level/Level.cpp
+    Level/Level.h
+    Level/LevelData.cpp
+    Level/LevelData.h
+    Level/LevelManager.cpp
+    Level/LevelManager.h
+    Interaction/ActionExecutor.cpp
+    Interaction/ActionExecutor.h
+    Interaction/InteractionSystem.cpp
+    Interaction/InteractionSystem.h
+    Interaction/MessageFeed.cpp
+    Interaction/MessageFeed.h
+    World/GameState.h
+    World/GameWorld.h
+)
+
+target_include_directories(
+    AtomGameLib
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    AtomGameLib
+    PUBLIC
+        AtomEngine
+        nlohmann_json::nlohmann_json
+)
+
+add_executable(
+    AtomGame
+    Main.cpp
 )
 
 target_link_libraries(
     AtomGame
     PRIVATE
-        AtomEngine
+        AtomGameLib
 )
 
 add_dependencies(AtomGame AtomShaders)

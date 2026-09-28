@@ -26,6 +26,19 @@ namespace AtomGame
         constexpr float KillHeight = -20.0f;
     }
 
+    void PlayerController::Teleport(const glm::vec3& feet, Atom::Camera& camera)
+    {
+        m_feetPosition = feet;
+        m_spawnPosition = feet;
+        m_visualFeetY = feet.y;
+        m_velocity = glm::vec3{ 0.0f };
+        // The phase is kept: it is the footstep counter, and changing it
+        // would play a step on arrival.
+        m_bobWeight = 0.0f;
+        m_grounded = false;
+        camera.SetPosition(feet + glm::vec3{ 0.0f, eyeHeight, 0.0f });
+    }
+
     void PlayerController::Update(
         const Atom::Input& input,
         Atom::Camera& camera,

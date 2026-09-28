@@ -17,6 +17,8 @@ target_sources(
         Renderer/Shader.cpp
         Renderer/Texture.cpp
         Scene/Camera.cpp
+        UI/Font.cpp
+        UI/UIRenderer.cpp
 
     PUBLIC
         Assets/Model.h
@@ -36,6 +38,8 @@ target_sources(
         Renderer/Shader.h
         Renderer/Texture.h
         Scene/Camera.h
+        UI/Font.h
+        UI/UIRenderer.h
 )
 
 target_include_directories(
@@ -58,6 +62,7 @@ target_compile_definitions(
     AtomEngine
     PUBLIC
         GLM_FORCE_DEPTH_ZERO_TO_ONE
+        ATOM_VERSION="${PROJECT_VERSION}"
         GLM_FORCE_RADIANS
 )
 

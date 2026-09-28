@@ -68,6 +68,7 @@ namespace Atom
         );
         void SetMasterGain(float gain);
         float GetMasterGain() const { return m_masterGain; }
+        std::size_t GetVoiceCount() const;
 
     private:
         struct Voice

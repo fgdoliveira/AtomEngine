@@ -143,26 +143,11 @@ namespace Atom
                     : positions->count;
                 for (cgltf_size i = 0; i + 2 < count; i += 3)
                 {
-                    Triangle triangle{};
-                    triangle.a = vertex(index(i));
-                    triangle.b = vertex(index(i + 1));
-                    triangle.c = vertex(index(i + 2));
-
-                    const glm::vec3 cross = glm::cross(
-                        triangle.b - triangle.a,
-                        triangle.c - triangle.a
+                    AddTriangle(
+                        vertex(index(i)),
+                        vertex(index(i + 1)),
+                        vertex(index(i + 2))
                     );
-                    const float length = glm::length(cross);
-                    if (length < 1e-8f)
-                    {
-                        continue;
-                    }
-                    triangle.normal = cross / length;
-                    triangle.boundsMin = glm::min(
-                        triangle.a, glm::min(triangle.b, triangle.c));
-                    triangle.boundsMax = glm::max(
-                        triangle.a, glm::max(triangle.b, triangle.c));
-                    m_triangles.push_back(triangle);
                 }
             }
         }
@@ -171,6 +156,92 @@ namespace Atom
             << "Loaded collision '" << path << "': "
             << m_triangles.size() << " triangles\n";
         return !m_triangles.empty();
+    }
+
+    void CollisionWorld::AddTriangle(
+        const glm::vec3& a,
+        const glm::vec3& b,
+        const glm::vec3& c
+    )
+    {
+        const glm::vec3 cross = glm::cross(b - a, c - a);
+        const float length = glm::length(cross);
+        if (length < 1e-8f)
+        {
+            return;
+        }
+
+        Triangle triangle{};
+        triangle.a = a;
+        triangle.b = b;
+        triangle.c = c;
+        triangle.normal = cross / length;
+        triangle.boundsMin = glm::min(a, glm::min(b, c));
+        triangle.boundsMax = glm::max(a, glm::max(b, c));
+        m_triangles.push_back(triangle);
+    }
+
+    std::optional<RayHit> CollisionWorld::Raycast(
+        const glm::vec3& from,
+        const glm::vec3& to
+    ) const
+    {
+        const glm::vec3 segment = to - from;
+        const float length = glm::length(segment);
+        if (length < 1e-6f)
+        {
+            return std::nullopt;
+        }
+        const glm::vec3 direction = segment / length;
+        const glm::vec3 segmentMin = glm::min(from, to);
+        const glm::vec3 segmentMax = glm::max(from, to);
+
+        std::optional<RayHit> nearest;
+        float nearestDistance = length;
+
+        for (const Triangle& triangle : m_triangles)
+        {
+            // Cheap reject: the segment's box must overlap the triangle's.
+            if (segmentMax.x < triangle.boundsMin.x || segmentMin.x > triangle.boundsMax.x
+                || segmentMax.y < triangle.boundsMin.y || segmentMin.y > triangle.boundsMax.y
+                || segmentMax.z < triangle.boundsMin.z || segmentMin.z > triangle.boundsMax.z)
+            {
+                continue;
+            }
+
+            // Möller–Trumbore: solve from + t*dir = a + u*e1 + v*e2.
+            const glm::vec3 e1 = triangle.b - triangle.a;
+            const glm::vec3 e2 = triangle.c - triangle.a;
+            const glm::vec3 p = glm::cross(direction, e2);
+            const float determinant = glm::dot(e1, p);
+            if (std::abs(determinant) < 1e-8f)
+            {
+                continue; // parallel to the triangle
+            }
+            const float inverse = 1.0f / determinant;
+            const glm::vec3 s = from - triangle.a;
+            const float u = glm::dot(s, p) * inverse;
+            if (u < 0.0f || u > 1.0f)
+            {
+                continue;
+            }
+            const glm::vec3 q = glm::cross(s, e1);
+            const float v = glm::dot(direction, q) * inverse;
+            if (v < 0.0f || u + v > 1.0f)
+            {
+                continue;
+            }
+            const float t = glm::dot(e2, q) * inverse;
+            if (t < 0.0f || t >= nearestDistance)
+            {
+                continue;
+            }
+
+            nearestDistance = t;
+            nearest = RayHit{ t, from + direction * t, triangle.normal };
+        }
+
+        return nearest;
     }
 
     bool CollisionWorld::ResolveSphereHorizontal(

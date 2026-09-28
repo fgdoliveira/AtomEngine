@@ -17,12 +17,10 @@ namespace AtomGame
     class PlayerController
     {
     public:
-        void SetFeetPosition(const glm::vec3& position)
-        {
-            m_feetPosition = position;
-            m_spawnPosition = position;
-            m_visualFeetY = position.y;
-        }
+        // Places the player at feet position with no momentum or head-bob
+        // and moves the camera there at once, so the very next frame is
+        // rendered from the new spot (level loads, spawns, test hooks).
+        void Teleport(const glm::vec3& feet, Atom::Camera& camera);
 
         const glm::vec3& GetFeetPosition() const { return m_feetPosition; }
         bool IsGrounded() const { return m_grounded; }
