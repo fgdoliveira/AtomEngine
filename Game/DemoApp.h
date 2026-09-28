@@ -73,6 +73,8 @@ namespace AtomGame
         std::string Message() const override;
         std::string DialogueNodeId() const override;
         std::size_t VoiceCount() const override;
+        std::string SurfaceName() const override;
+        ArrivalError Arrival() const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
@@ -98,6 +100,12 @@ namespace AtomGame
         DialogueRunner m_dialogue;
         DialogueView m_dialogueView;
         EntityId m_speaker{}; // who we're talking to
+
+        // Where the last level load put the camera. Until the fade-in ends
+        // the camera must stay there: those frames show the new level.
+        glm::vec3 m_arrivalEye{ 0.0f };
+        float m_arrivalYaw = 0.0f; // radians
+        bool m_arriving = false;
         float m_time = 0.0f;
 
         std::size_t m_fogPreset = 0;

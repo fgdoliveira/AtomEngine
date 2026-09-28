@@ -104,6 +104,17 @@ TEST_CASE("Broken level data is rejected with a reason")
     const auto badVector = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
         "spawns": { "a": { "position": [0, 0] } } })");
     CHECK_FALSE(badVector.level.has_value());
+
+    // A misspelt surface would otherwise play dirt footsteps without a word.
+    const auto badSurface = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "surfaces": { "default": "dirt", "zones": [ { "min": [0,0,0], "max": [1,0,1], "surface": "tatamii" } ] } })");
+    CHECK_FALSE(badSurface.level.has_value());
+    CHECK(badSurface.error.find("tatamii") != std::string::npos);
+
+    const auto badDefaultSurface = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } }, "surfaces": { "default": "gravel" } })");
+    CHECK_FALSE(badDefaultSurface.level.has_value());
 }
 
 TEST_CASE("Every shipped level file is valid")

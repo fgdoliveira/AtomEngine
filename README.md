@@ -82,6 +82,10 @@ ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
 ```
 
+Every scenario also checks, on each level change, that the new level is
+first drawn from its spawn. The asset build has its own check: it refuses
+to export overlapping coplanar faces of different materials (z-fighting).
+
 Scenarios live in `Tests/Scenarios/*.atomtest`, one command per line, and
 address entities by name:
 

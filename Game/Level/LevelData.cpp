@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -196,13 +197,21 @@ namespace AtomGame
 
             if (const auto surfaces = root.find("surfaces"); surfaces != root.end())
             {
-                level.defaultSurface = String(*surfaces, "default", level.defaultSurface);
+                // A misspelt surface would silently sound like the default.
+                const auto known = [](const std::string& surface) {
+                    if (std::find(FootstepSurfaces.begin(), FootstepSurfaces.end(), surface) == FootstepSurfaces.end())
+                    {
+                        throw LevelError("unknown footstep surface \"" + surface + "\"");
+                    }
+                    return surface;
+                };
+                level.defaultSurface = known(String(*surfaces, "default", level.defaultSurface));
                 for (const Json& zone : surfaces->value("zones", Json::array()))
                 {
                     const glm::vec3 min = Vec3(zone, "min", glm::vec3{ 0.0f }, "surface zone");
                     const glm::vec3 max = Vec3(zone, "max", glm::vec3{ 0.0f }, "surface zone");
                     level.surfaces.push_back(SurfaceZone{
-                        { min.x, min.z }, { max.x, max.z }, String(zone, "surface", level.defaultSurface) });
+                        { min.x, min.z }, { max.x, max.z }, known(String(zone, "surface", level.defaultSurface)) });
                 }
             }
 

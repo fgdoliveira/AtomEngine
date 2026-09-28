@@ -136,6 +136,13 @@ def main():
         scene.collection.children.link(level_collection)
         levels.append((folder, build(pieces, collision, materials, level_collection)))
 
+    # Geometry that would z-fight is a build error, like a compile error:
+    # nothing is exported until it is fixed.
+    if atom_kit.LINT_ERRORS:
+        print(f"lint: {len(atom_kit.LINT_ERRORS)} error(s); nothing exported")
+        sys.exit(1)
+    print("lint: no z-fighting between pieces")
+
     if args.no_export:
         return
 

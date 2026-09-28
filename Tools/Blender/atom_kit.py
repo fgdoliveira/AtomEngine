@@ -15,6 +15,10 @@ import atom_textures as tex
 
 PREFIX = "atom_"
 
+# Problems found by MeshBuilder.lint_coplanar while building; build_assets
+# refuses to export while this is non-empty.
+LINT_ERRORS = []
+
 
 # --------------------------------------------------------------------------
 # Materials
@@ -122,6 +126,12 @@ _BOX_FACES = (
     ((0, 0, -1), (-1, 0, 0), (0, 1, 0)),
 )
 
+# Face sets for boxes whose other faces can never be seen (resting on a
+# floor, capped by a roof). Leaving them out saves triangles and keeps
+# them from z-fighting with the faces they are pressed against.
+SIDES = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)]
+NO_BOTTOM = SIDES + [(0, 0, 1)]
+
 
 def rot_x(degrees):
     return Matrix.Rotation(math.radians(degrees), 3, "X")
@@ -139,21 +149,37 @@ class MeshBuilder:
     def __init__(self):
         self.verts = []
         self.faces = []  # (vertex indices, loop uvs, material name, smooth)
+        # Per face: which call made it. Faces of one box or cylinder share
+        # an id, so the lint never compares a piece with itself.
+        self.pieces = []
+        self._piece = 0
+        self._grouped = False
 
     def _add_vert(self, position):
         self.verts.append(tuple(position))
         return len(self.verts) - 1
 
+    def _begin_piece(self):
+        if not self._grouped:
+            self._piece += 1
+
+    def _tag_faces(self):
+        self.pieces.extend([self._piece] * (len(self.faces) - len(self.pieces)))
+
     def quad(self, corners, material, uvs=None, smooth=False):
         """corners counter-clockwise seen from the front."""
+        self._begin_piece()
         indices = [self._add_vert(c) for c in corners]
         if uvs is None:
             uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
         self.faces.append((indices, list(uvs), material, smooth))
+        self._tag_faces()
 
     def tri(self, corners, material, uvs):
+        self._begin_piece()
         indices = [self._add_vert(c) for c in corners]
         self.faces.append((indices, list(uvs), material, False))
+        self._tag_faces()
 
     def box(self, center, size, material, rotation=None, faces="all"):
         """Box with world-scale UVs; faces can exclude e.g. hidden bottoms."""
@@ -162,6 +188,8 @@ class MeshBuilder:
         half = Vector(size) / 2.0
         tile = tile_of(material)
 
+        self._begin_piece()
+        self._grouped = True
         for normal, u_axis, v_axis in _BOX_FACES:
             if faces != "all" and normal not in faces:
                 continue
@@ -173,9 +201,11 @@ class MeshBuilder:
                 corners.append(center + rotation @ local)
                 uvs.append((local.dot(u) / tile, local.dot(v) / tile))
             self.quad(corners, material, uvs)
+        self._grouped = False
 
     def cylinder(self, base, radius, height, material, segments=12, caps=True):
         """Upright cylinder with shared ring verts so it shades smooth."""
+        self._begin_piece()
         base = Vector(base)
         tile = tile_of(material)
         circumference = 2.0 * math.pi * radius
@@ -206,8 +236,66 @@ class MeshBuilder:
             ]
             self.faces.append((list(ring_top), cap_uv, material, False))
             self.faces.append((list(reversed(ring_bottom)), list(reversed(cap_uv)), material, False))
+        self._tag_faces()
+
+    def lint_coplanar(self, name):
+        """Finds z-fighting: faces of different pieces lying in the same
+        axis-aligned plane, facing the same way, and overlapping. The depth
+        test cannot order them, so they flicker as the view moves.
+
+        Different materials are an error (visible flicker); the same material
+        only a warning (identical texels, at most a lighting shimmer)."""
+        min_area = 1e-4  # m^2 (1 cm^2)
+        groups = {}
+        for face_index, (indices, _, material, _) in enumerate(self.faces):
+            points = [self.verts[i] for i in indices]
+            normal = Vector((0.0, 0.0, 0.0))  # Newell's method
+            for a, b in zip(points, points[1:] + points[:1]):
+                normal.x += (a[1] - b[1]) * (a[2] + b[2])
+                normal.y += (a[2] - b[2]) * (a[0] + b[0])
+                normal.z += (a[0] - b[0]) * (a[1] + b[1])
+            if normal.length < 1e-9:
+                continue
+            normal.normalize()
+            axis = max(range(3), key=lambda k: abs(normal[k]))
+            if abs(abs(normal[axis]) - 1.0) > 1e-4:
+                continue  # not axis-aligned (rotated pieces, roofs)
+            others = [k for k in range(3) if k != axis]
+            rect = (
+                min(p[others[0]] for p in points), min(p[others[1]] for p in points),
+                max(p[others[0]] for p in points), max(p[others[1]] for p in points),
+            )
+            key = (axis, normal[axis] > 0, round(points[0][axis] * 1e4))
+            groups.setdefault(key, []).append((rect, material, self.pieces[face_index]))
+
+        errors, warnings = [], 0
+        for (axis, positive, offset), faces in groups.items():
+            for i in range(len(faces)):
+                for j in range(i + 1, len(faces)):
+                    (ra, ma, pa), (rb, mb, pb) = faces[i], faces[j]
+                    if pa == pb:
+                        continue
+                    du = min(ra[2], rb[2]) - max(ra[0], rb[0])
+                    dv = min(ra[3], rb[3]) - max(ra[1], rb[1])
+                    if du <= 0 or dv <= 0 or du * dv < min_area:
+                        continue
+                    if ma == mb:
+                        warnings += 1
+                        continue
+                    others = [k for k in range(3) if k != axis]
+                    errors.append(
+                        f"{name}: {ma} and {mb} overlap in the plane "
+                        f"{'XYZ'[axis]}={offset / 1e4:+.3f} facing {'+' if positive else '-'}{'XYZ'[axis]}, "
+                        f"{'XYZ'[others[0]]} {max(ra[0], rb[0]):.2f}..{min(ra[2], rb[2]):.2f}, "
+                        f"{'XYZ'[others[1]]} {max(ra[1], rb[1]):.2f}..{min(ra[3], rb[3]):.2f}")
+        if warnings:
+            print(f"lint: {name}: {warnings} same-material coplanar overlaps (not fatal)")
+        for error in errors:
+            print("lint ERROR: " + error)
+        LINT_ERRORS.extend(errors)
 
     def build(self, name, materials, collection):
+        self.lint_coplanar(name)
         mesh = bpy.data.meshes.new(PREFIX + name)
         mesh.from_pydata(self.verts, [], [f[0] for f in self.faces])
 
@@ -272,7 +360,7 @@ def build_machiya(materials, collection):
     upper_depth = depth - 1.0
     upper_center_y = 0.5
     z0 = 0.3 + ground_h
-    m.box((0, upper_center_y, z0 + upper_h / 2), (width, upper_depth, upper_h), "plaster")
+    m.box((0, upper_center_y, z0 + upper_h / 2), (width, upper_depth, upper_h), "plaster", faces=NO_BOTTOM)
     m.box((0, upper_center_y, z0 + 0.12), (width + 0.04, upper_depth + 0.04, 0.24), "wood_dark")
     uy = upper_center_y - upper_depth / 2 - 0.02
     m.quad([(-1.8, uy, z0 + 0.7), (1.8, uy, z0 + 0.7), (1.8, uy, z0 + 1.8), (-1.8, uy, z0 + 1.8)], "shoji",
@@ -416,7 +504,7 @@ def build_keeper(materials, collection):
     m = MeshBuilder()
     # Hakama: wide pleated trousers, flaring at the hem, straw sandals.
     m.box((0, 0, 0.47), (0.50, 0.34, 0.86), "cloth_hakama")
-    m.box((0, 0, 0.09), (0.58, 0.42, 0.18), "cloth_hakama")
+    m.box((0, 0, 0.09), (0.58, 0.42, 0.18), "cloth_hakama", faces=NO_BOTTOM)
     for x in (-0.11, 0.11):
         m.box((x, -0.06, 0.015), (0.11, 0.26, 0.03), "black")
     # Kimono body and wide hanging sleeves, a slight stoop forward.
@@ -499,13 +587,13 @@ def build_haiden(materials, collection):
     body_y = 0.6
     body_depth = 5.0
     z0 = height
-    m.box((0, body_y, z0 + 1.6), (8.0, body_depth, 3.2), "plaster")
+    m.box((0, body_y, z0 + 1.6), (8.0, body_depth, 3.2), "plaster", faces=SIDES)
     m.box((0, body_y, z0 + 0.15), (8.04, body_depth + 0.04, 0.3), "wood_dark")
     y = body_y - body_depth / 2 - 0.02
     m.quad([(-3.0, y, z0 + 0.3), (3.0, y, z0 + 0.3), (3.0, y, z0 + 2.7), (-3.0, y, z0 + 2.7)], "door_lattice",
            uvs=[(0, 0), (10, 0), (10, 4), (0, 4)])
     for x in (-3.9, -3.05, 3.05, 3.9):
-        m.box((x, body_y - body_depth / 2 - 0.1, z0 + 1.6), (0.26, 0.26, 3.2), "wood_dark")
+        m.box((x, body_y - body_depth / 2 - 0.1, z0 + 1.6), (0.26, 0.26, 3.2), "wood_dark", faces=NO_BOTTOM)
     # Shimenawa: a straw rope across the doors.
     m.box((0, y - 0.15, z0 + 2.9), (6.4, 0.22, 0.22), "straw")
     for x in (-2.0, 0.0, 2.0):

@@ -20,6 +20,9 @@ namespace
         int interactions = 0;
         std::size_t voices = 3;
         float timeUntilLevelChange = -1.0f; // simulated transition
+        std::string surface = "dirt";
+        ArrivalError arrivalAfterChange{};   // how the next level is entered
+        ArrivalError arrival{};
 
         bool TeleportTo(const std::string& entity, float) override { return entity != "missing"; }
         void Teleport(const glm::vec3&, float) override {}
@@ -40,6 +43,8 @@ namespace
         std::string Message() const override { return message; }
         std::string DialogueNodeId() const override { return ""; }
         std::size_t VoiceCount() const override { return voices; }
+        std::string SurfaceName() const override { return surface; }
+        ArrivalError Arrival() const override { return arrival; }
         void Log(const std::string&) override {}
     };
 
@@ -63,6 +68,7 @@ namespace
                 {
                     game.level = "shrine_grounds";
                     game.mode = "exploring";
+                    game.arrival = game.arrivalAfterChange;
                 }
             }
             runner.Update(1.0f / 60.0f, game);
@@ -146,6 +152,38 @@ TEST_CASE("wait_for_level waits for a transition, and times out otherwise")
     TestRunner timesOut(Parse("wait_for_level nowhere 1"));
     Run(timesOut, stuck);
     CHECK_FALSE(timesOut.Passed());
+}
+
+TEST_CASE("Entering a level away from its spawn fails the script")
+{
+    const auto run = [](ArrivalError arrival) {
+        FakeGame game;
+        game.mode = "transitioning";
+        game.timeUntilLevelChange = 0.5f;
+        game.arrivalAfterChange = arrival;
+        TestRunner runner(Parse("wait_for_level shrine_grounds 5"));
+        Run(runner, game);
+        return runner.Passed() ? std::string() : runner.GetFailure();
+    };
+
+    CHECK(run({ 0.001f, 0.1f }).empty());
+    // The v0.0.2 bug: the new level drawn from the old level's position.
+    CHECK(run({ 34.2f, 0.0f }).find("shrine_grounds") != std::string::npos);
+    CHECK_FALSE(run({ 0.0f, 90.0f }).empty());
+}
+
+TEST_CASE("expect_surface compares the footstep surface underfoot")
+{
+    FakeGame game;
+    game.surface = "wood";
+    TestRunner passes(Parse("expect_surface wood"));
+    Run(passes, game);
+    CHECK(passes.Passed());
+
+    TestRunner fails(Parse("expect_surface dirt"));
+    Run(fails, game);
+    CHECK_FALSE(fails.Passed());
+    CHECK(fails.GetFailure().find("'wood'") != std::string::npos);
 }
 
 TEST_CASE("Voice counts above the limit fail as a leak")

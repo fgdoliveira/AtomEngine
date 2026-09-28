@@ -28,9 +28,18 @@ NPC dialogue, and moves cleanly between them.
 - **Content:** a barred shrine gate and an enterable house on the street;
   the shrine grounds (level B) and a machiya interior (level C), built by
   the Blender pipeline; wood footsteps and an interior room tone.
-- **Testing:** doctest unit tests (39 cases) and an in-game scenario
-  harness (`ATOM_TEST_SCRIPT`) registered with ctest; the
-  `levels_roundtrip` scenario is the v0.0.2 acceptance test.
+- **Testing:** doctest unit tests and an in-game scenario harness
+  (`ATOM_TEST_SCRIPT`) registered with ctest; the `levels_roundtrip`
+  scenario is the v0.0.2 acceptance test.
+- **Validation (M14):** checks that catch bugs where they start, with no
+  stored images:
+  - every level change in a scenario checks that the camera is at the
+    spawn on the first frame (also a Debug assert during the fade-in);
+  - the Blender build refuses to export geometry that would z-fight
+    (overlapping coplanar faces of different materials);
+  - level files reject unknown footstep surfaces, and levels refuse
+    spawns without a floor or inside a wall;
+  - `expect_surface` checks the footstep surface underfoot.
 - `ATOM_START_LEVEL` to start in any level; version shown in the log and
   window title.
 
@@ -41,6 +50,14 @@ NPC dialogue, and moves cleanly between them.
   sound library plus the sounds that follow the player.
 - Gameplay code builds as a library (`AtomGameLib`) shared by the game and
   the tests.
+
+### Fixed
+- After a level change, the fade-in showed the new level from the previous
+  level's coordinates, then snapped to the spawn; momentum also carried
+  through doors.
+- Flickering walls in the machiya interior (coplanar overlapping faces at
+  the tokonoma, the corridor and the doma); hidden faces of the town house,
+  shrine hall and keeper are no longer exported.
 
 ### Measured
 Release, uncapped, Iris Xe, 1280×720: street ≈ 2.6 ms, shrine grounds

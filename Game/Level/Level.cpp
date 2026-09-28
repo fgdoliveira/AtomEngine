@@ -2,16 +2,52 @@
 
 #include "Assets/Model.h"
 #include "AudioScape.h"
+#include "PlayerController.h"
 #include "Renderer/Renderer.h"
 
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <glm/geometric.hpp>
+
 #include <cmath>
 #include <iostream>
+#include <optional>
+#include <string>
 
 namespace AtomGame
 {
+    namespace
+    {
+        // A spawn must put the player on a floor (within a step) and clear
+        // of walls; otherwise they arrive falling or get shoved on frame one.
+        std::string CheckSpawn(const Atom::CollisionWorld& collision, const SpawnPoint& spawn)
+        {
+            const PlayerController body{}; // default body dimensions
+            const glm::vec3 feet = spawn.position;
+
+            const std::optional<float> floor = collision.FindFloor(
+                feet + glm::vec3{ 0.0f, body.stepHeight, 0.0f }, 2.0f * body.stepHeight);
+            if (!floor)
+            {
+                return "no floor under it";
+            }
+
+            // Same sphere stack the controller slides along walls.
+            for (float height = body.radius + body.stepHeight; height <= body.bodyHeight - body.radius; height += body.radius)
+            {
+                glm::vec3 center = glm::vec3{ feet.x, *floor + height, feet.z };
+                const glm::vec3 before = center;
+                collision.ResolveSphereHorizontal(center, body.radius);
+                if (glm::length(center - before) > 0.01f)
+                {
+                    return "inside or against a wall at " + std::to_string(height).substr(0, 4) + " m";
+                }
+            }
+            return {};
+        }
+    }
+
     Level::Level(LevelData data, Atom::AudioSystem& audio)
         : m_data(std::move(data))
         , m_audio(audio)
@@ -64,6 +100,15 @@ namespace AtomGame
                 level->AddCollider(data.position, yaw, *data.collider);
             }
             level->m_world.Spawn(std::move(entity));
+        }
+
+        for (const auto& [name, spawn] : d.spawns)
+        {
+            if (const std::string problem = CheckSpawn(level->m_collision, spawn); !problem.empty())
+            {
+                std::cerr << "Level '" << d.name << "': spawn '" << name << "' is invalid: " << problem << '\n';
+                return nullptr;
+            }
         }
 
         // Ambience that belongs to this place.

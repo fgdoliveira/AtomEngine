@@ -18,6 +18,7 @@ namespace AtomGame
             Dirt,
             Stone,
             Wood, // floorboards: hollow knock with a creak
+            // Keep in step with FootstepSurfaces (Level/LevelData.h).
         };
 
         Atom::SoundHandle Wind(float seconds = 24.0f);

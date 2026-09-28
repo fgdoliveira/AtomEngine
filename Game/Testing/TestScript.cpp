@@ -36,6 +36,7 @@ namespace AtomGame
                 { "expect_message", { 1, 32 } },    // words that must appear
                 { "expect_dialogue_node", { 1, 1 } },
                 { "expect_voices_max", { 1, 1 } },
+                { "expect_surface", { 1, 1 } },     // footstep surface name
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -107,8 +108,38 @@ namespace AtomGame
         m_finished = true;
     }
 
+    void TestRunner::CheckArrival(TestHooks& game)
+    {
+        const std::string level = game.LevelName();
+        if (level == m_level)
+        {
+            return;
+        }
+        m_level = level;
+
+        // The first frame of a level is drawn from wherever the camera is,
+        // so it must already be at the spawn.
+        constexpr float MaxDistance = 0.01f; // metres
+        constexpr float MaxYaw = 0.5f;       // degrees
+        const ArrivalError error = game.Arrival();
+        if (error.distance > MaxDistance || error.yawDegrees > MaxYaw)
+        {
+            std::ostringstream why;
+            why << "entering level '" << level << "': camera is " << error.distance
+                << " m and " << error.yawDegrees << " deg from the spawn";
+            m_failure = why.str();
+            m_finished = true;
+        }
+    }
+
     void TestRunner::Update(float deltaSeconds, TestHooks& game)
     {
+        if (m_finished)
+        {
+            return;
+        }
+
+        CheckArrival(game);
         if (m_finished)
         {
             return;
@@ -299,6 +330,14 @@ namespace AtomGame
             if (game.VoiceCount() > limit)
             {
                 Fail(command, std::to_string(game.VoiceCount()) + " voices playing (leak?)");
+            }
+            return true;
+        }
+        if (name == "expect_surface")
+        {
+            if (game.SurfaceName() != args[0])
+            {
+                Fail(command, "surface is '" + game.SurfaceName() + "'");
             }
             return true;
         }

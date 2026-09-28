@@ -10,6 +10,14 @@
 
 namespace AtomGame
 {
+    // How far the camera is from where the last level load placed it
+    // (spawn position at eye height, spawn yaw).
+    struct ArrivalError
+    {
+        float distance = 0.0f;   // metres
+        float yawDegrees = 0.0f; // absolute, wrapped to [0, 180]
+    };
+
     // What a test script can see and do in the game. The game implements
     // this; unit tests implement it with a fake. Every action goes through
     // the same code a player's input would.
@@ -33,6 +41,8 @@ namespace AtomGame
         virtual std::string Message() const = 0;
         virtual std::string DialogueNodeId() const = 0;
         virtual std::size_t VoiceCount() const = 0;
+        virtual std::string SurfaceName() const = 0; // footstep surface underfoot
+        virtual ArrivalError Arrival() const = 0;
         virtual void Log(const std::string& text) = 0;
     };
 
@@ -54,7 +64,9 @@ namespace AtomGame
     TestScriptParseResult ParseTestScript(std::string_view text);
 
     // Runs a parsed script a step at a time, one command per frame (waits
-    // span frames), so the game gets to update between actions.
+    // span frames), so the game gets to update between actions. Besides the
+    // script's own checks, every level change is checked: on the first
+    // frame in a new level the camera must be at its spawn.
     class TestRunner
     {
     public:
@@ -71,6 +83,7 @@ namespace AtomGame
         // Returns true when the command is complete and the next may run.
         bool Execute(const TestCommand& command, float deltaSeconds, TestHooks& game);
         void Fail(const TestCommand& command, const std::string& why);
+        void CheckArrival(TestHooks& game);
 
         std::vector<TestCommand> m_commands;
         std::size_t m_next = 0;
@@ -79,5 +92,6 @@ namespace AtomGame
         float m_timeout;
         bool m_finished = false;
         std::string m_failure;
+        std::string m_level; // level seen on the previous frame
     };
 }

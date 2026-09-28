@@ -46,6 +46,12 @@ interact house_door
 wait_for_level machiya_interior
 expect_voices_max 3                  # room tone + drone + static
 
+# Footsteps: earth in the doma, floorboards and tatami past the step.
+teleport 0 0 -1.5 0
+expect_surface dirt
+teleport 0 0.3 -5 0
+expect_surface wood
+
 teleport_to letter
 interact letter
 expect_flag read_letter

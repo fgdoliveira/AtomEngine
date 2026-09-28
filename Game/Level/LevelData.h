@@ -6,6 +6,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include <array>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,6 +17,10 @@ namespace AtomGame
 {
     // Everything a level file (Assets/Levels/<name>.json) describes. Plain
     // data: parsing produces it, Level turns it into live objects.
+
+    // Footstep surface names a level may use, in SoundSynth::Surface order.
+    inline constexpr std::array<std::string_view, 5> FootstepSurfaces{
+        "asphalt", "concrete", "dirt", "stone", "wood" };
 
     struct SpawnPoint
     {

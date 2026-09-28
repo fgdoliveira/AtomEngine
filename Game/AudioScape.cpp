@@ -1,9 +1,11 @@
 #include "AudioScape.h"
 
+#include "Level/LevelData.h"
 #include "Scene/Camera.h"
 
 #include <glm/gtc/constants.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -70,11 +72,11 @@ namespace AtomGame
     {
         using SoundSynth::Surface;
         const std::string_view name = m_surfaceAt ? m_surfaceAt(position.x, position.z) : "dirt";
-        if (name == "asphalt") { return Surface::Asphalt; }
-        if (name == "concrete") { return Surface::Concrete; }
-        if (name == "stone") { return Surface::Stone; }
-        if (name == "wood") { return Surface::Wood; }
-        return Surface::Dirt;
+        // Level files are validated against the same list.
+        const auto found = std::find(FootstepSurfaces.begin(), FootstepSurfaces.end(), name);
+        return found != FootstepSurfaces.end()
+            ? static_cast<Surface>(found - FootstepSurfaces.begin())
+            : Surface::Dirt;
     }
 
     void AudioScape::Update(

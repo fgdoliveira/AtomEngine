@@ -114,6 +114,10 @@ namespace AtomGame
 
         m_player.Teleport(spawn.position, m_camera);
         m_camera.SetRotation(glm::radians(spawn.yawDegrees), 0.0f);
+        // Expected from the spawn itself, not read back from the camera.
+        m_arrivalEye = spawn.position + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f };
+        m_arrivalYaw = glm::radians(spawn.yawDegrees);
+        m_arriving = true;
 
         m_atmosphere.Configure(data.leaves, data.fogBanks);
         m_unease.Configure(data.unease, &incoming);
@@ -158,6 +162,10 @@ namespace AtomGame
         {
             m_mode = Mode::Exploring;
         }
+        if (m_mode != Mode::Transitioning)
+        {
+            m_arriving = false; // the player may move from here on
+        }
 
         switch (m_mode)
         {
@@ -170,6 +178,8 @@ namespace AtomGame
             break;
         case Mode::Transitioning:
             m_target = {};
+            // The fade-in is drawn from here: it must be the spawn.
+            SDL_assert(!m_arriving || (Arrival().distance < 0.01f && Arrival().yawDegrees < 0.5f));
             break;
         }
 
@@ -816,6 +826,22 @@ namespace AtomGame
     std::size_t DemoApp::VoiceCount() const
     {
         return const_cast<DemoApp*>(this)->GetAudio().GetVoiceCount();
+    }
+
+    std::string DemoApp::SurfaceName() const
+    {
+        const Level* level = m_levels->GetLevel();
+        const glm::vec3& feet = m_player.GetFeetPosition();
+        return level ? std::string(level->GetData().SurfaceAt(feet.x, feet.z)) : "";
+    }
+
+    ArrivalError DemoApp::Arrival() const
+    {
+        const float yaw = std::remainder(m_camera.GetYaw() - m_arrivalYaw, glm::two_pi<float>());
+        return ArrivalError{
+            glm::length(m_camera.GetPosition() - m_arrivalEye),
+            std::abs(glm::degrees(yaw)),
+        };
     }
 
     void DemoApp::Log(const std::string& text)
