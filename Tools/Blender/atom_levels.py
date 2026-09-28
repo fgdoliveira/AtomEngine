@@ -77,7 +77,9 @@ def build_machiya_interior(pieces, collision, materials, collection):
     wall glowing with daylight, fusuma, a tokonoma alcove with a scroll, a
     low table - and a dark corridor that goes nowhere you'd want to."""
     level = Street(pieces, collision, materials, collection)
-    m = kit.MeshBuilder()
+    # Denser than the default grid: indoors, baked light is nearly all the
+    # light there is, so corners and the alcove need the extra vertices.
+    m = kit.MeshBuilder(grid=0.5)
     ceiling = 2.9
     room_y0, room_y1 = 3.0, 10.5
     floor = 0.3
@@ -156,3 +158,7 @@ LEVELS = [
     ("shrine", build_shrine_grounds),
     ("interior", build_machiya_interior),
 ]
+
+# How each level's light is baked (atom_bake): outdoors from the sky,
+# indoors as ambient occlusion.
+BAKE_MODES = {"interior": "ao"}

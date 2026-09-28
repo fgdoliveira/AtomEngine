@@ -86,7 +86,7 @@ namespace Atom
         struct MaterialUniforms
         {
             glm::vec4 baseColorFactor;
-            glm::vec4 emissiveFactor;
+            glm::vec4 emissiveFactor; // w: baked-light weight for this draw
         };
 
         // Mirrors the cbuffer in Shaders/Post.frag.hlsl.
@@ -424,7 +424,7 @@ namespace Atom
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute attributes[3]{};
+        SDL_GPUVertexAttribute attributes[4]{};
         attributes[0].location = 0;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[0].offset = offsetof(Vertex, position);
@@ -434,6 +434,9 @@ namespace Atom
         attributes[2].location = 2;
         attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         attributes[2].offset = offsetof(Vertex, uv);
+        attributes[3].location = 3;
+        attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_USHORT4_NORM;
+        attributes[3].offset = offsetof(Vertex, color);
 
         SDL_GPUColorTargetDescription colorTarget{};
         colorTarget.format = m_targets.GetColorFormat();
@@ -445,7 +448,7 @@ namespace Atom
             &vertexBuffer;
         createInfo.vertex_input_state.num_vertex_buffers = 1;
         createInfo.vertex_input_state.vertex_attributes = attributes;
-        createInfo.vertex_input_state.num_vertex_attributes = 3;
+        createInfo.vertex_input_state.num_vertex_attributes = 4;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
@@ -545,10 +548,11 @@ namespace Atom
 
     std::unique_ptr<Mesh> Renderer::CreateMesh(
         std::span<const Vertex> vertices,
-        std::span<const std::uint32_t> indices
+        std::span<const std::uint32_t> indices,
+        bool hasBakedLight
     )
     {
-        return Mesh::Create(m_device, vertices, indices);
+        return Mesh::Create(m_device, vertices, indices, hasBakedLight);
     }
 
     std::unique_ptr<Texture> Renderer::CreateTexture(
@@ -901,9 +905,13 @@ namespace Atom
             if (bindMaterials)
             {
                 const Material& material = *command.material;
+                // Baked meshes blend toward their vertex light; others keep
+                // the hemisphere ambient (weight 0).
+                const float bakedWeight =
+                    command.mesh->HasBakedLight() ? m_lighting.bakedLight : 0.0f;
                 const MaterialUniforms materialUniforms{
                     material.baseColorFactor,
-                    glm::vec4{ material.emissiveFactor, 0.0f }
+                    glm::vec4{ material.emissiveFactor, bakedWeight }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,

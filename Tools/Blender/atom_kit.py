@@ -15,6 +15,10 @@ import atom_textures as tex
 
 PREFIX = "atom_"
 
+# Largest quad cell MeshBuilder emits by default (metres); see
+# MeshBuilder._tessellated. About the vertex density of a PS2-era level.
+GRID = 1.0
+
 # Problems found by MeshBuilder.lint_coplanar while building; build_assets
 # refuses to export while this is non-empty.
 LINT_ERRORS = []
@@ -146,7 +150,8 @@ def rot_z(degrees):
 
 
 class MeshBuilder:
-    def __init__(self):
+    def __init__(self, grid=GRID):
+        self.grid = grid
         self.verts = []
         self.faces = []  # (vertex indices, loop uvs, material name, smooth)
         # Per face: which call made it. Faces of one box or cylinder share
@@ -294,13 +299,51 @@ class MeshBuilder:
             print("lint ERROR: " + error)
         LINT_ERRORS.extend(errors)
 
+    def _tessellated(self):
+        """Splits large flat quads into a grid of cells no bigger than
+        `grid` metres. Baked light (M15) is stored per vertex, so a 10 m wall
+        with four corners could only hold one smooth gradient; a grid lets
+        it carry soft shadows in corners and under eaves. Smooth faces
+        (cylinder sides, sharing vertices) are left alone."""
+        verts, faces = [], []
+        for indices, uvs, material, smooth in self.faces:
+            corners = [Vector(self.verts[i]) for i in indices]
+            if smooth or len(indices) != 4:
+                faces.append(([len(verts) + k for k in range(len(indices))], uvs, material, smooth))
+                verts.extend(tuple(c) for c in corners)
+                continue
+            p0, p1, p2, p3 = corners
+            nu = max(1, math.ceil(max((p1 - p0).length, (p2 - p3).length) / self.grid - 1e-6))
+            nv = max(1, math.ceil(max((p3 - p0).length, (p2 - p1).length) / self.grid - 1e-6))
+            uv0, uv1, uv2, uv3 = (Vector(uv) for uv in uvs)
+
+            def at(s, t, a0, a1, a2, a3):
+                # Bilinear: corners are counter-clockwise from (0, 0).
+                return (a0 * (1 - s) + a1 * s) * (1 - t) + (a3 * (1 - s) + a2 * s) * t
+
+            # Cells share the grid's vertices, so the export stays compact.
+            base = len(verts)
+            for j in range(nv + 1):
+                for i in range(nu + 1):
+                    verts.append(tuple(at(i / nu, j / nv, p0, p1, p2, p3)))
+            for j in range(nv):
+                for i in range(nu):
+                    cell = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
+                    faces.append(([base + b * (nu + 1) + a for a, b in cell],
+                                  [tuple(at(a / nu, b / nv, uv0, uv1, uv2, uv3)) for a, b in cell],
+                                  material, smooth))
+        return verts, faces
+
     def build(self, name, materials, collection):
+        # The lint sees the authored faces; tessellation comes after, so a
+        # split face is never compared with its own cells.
         self.lint_coplanar(name)
+        verts, built_faces = self._tessellated()
         mesh = bpy.data.meshes.new(PREFIX + name)
-        mesh.from_pydata(self.verts, [], [f[0] for f in self.faces])
+        mesh.from_pydata(verts, [], [f[0] for f in built_faces])
 
         used = []
-        for _, _, material, _ in self.faces:
+        for _, _, material, _ in built_faces:
             if material not in used:
                 used.append(material)
         for material in used:
@@ -308,7 +351,7 @@ class MeshBuilder:
 
         uv_layer = mesh.uv_layers.new(name="UVMap")
         loop = 0
-        for polygon, (_, uvs, material, smooth) in zip(mesh.polygons, self.faces):
+        for polygon, (_, uvs, material, smooth) in zip(mesh.polygons, built_faces):
             polygon.material_index = used.index(material)
             polygon.use_smooth = smooth
             for uv in uvs:

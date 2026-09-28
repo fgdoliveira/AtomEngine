@@ -58,7 +58,7 @@ stb, nlohmann/json 3.12.0, doctest 2.5.3.
 | W S or 1–4 | choose a dialogue option |
 | Esc | release the mouse (again: quit) |
 | F1 | debug overlay |
-| F2 / F4 | render scale / MSAA |
+| F2 / F3 / F4 | render scale / baked light / MSAA |
 | F5 / F6 / F7 | fog preset / shadows / post look |
 | F8 / F9 / M | particles / unease events / mute |
 

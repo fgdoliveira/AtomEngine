@@ -7,8 +7,11 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <unordered_map>
 
 namespace Atom
@@ -84,6 +87,131 @@ namespace Atom
             }
             return nullptr;
         }
+
+        using GltfData = std::unique_ptr<cgltf_data, GltfDeleter>;
+
+        GltfData ParseGltf(const std::string& path)
+        {
+            cgltf_options options{};
+            cgltf_data* rawData = nullptr;
+            if (cgltf_parse_file(&options, path.c_str(), &rawData)
+                != cgltf_result_success)
+            {
+                std::cerr << "Failed to parse glTF '" << path << "'.\n";
+                return nullptr;
+            }
+
+            GltfData data(rawData);
+            if (cgltf_load_buffers(&options, data.get(), path.c_str())
+                != cgltf_result_success
+                || cgltf_validate(data.get()) != cgltf_result_success)
+            {
+                std::cerr << "Failed to load/validate glTF '" << path << "'.\n";
+                return nullptr;
+            }
+            return data;
+        }
+
+        std::uint16_t ToUnorm16(float value)
+        {
+            return static_cast<std::uint16_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 65535.0f));
+        }
+
+        // nullopt for primitives that aren't drawable triangles.
+        std::optional<PrimitiveGeometry> ReadPrimitive(const cgltf_primitive& primitive)
+        {
+            if (primitive.type != cgltf_primitive_type_triangles)
+            {
+                return std::nullopt;
+            }
+
+            const cgltf_accessor* positions =
+                FindAttribute(primitive, cgltf_attribute_type_position);
+            const cgltf_accessor* normals =
+                FindAttribute(primitive, cgltf_attribute_type_normal);
+            const cgltf_accessor* uvs =
+                FindAttribute(primitive, cgltf_attribute_type_texcoord);
+            const cgltf_accessor* colors =
+                FindAttribute(primitive, cgltf_attribute_type_color);
+            if (!positions)
+            {
+                return std::nullopt;
+            }
+
+            PrimitiveGeometry geometry;
+            geometry.hasBakedLight = colors != nullptr;
+            geometry.vertices.resize(positions->count);
+            for (cgltf_size v = 0; v < positions->count; ++v)
+            {
+                Vertex& vertex = geometry.vertices[v];
+                cgltf_accessor_read_float(
+                    positions, v, glm::value_ptr(vertex.position), 3);
+                vertex.normal = glm::vec3{ 0.0f, 1.0f, 0.0f };
+                if (normals)
+                {
+                    cgltf_accessor_read_float(
+                        normals, v, glm::value_ptr(vertex.normal), 3);
+                }
+                vertex.uv = glm::vec2{ 0.0f };
+                if (uvs)
+                {
+                    cgltf_accessor_read_float(
+                        uvs, v, glm::value_ptr(vertex.uv), 2);
+                }
+                if (colors)
+                {
+                    // COLOR_0 may be RGB or RGBA, float or normalised ints;
+                    // cgltf converts. Missing alpha stays 1.
+                    glm::vec4 color{ 1.0f };
+                    cgltf_accessor_read_float(
+                        colors, v, glm::value_ptr(color), cgltf_num_components(colors->type));
+                    for (int c = 0; c < 4; ++c)
+                    {
+                        vertex.color[c] = ToUnorm16(color[c]);
+                    }
+                }
+            }
+
+            if (primitive.indices)
+            {
+                geometry.indices.resize(primitive.indices->count);
+                for (cgltf_size i = 0; i < geometry.indices.size(); ++i)
+                {
+                    geometry.indices[i] = static_cast<std::uint32_t>(
+                        cgltf_accessor_read_index(primitive.indices, i));
+                }
+            }
+            else
+            {
+                geometry.indices.resize(geometry.vertices.size());
+                for (std::uint32_t i = 0; i < geometry.indices.size(); ++i)
+                {
+                    geometry.indices[i] = i;
+                }
+            }
+            return geometry;
+        }
+    }
+
+    std::vector<PrimitiveGeometry> LoadModelGeometry(const std::string& path)
+    {
+        std::vector<PrimitiveGeometry> result;
+        const GltfData data = ParseGltf(path);
+        if (!data)
+        {
+            return result;
+        }
+        for (cgltf_size m = 0; m < data->meshes_count; ++m)
+        {
+            for (cgltf_size p = 0; p < data->meshes[m].primitives_count; ++p)
+            {
+                if (auto geometry = ReadPrimitive(data->meshes[m].primitives[p]))
+                {
+                    result.push_back(std::move(*geometry));
+                }
+            }
+        }
+        return result;
     }
 
     std::unique_ptr<Model> Model::Load(
@@ -91,23 +219,9 @@ namespace Atom
         const std::string& path
     )
     {
-        cgltf_options options{};
-        cgltf_data* rawData = nullptr;
-
-        if (cgltf_parse_file(&options, path.c_str(), &rawData)
-            != cgltf_result_success)
+        const GltfData data = ParseGltf(path);
+        if (!data)
         {
-            std::cerr << "Failed to parse glTF '" << path << "'.\n";
-            return nullptr;
-        }
-
-        std::unique_ptr<cgltf_data, GltfDeleter> data(rawData);
-
-        if (cgltf_load_buffers(&options, data.get(), path.c_str())
-            != cgltf_result_success
-            || cgltf_validate(data.get()) != cgltf_result_success)
-        {
-            std::cerr << "Failed to load/validate glTF '" << path << "'.\n";
             return nullptr;
         }
 
@@ -193,62 +307,14 @@ namespace Atom
             for (cgltf_size p = 0; p < mesh.primitives_count; ++p)
             {
                 const cgltf_primitive& primitive = mesh.primitives[p];
-                if (primitive.type != cgltf_primitive_type_triangles)
+                const std::optional<PrimitiveGeometry> geometry = ReadPrimitive(primitive);
+                if (!geometry)
                 {
                     continue;
                 }
 
-                const cgltf_accessor* positions =
-                    FindAttribute(primitive, cgltf_attribute_type_position);
-                const cgltf_accessor* normals =
-                    FindAttribute(primitive, cgltf_attribute_type_normal);
-                const cgltf_accessor* uvs =
-                    FindAttribute(primitive, cgltf_attribute_type_texcoord);
-                if (!positions)
-                {
-                    continue;
-                }
-
-                std::vector<Vertex> vertices(positions->count);
-                for (cgltf_size v = 0; v < positions->count; ++v)
-                {
-                    Vertex& vertex = vertices[v];
-                    cgltf_accessor_read_float(
-                        positions, v, glm::value_ptr(vertex.position), 3);
-                    vertex.normal = glm::vec3{ 0.0f, 1.0f, 0.0f };
-                    if (normals)
-                    {
-                        cgltf_accessor_read_float(
-                            normals, v, glm::value_ptr(vertex.normal), 3);
-                    }
-                    vertex.uv = glm::vec2{ 0.0f };
-                    if (uvs)
-                    {
-                        cgltf_accessor_read_float(
-                            uvs, v, glm::value_ptr(vertex.uv), 2);
-                    }
-                }
-
-                std::vector<std::uint32_t> indices;
-                if (primitive.indices)
-                {
-                    indices.resize(primitive.indices->count);
-                    for (cgltf_size i = 0; i < indices.size(); ++i)
-                    {
-                        indices[i] = static_cast<std::uint32_t>(
-                            cgltf_accessor_read_index(primitive.indices, i));
-                    }
-                }
-                else
-                {
-                    indices.resize(vertices.size());
-                    for (std::uint32_t i = 0; i < indices.size(); ++i)
-                    {
-                        indices[i] = i;
-                    }
-                }
-
-                auto gpuMesh = renderer.CreateMesh(vertices, indices);
+                auto gpuMesh = renderer.CreateMesh(
+                    geometry->vertices, geometry->indices, geometry->hasBakedLight);
                 if (!gpuMesh)
                 {
                     return nullptr;

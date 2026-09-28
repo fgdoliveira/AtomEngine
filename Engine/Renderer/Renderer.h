@@ -70,7 +70,8 @@ namespace Atom
 
         std::unique_ptr<Mesh> CreateMesh(
             std::span<const Vertex> vertices,
-            std::span<const std::uint32_t> indices
+            std::span<const std::uint32_t> indices,
+            bool hasBakedLight = false
         );
 
         // pixels: RGBA8, top row first.

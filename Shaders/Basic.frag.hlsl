@@ -12,7 +12,7 @@ SamplerComparisonState ShadowSampler : register(s1, space2);
 cbuffer MaterialUniforms : register(b0, space3)
 {
     float4 u_baseColorFactor;
-    float4 u_emissiveFactor;
+    float4 u_emissiveFactor; // w: baked-light weight (0 = none)
 };
 
 struct PSInput
@@ -21,6 +21,7 @@ struct PSInput
     float3 worldNormal   : TEXCOORD0;
     float2 uv            : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
+    float4 color         : TEXCOORD3; // baked light, linear
 };
 
 // 1 = fully lit, 0 = fully shadowed. The comparison sampler already blends
@@ -70,7 +71,13 @@ float4 main(PSInput input) : SV_Target0
     // Shadows remove the sun and a share of the sky light, so they stay
     // visible under weak, diffuse sunlight.
     const float hemisphere = normal.y * 0.5 + 0.5;
-    const float3 ambient = lerp(u_groundColor.rgb, u_skyColor.rgb, hemisphere)
+    const float3 hemisphereAmbient =
+        lerp(u_groundColor.rgb, u_skyColor.rgb, hemisphere);
+    // Baked (M15): the vertex colour is how much of a white sky, plus its
+    // bounces, reaches this point, so it already holds the orientation and
+    // the occlusion the hemisphere term only approximates.
+    const float3 bakedAmbient = u_skyColor.rgb * input.color.rgb;
+    const float3 ambient = lerp(hemisphereAmbient, bakedAmbient, u_emissiveFactor.w)
         * lerp(1.0, shadow, u_shadowParams.z);
     const float3 sun =
         saturate(dot(normal, u_sunDirection.xyz)) * u_sunColor.rgb * shadow;

@@ -174,6 +174,11 @@ namespace AtomGame
                 l.groundColor = Vec3(*light, "groundColor", l.groundColor, "lighting");
                 l.fogColor = Vec3(*light, "fogColor", l.fogColor, "lighting");
                 l.shadows = Bool(*light, "shadows", l.shadows);
+                l.bakedLight = Number(*light, "bakedLight", l.bakedLight);
+                if (l.bakedLight < 0.0f || l.bakedLight > 1.0f)
+                {
+                    throw LevelError("lighting.bakedLight must be between 0 and 1");
+                }
             }
 
             if (const auto audio = root.find("audio"); audio != root.end())

@@ -1,0 +1,74 @@
+#include "Assets/Model.h"
+
+#include <doctest/doctest.h>
+
+#include <algorithm>
+#include <filesystem>
+#include <string>
+
+using namespace Atom;
+
+namespace
+{
+    const std::string Assets = ATOM_SOURCE_DIR "/Assets/";
+
+    float Luminance(const Vertex& vertex)
+    {
+        return std::max({ vertex.color[0], vertex.color[1], vertex.color[2] }) / 65535.0f;
+    }
+}
+
+TEST_CASE("Every shipped visual model carries baked light")
+{
+    int models = 0;
+    for (const char* folder : { "Kit", "Street", "Shrine", "Interior" })
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(Assets + folder))
+        {
+            const std::string name = entry.path().filename().string();
+            if (entry.path().extension() != ".glb" || name.find("_col") != std::string::npos)
+            {
+                continue;
+            }
+            ++models;
+            INFO(name);
+
+            const auto primitives = LoadModelGeometry(entry.path().string());
+            REQUIRE_FALSE(primitives.empty());
+
+            float darkest = 1.0f;
+            float brightest = 0.0f;
+            for (const PrimitiveGeometry& primitive : primitives)
+            {
+                CHECK(primitive.hasBakedLight);
+                for (const Vertex& vertex : primitive.vertices)
+                {
+                    darkest = std::min(darkest, Luminance(vertex));
+                    brightest = std::max(brightest, Luminance(vertex));
+                }
+            }
+            // A real bake has both occluded and open vertices.
+            CHECK(brightest > 0.0f);
+            CHECK(darkest < brightest);
+        }
+    }
+    CHECK(models >= 17);
+}
+
+TEST_CASE("Models without COLOR_0 read as white and unbaked")
+{
+    // Collision proxies are exported without colours.
+    const auto primitives = LoadModelGeometry(Assets + "Street/street_col.glb");
+    REQUIRE_FALSE(primitives.empty());
+    for (const PrimitiveGeometry& primitive : primitives)
+    {
+        CHECK_FALSE(primitive.hasBakedLight);
+        REQUIRE_FALSE(primitive.vertices.empty());
+        CHECK(Luminance(primitive.vertices.front()) == doctest::Approx(1.0f));
+    }
+}
+
+TEST_CASE("A missing model file loads no geometry")
+{
+    CHECK(LoadModelGeometry(Assets + "nope.glb").empty());
+}

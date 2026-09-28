@@ -6,6 +6,7 @@
 
 #include <glm/mat4x4.hpp>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -14,6 +15,18 @@
 namespace Atom
 {
     class Renderer;
+
+    // The CPU half of loading one triangle primitive: no GPU involved.
+    struct PrimitiveGeometry
+    {
+        std::vector<Vertex> vertices;
+        std::vector<std::uint32_t> indices;
+        bool hasBakedLight = false; // had COLOR_0
+    };
+
+    // Every triangle primitive of a glTF file, in file order. For tools and
+    // tests; empty if the file can't be loaded.
+    std::vector<PrimitiveGeometry> LoadModelGeometry(const std::string& path);
 
     // A glTF scene flattened into drawable parts. Owns its GPU resources.
     class Model
@@ -26,8 +39,9 @@ namespace Atom
             glm::mat4 transform{ 1.0f }; // node world transform
         };
 
-        // Loads a .glb/.gltf (triangles with POSITION, NORMAL, TEXCOORD_0;
-        // base color textures and factors; emissive factor).
+        // Loads a .glb/.gltf (triangles with POSITION, NORMAL, TEXCOORD_0,
+        // optional COLOR_0 as baked light; base color textures and factors;
+        // emissive factor).
         static std::unique_ptr<Model> Load(
             Renderer& renderer,
             const std::string& path

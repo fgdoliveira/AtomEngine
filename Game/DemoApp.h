@@ -110,6 +110,7 @@ namespace AtomGame
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;
+        bool m_bakedLightEnabled = true; // F3: compare with the flat ambient
         int m_postMode = 0; // 0 full, 1 grade only, 2 off
 
         std::unique_ptr<Atom::Font> m_font;      // prompts, hints, dialogue

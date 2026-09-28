@@ -85,7 +85,7 @@ namespace AtomGame
 
         std::cout
             << "Controls: WASD move, Shift jog, mouse look, E interact, Esc release/quit\n"
-            << "  F2 render scale  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
+            << "  F2 render scale  F3 baked light  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
         LoadTestScript();
@@ -334,7 +334,7 @@ namespace AtomGame
             "Scene %ux%u  (%.0f%%)  MSAA %ux\n"
             "Draws %u / %u   shadow casters %u\n"
             "Particles %u\n"
-            "Fog %s   Shadows %s   Post %s\n"
+            "Fog %s   Shadows %s   Baked light %s   Post %s\n"
             "Particles %s   Unease %s   Audio %s\n"
             "Position %.1f  %.2f  %.1f\n"
             "Level %s   voices %zu   flags %zu",
@@ -345,6 +345,7 @@ namespace AtomGame
             stats.particles,
             FogPresets[m_fogPreset].name,
             GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
+            m_bakedLightEnabled ? "on" : "off",
             m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
             m_atmosphere.IsEnabled() ? "on" : "off",
             m_unease.IsEnabled() ? "on" : "off",
@@ -553,6 +554,13 @@ namespace AtomGame
             m_unease.SetEnabled(!m_unease.IsEnabled());
         }
 
+        // F3: baked light on/off, to compare with the flat hemisphere ambient.
+        if (input.WasKeyPressed(SDL_SCANCODE_F3))
+        {
+            m_bakedLightEnabled = !m_bakedLightEnabled;
+            ApplyLighting();
+        }
+
         // F6: sun shadows on/off.
         if (input.WasKeyPressed(SDL_SCANCODE_F6))
         {
@@ -584,6 +592,7 @@ namespace AtomGame
             lighting.groundColor = l.groundColor;
             lighting.fogColor = l.fogColor;
             lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
+            lighting.bakedLight = m_bakedLightEnabled ? l.bakedLight : 0.0f;
         }
         lighting.fogDensity = FogPresets[m_fogPreset].density;
         lighting.fogHeightFalloff = 0.08f;

@@ -10,6 +10,7 @@ struct VSInput
     float3 position : TEXCOORD0;
     float3 normal   : TEXCOORD1;
     float2 uv       : TEXCOORD2;
+    float4 color    : TEXCOORD3; // baked light, linear
 };
 
 struct VSOutput
@@ -18,6 +19,7 @@ struct VSOutput
     float3 worldNormal   : TEXCOORD0;
     float2 uv            : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
+    float4 color         : TEXCOORD3;
 };
 
 VSOutput main(VSInput input)
@@ -31,5 +33,6 @@ VSOutput main(VSInput input)
     output.worldNormal = mul((float3x3)u_model, input.normal);
     output.uv = input.uv;
     output.worldPosition = worldPosition.xyz;
+    output.color = input.color;
     return output;
 }

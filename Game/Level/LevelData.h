@@ -36,6 +36,7 @@ namespace AtomGame
         glm::vec3 groundColor{ 0.20f, 0.19f, 0.17f };
         glm::vec3 fogColor{ 0.46f, 0.47f, 0.47f };
         bool shadows = true;
+        float bakedLight = 1.0f; // weight of the vertex-colour bake (M15)
     };
 
     struct AudioBed

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.3 — in progress
+
+### Added
+- **Baked lighting, vertex colours (M15):** Blender (Cycles) bakes light into
+  every vertex (glTF `COLOR_0`): sky visibility and bounce outdoors, ambient
+  occlusion indoors. Large faces are split into a grid (1 m, 0.5 m indoors)
+  so the bake has vertices to live on. The shader blends the flat
+  hemisphere ambient toward the baked light per mesh; the sun stays dynamic.
+  Per-level `lighting.bakedLight`, **F3** to compare. The bake is
+  deterministic (rebuilds stay byte-identical) and a bake that is all black
+  or all white fails the asset build.
+
 ## 0.0.2 — Interaction, dialogue and levels
 
 The engine now represents several levels containing interactive objects and

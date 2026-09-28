@@ -15,6 +15,7 @@ import argparse
 import importlib
 import os
 import sys
+import time
 
 import bpy
 
@@ -29,12 +30,14 @@ import atom_textures  # noqa: E402
 import atom_kit  # noqa: E402
 import atom_street  # noqa: E402
 import atom_levels  # noqa: E402
+import atom_bake  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
 importlib.reload(atom_kit)
 importlib.reload(atom_street)
 importlib.reload(atom_levels)
+importlib.reload(atom_bake)
 
 
 def parse_args():
@@ -72,20 +75,34 @@ def export_objects(objects, scene, path, materials=True):
     for obj in scene.objects:
         obj.select_set(obj in selected)
 
-    bpy.ops.export_scene.gltf(
-        filepath=path,
-        export_format="GLB",
-        use_selection=True,
-        export_yup=True,
-        export_apply=True,
-        export_texcoords=materials,
-        export_normals=True,
-        export_materials="EXPORT" if materials else "NONE",
-        export_image_format="AUTO",
-        export_cameras=False,
-        export_lights=False,
-        export_extras=False,
-    )
+    # Windows sometimes holds a just-written file for a moment (antivirus,
+    # indexer), making the next open fail with EINVAL; a short retry is
+    # enough. Anything that persists is a real error.
+    for attempt in range(5):
+        try:
+            bpy.ops.export_scene.gltf(
+                filepath=path,
+                export_format="GLB",
+                use_selection=True,
+                export_yup=True,
+                export_apply=True,
+                export_texcoords=materials,
+                export_normals=True,
+                export_materials="EXPORT" if materials else "NONE",
+                export_image_format="AUTO",
+                export_cameras=False,
+                export_lights=False,
+                export_extras=False,
+                export_vertex_color="NAME",
+                export_vertex_color_name=atom_bake.ATTRIBUTE,
+                export_all_vertex_colors=False,
+            )
+            break
+        except RuntimeError as error:
+            if attempt == 4:
+                raise
+            print(f"Export of {os.path.basename(path)} failed ({error}); retrying")
+            time.sleep(0.5)
     print("Exported", os.path.relpath(path, REPO_ROOT))
 
 
@@ -145,6 +162,20 @@ def main():
 
     if args.no_export:
         return
+
+    # Baked light (M15): each kit piece alone (entity models placed by
+    # levels), then every level as a whole, so pieces shade each other.
+    for obj in pieces.values():
+        atom_bake.bake(scene, [obj])
+    atom_bake.bake(scene, street.visual)
+    for folder, level in levels:
+        atom_bake.bake(scene, level.visual, atom_levels.BAKE_MODES.get(folder, "sky"))
+    if atom_kit.LINT_ERRORS:
+        for error in atom_kit.LINT_ERRORS:
+            print("lint ERROR: " + error)
+        print(f"lint: {len(atom_kit.LINT_ERRORS)} bake error(s); nothing exported")
+        sys.exit(1)
+    print("bake: vertex light baked")
 
     if not bpy.app.background:
         # Exporting from a live session has proven crash-prone (the context
