@@ -19,6 +19,7 @@ add_library(
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h
     Level/FileWatcher.h
+    Level/ModelCache.h
     Level/JsonText.h
     Dialogue/DialogueRunner.cpp
     Dialogue/DialogueRunner.h

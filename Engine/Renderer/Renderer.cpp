@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <tuple>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -50,6 +51,21 @@ namespace Atom
                 r3 + r1, r3 - r1,
                 r2, r3 - r2
             } };
+        }
+
+        bool IsBoxVisible(const Frustum& frustum, const glm::vec3& boxMin, const glm::vec3& boxMax)
+        {
+            const glm::vec3 center = (boxMin + boxMax) * 0.5f;
+            const glm::vec3 extent = (boxMax - boxMin) * 0.5f;
+            for (const glm::vec4& plane : frustum.planes)
+            {
+                const glm::vec3 normal{ plane };
+                if (glm::dot(normal, center) + plane.w < -glm::dot(glm::abs(normal), extent))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         bool IsVisible(
@@ -682,7 +698,29 @@ namespace Atom
         const glm::mat4& model
     )
     {
-        m_drawCommands.push_back(DrawCommand{ &mesh, &material, model });
+        m_drawCommands.push_back(DrawCommand{ &mesh, &material, model, m_currentChunk });
+    }
+
+    void Renderer::BeginChunk(const ChunkInfo& chunk)
+    {
+        m_currentChunk = static_cast<int>(m_chunks.size());
+        m_chunks.push_back(chunk);
+    }
+
+    void Renderer::SortDrawCommands()
+    {
+        const auto key = [](const DrawCommand& c) {
+            const Material& m = *c.material;
+            return std::tuple{
+                m.alphaMode == AlphaMode::Blend,
+                m.alphaMode == AlphaMode::Mask,
+                m.doubleSided,
+                c.material,
+                c.mesh };
+        };
+        // Stable: equal keys keep submission order (decals over decals).
+        std::stable_sort(m_drawCommands.begin(), m_drawCommands.end(),
+            [&](const DrawCommand& a, const DrawCommand& b) { return key(a) < key(b); });
     }
 
     bool Renderer::Render()
@@ -697,13 +735,17 @@ namespace Atom
         struct ClearOnExit
         {
             std::vector<DrawCommand>& commands;
+            std::vector<ChunkInfo>& chunks;
+            int& currentChunk;
             UIRenderer& ui;
             ~ClearOnExit()
             {
                 commands.clear();
+                chunks.clear();
+                currentChunk = -1;
                 ui.EndFrame();
             }
-        } clearDrawCommands{ m_drawCommands, m_ui };
+        } clearDrawCommands{ m_drawCommands, m_chunks, m_currentChunk, m_ui };
 
         SDL_GPUCommandBuffer* commandBuffer =
             SDL_AcquireGPUCommandBuffer(m_device);
@@ -768,6 +810,11 @@ namespace Atom
 
         m_stats = FrameStats{};
         m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
+        for (const ChunkInfo& chunk : m_chunks)
+        {
+            ++m_stats.layers[static_cast<std::size_t>(chunk.layer)].chunks;
+        }
+        SortDrawCommands();
 
         // Particles are only valid for the frame they were submitted in.
         struct ClearParticles
@@ -988,6 +1035,21 @@ namespace Atom
         const Frustum frustum = ExtractFrustum(viewProjection);
         const bool bindMaterials = sceneSamples > 0;
         SDL_GPUGraphicsPipeline* bound = nullptr;
+        const Material* boundMaterial = nullptr;
+
+        // One box test per chunk for this view; the shadow pass drops chunks
+        // that cast no shadow (skyline, mid-distance shells).
+        std::vector<char> chunkVisible(m_chunks.size());
+        for (std::size_t i = 0; i < m_chunks.size(); ++i)
+        {
+            const ChunkInfo& chunk = m_chunks[i];
+            chunkVisible[i] = (bindMaterials || chunk.castsShadow)
+                && IsBoxVisible(frustum, chunk.boundsMin, chunk.boundsMax);
+            if (bindMaterials && chunkVisible[i])
+            {
+                ++m_stats.layers[static_cast<std::size_t>(chunk.layer)].chunksVisible;
+            }
+        }
 
         ObjectUniforms uniforms{};
         uniforms.viewProjection = viewProjection;
@@ -1003,11 +1065,26 @@ namespace Atom
             {
                 continue;
             }
+            if (command.chunk >= 0 && !chunkVisible[command.chunk])
+            {
+                continue;
+            }
             if (!IsVisible(frustum, *command.mesh, command.model))
             {
                 continue;
             }
             ++drawn;
+            LayerStats& layer = m_stats.layers[static_cast<std::size_t>(
+                command.chunk >= 0 ? m_chunks[command.chunk].layer : RenderLayer::Near)];
+            if (bindMaterials)
+            {
+                ++layer.drawn;
+                layer.triangles += command.mesh->GetIndexCount() / 3;
+            }
+            else
+            {
+                ++layer.shadowDrawn;
+            }
 
             uniforms.model = command.model;
             SDL_PushGPUVertexUniformData(
@@ -1037,6 +1114,8 @@ namespace Atom
                 {
                     SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
                     bound = pipeline;
+                    boundMaterial = nullptr; // rebind textures with a new pipeline
+                    ++m_stats.pipelineBinds;
                 }
 
                 // Baked meshes blend toward their vertex light; others keep
@@ -1060,20 +1139,26 @@ namespace Atom
                     sizeof(materialUniforms)
                 );
 
-                const SDL_GPUTextureSamplerBinding textureBinding{
-                    baseColor->GetGPUTexture(),
-                    m_sampler
-                };
-                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+                // Sorted by material: consecutive draws often share textures.
+                if (&material != boundMaterial)
+                {
+                    boundMaterial = &material;
+                    ++m_stats.materialBinds;
+                    const SDL_GPUTextureSamplerBinding textureBinding{
+                        baseColor->GetGPUTexture(),
+                        m_sampler
+                    };
+                    SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
 
-                const Texture* lightmap = material.lightmap
-                    ? material.lightmap
-                    : m_whiteTexture.get();
-                const SDL_GPUTextureSamplerBinding lightmapBinding{
-                    lightmap->GetGPUTexture(),
-                    m_lightmapSampler
-                };
-                SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
+                    const Texture* lightmap = material.lightmap
+                        ? material.lightmap
+                        : m_whiteTexture.get();
+                    const SDL_GPUTextureSamplerBinding lightmapBinding{
+                        lightmap->GetGPUTexture(),
+                        m_lightmapSampler
+                    };
+                    SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
+                }
             }
             else
             {

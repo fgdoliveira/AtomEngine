@@ -75,7 +75,7 @@ namespace AtomGame
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
         m_levels = std::make_unique<LevelManager>(Level::Services{
-            GetRenderer(), GetAudio(), m_audioScape, m_assetRoot });
+            GetRenderer(), GetAudio(), m_audioScape, m_assetRoot, m_modelCache });
         m_levels->onUnloading = [this](Level& outgoing) { OnLevelUnloading(outgoing); };
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
             OnLevelLoaded(incoming, spawn);
@@ -302,7 +302,7 @@ namespace AtomGame
 
         if (Level* level = m_levels->GetLevel())
         {
-            level->Submit(renderer);
+            level->Submit(renderer, m_player.GetFeetPosition());
         }
 
         // Fog banks stay faintly visible with fog off: morning haze.
@@ -428,11 +428,26 @@ namespace AtomGame
         const Atom::RenderSettings& settings = GetRenderer().GetSettings();
         const glm::vec3& feet = m_player.GetFeetPosition();
 
-        char text[640];
+        // Per distance layer (M22): chunks in view, draw calls, triangles,
+        // and shadow-pass draws - mid and far should show none.
+        char layers[320];
+        const char* layerNames[] = { "Near", "Mid ", "Far " };
+        int written = 0;
+        for (std::size_t i = 0; i < Atom::RenderLayerCount; ++i)
+        {
+            const Atom::LayerStats& l = stats.layers[i];
+            written += std::snprintf(layers + written, sizeof(layers) - written,
+                "%s  chunks %u/%u  draws %u  tris %.1fk  shadow %u\n",
+                layerNames[i], l.chunksVisible, l.chunks, l.drawn, l.triangles / 1000.0f, l.shadowDrawn);
+        }
+
+        char text[1024];
         std::snprintf(text, sizeof(text),
             "%.2f ms  (%.0f fps)\n"
             "Scene %ux%u  (%.0f%%)  MSAA %ux\n"
             "Draws %u / %u   shadow casters %u\n"
+            "%s"
+            "Binds: pipelines %u  materials %u   Models loaded %zu, shared %zu\n"
             "Particles %u\n"
             "Fog %s   Shadows %s   Baked light %s   Post %s\n"
             "Particles %s   Unease %s   Audio %s\n"
@@ -442,6 +457,8 @@ namespace AtomGame
             m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f,
             stats.sceneWidth, stats.sceneHeight, settings.renderScale * 100.0f, stats.msaaSamples,
             stats.drawn, stats.submitted, stats.shadowDrawn,
+            layers,
+            stats.pipelineBinds, stats.materialBinds, m_modelCache.GetLoads(), m_modelCache.GetHits(),
             stats.particles,
             FogPresets[m_fogPreset].name,
             GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",

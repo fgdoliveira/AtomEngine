@@ -102,6 +102,40 @@ namespace AtomGame
         std::vector<glm::vec3> flickerSites;
     };
 
+    // A piece of the level drawn and culled as a whole (M22): about one
+    // building or half a block. Near chunks may belong to a cell.
+    enum class ChunkLayer
+    {
+        Near,
+        Mid,
+        Far,
+    };
+
+    struct ChunkData
+    {
+        std::string name;
+        std::string model;      // relative to Assets/
+        std::string collision;  // optional, relative to Assets/
+        ChunkLayer layer = ChunkLayer::Near;
+        bool castsShadow = true;
+        std::string cell;       // optional; only near chunks
+    };
+
+    // A connected "room" of the level (M22): a stretch of street, an alley.
+    // Near chunks of cells that are neither the player's nor a neighbour
+    // aren't drawn. Bounds are on the ground plane (x, z).
+    struct CellData
+    {
+        std::string name;
+        glm::vec2 min{ 0.0f };
+        glm::vec2 max{ 0.0f };
+        std::vector<std::string> neighbours;
+    };
+
+    // Which cells are drawn from `position`: its cell and that cell's
+    // neighbours. Outside every cell (or with no cells), all of them.
+    std::vector<bool> VisibleCells(const std::vector<CellData>& cells, const glm::vec3& position);
+
     // Baked light texture for the scene model (M16), mapped by its second
     // UV set. Written by the asset build next to the model.
     struct LevelLightmap
@@ -116,6 +150,8 @@ namespace AtomGame
         std::string model;     // relative to Assets/
         std::string collision; // relative to Assets/
         std::optional<LevelLightmap> lightmap;
+        std::vector<ChunkData> chunks;
+        std::vector<CellData> cells;
         std::string defaultSpawn;
         std::unordered_map<std::string, SpawnPoint> spawns;
         LevelLighting lighting;

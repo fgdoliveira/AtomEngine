@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.0.4 — in progress
+
+### Added
+- **Representation foundations (M22):**
+  - Level **chunks** (`chunks`: name, model, optional collision, layer
+    near/mid/far, `castsShadow`): each drawn and culled as a whole with one
+    box test; chunks that cast no shadow stay out of the shadow pass. The
+    street is split into a base and three chunks along the road.
+  - **Cells** (`cells`: ground-plane bounds and neighbours): near chunks of
+    cells that are neither the player's nor a neighbour aren't drawn.
+  - A uniform **collision grid** (4 m cells) under raycasts, floor search
+    and wall sliding; results identical to the full scan (tested on every
+    shipped level), about 5x faster on the street.
+  - **Draw sorting** by pipeline and material (the street's 238 draws now
+    bind 2 pipelines and ~80 materials); a shared **model cache** across
+    levels and entities (reloads files changed on disk).
+  - **F1:** per-layer chunks, draws, triangles and shadow draws; binds;
+    models loaded and shared.
+
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 
 The look moves toward early-2000s baked lighting; foliage, cloth, grime and

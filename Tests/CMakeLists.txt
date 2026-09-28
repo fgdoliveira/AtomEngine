@@ -11,6 +11,7 @@ add_executable(
     ModelTests.cpp
     AnimationTests.cpp
     AuthoringTests.cpp
+    CollisionGridTests.cpp
 )
 
 target_link_libraries(

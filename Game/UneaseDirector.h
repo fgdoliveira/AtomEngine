@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Renderer/Material.h"
+
+#include <vector>
 #include "Level/LevelData.h"
 #include "Renderer/Mesh.h"
 
@@ -61,7 +63,7 @@ namespace AtomGame
 
         LevelUnease m_config;
         Level* m_level = nullptr;
-        Atom::Material* m_flickerScreen = nullptr;
+        std::vector<Atom::Material*> m_flickerScreens; // one per model using it
         glm::vec3 m_flickerEmission{ 0.0f };
         float m_flickerCooldown = 20.0f;
         float m_flickerTime = -1.0f; // < 0 when not flickering

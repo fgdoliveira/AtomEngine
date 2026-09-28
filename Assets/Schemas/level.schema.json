@@ -21,6 +21,38 @@
         "intensity": { "type": "number", "minimum": 0, "default": 1 }
       }
     },
+    "chunks": {
+      "type": "array",
+      "description": "Pieces drawn and culled as a whole (about one building or half a block), with their distance layer (M22).",
+      "items": {
+        "type": "object",
+        "required": ["name", "model"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "model": { "type": "string", "description": "glb relative to Assets/." },
+          "collision": { "type": "string", "description": "Optional collision glb, added to the level's." },
+          "layer": { "enum": ["near", "mid", "far"], "default": "near" },
+          "castsShadow": { "type": "boolean", "description": "Default: true for near, false for mid and far." },
+          "cell": { "type": "string", "description": "Near chunks only: drawn when the player is in this cell or a neighbour." }
+        }
+      }
+    },
+    "cells": {
+      "type": "array",
+      "description": "Connected rooms of the level; near chunks of far cells aren't drawn (M22).",
+      "items": {
+        "type": "object",
+        "required": ["name", "min", "max"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "min": { "$ref": "#/definitions/vec3", "description": "Ground-plane bounds (x and z are used)." },
+          "max": { "$ref": "#/definitions/vec3" },
+          "neighbours": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
     "defaultSpawn": { "type": "string", "description": "Defaults to the first spawn by name." },
     "spawns": {
       "type": "object",

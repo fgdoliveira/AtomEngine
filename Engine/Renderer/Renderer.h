@@ -42,11 +42,43 @@ namespace Atom
         bool vsync = true;
     };
 
+    // Distance layers of a level (M22): near is walkable detail, mid the
+    // simplified buildings around it, far the skyline. Counted separately.
+    enum class RenderLayer : std::uint8_t
+    {
+        Near,
+        Mid,
+        Far,
+    };
+    inline constexpr std::size_t RenderLayerCount = 3;
+
+    // A group of draws culled as a whole (a building, half a block): one
+    // box test per chunk instead of one per mesh.
+    struct ChunkInfo
+    {
+        glm::vec3 boundsMin{ 0.0f }; // world space
+        glm::vec3 boundsMax{ 0.0f };
+        RenderLayer layer = RenderLayer::Near;
+        bool castsShadow = true;
+    };
+
+    struct LayerStats
+    {
+        std::uint32_t chunks = 0;        // submitted
+        std::uint32_t chunksVisible = 0; // in the camera frustum
+        std::uint32_t drawn = 0;         // draw calls
+        std::uint32_t triangles = 0;
+        std::uint32_t shadowDrawn = 0;   // draws in the shadow pass
+    };
+
     struct FrameStats
     {
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
         std::uint32_t shadowDrawn = 0;
+        std::array<LayerStats, RenderLayerCount> layers{};
+        std::uint32_t pipelineBinds = 0;
+        std::uint32_t materialBinds = 0;
         std::uint32_t particles = 0;
         std::uint32_t sceneWidth = 0;
         std::uint32_t sceneHeight = 0;
@@ -95,6 +127,13 @@ namespace Atom
             float farPlane
         );
 
+        // Draws submitted between BeginChunk and EndChunk belong to that
+        // chunk: culled with it, counted in its layer, and left out of the
+        // shadow pass when it casts none. Outside a chunk: near, casts
+        // shadows, culled per mesh.
+        void BeginChunk(const ChunkInfo& chunk);
+        void EndChunk() { m_currentChunk = -1; }
+
         // Queues a mesh for this frame. The mesh and material (and its
         // textures) must outlive Render().
         void Submit(
@@ -135,7 +174,12 @@ namespace Atom
             const Mesh* mesh = nullptr;
             const Material* material = nullptr;
             glm::mat4 model{1.0f};
+            int chunk = -1; // index into m_chunks, -1 = none
         };
+
+        // Order draws so state changes are rare: decals last (they need the
+        // finished surfaces), then by pipeline variant, then by material.
+        void SortDrawCommands();
 
         struct Camera
         {
@@ -237,6 +281,8 @@ namespace Atom
 
         Camera m_camera;
         std::vector<DrawCommand> m_drawCommands;
+        std::vector<ChunkInfo> m_chunks; // this frame's
+        int m_currentChunk = -1;
         FrameStats m_stats;
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;

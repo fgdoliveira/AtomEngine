@@ -20,6 +20,7 @@ import sys
 import time
 
 import bpy
+from mathutils import Vector
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.normpath(os.path.join(SCRIPT_DIR, "..", ".."))
@@ -145,6 +146,27 @@ def write_markers(collection, path):
     return count
 
 
+# The street's chunks along X (Blender metres): name -> [x0, x1).
+STREET_CHUNKS = {"west": (-1e9, -13.0), "centre": (-13.0, 13.0), "east": (13.0, 1e9)}
+
+
+def split_into_chunks(objects, ranges, spanning=30.0):
+    """Groups objects by the X range their origin falls in; objects wider
+    than `spanning` metres go to "base". Deterministic: keeps input order."""
+    groups = {"base": []}
+    groups.update({name: [] for name in ranges})
+    for obj in objects:
+        corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+        width = max(c.x for c in corners) - min(c.x for c in corners)
+        if width > spanning:
+            groups["base"].append(obj)
+            continue
+        x = obj.matrix_world.translation.x
+        name = next(n for n, (x0, x1) in ranges.items() if x0 <= x < x1)
+        groups[name].append(obj)
+    return groups
+
+
 def export_piece(obj, scene, out_dir):
     """Exports a kit piece centred on the origin, with its moving parts
     (children) and their animation clips."""
@@ -241,7 +263,13 @@ def main():
     for obj in pieces.values():
         export_piece(obj, scene, kit_dir)
 
-    export_objects(street.visual, scene, os.path.join(street_dir, "street.glb"))
+    # Chunks (M22): pieces go to the chunk of their stretch of street, so
+    # each stretch is culled as a whole; what spans the whole street
+    # (ground, wires, decals) stays in the base model.
+    chunks = split_into_chunks(street.visual, STREET_CHUNKS)
+    export_objects(chunks.pop("base"), scene, os.path.join(street_dir, "street.glb"))
+    for name, objects in chunks.items():
+        export_objects(objects, scene, os.path.join(street_dir, "street_" + name + ".glb"))
     export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
                    materials=False)
 

@@ -97,6 +97,7 @@ namespace AtomGame
         FileWatcher m_levelFiles;
         FileWatcher m_dialogueFiles;
         std::unique_ptr<TestRunner> m_testRunner;
+        ModelCache m_modelCache; // declared before the levels: outlives them
         std::unique_ptr<LevelManager> m_levels;
 
         Atom::Camera m_camera;

@@ -157,3 +157,60 @@ TEST_CASE("The file watcher reports each change once")
     std::filesystem::remove(path);
     CHECK(watcher.Poll().size() == 1); // disappearing counts
 }
+
+TEST_CASE("Chunks and cells parse, with defaults by layer and checked names")
+{
+    const auto result = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "cells": [ { "name": "street", "min": [-10,0,-5], "max": [10,0,5], "neighbours": ["alley"] },
+                   { "name": "alley", "min": [10,0,-2], "max": [20,0,2], "neighbours": ["street", "yard"] },
+                   { "name": "yard", "min": [20,0,-8], "max": [30,0,8] } ],
+        "chunks": [ { "name": "shops", "model": "City/shops.glb", "cell": "street" },
+                    { "name": "blocks", "model": "City/blocks.glb", "layer": "mid" },
+                    { "name": "skyline", "model": "City/skyline.glb", "layer": "far", "castsShadow": true } ])"));
+    INFO(result.error);
+    REQUIRE(result.level.has_value());
+    const LevelData& data = *result.level;
+    REQUIRE(data.chunks.size() == 3);
+    CHECK(data.chunks[0].layer == ChunkLayer::Near);
+    CHECK(data.chunks[0].castsShadow);          // near: casts by default
+    CHECK(data.chunks[1].layer == ChunkLayer::Mid);
+    CHECK_FALSE(data.chunks[1].castsShadow);    // mid: doesn't by default
+    CHECK(data.chunks[2].castsShadow);          // unless told so
+    CHECK(data.cells.size() == 3);
+
+    const auto badLayer = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "chunks": [ { "name": "x", "model": "m", "layer": "middle" } ])"));
+    CHECK(badLayer.error.rfind("/chunks/0/layer:", 0) == 0);
+
+    const auto badCell = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "chunks": [ { "name": "x", "model": "m", "cell": "nowhere" } ])"));
+    CHECK(badCell.error.rfind("/chunks/0/cell:", 0) == 0);
+
+    const auto farInCell = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "cells": [ { "name": "c", "min": [0,0,0], "max": [1,0,1] } ],
+        "chunks": [ { "name": "x", "model": "m", "layer": "far", "cell": "c" } ])"));
+    CHECK(farInCell.error.rfind("/chunks/0/cell:", 0) == 0);
+
+    const auto badNeighbour = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "cells": [ { "name": "c", "min": [0,0,0], "max": [1,0,1], "neighbours": ["d"] } ])"));
+    CHECK(badNeighbour.error.rfind("/cells/0/neighbours/0:", 0) == 0);
+}
+
+TEST_CASE("Visible cells: the player's cell and its neighbours, or everything when lost")
+{
+    std::vector<CellData> cells{
+        { "street", { -10, -5 }, { 10, 5 }, { "alley" } },
+        { "alley", { 10, -2 }, { 20, 2 }, { "street", "yard" } },
+        { "yard", { 20, -8 }, { 30, 8 }, { "alley" } },
+    };
+    const auto inStreet = VisibleCells(cells, { 0, 0, 0 });
+    CHECK(inStreet == std::vector<bool>{ true, true, false }); // the yard is behind the alley
+
+    const auto inAlley = VisibleCells(cells, { 15, 0, 0 });
+    CHECK(inAlley == std::vector<bool>{ true, true, true });
+
+    const auto outside = VisibleCells(cells, { 100, 0, 100 });
+    CHECK(outside == std::vector<bool>{ true, true, true });
+
+    CHECK(VisibleCells({}, { 0, 0, 0 }).empty());
+}

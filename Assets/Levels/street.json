@@ -3,6 +3,11 @@
   "name": "street",
   "model": "Street/street.glb",
   "collision": "Street/street_col.glb",
+  "chunks": [
+    { "name": "west", "model": "Street/street_west.glb" },
+    { "name": "centre", "model": "Street/street_centre.glb" },
+    { "name": "east", "model": "Street/street_east.glb" }
+  ],
   "defaultSpawn": "east_end",
   "spawns": {
     "east_end":    { "position": [36.0, 0.0, 1.0], "yaw": -90 },

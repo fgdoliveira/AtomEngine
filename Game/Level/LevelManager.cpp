@@ -94,6 +94,14 @@ namespace AtomGame
         {
             files.push_back(assets + data.lightmap->texture);
         }
+        for (const ChunkData& chunk : data.chunks)
+        {
+            files.push_back(assets + chunk.model);
+            if (!chunk.collision.empty())
+            {
+                files.push_back(assets + chunk.collision);
+            }
+        }
         for (const EntityData& entity : data.entities)
         {
             if (!entity.model.empty())

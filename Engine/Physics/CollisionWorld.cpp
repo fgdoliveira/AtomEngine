@@ -8,6 +8,7 @@
 #include <glm/vec2.hpp>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <iostream>
 #include <memory>
@@ -72,9 +73,21 @@ namespace Atom
         };
     }
 
-    bool CollisionWorld::Load(const std::string& path)
+    void CollisionWorld::Clear()
     {
         m_triangles.clear();
+        m_gridDirty = true;
+    }
+
+    bool CollisionWorld::Load(const std::string& path)
+    {
+        Clear();
+        return Append(path);
+    }
+
+    bool CollisionWorld::Append(const std::string& path)
+    {
+        const std::size_t before = m_triangles.size();
 
         cgltf_options options{};
         cgltf_data* rawData = nullptr;
@@ -154,8 +167,99 @@ namespace Atom
 
         std::cout
             << "Loaded collision '" << path << "': "
-            << m_triangles.size() << " triangles\n";
-        return !m_triangles.empty();
+            << m_triangles.size() - before << " triangles\n";
+        return m_triangles.size() > before;
+    }
+
+    void CollisionWorld::BuildGrid() const
+    {
+        m_gridDirty = false;
+        m_cells.clear();
+        m_marks.assign(m_triangles.size(), 0);
+        m_query = 0;
+        if (m_triangles.empty())
+        {
+            m_gridSize = { 0, 0 };
+            return;
+        }
+
+        const auto cellOf = [](float v) { return static_cast<int>(std::floor(v / CellSize)); };
+        glm::ivec2 low{ INT32_MAX }, high{ INT32_MIN };
+        for (const Triangle& t : m_triangles)
+        {
+            low = glm::min(low, glm::ivec2{ cellOf(t.boundsMin.x), cellOf(t.boundsMin.z) });
+            high = glm::max(high, glm::ivec2{ cellOf(t.boundsMax.x), cellOf(t.boundsMax.z) });
+        }
+        m_gridOrigin = low;
+        m_gridSize = high - low + glm::ivec2{ 1 };
+        m_cells.resize(static_cast<std::size_t>(m_gridSize.x) * m_gridSize.y);
+
+        for (std::uint32_t i = 0; i < m_triangles.size(); ++i)
+        {
+            const Triangle& t = m_triangles[i];
+            const glm::ivec2 a = glm::ivec2{ cellOf(t.boundsMin.x), cellOf(t.boundsMin.z) } - m_gridOrigin;
+            const glm::ivec2 b = glm::ivec2{ cellOf(t.boundsMax.x), cellOf(t.boundsMax.z) } - m_gridOrigin;
+            for (int z = a.y; z <= b.y; ++z)
+            {
+                for (int x = a.x; x <= b.x; ++x)
+                {
+                    m_cells[static_cast<std::size_t>(z) * m_gridSize.x + x].push_back(i);
+                }
+            }
+        }
+    }
+
+    template <typename F>
+    void CollisionWorld::ForEachCandidate(glm::vec2 min, glm::vec2 max, F&& f) const
+    {
+        if (!m_useGrid)
+        {
+            for (const Triangle& triangle : m_triangles)
+            {
+                f(triangle);
+            }
+            return;
+        }
+        if (m_gridDirty)
+        {
+            BuildGrid();
+        }
+        if (m_cells.empty())
+        {
+            return;
+        }
+
+        // A triangle spanning several cells is visited once per query.
+        if (++m_query == 0)
+        {
+            std::fill(m_marks.begin(), m_marks.end(), 0);
+            m_query = 1;
+        }
+        const auto cellOf = [](float v) { return static_cast<int>(std::floor(v / CellSize)); };
+        const glm::ivec2 a = glm::max(glm::ivec2{ cellOf(min.x), cellOf(min.y) } - m_gridOrigin, glm::ivec2{ 0 });
+        const glm::ivec2 b = glm::min(glm::ivec2{ cellOf(max.x), cellOf(max.y) } - m_gridOrigin, m_gridSize - 1);
+        m_candidates.clear();
+        for (int z = a.y; z <= b.y; ++z)
+        {
+            for (int x = a.x; x <= b.x; ++x)
+            {
+                for (const std::uint32_t index : m_cells[static_cast<std::size_t>(z) * m_gridSize.x + x])
+                {
+                    if (m_marks[index] != m_query)
+                    {
+                        m_marks[index] = m_query;
+                        m_candidates.push_back(index);
+                    }
+                }
+            }
+        }
+        // In triangle order, as a full scan would visit them: wall pushes
+        // accumulate, so the order must not depend on the grid.
+        std::sort(m_candidates.begin(), m_candidates.end());
+        for (const std::uint32_t index : m_candidates)
+        {
+            f(m_triangles[index]);
+        }
     }
 
     void CollisionWorld::AddTriangle(
@@ -179,6 +283,7 @@ namespace Atom
         triangle.boundsMin = glm::min(a, glm::min(b, c));
         triangle.boundsMax = glm::max(a, glm::max(b, c));
         m_triangles.push_back(triangle);
+        m_gridDirty = true;
     }
 
     std::optional<RayHit> CollisionWorld::Raycast(
@@ -199,14 +304,14 @@ namespace Atom
         std::optional<RayHit> nearest;
         float nearestDistance = length;
 
-        for (const Triangle& triangle : m_triangles)
+        ForEachCandidate({ segmentMin.x, segmentMin.z }, { segmentMax.x, segmentMax.z }, [&](const Triangle& triangle)
         {
             // Cheap reject: the segment's box must overlap the triangle's.
             if (segmentMax.x < triangle.boundsMin.x || segmentMin.x > triangle.boundsMax.x
                 || segmentMax.y < triangle.boundsMin.y || segmentMin.y > triangle.boundsMax.y
                 || segmentMax.z < triangle.boundsMin.z || segmentMin.z > triangle.boundsMax.z)
             {
-                continue;
+                return;
             }
 
             // Möller–Trumbore: solve from + t*dir = a + u*e1 + v*e2.
@@ -216,30 +321,30 @@ namespace Atom
             const float determinant = glm::dot(e1, p);
             if (std::abs(determinant) < 1e-8f)
             {
-                continue; // parallel to the triangle
+                return; // parallel to the triangle
             }
             const float inverse = 1.0f / determinant;
             const glm::vec3 s = from - triangle.a;
             const float u = glm::dot(s, p) * inverse;
             if (u < 0.0f || u > 1.0f)
             {
-                continue;
+                return;
             }
             const glm::vec3 q = glm::cross(s, e1);
             const float v = glm::dot(direction, q) * inverse;
             if (v < 0.0f || u + v > 1.0f)
             {
-                continue;
+                return;
             }
             const float t = glm::dot(e2, q) * inverse;
             if (t < 0.0f || t >= nearestDistance)
             {
-                continue;
+                return;
             }
 
             nearestDistance = t;
             nearest = RayHit{ t, from + direction * t, triangle.normal };
-        }
+        });
 
         return nearest;
     }
@@ -251,12 +356,16 @@ namespace Atom
     {
         bool hit = false;
 
-        for (const Triangle& triangle : m_triangles)
+        // The box is taken before any push; pushes are a fraction of the
+        // radius, so a margin of one radius covers where the centre ends up.
+        const glm::vec2 low{ center.x - 2.0f * radius, center.z - 2.0f * radius };
+        const glm::vec2 high{ center.x + 2.0f * radius, center.z + 2.0f * radius };
+        ForEachCandidate(low, high, [&](const Triangle& triangle)
         {
             // Floors and ceilings never push sideways.
             if (std::abs(triangle.normal.y) > MinFloorNormalY)
             {
-                continue;
+                return;
             }
 
             if (center.x + radius < triangle.boundsMin.x
@@ -266,7 +375,7 @@ namespace Atom
                 || center.z + radius < triangle.boundsMin.z
                 || center.z - radius > triangle.boundsMax.z)
             {
-                continue;
+                return;
             }
 
             const glm::vec3 closest = ClosestPointOnTriangle(
@@ -276,7 +385,7 @@ namespace Atom
             const float distanceSquared = glm::dot(offset, offset);
             if (distanceSquared >= radius * radius)
             {
-                continue;
+                return;
             }
 
             const float distance = std::sqrt(distanceSquared);
@@ -292,14 +401,14 @@ namespace Atom
                 const float pushLength = glm::length(push);
                 if (pushLength < 1e-5f)
                 {
-                    continue;
+                    return;
                 }
                 push /= pushLength;
             }
 
             center += push * (radius - distance);
             hit = true;
-        }
+        });
 
         return hit;
     }
@@ -312,7 +421,7 @@ namespace Atom
         std::optional<float> best;
         const float lowest = origin.y - maxDistance;
 
-        for (const Triangle& triangle : m_triangles)
+        ForEachCandidate({ origin.x, origin.z }, { origin.x, origin.z }, [&](const Triangle& triangle)
         {
             if (triangle.normal.y < MinFloorNormalY
                 || origin.x < triangle.boundsMin.x
@@ -322,7 +431,7 @@ namespace Atom
                 || triangle.boundsMin.y > origin.y
                 || triangle.boundsMax.y < lowest)
             {
-                continue;
+                return;
             }
 
             // Vertical ray vs triangle via barycentrics in the XZ plane.
@@ -336,14 +445,14 @@ namespace Atom
             const float denom = v0.x * v1.y - v1.x * v0.y;
             if (std::abs(denom) < 1e-8f)
             {
-                continue;
+                return;
             }
             const float v = (v2.x * v1.y - v1.x * v2.y) / denom;
             const float w = (v0.x * v2.y - v2.x * v0.y) / denom;
             const float u = 1.0f - v - w;
             if (u < 0.0f || v < 0.0f || w < 0.0f)
             {
-                continue;
+                return;
             }
 
             const float height =
@@ -353,7 +462,7 @@ namespace Atom
             {
                 best = height;
             }
-        }
+        });
 
         return best;
     }

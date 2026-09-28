@@ -71,11 +71,39 @@ namespace AtomGame
         const LevelData& d = level->m_data;
         const std::string assets = services.assetRoot + "Assets/";
 
-        level->m_scene = Atom::Model::Load(services.renderer, assets + d.model);
+        level->m_scene = services.models.Get(services.renderer, assets + d.model);
         if (!level->m_scene || !level->m_collision.Load(assets + d.collision))
         {
             std::cerr << "Level '" << d.name << "': failed to load its scene or collision\n";
             return nullptr;
+        }
+
+        // Chunks (M22): their models through the shared cache, their
+        // collision added to the level's.
+        for (const ChunkData& data : d.chunks)
+        {
+            Chunk chunk;
+            chunk.model = services.models.Get(services.renderer, assets + data.model);
+            if (!chunk.model)
+            {
+                std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' failed to load\n";
+                return nullptr;
+            }
+            if (!data.collision.empty() && !level->m_collision.Append(assets + data.collision))
+            {
+                std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' has no collision\n";
+                return nullptr;
+            }
+            chunk.layer = static_cast<Atom::RenderLayer>(data.layer);
+            chunk.castsShadow = data.castsShadow;
+            for (std::size_t c = 0; c < d.cells.size(); ++c)
+            {
+                if (d.cells[c].name == data.cell)
+                {
+                    chunk.cell = static_cast<int>(c);
+                }
+            }
+            level->m_chunks.push_back(std::move(chunk));
         }
         if (d.lightmap)
         {
@@ -177,11 +205,11 @@ namespace AtomGame
 
     const Atom::Model* Level::LoadModel(const std::string& relativePath, Services& services)
     {
-        // Several entities may share a model; load it once per level.
+        // Shared through the cache: loaded once for every user.
         auto& slot = m_models[relativePath];
         if (!slot)
         {
-            slot = Atom::Model::Load(services.renderer, services.assetRoot + "Assets/" + relativePath);
+            slot = services.models.Get(services.renderer, services.assetRoot + "Assets/" + relativePath);
         }
         return slot.get();
     }
@@ -226,9 +254,30 @@ namespace AtomGame
         }
     }
 
-    void Level::Submit(Atom::Renderer& renderer) const
+    void Level::SubmitChunk(Atom::Renderer& renderer, const Atom::Model& model,
+                            Atom::RenderLayer layer, bool castsShadow) const
     {
-        m_scene->Submit(renderer, glm::mat4{ 1.0f });
+        renderer.BeginChunk(Atom::ChunkInfo{ model.GetBoundsMin(), model.GetBoundsMax(), layer, castsShadow });
+        model.Submit(renderer, glm::mat4{ 1.0f });
+        renderer.EndChunk();
+    }
+
+    void Level::Submit(Atom::Renderer& renderer, const glm::vec3& viewer) const
+    {
+        SubmitChunk(renderer, *m_scene, Atom::RenderLayer::Near, true);
+
+        // Near chunks of far-away cells are skipped altogether; the layout
+        // (bends, alley mouths) hides them. Mid and far always draw.
+        const std::vector<bool> visibleCells = VisibleCells(m_data.cells, viewer);
+        for (const Chunk& chunk : m_chunks)
+        {
+            if (chunk.cell >= 0 && !visibleCells[chunk.cell])
+            {
+                continue;
+            }
+            SubmitChunk(renderer, *chunk.model, chunk.layer, chunk.castsShadow);
+        }
+
         m_world.ForEach([&](EntityId, const Entity& entity) {
             if (!entity.renderable || !entity.renderable->model)
             {
@@ -321,9 +370,21 @@ namespace AtomGame
         return found;
     }
 
-    Atom::Material* Level::FindSceneMaterial(std::string_view name)
+    std::vector<Atom::Material*> Level::FindSceneMaterials(std::string_view name)
     {
-        return m_scene ? m_scene->FindMaterial(name) : nullptr;
+        std::vector<Atom::Material*> found;
+        if (Atom::Material* material = m_scene ? m_scene->FindMaterial(name) : nullptr)
+        {
+            found.push_back(material);
+        }
+        for (Chunk& chunk : m_chunks)
+        {
+            if (Atom::Material* material = chunk.model->FindMaterial(name))
+            {
+                found.push_back(material);
+            }
+        }
+        return found;
     }
 
     void Level::SetGroupGain(std::string_view group, float scale)

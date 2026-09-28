@@ -528,6 +528,25 @@ namespace Atom
             }
         }
 
+        // Bounds of the whole model: every part's mesh box, transformed.
+        bool first = true;
+        for (const Part& part : model->m_parts)
+        {
+            const glm::vec3 low = part.mesh->GetBoundsMin();
+            const glm::vec3 high = part.mesh->GetBoundsMax();
+            for (int corner = 0; corner < 8; ++corner)
+            {
+                const glm::vec3 local{
+                    (corner & 1) ? high.x : low.x,
+                    (corner & 2) ? high.y : low.y,
+                    (corner & 4) ? high.z : low.z };
+                const glm::vec3 world{ part.transform * glm::vec4{ local, 1.0f } };
+                model->m_boundsMin = first ? world : glm::min(model->m_boundsMin, world);
+                model->m_boundsMax = first ? world : glm::max(model->m_boundsMax, world);
+                first = false;
+            }
+        }
+
         std::cout
             << "Loaded model '" << path << "': "
             << model->m_parts.size() << " parts, "

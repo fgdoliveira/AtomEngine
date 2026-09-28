@@ -377,6 +377,84 @@ namespace AtomGame
                 }
             }
 
+            std::size_t chunkIndex = 0;
+            for (const Json& chunk : Array(root, "chunks", ""))
+            {
+                const std::string at = JsonPath("/chunks", chunkIndex++);
+                ChunkData c;
+                c.name = String(chunk, "name", at);
+                c.model = String(chunk, "model", at);
+                c.collision = String(chunk, "collision", at);
+                const std::string layer = String(chunk, "layer", at, "near");
+                if (layer == "near") c.layer = ChunkLayer::Near;
+                else if (layer == "mid") c.layer = ChunkLayer::Mid;
+                else if (layer == "far") c.layer = ChunkLayer::Far;
+                else throw LevelError(JsonPath(at, "layer"), "must be \"near\", \"mid\" or \"far\"");
+                // Only near chunks cast shadows unless told otherwise:
+                // distant shells in the shadow pass cost and show nothing.
+                c.castsShadow = Bool(chunk, "castsShadow", at, c.layer == ChunkLayer::Near);
+                c.cell = String(chunk, "cell", at);
+                if (c.name.empty() || c.model.empty())
+                {
+                    throw LevelError(at, "a chunk needs \"name\" and \"model\"");
+                }
+                if (!c.cell.empty() && c.layer != ChunkLayer::Near)
+                {
+                    throw LevelError(JsonPath(at, "cell"), "only near chunks belong to cells");
+                }
+                level.chunks.push_back(std::move(c));
+            }
+
+            std::size_t cellIndex = 0;
+            for (const Json& cell : Array(root, "cells", ""))
+            {
+                const std::string at = JsonPath("/cells", cellIndex++);
+                CellData c;
+                c.name = String(cell, "name", at);
+                const glm::vec3 min = Vec3(cell, "min", glm::vec3{ 0.0f }, at);
+                const glm::vec3 max = Vec3(cell, "max", glm::vec3{ 0.0f }, at);
+                c.min = { min.x, min.z };
+                c.max = { max.x, max.z };
+                std::size_t n = 0;
+                for (const Json& neighbour : Array(cell, "neighbours", at))
+                {
+                    if (!neighbour.is_string())
+                    {
+                        throw LevelError(JsonPath(JsonPath(at, "neighbours"), n), "must be a cell name");
+                    }
+                    c.neighbours.push_back(neighbour.get<std::string>());
+                    ++n;
+                }
+                if (c.name.empty())
+                {
+                    throw LevelError(at, "a cell needs a \"name\"");
+                }
+                level.cells.push_back(std::move(c));
+            }
+            const auto cellExists = [&](const std::string& name) {
+                return std::any_of(level.cells.begin(), level.cells.end(),
+                    [&](const CellData& c) { return c.name == name; });
+            };
+            for (std::size_t i = 0; i < level.cells.size(); ++i)
+            {
+                for (std::size_t n = 0; n < level.cells[i].neighbours.size(); ++n)
+                {
+                    if (!cellExists(level.cells[i].neighbours[n]))
+                    {
+                        throw LevelError(JsonPath(JsonPath(JsonPath("/cells", i), "neighbours"), n),
+                            "no cell named \"" + level.cells[i].neighbours[n] + "\"");
+                    }
+                }
+            }
+            for (std::size_t i = 0; i < level.chunks.size(); ++i)
+            {
+                if (!level.chunks[i].cell.empty() && !cellExists(level.chunks[i].cell))
+                {
+                    throw LevelError(JsonPath(JsonPath("/chunks", i), "cell"),
+                        "no cell named \"" + level.chunks[i].cell + "\"");
+                }
+            }
+
             std::vector<std::string> entityPaths;
             std::size_t index = 0;
             for (const Json& entity : Array(root, "entities", ""))
@@ -454,6 +532,30 @@ namespace AtomGame
             }
             return level;
         }
+    }
+
+    std::vector<bool> VisibleCells(const std::vector<CellData>& cells, const glm::vec3& position)
+    {
+        std::vector<bool> visible(cells.size(), false);
+        const auto inside = [&](const CellData& c) {
+            return position.x >= c.min.x && position.x <= c.max.x
+                && position.z >= c.min.y && position.z <= c.max.y;
+        };
+        const auto current = std::find_if(cells.begin(), cells.end(), inside);
+        if (current == cells.end())
+        {
+            // Nowhere known (a gap between cells, a teleport): draw it all
+            // rather than risk a hole.
+            visible.assign(cells.size(), true);
+            return visible;
+        }
+        for (std::size_t i = 0; i < cells.size(); ++i)
+        {
+            const bool neighbour = std::find(current->neighbours.begin(), current->neighbours.end(),
+                                             cells[i].name) != current->neighbours.end();
+            visible[i] = &cells[i] == &*current || neighbour;
+        }
+        return visible;
     }
 
     const SpawnPoint* LevelData::FindSpawn(std::string_view spawnName) const
