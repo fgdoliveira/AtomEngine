@@ -42,6 +42,9 @@ namespace AtomGame
             m_fogBanks = fogBanks;
         }
 
+        // Current wind including gusts (m/s), for vertex sway.
+        const glm::vec3& GetWind() const { return m_currentWind; }
+
         void SetEnabled(bool enabled) { m_enabled = enabled; }
         bool IsEnabled() const { return m_enabled; }
 
@@ -74,6 +77,7 @@ namespace AtomGame
         std::vector<Atom::Particle> m_particles;
 
         glm::vec3 m_wind{ 0.45f, 0.0f, 0.15f };
+        glm::vec3 m_currentWind{ 0.0f };
         float m_time = 0.0f;
         bool m_enabled = true;
         bool m_leaves = true;

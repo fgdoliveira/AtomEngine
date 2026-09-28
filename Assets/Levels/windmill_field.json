@@ -1,0 +1,68 @@
+{
+  "$schema": "../Schemas/level.schema.json",
+  "name": "windmill_field",
+  "model": "Fields/fields.glb",
+  "collision": "Fields/fields_col.glb",
+  "defaultSpawn": "from_street",
+  "spawns": {
+    "from_street": {}
+  },
+  "lighting": {
+    "sunDirection": [0.35, 0.6, -0.55],
+    "sunColor": [0.42, 0.42, 0.41],
+    "skyColor": [0.72, 0.74, 0.76],
+    "groundColor": [0.21, 0.20, 0.16],
+    "fogColor": [0.48, 0.49, 0.49],
+    "shadows": true
+  },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.7 },
+      { "sound": "cicadas", "gain": 0.14 },
+      { "sound": "drone", "gain": 0.12 }
+    ]
+  },
+  "surfaces": {
+    "default": "dirt",
+    "zones": [
+      { "min": [-1.2, 0, -8.0], "max": [1.2, 0, 24.0], "surface": "stone" }
+    ]
+  },
+  "particles": { "leaves": true, "fogBanks": true },
+  "unease": { "figure": false },
+  "entities": [
+    {
+      "name": "windmill",
+      "model": "Kit/windmill.glb",
+      "collider": { "center": [0.0, 3.7, 0.0], "halfExtents": [0.9, 3.7, 0.9] },
+      "animation": { "clip": "spin", "loop": true, "sound": "creak", "soundsPerLoop": 4, "soundOffset": [0.0, 6.9, 0.86] },
+      "interactable": {
+        "prompt": "Look up", "focus": [0.0, 1.6, 1.1], "radius": 2.6,
+        "action": { "type": "message", "text": "The sails turn with no one to tend them. The axle groans on every quarter." }
+      }
+    },
+    {
+      "name": "shed",
+      "model": "Kit/shed.glb",
+      "collider": { "center": [0.0, 1.2, 0.0], "halfExtents": [1.6, 1.2, 1.3] },
+      "interactable": {
+        "prompt": "Slide the door", "focus": [0.2, 1.1, 1.4], "radius": 2.4,
+        "action": { "type": "playAnimation", "entity": "shed", "clip": "open", "message": "The door grinds aside. Only darkness inside." }
+      }
+    },
+    {
+      "name": "hanging_sign",
+      "model": "Kit/hanging_sign.glb",
+      "collider": { "center": [0.0, 1.3, 0.0], "halfExtents": [0.1, 1.3, 0.1] },
+      "animation": { "clip": "swing", "loop": true }
+    },
+    {
+      "name": "path_back",
+      "interactable": {
+        "prompt": "Return to the street", "focus": [0.0, 1.2, 0.0], "radius": 2.5,
+        "action": { "type": "changeLevel", "level": "street", "spawn": "from_fields" }
+      }
+    }
+  ]
+}

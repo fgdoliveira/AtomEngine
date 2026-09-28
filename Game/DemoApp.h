@@ -7,6 +7,7 @@
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
 #include "Interaction/MessageFeed.h"
+#include "Level/FileWatcher.h"
 #include "Level/LevelManager.h"
 #include "PlayerController.h"
 #include "Testing/TestScript.h"
@@ -43,6 +44,10 @@ namespace AtomGame
 
         void OnLevelUnloading(Level& outgoing);
         void OnLevelLoaded(Level& incoming, const SpawnPoint& spawn);
+        void OnLevelReloaded(Level& incoming);
+        void ConfigureForLevel(Level& level); // lighting, audio, atmosphere
+        void UpdateHotReload(float deltaSeconds);
+        void WatchLevelFiles();
 
         void UpdateMouseCapture();
         void UpdateRenderSettings();
@@ -75,12 +80,22 @@ namespace AtomGame
         std::size_t VoiceCount() const override;
         std::string SurfaceName() const override;
         ArrivalError Arrival() const override;
+        std::optional<float> AnimationTime(const std::string& entity) const override;
+        std::string ReloadLevel() override;
+        glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
+        bool AnimationPlaying(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
         const Atom::CollisionWorld* CurrentCollision() const;
 
         std::string m_assetRoot;
+
+        // Hot reload (M20), on when ATOM_ASSET_ROOT points at the source tree.
+        bool m_hotReload = false;
+        float m_reloadTimer = 0.0f;
+        FileWatcher m_levelFiles;
+        FileWatcher m_dialogueFiles;
         std::unique_ptr<TestRunner> m_testRunner;
         std::unique_ptr<LevelManager> m_levels;
 
@@ -110,6 +125,7 @@ namespace AtomGame
 
         std::size_t m_fogPreset = 0;
         bool m_shadowsEnabled = true;
+        bool m_bakedLightEnabled = true; // F3: compare with the flat ambient
         int m_postMode = 0; // 0 full, 1 grade only, 2 off
 
         std::unique_ptr<Atom::Font> m_font;      // prompts, hints, dialogue

@@ -30,6 +30,7 @@ namespace AtomGame
 
         // One-shots.
         Atom::SoundHandle Higurashi(std::uint32_t seed);
+        Atom::SoundHandle Creak(); // windmill axle
         Atom::SoundHandle Footstep(Surface surface, std::uint32_t variant);
     }
 }

@@ -8,6 +8,9 @@ add_executable(
     DialogueTests.cpp
     LevelTests.cpp
     TestScriptTests.cpp
+    ModelTests.cpp
+    AnimationTests.cpp
+    AuthoringTests.cpp
 )
 
 target_link_libraries(

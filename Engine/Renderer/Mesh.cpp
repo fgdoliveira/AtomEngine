@@ -37,7 +37,8 @@ namespace Atom
     std::unique_ptr<Mesh> Mesh::Create(
         SDL_GPUDevice* device,
         std::span<const Vertex> vertices,
-        std::span<const std::uint32_t> indices
+        std::span<const std::uint32_t> indices,
+        bool hasBakedLight
     )
     {
         if (!device || vertices.empty() || indices.empty())
@@ -53,6 +54,7 @@ namespace Atom
 
         std::unique_ptr<Mesh> mesh(new Mesh(device));
         mesh->m_indexCount = static_cast<std::uint32_t>(indices.size());
+        mesh->m_hasBakedLight = hasBakedLight;
         mesh->m_boundsMin = vertices.front().position;
         mesh->m_boundsMax = vertices.front().position;
         for (const Vertex& vertex : vertices)

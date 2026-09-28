@@ -2,6 +2,8 @@
 
 #include "Renderer/Shader.h"
 
+#include <stb_image.h>
+
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -86,7 +88,15 @@ namespace Atom
         struct MaterialUniforms
         {
             glm::vec4 baseColorFactor;
-            glm::vec4 emissiveFactor;
+            glm::vec4 emissiveFactor; // w: baked-light weight for this draw
+            glm::vec4 lightmap;       // x: intensity, y: weight (0 = none)
+            glm::vec4 alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage
+        };
+
+        // Mirrors the cbuffer in Shaders/Shadow.frag.hlsl.
+        struct ShadowMaterialUniforms
+        {
+            glm::vec4 alpha; // x: cutoff (0 = opaque), y: base alpha factor
         };
 
         // Mirrors the cbuffer in Shaders/Post.frag.hlsl.
@@ -371,7 +381,15 @@ namespace Atom
 
         m_postSampler = SDL_CreateGPUSampler(m_device, &postInfo);
 
-        if (!m_sampler || !m_postSampler)
+        // Lightmaps: charts are packed with a few texels of margin, so
+        // clamp at the edges and stop after two mip levels - smaller mips
+        // would average neighbouring charts into each other.
+        SDL_GPUSamplerCreateInfo lightmapInfo = postInfo;
+        lightmapInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+        lightmapInfo.max_lod = 2.0f;
+        m_lightmapSampler = SDL_CreateGPUSampler(m_device, &lightmapInfo);
+
+        if (!m_sampler || !m_postSampler || !m_lightmapSampler)
         {
             std::cerr
                 << "Failed to create samplers: "
@@ -385,25 +403,61 @@ namespace Atom
         return m_whiteTexture != nullptr;
     }
 
-    SDL_GPUGraphicsPipeline* Renderer::GetScenePipeline(std::uint32_t samples)
+    bool Renderer::CanUseAlphaToCoverage(std::uint32_t samples) const
+    {
+        // It needs several samples per pixel to mean anything, and an alpha
+        // channel in the target to carry the coverage: the compact HDR
+        // format (R11G11B10) has none, so there masked materials fall back
+        // to a plain alpha test.
+        return samples > 1
+            && m_targets.GetColorFormat() == SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetScenePipeline(
+        std::uint32_t samples,
+        bool doubleSided,
+        bool alphaToCoverage
+    )
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
-        if (m_scenePipelines[slot])
+        alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
+        const std::size_t index = slot * 4 + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
+        if (!m_scenePipelines[index])
         {
-            return m_scenePipelines[slot];
+            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false);
         }
+        return m_scenePipelines[index];
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        if (!m_decalPipelines[slot])
+        {
+            m_decalPipelines[slot] = CreateScenePipeline(slot, false, false, true);
+        }
+        return m_decalPipelines[slot];
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::CreateScenePipeline(
+        std::size_t slot,
+        bool doubleSided,
+        bool alphaToCoverage,
+        bool decal
+    )
+    {
 
         SDL_GPUShader* vertexShader = LoadShader(
             m_device,
             "Basic.vert",
             SDL_GPU_SHADERSTAGE_VERTEX,
-            ShaderResources{ .uniformBuffers = 1 }
+            ShaderResources{ .uniformBuffers = 2 }
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 2, .uniformBuffers = 2 }
+            ShaderResources{ .samplers = 3, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -424,7 +478,7 @@ namespace Atom
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute attributes[3]{};
+        SDL_GPUVertexAttribute attributes[5]{};
         attributes[0].location = 0;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[0].offset = offsetof(Vertex, position);
@@ -434,9 +488,26 @@ namespace Atom
         attributes[2].location = 2;
         attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         attributes[2].offset = offsetof(Vertex, uv);
+        attributes[3].location = 3;
+        attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_USHORT4_NORM;
+        attributes[3].offset = offsetof(Vertex, color);
+        attributes[4].location = 4;
+        attributes[4].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+        attributes[4].offset = offsetof(Vertex, lightmapUv);
 
         SDL_GPUColorTargetDescription colorTarget{};
         colorTarget.format = m_targets.GetColorFormat();
+        if (decal)
+        {
+            // Straight alpha over what's there: colour = src*a + dst*(1-a).
+            colorTarget.blend_state.enable_blend = true;
+            colorTarget.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+            colorTarget.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            colorTarget.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+            colorTarget.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ZERO;
+            colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+            colorTarget.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+        }
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
@@ -445,20 +516,34 @@ namespace Atom
             &vertexBuffer;
         createInfo.vertex_input_state.num_vertex_buffers = 1;
         createInfo.vertex_input_state.vertex_attributes = attributes;
-        createInfo.vertex_input_state.num_vertex_attributes = 3;
+        createInfo.vertex_input_state.num_vertex_attributes = 5;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
+        createInfo.rasterizer_state.cull_mode =
+            doubleSided ? SDL_GPU_CULLMODE_NONE : SDL_GPU_CULLMODE_BACK;
         createInfo.rasterizer_state.front_face =
             SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
         createInfo.rasterizer_state.enable_depth_clip = true;
         createInfo.multisample_state.sample_count = slot == 2
             ? SDL_GPU_SAMPLECOUNT_4
             : slot == 1 ? SDL_GPU_SAMPLECOUNT_2 : SDL_GPU_SAMPLECOUNT_1;
+        // The shader's alpha then decides how many samples a pixel covers:
+        // soft, sorted-free edges on leaves instead of stair-steps.
+        createInfo.multisample_state.enable_alpha_to_coverage = alphaToCoverage;
         createInfo.depth_stencil_state.enable_depth_test = true;
-        createInfo.depth_stencil_state.enable_depth_write = true;
+        // Decals test depth (hidden behind walls) but don't write it: the
+        // surface below keeps its depth, and overlapping decals both show.
+        createInfo.depth_stencil_state.enable_depth_write = !decal;
         createInfo.depth_stencil_state.compare_op =
             SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        if (decal)
+        {
+            // Pulled toward the camera, more on slanted views, so the 2 mm
+            // they float above their surface is never lost to precision.
+            createInfo.rasterizer_state.enable_depth_bias = true;
+            createInfo.rasterizer_state.depth_bias_constant_factor = -2.0f;
+            createInfo.rasterizer_state.depth_bias_slope_factor = -1.0f;
+        }
         createInfo.target_info.color_target_descriptions = &colorTarget;
         createInfo.target_info.num_color_targets = 1;
         createInfo.target_info.depth_stencil_format =
@@ -481,7 +566,6 @@ namespace Atom
             return nullptr;
         }
 
-        m_scenePipelines[slot] = pipeline;
         return pipeline;
     }
 
@@ -545,10 +629,11 @@ namespace Atom
 
     std::unique_ptr<Mesh> Renderer::CreateMesh(
         std::span<const Vertex> vertices,
-        std::span<const std::uint32_t> indices
+        std::span<const std::uint32_t> indices,
+        bool hasBakedLight
     )
     {
-        return Mesh::Create(m_device, vertices, indices);
+        return Mesh::Create(m_device, vertices, indices, hasBakedLight);
     }
 
     std::unique_ptr<Texture> Renderer::CreateTexture(
@@ -559,6 +644,23 @@ namespace Atom
     )
     {
         return Texture::Create(m_device, width, height, pixels, srgb);
+    }
+
+    std::unique_ptr<Texture> Renderer::LoadTexture(const std::string& path, bool srgb)
+    {
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        stbi_uc* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
+        if (!pixels)
+        {
+            std::cerr << "Failed to load texture '" << path << "': " << stbi_failure_reason() << '\n';
+            return nullptr;
+        }
+        auto texture = CreateTexture(
+            static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), pixels, srgb);
+        stbi_image_free(pixels);
+        return texture;
     }
 
     void Renderer::SetCamera(
@@ -758,13 +860,13 @@ namespace Atom
             m_device,
             "Shadow.vert",
             SDL_GPU_SHADERSTAGE_VERTEX,
-            ShaderResources{ .uniformBuffers = 1 }
+            ShaderResources{ .uniformBuffers = 2 }
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
             "Shadow.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{}
+            ShaderResources{ .samplers = 1, .uniformBuffers = 1 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -780,24 +882,31 @@ namespace Atom
             return false;
         }
 
-        // Same vertex buffers as the scene; only the position is read.
+        // Same vertex buffers as the scene; position, and the uv that alpha
+        // testing needs (leaves cast leaf-shaped shadows).
         SDL_GPUVertexBufferDescription vertexBuffer{};
         vertexBuffer.slot = 0;
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute position{};
-        position.location = 0;
-        position.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        position.offset = offsetof(Vertex, position);
+        SDL_GPUVertexAttribute attributes[3]{};
+        attributes[0].location = 0;
+        attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        attributes[0].offset = offsetof(Vertex, position);
+        attributes[1].location = 1;
+        attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+        attributes[1].offset = offsetof(Vertex, uv);
+        attributes[2].location = 2; // alpha carries the sway weight
+        attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_USHORT4_NORM;
+        attributes[2].offset = offsetof(Vertex, color);
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
         createInfo.fragment_shader = fragmentShader;
         createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
         createInfo.vertex_input_state.num_vertex_buffers = 1;
-        createInfo.vertex_input_state.vertex_attributes = &position;
-        createInfo.vertex_input_state.num_vertex_attributes = 1;
+        createInfo.vertex_input_state.vertex_attributes = attributes;
+        createInfo.vertex_input_state.num_vertex_attributes = 3;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         // Kit pieces include single-sided quads (doors, ground); let both
@@ -873,17 +982,27 @@ namespace Atom
         SDL_GPURenderPass* renderPass,
         SDL_GPUCommandBuffer* commandBuffer,
         const glm::mat4& viewProjection,
-        bool bindMaterials
+        std::uint32_t sceneSamples
     )
     {
         const Frustum frustum = ExtractFrustum(viewProjection);
+        const bool bindMaterials = sceneSamples > 0;
+        SDL_GPUGraphicsPipeline* bound = nullptr;
 
         ObjectUniforms uniforms{};
         uniforms.viewProjection = viewProjection;
 
         std::uint32_t drawn = 0;
+        // Phase 0: opaque and alpha-tested. Phase 1 (scene only): decals,
+        // over the finished surfaces; they cast no shadows.
+        for (int phase = 0; phase < (bindMaterials ? 2 : 1); ++phase)
         for (const DrawCommand& command : m_drawCommands)
         {
+            const bool isDecal = command.material->alphaMode == AlphaMode::Blend;
+            if (isDecal != (phase == 1))
+            {
+                continue;
+            }
             if (!IsVisible(frustum, *command.mesh, command.model))
             {
                 continue;
@@ -898,12 +1017,41 @@ namespace Atom
                 sizeof(uniforms)
             );
 
+            const Material& material = *command.material;
+            const bool masked = material.alphaMode == AlphaMode::Mask;
+            const float cutoff = masked ? material.alphaCutoff : 0.0f;
+            const Texture* baseColor = material.baseColorTexture
+                ? material.baseColorTexture
+                : m_whiteTexture.get();
+
             if (bindMaterials)
             {
-                const Material& material = *command.material;
+                SDL_GPUGraphicsPipeline* pipeline = isDecal
+                    ? GetDecalPipeline(sceneSamples)
+                    : GetScenePipeline(sceneSamples, material.doubleSided, masked);
+                if (!pipeline)
+                {
+                    continue;
+                }
+                if (pipeline != bound)
+                {
+                    SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+                    bound = pipeline;
+                }
+
+                // Baked meshes blend toward their vertex light; others keep
+                // the hemisphere ambient (weight 0).
+                const float bakedWeight =
+                    command.mesh->HasBakedLight() ? m_lighting.bakedLight : 0.0f;
                 const MaterialUniforms materialUniforms{
                     material.baseColorFactor,
-                    glm::vec4{ material.emissiveFactor, 0.0f }
+                    glm::vec4{ material.emissiveFactor, bakedWeight },
+                    glm::vec4{
+                        material.lightmapIntensity,
+                        material.lightmap ? m_lighting.bakedLight : 0.0f,
+                        0.0f,
+                        0.0f },
+                    glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f, 0.0f, 0.0f }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,
@@ -912,9 +1060,29 @@ namespace Atom
                     sizeof(materialUniforms)
                 );
 
-                const Texture* baseColor = material.baseColorTexture
-                    ? material.baseColorTexture
+                const SDL_GPUTextureSamplerBinding textureBinding{
+                    baseColor->GetGPUTexture(),
+                    m_sampler
+                };
+                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+
+                const Texture* lightmap = material.lightmap
+                    ? material.lightmap
                     : m_whiteTexture.get();
+                const SDL_GPUTextureSamplerBinding lightmapBinding{
+                    lightmap->GetGPUTexture(),
+                    m_lightmapSampler
+                };
+                SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
+            }
+            else
+            {
+                // Depth only: just enough to cut the same holes as the scene.
+                const ShadowMaterialUniforms shadowUniforms{
+                    glm::vec4{ cutoff, material.baseColorFactor.a, 0.0f, 0.0f }
+                };
+                SDL_PushGPUFragmentUniformData(
+                    commandBuffer, 0, &shadowUniforms, sizeof(shadowUniforms));
                 const SDL_GPUTextureSamplerBinding textureBinding{
                     baseColor->GetGPUTexture(),
                     m_sampler
@@ -980,8 +1148,9 @@ namespace Atom
         }
 
         SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
         m_stats.shadowDrawn =
-            DrawQueue(renderPass, commandBuffer, lightViewProjection, false);
+            DrawQueue(renderPass, commandBuffer, lightViewProjection, 0);
 
         SDL_EndGPURenderPass(renderPass);
         return true;
@@ -1036,6 +1205,7 @@ namespace Atom
         );
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
 
         // Once per frame; stays bound for every draw in this command buffer.
         const SceneUniforms sceneUniforms = MakeSceneUniforms(
@@ -1057,7 +1227,7 @@ namespace Atom
         m_stats.sceneHeight = m_targets.GetHeight();
         m_stats.msaaSamples = m_targets.GetSamples();
         m_stats.drawn = DrawQueue(
-            renderPass, commandBuffer, projection * m_camera.view, true);
+            renderPass, commandBuffer, projection * m_camera.view, m_targets.GetSamples());
 
         DrawParticles(renderPass, commandBuffer, projection * m_camera.view);
 
@@ -1358,11 +1528,18 @@ namespace Atom
             m_whiteTexture.reset();
             m_targets.Release();
 
-            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler })
+            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler })
             {
                 if (sampler)
                 {
                     SDL_ReleaseGPUSampler(m_device, sampler);
+                }
+            }
+            for (SDL_GPUGraphicsPipeline* pipeline : m_decalPipelines)
+            {
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
                 }
             }
             for (SDL_GPUGraphicsPipeline* pipeline : m_scenePipelines)
@@ -1413,6 +1590,7 @@ namespace Atom
         }
 
         m_scenePipelines = {};
+        m_decalPipelines = {};
         m_postPipeline = nullptr;
         m_shadowPipeline = nullptr;
         m_particlePipelines = {};
@@ -1424,6 +1602,7 @@ namespace Atom
         m_shadowMap = nullptr;
         m_sampler = nullptr;
         m_postSampler = nullptr;
+        m_lightmapSampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
         m_windowClaimed = false;

@@ -6,21 +6,26 @@ through a foggy rural Japanese street in the spirit of 2000s horror (Silent
 Hill 2's daytime town, Siren) — *2000s-inspired art direction on a modern,
 resolution-independent renderer*.
 
-Current version: **0.0.2** — interaction, dialogue and multiple levels.
+Current version: **0.0.3** — baked lighting, alpha-tested materials and
+decals, animation, a fourth level, and faster authoring.
 See [CHANGELOG.md](CHANGELOG.md).
 
 ## What's in it
 
 **Rendering** — forward renderer on SDL_GPU / D3D12 with HLSL shaders compiled
 offline to DXIL; off-screen HDR target with configurable render scale and
-MSAA; hemispheric + sun lighting; exponential height fog; a directional
-shadow map (texel-snapped, PCF); ACES tonemapping, colour grade, film grain
+MSAA; hemispheric + sun lighting with baked light (vertex colours and
+lightmaps); exponential height fog; a directional shadow map (texel-snapped,
+PCF); alpha-tested foliage and cloth, and decals; rigid node animation and
+wind sway in the vertex shader; ACES tonemapping, colour grade, film grain
 and vignette; instanced particles; frustum culling; a 2D text/UI overlay.
 
-**World** — glTF models and collision proxies generated procedurally by
-Blender scripts; levels described in JSON (models, spawns, lighting,
-ambience, footstep surfaces, entities); a level manager that loads, unloads
-(RAII) and fades between levels.
+**World** — glTF models, collision proxies, light bakes and lightmaps
+generated procedurally by Blender scripts (deterministic, with a geometry
+lint); levels described in JSON with schemas (models, spawns, lighting,
+ambience, footstep surfaces, entities, animations), placed with Blender
+markers; a level manager that loads, unloads (RAII), fades between levels
+and hot-reloads them.
 
 **Gameplay** — a first-person controller with wall sliding and step-up;
 entities built from capabilities (drawn, interactable) instead of a class
@@ -29,7 +34,7 @@ flag-gated dialogue from JSON.
 
 **Audio** — a software mixer with 3D attenuation and panning; every sound is
 synthesised in code at startup (wind, cicadas, footsteps per surface,
-vending machine hum, radio static, room tone).
+vending machine hum, radio static, room tone, a windmill's creak).
 
 **Testing** — doctest unit tests for the pure logic, and an in-game
 scenario harness that drives the real game from scripts.
@@ -58,12 +63,13 @@ stb, nlohmann/json 3.12.0, doctest 2.5.3.
 | W S or 1–4 | choose a dialogue option |
 | Esc | release the mouse (again: quit) |
 | F1 | debug overlay |
-| F2 / F4 | render scale / MSAA |
+| F2 / F3 / F4 | render scale / baked light / MSAA |
 | F5 / F6 / F7 | fog preset / shadows / post look |
 | F8 / F9 / M | particles / unease events / mute |
 
 The demo: talk to the shrine keeper by the torii, find a way through the
-shrine gate, and try the door of the house at the east end of the street.
+shrine gate, try the door of the house at the east end of the street, and
+take the field path at the west end to the windmill.
 
 Developer switches (environment variables):
 
@@ -73,6 +79,7 @@ Developer switches (environment variables):
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
+| `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 
 ## Testing
 
@@ -109,7 +116,13 @@ byte-identical.
 blender -b --factory-startup -P Tools/Blender/build_assets.py
 ```
 
-Levels are JSON files in `Assets/Levels/`, dialogue in `Assets/Dialogue/`.
+Levels are JSON files in `Assets/Levels/`, dialogue in `Assets/Dialogue/`;
+both declare a schema from `Assets/Schemas/` for editor completion and
+checks. Level builders in Blender can place spawns and entities with
+`spawn:<name>` / `entity:<name>` empties, exported to
+`Assets/Levels/<level>.markers.json`. Run the game with
+`ATOM_ASSET_ROOT=<repo>` to see edits to level files, markers, models and
+dialogue within a second, without restarting.
 
 ## Layout
 

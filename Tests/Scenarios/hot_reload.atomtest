@@ -1,0 +1,18 @@
+# Hot reload (M20): the level is rebuilt in place from its files. The
+# player stays where they were, the entities work again, and the old
+# level's sounds are gone (no voice leak).
+
+expect_level street
+teleport 10 0 1 90
+wait 0.5
+reload_level
+expect_level street
+expect_mode exploring
+expect_near 10 0 1
+expect_voices_max 7                  # looping: 3 beds + 3 vending hums + static
+teleport_to torii
+expect_target torii
+reload_level
+reload_level
+expect_voices_max 7
+log hot reload done

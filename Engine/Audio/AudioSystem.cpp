@@ -247,6 +247,13 @@ namespace Atom
         return m_voices.size();
     }
 
+    std::size_t AudioSystem::GetLoopingVoiceCount() const
+    {
+        const StreamLock lock(m_stream);
+        return static_cast<std::size_t>(std::count_if(m_voices.begin(), m_voices.end(),
+            [](const Voice& voice) { return voice.params.loop; }));
+    }
+
     AudioSystem::Voice* AudioSystem::FindVoice(VoiceId id)
     {
         for (Voice& voice : m_voices)

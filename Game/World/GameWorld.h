@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Audio/AudioSystem.h"
 #include "Core/SlotMap.h"
 #include "Interaction/Actions.h"
 
@@ -39,6 +40,22 @@ namespace AtomGame
         std::optional<Action> lockedAction;
     };
 
+    // A capability: "this moves" (M19). Plays one clip of the entity's
+    // model; a looping clip can fire a sound a few times per loop (a
+    // windmill's creak once per blade).
+    struct Animated
+    {
+        int clip = -1;
+        float duration = 0.0f;
+        float time = 0.0f;
+        float speed = 1.0f;
+        bool loop = false;
+        bool playing = false;
+        Atom::SoundHandle sound;
+        int soundsPerLoop = 0;
+        glm::vec3 soundOffset{ 0.0f, 1.0f, 0.0f };
+    };
+
     // Composition, not inheritance: an entity is a name, a place and a set
     // of optional capabilities. New kinds of object add capabilities rather
     // than subclasses.
@@ -48,6 +65,7 @@ namespace AtomGame
         glm::vec3 position{ 0.0f };
         std::optional<Renderable> renderable;
         std::optional<Interactable> interactable;
+        std::optional<Animated> animated;
     };
 
     // Owns the entities of the current world. Everything else refers to
@@ -65,6 +83,8 @@ namespace AtomGame
 
         template <typename F>
         void ForEach(F&& f) const { m_entities.ForEach(std::forward<F>(f)); }
+        template <typename F>
+        void ForEach(F&& f) { m_entities.ForEach(std::forward<F>(f)); }
 
     private:
         Atom::SlotMap<Entity> m_entities;

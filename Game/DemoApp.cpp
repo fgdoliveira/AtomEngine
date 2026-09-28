@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -40,6 +41,18 @@ namespace AtomGame
     {
         const char* basePath = SDL_GetBasePath();
         m_assetRoot = basePath ? basePath : "";
+        // ATOM_ASSET_ROOT=<folder containing Assets/> reads the source tree
+        // instead of the build's copy, and turns on hot reload.
+        if (const char* root = SDL_getenv("ATOM_ASSET_ROOT"); root && *root)
+        {
+            m_assetRoot = root;
+            if (m_assetRoot.back() != '/' && m_assetRoot.back() != '\\')
+            {
+                m_assetRoot += '/';
+            }
+            m_hotReload = true;
+            std::cout << "Hot reload on: assets from " << m_assetRoot << '\n';
+        }
 
         m_fogPreset = DefaultFogPreset;
         m_audioScape.Initialize(GetAudio());
@@ -67,6 +80,7 @@ namespace AtomGame
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
             OnLevelLoaded(incoming, spawn);
         };
+        m_levels->onReloaded = [this](Level& incoming) { OnLevelReloaded(incoming); };
 
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
@@ -85,7 +99,7 @@ namespace AtomGame
 
         std::cout
             << "Controls: WASD move, Shift jog, mouse look, E interact, Esc release/quit\n"
-            << "  F2 render scale  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
+            << "  F2 render scale  F3 baked light  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
         LoadTestScript();
@@ -119,6 +133,21 @@ namespace AtomGame
         m_arrivalYaw = glm::radians(spawn.yawDegrees);
         m_arriving = true;
 
+        ConfigureForLevel(incoming);
+        m_mode = Mode::Exploring;
+        std::cout << "Entered level '" << data.name << "'\n";
+    }
+
+    void DemoApp::OnLevelReloaded(Level& incoming)
+    {
+        // Same place, same view: only the level's content changed.
+        ConfigureForLevel(incoming);
+        m_mode = Mode::Exploring;
+    }
+
+    void DemoApp::ConfigureForLevel(Level& incoming)
+    {
+        const LevelData& data = incoming.GetData();
         m_atmosphere.Configure(data.leaves, data.fogBanks);
         m_unease.Configure(data.unease, &incoming);
         m_audioScape.SetOutdoor(data.outdoor);
@@ -126,9 +155,72 @@ namespace AtomGame
             return incoming.GetData().SurfaceAt(x, z);
         });
         ApplyLighting();
+        WatchLevelFiles();
+    }
 
-        m_mode = Mode::Exploring;
-        std::cout << "Entered level '" << data.name << "'\n";
+    void DemoApp::WatchLevelFiles()
+    {
+        if (!m_hotReload)
+        {
+            return;
+        }
+        m_levelFiles.Watch(m_levels->GetSourceFiles());
+        std::vector<std::string> dialogues;
+        std::error_code error;
+        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Dialogue", error))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                dialogues.push_back(entry.path().string());
+            }
+        }
+        m_dialogueFiles.Watch(std::move(dialogues));
+    }
+
+    void DemoApp::UpdateHotReload(float deltaSeconds)
+    {
+        // Once a second, and only while walking: never mid-dialogue or
+        // mid-transition.
+        m_reloadTimer += deltaSeconds;
+        if (!m_hotReload || m_reloadTimer < 1.0f || m_mode != Mode::Exploring)
+        {
+            return;
+        }
+        m_reloadTimer = 0.0f;
+
+        if (!m_dialogueFiles.Poll().empty())
+        {
+            m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+            m_messages.Show("Dialogue reloaded");
+        }
+        const std::vector<std::string> changed = m_levelFiles.Poll();
+        if (changed.empty())
+        {
+            return;
+        }
+        std::cout << "Changed: " << changed.front() << (changed.size() > 1 ? " (and more)" : "") << '\n';
+        if (const std::string error = ReloadLevel(); !error.empty())
+        {
+            // Keep playing the old level; say what's wrong where you look.
+            std::cerr << "Reload failed: " << error << '\n';
+            m_messages.Show("Reload failed - " + error);
+        }
+        else
+        {
+            m_messages.Show("Level reloaded");
+        }
+    }
+
+    std::string DemoApp::ReloadLevel()
+    {
+        const std::string error = m_levels->Reload();
+        if (!error.empty())
+        {
+            // Don't retry the same broken files every second: wait for the
+            // next edit.
+            m_levelFiles.Poll();
+        }
+        return error;
     }
 
     GameWorld* DemoApp::CurrentWorld()
@@ -154,6 +246,11 @@ namespace AtomGame
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
+        UpdateHotReload(deltaSeconds);
+        if (Level* level = m_levels->GetLevel())
+        {
+            level->Update(deltaSeconds);
+        }
         if (m_levels->IsTransitioning())
         {
             m_mode = Mode::Transitioning;
@@ -217,6 +314,9 @@ namespace AtomGame
             lighting.fogDensity > 0.0f ? 1.0f : 0.35f
         );
         m_atmosphere.Submit(renderer);
+        // Sway follows the gusts outdoors; indoors the air is still.
+        const Level* current = m_levels->GetLevel();
+        renderer.SetWind(current && current->GetData().outdoor ? m_atmosphere.GetWind() : glm::vec3{ 0.0f }, m_time);
 
         m_unease.Update(deltaSeconds, m_camera, m_player.GetFeetPosition(), m_audioScape);
         m_unease.Submit(renderer);
@@ -334,7 +434,7 @@ namespace AtomGame
             "Scene %ux%u  (%.0f%%)  MSAA %ux\n"
             "Draws %u / %u   shadow casters %u\n"
             "Particles %u\n"
-            "Fog %s   Shadows %s   Post %s\n"
+            "Fog %s   Shadows %s   Baked light %s   Post %s\n"
             "Particles %s   Unease %s   Audio %s\n"
             "Position %.1f  %.2f  %.1f\n"
             "Level %s   voices %zu   flags %zu",
@@ -345,6 +445,7 @@ namespace AtomGame
             stats.particles,
             FogPresets[m_fogPreset].name,
             GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
+            m_bakedLightEnabled ? "on" : "off",
             m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
             m_atmosphere.IsEnabled() ? "on" : "off",
             m_unease.IsEnabled() ? "on" : "off",
@@ -464,6 +565,10 @@ namespace AtomGame
             [this](const std::string& level, const std::string& spawn) {
                 m_levels->RequestChange(level, spawn);
             },
+            [this](const std::string& entity, const std::string& clip) {
+                Level* level = m_levels->GetLevel();
+                return level && level->PlayAnimation(entity, clip);
+            },
         };
         std::cout << "Interacted with " << target.name << '\n';
         ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
@@ -553,6 +658,13 @@ namespace AtomGame
             m_unease.SetEnabled(!m_unease.IsEnabled());
         }
 
+        // F3: baked light on/off, to compare with the flat hemisphere ambient.
+        if (input.WasKeyPressed(SDL_SCANCODE_F3))
+        {
+            m_bakedLightEnabled = !m_bakedLightEnabled;
+            ApplyLighting();
+        }
+
         // F6: sun shadows on/off.
         if (input.WasKeyPressed(SDL_SCANCODE_F6))
         {
@@ -584,6 +696,7 @@ namespace AtomGame
             lighting.groundColor = l.groundColor;
             lighting.fogColor = l.fogColor;
             lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
+            lighting.bakedLight = m_bakedLightEnabled ? l.bakedLight : 0.0f;
         }
         lighting.fogDensity = FogPresets[m_fogPreset].density;
         lighting.fogHeightFalloff = 0.08f;
@@ -825,7 +938,9 @@ namespace AtomGame
 
     std::size_t DemoApp::VoiceCount() const
     {
-        return const_cast<DemoApp*>(this)->GetAudio().GetVoiceCount();
+        // Leak checks count what plays until stopped; a cicada call or a
+        // footstep in flight isn't a leak.
+        return const_cast<DemoApp*>(this)->GetAudio().GetLoopingVoiceCount();
     }
 
     std::string DemoApp::SurfaceName() const
@@ -842,6 +957,22 @@ namespace AtomGame
             glm::length(m_camera.GetPosition() - m_arrivalEye),
             std::abs(glm::degrees(yaw)),
         };
+    }
+
+    std::optional<float> DemoApp::AnimationTime(const std::string& name) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(name);
+        if (!entity || !entity->animated)
+        {
+            return std::nullopt;
+        }
+        return entity->animated->time;
+    }
+
+    bool DemoApp::AnimationPlaying(const std::string& name) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(name);
+        return entity && entity->animated && entity->animated->playing;
     }
 
     void DemoApp::Log(const std::string& text)

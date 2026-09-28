@@ -7,6 +7,7 @@
 #include <glm/vec3.hpp>
 
 #include <array>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -36,6 +37,7 @@ namespace AtomGame
         glm::vec3 groundColor{ 0.20f, 0.19f, 0.17f };
         glm::vec3 fogColor{ 0.46f, 0.47f, 0.47f };
         bool shadows = true;
+        float bakedLight = 1.0f; // weight of the vertex-colour bake (M15)
     };
 
     struct AudioBed
@@ -68,14 +70,28 @@ namespace AtomGame
         glm::vec3 halfExtents{ 0.5f };
     };
 
+    struct EntityAnimation
+    {
+        std::string clip;
+        bool loop = true;
+        bool autoplay = true;
+        float speed = 1.0f;
+        std::string sound;        // optional, from the sound library
+        int soundsPerLoop = 1;
+        glm::vec3 soundOffset{ 0.0f, 1.0f, 0.0f };
+    };
+
     struct EntityData
     {
         std::string name;
         glm::vec3 position{ 0.0f };
         float yawDegrees = 0.0f;
+        bool hasPosition = false; // written in the file (or set from a marker)
+        bool hasYaw = false;
         std::string model; // optional, relative to Assets/
         std::optional<ColliderBox> collider;
         std::optional<Interactable> interactable;
+        std::optional<EntityAnimation> animation; // needs a model with the clip
     };
 
     struct LevelUnease
@@ -86,11 +102,20 @@ namespace AtomGame
         std::vector<glm::vec3> flickerSites;
     };
 
+    // Baked light texture for the scene model (M16), mapped by its second
+    // UV set. Written by the asset build next to the model.
+    struct LevelLightmap
+    {
+        std::string texture;    // relative to Assets/
+        float intensity = 1.0f;
+    };
+
     struct LevelData
     {
         std::string name;
         std::string model;     // relative to Assets/
         std::string collision; // relative to Assets/
+        std::optional<LevelLightmap> lightmap;
         std::string defaultSpawn;
         std::unordered_map<std::string, SpawnPoint> spawns;
         LevelLighting lighting;
@@ -114,6 +139,13 @@ namespace AtomGame
         std::string error;
     };
 
-    LevelParseResult ParseLevel(std::string_view json);
+    // Errors name the place: "line 4, column 9: ..." for syntax, a JSON
+    // Pointer ("/entities/3/interactable/action/type: ...") for content.
+    // `markers` is the optional <level>.markers.json written from Blender.
+    LevelParseResult ParseLevel(std::string_view json, std::string_view markers = {});
+
+    // Reads the file and its markers file beside it, if any; errors are
+    // prefixed with the file name.
     LevelParseResult LoadLevelFile(const std::string& path);
+    std::string MarkersPathFor(const std::string& levelPath);
 }

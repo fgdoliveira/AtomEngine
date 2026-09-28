@@ -13,8 +13,11 @@ and nothing is exported.
 
 import argparse
 import importlib
+import json
+import math
 import os
 import sys
+import time
 
 import bpy
 
@@ -29,12 +32,16 @@ import atom_textures  # noqa: E402
 import atom_kit  # noqa: E402
 import atom_street  # noqa: E402
 import atom_levels  # noqa: E402
+import atom_bake  # noqa: E402
+import atom_lightmap  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
 importlib.reload(atom_kit)
 importlib.reload(atom_street)
 importlib.reload(atom_levels)
+importlib.reload(atom_bake)
+importlib.reload(atom_lightmap)
 
 
 def parse_args():
@@ -72,28 +79,78 @@ def export_objects(objects, scene, path, materials=True):
     for obj in scene.objects:
         obj.select_set(obj in selected)
 
-    bpy.ops.export_scene.gltf(
-        filepath=path,
-        export_format="GLB",
-        use_selection=True,
-        export_yup=True,
-        export_apply=True,
-        export_texcoords=materials,
-        export_normals=True,
-        export_materials="EXPORT" if materials else "NONE",
-        export_image_format="AUTO",
-        export_cameras=False,
-        export_lights=False,
-        export_extras=False,
-    )
+    # Windows sometimes holds a just-written file for a moment (antivirus,
+    # indexer), making the next open fail with EINVAL; a short retry is
+    # enough. Anything that persists is a real error.
+    for attempt in range(5):
+        try:
+            bpy.ops.export_scene.gltf(
+                filepath=path,
+                export_format="GLB",
+                use_selection=True,
+                export_yup=True,
+                export_apply=True,
+                export_texcoords=materials,
+                export_normals=True,
+                export_materials="EXPORT" if materials else "NONE",
+                export_image_format="AUTO",
+                export_cameras=False,
+                export_lights=False,
+                export_extras=False,
+                export_vertex_color="NAME",
+                export_vertex_color_name=atom_bake.ATTRIBUTE,
+                export_all_vertex_colors=False,
+            )
+            break
+        except RuntimeError as error:
+            if attempt == 4:
+                raise
+            print(f"Export of {os.path.basename(path)} failed ({error}); retrying")
+            time.sleep(0.5)
     print("Exported", os.path.relpath(path, REPO_ROOT))
 
 
+def write_markers(collection, path):
+    """Writes the level's spawn:/entity: empties as game-space placements
+    (glTF axes: x, z, -y). Spawn yaw: the empty looks along its local +Y,
+    game yaw 0 looks down -Z, so yaw = -rotation. Entity yaw: the model
+    turns like a kit piece, yaw = rotation. Sorted and rounded, so the file
+    is byte-identical across rebuilds. Returns the number of markers."""
+    placements = {"spawns": {}, "entities": {}}
+    for obj in collection.all_objects:
+        if obj.type != "EMPTY" or ":" not in obj.name:
+            continue
+        kind, name = obj.name.split(":", 1)
+        if kind not in ("spawn", "entity") or "." in name:
+            atom_kit.LINT_ERRORS.append(f"marker {obj.name}: expected spawn:<name> or entity:<name>, unique")
+            continue
+        x, y, z = obj.matrix_world.translation
+        rotation = math.degrees(obj.matrix_world.to_euler("XYZ").z)
+        yaw = -rotation if kind == "spawn" else rotation
+        placements["spawns" if kind == "spawn" else "entities"][name] = {
+            "position": [round(x, 3), round(z, 3), round(-y, 3)],
+            "yaw": round((yaw + 180.0) % 360.0 - 180.0, 2) + 0.0,
+        }
+    count = len(placements["spawns"]) + len(placements["entities"])
+    if not count:
+        if os.path.exists(path):
+            os.remove(path)
+        return 0
+    document = {"_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit"}
+    document.update(placements)
+    with open(path, "w", encoding="utf-8", newline="\n") as file:
+        json.dump(document, file, indent=2, sort_keys=True)
+        file.write("\n")
+    print("Exported", os.path.relpath(path, REPO_ROOT), f"({count} markers)")
+    return count
+
+
 def export_piece(obj, scene, out_dir):
-    """Exports a kit piece centred on the origin."""
+    """Exports a kit piece centred on the origin, with its moving parts
+    (children) and their animation clips."""
     saved = obj.location.copy()
     obj.location = (0.0, 0.0, 0.0)
-    export_objects([obj], scene, os.path.join(out_dir, obj.name + ".glb"))
+    export_objects([obj] + list(obj.children_recursive), scene, os.path.join(out_dir, obj.name + ".glb"))
     obj.location = saved
 
 
@@ -146,6 +203,30 @@ def main():
     if args.no_export:
         return
 
+    # Baked light (M15): each kit piece alone (entity models placed by
+    # levels), then every level as a whole, so pieces shade each other.
+    for obj in pieces.values():
+        atom_bake.bake(scene, [obj] + list(obj.children_recursive))
+    atom_bake.bake(scene, street.visual)
+    for folder, level in levels:
+        atom_bake.bake(scene, level.visual, atom_levels.BAKE_MODES.get(folder, "sky"))
+    # Lightmaps (M16) where vertex light isn't enough; written next to the
+    # level's glb, whose second UV set (TEXCOORD_1) maps them.
+    for folder, level in levels:
+        lights = atom_levels.LIGHTMAPS.get(folder)
+        if lights:
+            mesh = next(obj for obj in level.visual if obj.name == folder)
+            level_dir = os.path.join(args.out, folder.capitalize())
+            os.makedirs(level_dir, exist_ok=True)
+            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"))
+
+    if atom_kit.LINT_ERRORS:
+        for error in atom_kit.LINT_ERRORS:
+            print("lint ERROR: " + error)
+        print(f"lint: {len(atom_kit.LINT_ERRORS)} bake error(s); nothing exported")
+        sys.exit(1)
+    print("bake: vertex light baked")
+
     if not bpy.app.background:
         # Exporting from a live session has proven crash-prone (the context
         # scene lags the window scene), so exports are headless only.
@@ -170,6 +251,14 @@ def main():
         export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
         export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),
                        materials=False)
+        write_markers(level.collection, os.path.join(
+            args.out, "Levels", atom_levels.LEVEL_FILES[folder] + ".markers.json"))
 
 
-main()
+# Blender exits 0 even when the script raises; make a failed build fail.
+try:
+    main()
+except Exception:
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)

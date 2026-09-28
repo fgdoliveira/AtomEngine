@@ -56,6 +56,15 @@ def build_shrine_grounds(pieces, collision, materials, collection):
     for x, y in cedars:
         level.place("cedar", x, y, 0)
 
+    # Undergrowth along the walls, grass on the gravel, and one broadleaf
+    # tree by the hall among the cedars.
+    for x, y in ((-10.8, -17.5), (-10.9, -1.0), (-10.7, 6.5), (10.8, -11.0), (10.9, 4.5), (10.7, 12.0)):
+        level.place("bush", x, y, (x * 31 + y * 17) % 360)
+    for i, (x, y) in enumerate(((-4.5, -16.0), (4.0, -9.5), (-3.8, -3.0), (4.4, 5.5), (-5.2, 11.0),
+                                (3.6, -18.0), (-1.9, 12.8), (5.5, 12.5), (-6.0, 0.5), (6.2, -3.5))):
+        level.place("grass_tuft", x, y, i * 61 % 360)
+    level.place("tree", -5.5, 13.5, 20)
+
     level.place("haiden", 0.0, 18.0, 0)
     level.place("offering_box", 0.0, 14.9, 0, z=0.9)
 
@@ -77,7 +86,9 @@ def build_machiya_interior(pieces, collision, materials, collection):
     wall glowing with daylight, fusuma, a tokonoma alcove with a scroll, a
     low table - and a dark corridor that goes nowhere you'd want to."""
     level = Street(pieces, collision, materials, collection)
-    m = kit.MeshBuilder()
+    # Denser than the default grid: indoors, baked light is nearly all the
+    # light there is, so corners and the alcove need the extra vertices.
+    m = kit.MeshBuilder(grid=0.5)
     ceiling = 2.9
     room_y0, room_y1 = 3.0, 10.5
     floor = 0.3
@@ -126,6 +137,14 @@ def build_machiya_interior(pieces, collision, materials, collection):
     m.box((3.1, 14.55, ceiling / 2), (1.2, 0.1, ceiling), "black")
     m.box((3.1, 12.55, floor - 0.01), (1.0, 4.1, 0.02), "black", faces=[(0, 0, 1)])
 
+    # Decals: a leak stain from the ceiling above the fusuma, and grime by
+    # the corridor where hands have touched the plaster for decades.
+    off = kit.DECAL_OFFSET
+    wx = -4.0 + off
+    m.quad([(wx, 5.0, 2.1), (wx, 6.3, 2.1), (wx, 6.3, 2.9), (wx, 5.0, 2.9)], "water_stain")
+    ny = room_y1 - off
+    m.quad([(2.55, ny, 0.45), (1.3, ny, 0.45), (1.3, ny, 1.6), (2.55, ny, 1.6)], "grime")
+
     # Low table with a folded letter.
     m.box((0, 6.5, floor + 0.3), (1.2, 0.9, 0.06), "wood_dark")
     for x, y in ((-0.5, 6.15), (0.5, 6.15), (-0.5, 6.85), (0.5, 6.85)):
@@ -152,7 +171,85 @@ def build_machiya_interior(pieces, collision, materials, collection):
     return level
 
 
+# --------------------------------------------------------------------------
+# Level D: the windmill field
+# --------------------------------------------------------------------------
+
+def build_windmill_field(pieces, collision, materials, collection):
+    """Open fields past the west end of the street: a dirt track north to
+    a windmill (an entity, animated), a shed and a hanging sign (entities),
+    long grass, shrubs and a few trees under the fog."""
+    level = Street(pieces, collision, materials, collection)
+
+    # Where things are (markers, M20); windmill_field.json says what they do.
+    windmill, shed = (0.0, 12.0), (6.0, 8.0)
+    level.add_marker("spawn", "from_street", 0.0, -18.0, 0.0)
+    level.add_marker("entity", "windmill", *windmill)
+    level.add_marker("entity", "shed", *shed)
+    level.add_marker("entity", "hanging_sign", -3.0, -10.0)
+    level.add_marker("entity", "path_back", 0.0, -21.0)
+
+    m = kit.MeshBuilder(grid=2.0)
+    _flat(m, "dirt", -60, -60, 60, 60, 0.0)
+    _flat(m, "paddy", -40, -45, -12, -26, 0.01)   # 1 cm: clear of the dirt's plane
+    _flat(m, "paddy", 12, -40, 40, -24, 0.01)
+    level.add_visual("fields", m)
+    track = kit.MeshBuilder()
+    _flat(track, "gravel", -1.2, -24.0, 1.2, 8.0, 0.006)
+    level.add_visual("track", track)
+
+    # Deterministic scatter: a fixed linear congruential sequence.
+    state = [12345]
+
+    def rand():
+        state[0] = (state[0] * 1103515245 + 12345) % (2 ** 31)
+        return state[0] / 2 ** 31
+
+    for _ in range(90):
+        x, y = rand() * 50 - 25, rand() * 50 - 22
+        if abs(x) < 2.0 and y < 9.0:
+            continue  # keep the track clear
+        if math.hypot(x - windmill[0], y - windmill[1]) < 3.5 or math.hypot(x - shed[0], y - shed[1]) < 2.5:
+            continue  # not under the windmill or the shed
+        level.place("grass_tuft", x, y, rand() * 360)
+    for x, y in ((-9, 4), (8.5, -6), (-14, -14), (15, 14), (-6, 18), (11, 2)):
+        level.place("bush", x, y, (x * 17 + y * 29) % 360)
+    for x, y in ((-18, 10), (19, -2), (-11, 24)):
+        level.place("tree", x, y, (x * 41) % 360)
+    for x in (-10.0, -6.0, 6.0, 10.0):
+        level.place("wood_fence", x, -24.0, 0)
+
+    level.add_collider("floor", [((0, 0, -0.5), (130, 130, 1.0))])
+    level.add_collider("bounds", [
+        ((-30, 2, 2), (1, 60, 4)), ((30, 2, 2), (1, 60, 4)),
+        ((0, 30, 2), (60, 1, 4)), ((0, -26, 2), (60, 1, 4)),
+    ])
+    return level
+
+
 LEVELS = [
     ("shrine", build_shrine_grounds),
     ("interior", build_machiya_interior),
+    ("fields", build_windmill_field),
 ]
+
+# The level file each Blender level belongs to (markers are written next to it).
+LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field"}
+
+# How each level's light is baked (atom_bake): outdoors from the sky,
+# indoors as ambient occlusion.
+BAKE_MODES = {"interior": "ao"}
+
+# Levels that also get a lightmap (atom_lightmap), with the bake-only lights
+# that make it: (location, rotation in degrees, (width, height), watts, rgb).
+# The interior: warm daylight through each shoji panel (just in front of it,
+# facing into the room) and cooler light through the entrance lattice.
+_SHOJI_LIGHT = (1.0, 0.93, 0.82)
+LIGHTMAPS = {
+    "interior": [
+        ((3.95, 3.4 + i * 1.7 + 0.8, 1.5), (0, 90, 0), (1.8, 1.6), 80.0, _SHOJI_LIGHT)
+        for i in range(4)
+    ] + [
+        ((0.0, 0.05, 1.0), (90, 0, 0), (1.4, 2.0), 25.0, (0.85, 0.9, 1.0)),
+    ],
+}

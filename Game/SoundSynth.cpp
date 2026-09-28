@@ -278,6 +278,27 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle Creak()
+    {
+        // A wooden axle groaning under load: a low stick-slip tone (a
+        // falling pitch chopped into pulses) over a body resonance.
+        std::vector<float> out(Frames(0.7f));
+        Noise noise(820);
+        Biquad body = Biquad::Bandpass(240.0f, 3.0f);
+        float phase = 0.0f;
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float envelope = std::clamp(t / 0.06f, 0.0f, 1.0f) * std::exp(-t / 0.25f);
+            phase += TwoPi * (190.0f - 60.0f * t) / Rate;
+            const float slip = 0.5f + 0.5f * std::sin(TwoPi * 23.0f * t + 3.0f * std::sin(TwoPi * 3.0f * t));
+            const float tone = std::sin(phase) + 0.4f * std::sin(2.0f * phase + 0.7f);
+            out[i] = (tone * slip + body.Process(noise()) * 1.5f) * envelope;
+        }
+        Normalize(out, 0.7f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle RoomTone(float seconds)
     {
         // A closed room: the street's wind heard through walls (a heavy

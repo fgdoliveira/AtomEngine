@@ -1,4 +1,5 @@
-# Street -> shrine grounds -> street -> machiya interior -> street.
+# Street -> shrine grounds -> street -> machiya interior -> street ->
+# windmill field -> street.
 # Checks that the gate is locked until the keeper allows it, that flags
 # survive level changes, and that no ambience voices leak across them.
 # Voice budget: level voices + 1 persistent static voice.
@@ -72,4 +73,24 @@ interact door_back
 wait_for_level street
 expect_voices_max 7
 expect_flag read_letter
+
+# The windmill field (level D), past the west end of the street.
+teleport_to field_path
+interact field_path
+wait_for_level windmill_field
+expect_voices_max 4                  # 3 beds + static (one-shot creaks don't count)
+expect_animating windmill
+expect_animating hanging_sign
+teleport 0 0 16 0
+expect_surface stone                 # the gravel track
+teleport_to shed
+interact shed
+expect_message darkness inside
+wait_for_animation shed 5
+interact shed                        # opened once, it stays open
+wait_for_animation shed 1
+teleport_to path_back
+interact path_back
+wait_for_level street
+expect_voices_max 7
 log roundtrip done

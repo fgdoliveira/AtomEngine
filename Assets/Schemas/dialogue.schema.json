@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "atomengine/dialogue.schema.json",
+  "title": "AtomEngine dialogue",
+  "description": "A conversation: nodes of one line each; a node with choices waits for one, a node without continues to \"next\"; \"end\" (or no next) closes it. Flags gate choices and record outcomes. The C++ parser (Game/Dialogue/Dialogue.cpp) is the authority and also checks that every link lands on a node.",
+  "type": "object",
+  "required": ["id", "start", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "description": "What levels refer to (a \"dialogue\" action's id)." },
+    "start": { "type": "string", "description": "Id of the first node." },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "speaker": { "type": "string" },
+          "text": { "type": "string" },
+          "next": { "type": "string", "description": "A node id or \"end\"; used when there are no choices." },
+          "sets": { "type": "string", "description": "Flag set when this node is shown." },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text"],
+              "additionalProperties": false,
+              "properties": {
+                "text": { "type": "string" },
+                "next": { "type": "string" },
+                "requires": { "type": "string", "description": "Shown only if this flag is set." },
+                "requiresNot": { "type": "string", "description": "Hidden if this flag is set." },
+                "sets": { "type": "string", "description": "Flag set when chosen." }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
