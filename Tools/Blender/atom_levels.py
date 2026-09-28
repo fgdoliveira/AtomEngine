@@ -93,8 +93,10 @@ def build_machiya_interior(pieces, collision, materials, collection):
     m.box((0, -0.05, ceiling / 2), (3.4, 0.1, ceiling), "wood_dark")
     m.quad([(0.7, 0.01, 0.0), (-0.7, 0.01, 0.0), (-0.7, 0.01, 2.0), (0.7, 0.01, 2.0)], "door_lattice",
            uvs=[(0, 0), (2.3, 0), (2.3, 3.3), (0, 3.3)])
+    # Pieces that butt into a wall stop behind its face: coplanar,
+    # overlapping faces z-fight (flicker) as the view moves.
     for x in (-1.65, 1.65):
-        m.box((x, 1.5, ceiling / 2), (0.1, 3.0, ceiling), "plaster")
+        m.box((x, 1.45, ceiling / 2), (0.1, 2.9, ceiling), "plaster")
 
     # Room walls: south returns beside the doma, fusuma west, shoji east.
     for x0, x1 in ((-4.0, -1.6), (1.6, 4.0)):
@@ -115,12 +117,12 @@ def build_machiya_interior(pieces, collision, materials, collection):
         m.box(((x0 + x1) / 2, room_y1 + 0.05, ceiling / 2), (x1 - x0, 0.1, ceiling), "plaster")
     m.box((0, 11.35, ceiling / 2), (2.4, 0.1, ceiling), "plaster")
     for x in (-1.25, 1.25):
-        m.box((x, 10.9, ceiling / 2), (0.1, 0.8, ceiling), "wood_dark")
+        m.box((x, 10.95, ceiling / 2), (0.1, 0.7, ceiling), "wood_dark")
     m.box((0, 10.9, 0.225), (2.4, 0.8, 0.45), "wood_light", faces=[(0, 0, 1), (0, -1, 0)])
     m.quad([(-0.35, 11.29, 0.9), (0.35, 11.29, 0.9), (0.35, 11.29, 2.35), (-0.35, 11.29, 2.35)], "scroll")
     # Corridor: a black opening swallowing the light.
-    m.box((2.55, 12.55, ceiling / 2), (0.1, 4.1, ceiling), "black")
-    m.box((3.65, 12.55, ceiling / 2), (0.1, 4.1, ceiling), "black")
+    m.box((2.55, 12.6, ceiling / 2), (0.1, 4.0, ceiling), "black")
+    m.box((3.65, 12.6, ceiling / 2), (0.1, 4.0, ceiling), "black")
     m.box((3.1, 14.55, ceiling / 2), (1.2, 0.1, ceiling), "black")
     m.box((3.1, 12.55, floor - 0.01), (1.0, 4.1, 0.02), "black", faces=[(0, 0, 1)])
 

@@ -112,7 +112,7 @@ namespace AtomGame
     {
         const LevelData& data = incoming.GetData();
 
-        m_player.SetFeetPosition(spawn.position);
+        m_player.Teleport(spawn.position, m_camera);
         m_camera.SetRotation(glm::radians(spawn.yawDegrees), 0.0f);
 
         m_atmosphere.Configure(data.leaves, data.fogBanks);
@@ -696,15 +696,13 @@ namespace AtomGame
             floor = collision->FindFloor({ feet.x, focus.y + 3.0f, feet.z }, 20.0f).value_or(0.0f);
         }
         feet.y = floor;
-        m_player.SetFeetPosition(feet);
-        m_camera.SetPosition(feet + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f });
+        m_player.Teleport(feet, m_camera);
         return Face(name);
     }
 
     void DemoApp::Teleport(const glm::vec3& feet, float yawDegrees)
     {
-        m_player.SetFeetPosition(feet);
-        m_camera.SetPosition(feet + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f });
+        m_player.Teleport(feet, m_camera);
         m_camera.SetRotation(glm::radians(yawDegrees), 0.0f);
     }
 
