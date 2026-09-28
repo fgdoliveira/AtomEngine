@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 using namespace Atom;
 
@@ -49,9 +50,16 @@ TEST_CASE("Every shipped visual model carries baked light")
                     brightest = std::max(brightest, Luminance(vertex));
                 }
             }
-            // A real bake has both occluded and open vertices.
+            // A real bake has both occluded and open vertices - except a
+            // loose card piece (a grass tuft) alone under the sky.
             CHECK(brightest > 0.0f);
-            CHECK(darkest < brightest);
+            const auto materials = LoadModelMaterials(entry.path().string());
+            const bool onlyCards = std::all_of(materials.begin(), materials.end(),
+                [](const MaterialInfo& material) { return material.alphaMode == AlphaMode::Mask; });
+            if (!onlyCards)
+            {
+                CHECK(darkest < brightest);
+            }
         }
     }
     CHECK(models >= 17);
@@ -90,6 +98,36 @@ TEST_CASE("The interior carries lightmap UVs inside the texture")
         CHECK(high.y <= 1.0f);
         CHECK(high.x > low.x); // not collapsed to a point
     }
+}
+
+TEST_CASE("Alpha-tested materials ship as double-sided masks, the rest opaque")
+{
+    // Names of the masked materials (Tools/Blender/atom_kit.py, MASKED).
+    const std::vector<std::string> masked{ "atom_leaves", "atom_grass", "atom_noren", "atom_chain_link" };
+    int maskedSeen = 0;
+    for (const char* file : { "Street/street.glb", "Shrine/shrine.glb", "Kit/bush.glb", "Kit/machiya.glb" })
+    {
+        const auto materials = LoadModelMaterials(Assets + file);
+        REQUIRE_FALSE(materials.empty());
+        for (const MaterialInfo& material : materials)
+        {
+            INFO(file << ": " << material.name);
+            const bool shouldMask =
+                std::find(masked.begin(), masked.end(), material.name) != masked.end();
+            if (shouldMask)
+            {
+                ++maskedSeen;
+                CHECK(material.alphaMode == AlphaMode::Mask);
+                CHECK(material.alphaCutoff == doctest::Approx(0.5f));
+                CHECK(material.doubleSided);
+            }
+            else
+            {
+                CHECK(material.alphaMode == AlphaMode::Opaque);
+            }
+        }
+    }
+    CHECK(maskedSeen >= 7);
 }
 
 TEST_CASE("A missing model file loads no geometry")

@@ -90,6 +90,13 @@ namespace Atom
             glm::vec4 baseColorFactor;
             glm::vec4 emissiveFactor; // w: baked-light weight for this draw
             glm::vec4 lightmap;       // x: intensity, y: weight (0 = none)
+            glm::vec4 alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage
+        };
+
+        // Mirrors the cbuffer in Shaders/Shadow.frag.hlsl.
+        struct ShadowMaterialUniforms
+        {
+            glm::vec4 alpha; // x: cutoff (0 = opaque), y: base alpha factor
         };
 
         // Mirrors the cbuffer in Shaders/Post.frag.hlsl.
@@ -396,12 +403,28 @@ namespace Atom
         return m_whiteTexture != nullptr;
     }
 
-    SDL_GPUGraphicsPipeline* Renderer::GetScenePipeline(std::uint32_t samples)
+    bool Renderer::CanUseAlphaToCoverage(std::uint32_t samples) const
+    {
+        // It needs several samples per pixel to mean anything, and an alpha
+        // channel in the target to carry the coverage: the compact HDR
+        // format (R11G11B10) has none, so there masked materials fall back
+        // to a plain alpha test.
+        return samples > 1
+            && m_targets.GetColorFormat() == SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetScenePipeline(
+        std::uint32_t samples,
+        bool doubleSided,
+        bool alphaToCoverage
+    )
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
-        if (m_scenePipelines[slot])
+        alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
+        const std::size_t index = slot * 4 + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
+        if (m_scenePipelines[index])
         {
-            return m_scenePipelines[slot];
+            return m_scenePipelines[index];
         }
 
         SDL_GPUShader* vertexShader = LoadShader(
@@ -465,13 +488,17 @@ namespace Atom
         createInfo.vertex_input_state.num_vertex_attributes = 5;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
+        createInfo.rasterizer_state.cull_mode =
+            doubleSided ? SDL_GPU_CULLMODE_NONE : SDL_GPU_CULLMODE_BACK;
         createInfo.rasterizer_state.front_face =
             SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
         createInfo.rasterizer_state.enable_depth_clip = true;
         createInfo.multisample_state.sample_count = slot == 2
             ? SDL_GPU_SAMPLECOUNT_4
             : slot == 1 ? SDL_GPU_SAMPLECOUNT_2 : SDL_GPU_SAMPLECOUNT_1;
+        // The shader's alpha then decides how many samples a pixel covers:
+        // soft, sorted-free edges on leaves instead of stair-steps.
+        createInfo.multisample_state.enable_alpha_to_coverage = alphaToCoverage;
         createInfo.depth_stencil_state.enable_depth_test = true;
         createInfo.depth_stencil_state.enable_depth_write = true;
         createInfo.depth_stencil_state.compare_op =
@@ -498,7 +525,7 @@ namespace Atom
             return nullptr;
         }
 
-        m_scenePipelines[slot] = pipeline;
+        m_scenePipelines[index] = pipeline;
         return pipeline;
     }
 
@@ -799,7 +826,7 @@ namespace Atom
             m_device,
             "Shadow.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{}
+            ShaderResources{ .samplers = 1, .uniformBuffers = 1 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -815,24 +842,28 @@ namespace Atom
             return false;
         }
 
-        // Same vertex buffers as the scene; only the position is read.
+        // Same vertex buffers as the scene; position, and the uv that alpha
+        // testing needs (leaves cast leaf-shaped shadows).
         SDL_GPUVertexBufferDescription vertexBuffer{};
         vertexBuffer.slot = 0;
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute position{};
-        position.location = 0;
-        position.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        position.offset = offsetof(Vertex, position);
+        SDL_GPUVertexAttribute attributes[2]{};
+        attributes[0].location = 0;
+        attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        attributes[0].offset = offsetof(Vertex, position);
+        attributes[1].location = 1;
+        attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+        attributes[1].offset = offsetof(Vertex, uv);
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
         createInfo.fragment_shader = fragmentShader;
         createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
         createInfo.vertex_input_state.num_vertex_buffers = 1;
-        createInfo.vertex_input_state.vertex_attributes = &position;
-        createInfo.vertex_input_state.num_vertex_attributes = 1;
+        createInfo.vertex_input_state.vertex_attributes = attributes;
+        createInfo.vertex_input_state.num_vertex_attributes = 2;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         // Kit pieces include single-sided quads (doors, ground); let both
@@ -908,10 +939,12 @@ namespace Atom
         SDL_GPURenderPass* renderPass,
         SDL_GPUCommandBuffer* commandBuffer,
         const glm::mat4& viewProjection,
-        bool bindMaterials
+        std::uint32_t sceneSamples
     )
     {
         const Frustum frustum = ExtractFrustum(viewProjection);
+        const bool bindMaterials = sceneSamples > 0;
+        SDL_GPUGraphicsPipeline* bound = nullptr;
 
         ObjectUniforms uniforms{};
         uniforms.viewProjection = viewProjection;
@@ -933,9 +966,27 @@ namespace Atom
                 sizeof(uniforms)
             );
 
+            const Material& material = *command.material;
+            const bool masked = material.alphaMode == AlphaMode::Mask;
+            const float cutoff = masked ? material.alphaCutoff : 0.0f;
+            const Texture* baseColor = material.baseColorTexture
+                ? material.baseColorTexture
+                : m_whiteTexture.get();
+
             if (bindMaterials)
             {
-                const Material& material = *command.material;
+                SDL_GPUGraphicsPipeline* pipeline =
+                    GetScenePipeline(sceneSamples, material.doubleSided, masked);
+                if (!pipeline)
+                {
+                    continue;
+                }
+                if (pipeline != bound)
+                {
+                    SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+                    bound = pipeline;
+                }
+
                 // Baked meshes blend toward their vertex light; others keep
                 // the hemisphere ambient (weight 0).
                 const float bakedWeight =
@@ -947,7 +998,8 @@ namespace Atom
                         material.lightmapIntensity,
                         material.lightmap ? m_lighting.bakedLight : 0.0f,
                         0.0f,
-                        0.0f }
+                        0.0f },
+                    glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f, 0.0f, 0.0f }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,
@@ -956,9 +1008,6 @@ namespace Atom
                     sizeof(materialUniforms)
                 );
 
-                const Texture* baseColor = material.baseColorTexture
-                    ? material.baseColorTexture
-                    : m_whiteTexture.get();
                 const SDL_GPUTextureSamplerBinding textureBinding{
                     baseColor->GetGPUTexture(),
                     m_sampler
@@ -973,6 +1022,20 @@ namespace Atom
                     m_lightmapSampler
                 };
                 SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
+            }
+            else
+            {
+                // Depth only: just enough to cut the same holes as the scene.
+                const ShadowMaterialUniforms shadowUniforms{
+                    glm::vec4{ cutoff, material.baseColorFactor.a, 0.0f, 0.0f }
+                };
+                SDL_PushGPUFragmentUniformData(
+                    commandBuffer, 0, &shadowUniforms, sizeof(shadowUniforms));
+                const SDL_GPUTextureSamplerBinding textureBinding{
+                    baseColor->GetGPUTexture(),
+                    m_sampler
+                };
+                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
             }
 
             const SDL_GPUBufferBinding vertexBinding{
@@ -1034,7 +1097,7 @@ namespace Atom
 
         SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipeline);
         m_stats.shadowDrawn =
-            DrawQueue(renderPass, commandBuffer, lightViewProjection, false);
+            DrawQueue(renderPass, commandBuffer, lightViewProjection, 0);
 
         SDL_EndGPURenderPass(renderPass);
         return true;
@@ -1110,7 +1173,7 @@ namespace Atom
         m_stats.sceneHeight = m_targets.GetHeight();
         m_stats.msaaSamples = m_targets.GetSamples();
         m_stats.drawn = DrawQueue(
-            renderPass, commandBuffer, projection * m_camera.view, true);
+            renderPass, commandBuffer, projection * m_camera.view, m_targets.GetSamples());
 
         DrawParticles(renderPass, commandBuffer, projection * m_camera.view);
 

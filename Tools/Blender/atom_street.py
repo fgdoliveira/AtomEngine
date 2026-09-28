@@ -133,8 +133,11 @@ def build_street(pieces, collision, materials, collection):
     street.place("vending_machine", 29.8, 4.1)
     for x in (0, 4):
         street.place("stone_wall", x, EDGE_OFFSET)
-    for x in (24, 28):
-        street.place("wood_fence", x, EDGE_OFFSET)
+    # The empty lot between two houses: a rusty chain-link section, a
+    # wooden one, and a tree growing behind them.
+    street.place("chain_fence", 24, EDGE_OFFSET)
+    street.place("wood_fence", 28, EDGE_OFFSET)
+    street.place("tree", 25.5, 7.5, 40)
 
     # South side: shrine wall with the torii, two houses, then the fence
     # that holds back the rice paddies.
@@ -151,6 +154,14 @@ def build_street(pieces, collision, materials, collection):
         street.place("machiya", x, -HOUSE_OFFSET, 180)
     for x in (16, 20, 24, 28, 32, 36, 40):
         street.place("wood_fence", x, -EDGE_OFFSET, 180)
+
+    # Overgrowth: shrubs over the shrine wall, grass along the verge.
+    for x, y in ((-36.5, -6.0), (-28.0, -6.3), (-21.0, -5.9), (-8.5, -6.1)):
+        street.place("bush", x, y, (x * 37) % 360)
+    for x, y in ((-24.0, -9.0), (-33.0, -9.5)):
+        street.place("tree", x, y, (x * 53) % 360)
+    for i, x in enumerate((14.5, 17.2, 21.8, 26.4, 29.9, 33.1, 37.6, 40.8)):
+        street.place("grass_tuft", x, -4.2 + 0.15 * (i % 2), i * 47 % 360)
 
     pole_xs = [-38.0, -22.0, -6.0, 10.0, 26.0, 42.0]
     for x in pole_xs:

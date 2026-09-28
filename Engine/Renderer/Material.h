@@ -7,6 +7,15 @@ namespace Atom
 {
     class Texture;
 
+    // Opaque: every pixel drawn. Mask: pixels whose alpha is below
+    // alphaCutoff are discarded (alpha testing: leaves, grass, torn cloth,
+    // chain-link) - no sorting needed, depth still written.
+    enum class AlphaMode
+    {
+        Opaque,
+        Mask,
+    };
+
     struct Material
     {
         // nullptr uses the renderer's 1x1 white texture.
@@ -22,5 +31,9 @@ namespace Atom
         // When present it replaces the ambient term; intensity scales it.
         const Texture* lightmap = nullptr;
         float lightmapIntensity = 1.0f;
+
+        AlphaMode alphaMode = AlphaMode::Opaque;
+        float alphaCutoff = 0.5f;
+        bool doubleSided = false; // no back-face culling (thin cards)
     };
 }

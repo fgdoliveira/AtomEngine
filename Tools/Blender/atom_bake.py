@@ -84,6 +84,17 @@ def bake(scene, objects, mode="sky"):
         mesh.color_attributes.render_color_index = mesh.color_attributes.find(ATTRIBUTE)
     bpy.context.view_layer.objects.active = meshes[0]
 
+    _run_bake(mode)
+    _rebake_masked(meshes, mode)
+
+    for obj in meshes:
+        _quantise(obj.data)
+        _check(obj)
+    for obj in hidden:
+        obj.hide_render = False
+
+
+def _run_bake(mode):
     if mode == "ao":
         bpy.ops.object.bake(type="AO", target="VERTEX_COLORS")
     else:
@@ -93,11 +104,71 @@ def bake(scene, objects, mode="sky"):
             target="VERTEX_COLORS",
         )
 
+
+def _is_masked(material):
+    import atom_kit
+    return material is not None and material.name[len(atom_kit.PREFIX):] in atom_kit.MASKED
+
+
+def _rebake_masked(meshes, mode):
+    """Alpha-tested cards (M17) need a second pass. The first bake keeps
+    alpha on, so leaves cast leaf-shaped occlusion on everything else and
+    on each other - but a vertex that falls on a transparent texel of its
+    own card reads no light at all. So the cards are baked again with their
+    masked materials opaque (so they have a surface) while their objects
+    are hidden from shadow and bounce rays (so a canopy of now-solid cards
+    doesn't bury itself); card vertices that read nothing in the first pass
+    take that value."""
+    targets = [obj for obj in meshes
+               if any(_is_masked(slot.material) for slot in obj.material_slots)]
+    if not targets:
+        return
+
+    # Opaque for this pass: unhook the alpha chain from the BSDF.
+    unhooked = []
+    for material in {slot.material for obj in targets for slot in obj.material_slots}:
+        if _is_masked(material):
+            bsdf = next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+            link = bsdf.inputs["Alpha"].links[0]
+            unhooked.append((material, link.from_socket, bsdf.inputs["Alpha"]))
+            material.node_tree.links.remove(link)
+
+    temporary = "baked_opaque"
     for obj in meshes:
-        _quantise(obj.data)
-        _check(obj)
-    for obj in hidden:
-        obj.hide_render = False
+        obj.select_set(obj in targets)
+    for obj in targets:
+        obj.visible_shadow = False
+        obj.visible_diffuse = False
+    for obj in targets:
+        mesh = obj.data
+        mesh.color_attributes.new(temporary, "BYTE_COLOR", "POINT")
+        # The bake writes the render colour attribute, so point both at it.
+        mesh.color_attributes.active_color = mesh.color_attributes[temporary]
+        mesh.color_attributes.render_color_index = mesh.color_attributes.find(temporary)
+    bpy.context.view_layer.objects.active = targets[0]
+    _run_bake(mode)
+
+    for obj in targets:
+        mesh = obj.data
+        masked_slots = {i for i, slot in enumerate(obj.material_slots) if _is_masked(slot.material)}
+        card_vertices = {v for poly in mesh.polygons if poly.material_index in masked_slots
+                         for v in poly.vertices}
+        final = mesh.color_attributes[ATTRIBUTE]
+        opaque = mesh.color_attributes[temporary]
+        for v in card_vertices:
+            if max(final.data[v].color[:3]) < 0.02:
+                final.data[v].color = opaque.data[v].color
+        mesh.color_attributes.remove(opaque)
+        mesh.color_attributes.active_color = mesh.color_attributes[ATTRIBUTE]
+        mesh.color_attributes.render_color_index = mesh.color_attributes.find(ATTRIBUTE)
+
+    for obj in targets:
+        obj.visible_shadow = True
+        obj.visible_diffuse = True
+    for material, socket, alpha in unhooked:
+        material.node_tree.links.new(socket, alpha)
+    for obj in meshes:
+        obj.select_set(True)
 
 
 def _check(obj):
@@ -112,7 +183,10 @@ def _check(obj):
     luminance = [max(values[i:i + 3]) for i in range(0, len(values), 4)]
     if not luminance:
         return
+    # Loose cards alone under the sky (a grass tuft baked by itself) have
+    # nothing to occlude them: fully lit is right there.
+    only_cards = all(_is_masked(slot.material) for slot in obj.material_slots)
     if max(luminance) <= 0.0:
         atom_kit.LINT_ERRORS.append(f"bake: {obj.name}: no light reached any vertex")
-    elif min(luminance) >= 1.0:
+    elif min(luminance) >= 1.0 and not only_cards:
         atom_kit.LINT_ERRORS.append(f"bake: {obj.name}: fully lit everywhere (bake not applied?)")

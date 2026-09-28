@@ -155,20 +155,29 @@ namespace Atom
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection
         );
-        // Scene pipelines depend on the MSAA sample count; built lazily.
-        SDL_GPUGraphicsPipeline* GetScenePipeline(std::uint32_t samples);
+        bool CanUseAlphaToCoverage(std::uint32_t samples) const;
+
+        // Scene pipelines depend on the MSAA sample count, face culling
+        // and alpha-to-coverage (masked materials with MSAA); built lazily.
+        SDL_GPUGraphicsPipeline* GetScenePipeline(
+            std::uint32_t samples,
+            bool doubleSided = false,
+            bool alphaToCoverage = false
+        );
 
         // Light view-projection for the sun, fitted around the camera and
         // snapped to shadow-map texels so shadows don't swim when moving.
         glm::mat4 ComputeLightViewProjection() const;
 
-        // Draws the queued commands visible from `viewProjection`. Material
-        // binding is skipped for depth-only passes. Returns draws issued.
+        // Draws the queued commands visible from `viewProjection`. The scene
+        // pass (sceneSamples > 0) binds full materials and switches pipeline
+        // per material; the depth-only pass binds only what alpha testing
+        // needs. Returns draws issued.
         std::uint32_t DrawQueue(
             SDL_GPURenderPass* renderPass,
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection,
-            bool bindMaterials
+            std::uint32_t sceneSamples
         );
 
         bool RenderShadowPass(
@@ -191,7 +200,8 @@ namespace Atom
         bool m_windowClaimed = false;
 
         // Indexed by log2(samples): 1x, 2x, 4x.
-        std::array<SDL_GPUGraphicsPipeline*, 3> m_scenePipelines{};
+        // [samples slot][double-sided][alpha-to-coverage]
+        std::array<SDL_GPUGraphicsPipeline*, 12> m_scenePipelines{};
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
         SDL_GPUTexture* m_shadowMap = nullptr;

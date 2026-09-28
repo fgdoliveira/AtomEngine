@@ -56,6 +56,15 @@ def build_shrine_grounds(pieces, collision, materials, collection):
     for x, y in cedars:
         level.place("cedar", x, y, 0)
 
+    # Undergrowth along the walls, grass on the gravel, and one broadleaf
+    # tree by the hall among the cedars.
+    for x, y in ((-10.8, -17.5), (-10.9, -1.0), (-10.7, 6.5), (10.8, -11.0), (10.9, 4.5), (10.7, 12.0)):
+        level.place("bush", x, y, (x * 31 + y * 17) % 360)
+    for i, (x, y) in enumerate(((-4.5, -16.0), (4.0, -9.5), (-3.8, -3.0), (4.4, 5.5), (-5.2, 11.0),
+                                (3.6, -18.0), (-1.9, 12.8), (5.5, 12.5), (-6.0, 0.5), (6.2, -3.5))):
+        level.place("grass_tuft", x, y, i * 61 % 360)
+    level.place("tree", -5.5, 13.5, 20)
+
     level.place("haiden", 0.0, 18.0, 0)
     level.place("offering_box", 0.0, 14.9, 0, z=0.9)
 

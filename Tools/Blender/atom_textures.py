@@ -390,3 +390,103 @@ def lantern_paper(size=64, seed=27):
     rng = np.random.default_rng(seed)
     value = 0.8 + 0.2 * fbm(size, size, 4, 3, rng)
     return _rgba(_tint(value, (0.95, 0.72, 0.42)))
+
+
+# --------------------------------------------------------------------------
+# Alpha-tested (M17): the alpha channel is the shape; the engine discards
+# pixels below the material's cutoff.
+# --------------------------------------------------------------------------
+
+def _with_alpha(rgb, alpha):
+    """RGBA with transparent texels filled by the mean opaque colour.
+    Bilinear filtering and mipmaps blend transparent texels into the edges,
+    so black ones would draw a dark fringe; and a zero albedo would read as
+    'no light' in the bake."""
+    alpha = np.clip(alpha, 0.0, 1.0)
+    opaque = alpha >= 0.5
+    if opaque.any():
+        mean = rgb[opaque].mean(axis=0)
+        rgb = np.where(opaque[:, :, None], rgb, mean[None, None, :])
+    return np.concatenate([np.clip(rgb, 0.0, 1.0), alpha[:, :, None]], axis=2).astype(np.float32)
+
+
+def leaves(size=128, seed=40, color=(0.25, 0.34, 0.16)):
+    """A cluster of small leaves, dense in the middle and ragged at the rim,
+    for crossed foliage cards (bushes, tree canopies)."""
+    rng = np.random.default_rng(seed)
+    alpha = np.zeros((size, size))
+    shade = np.zeros((size, size))
+    ys, xs = np.mgrid[0:size, 0:size]
+    for _ in range(420):
+        cx, cy = np.clip(rng.normal(size / 2, size * 0.2, 2), 4, size - 5)
+        r = rng.uniform(3.0, 6.5)
+        angle = rng.uniform(0, np.pi)
+        dx, dy = xs - cx, ys - cy
+        u = (dx * np.cos(angle) + dy * np.sin(angle)) / r
+        v = (-dx * np.sin(angle) + dy * np.cos(angle)) / (r * 0.45)
+        leaf = (u * u + v * v) < 1.0
+        alpha[leaf] = 1.0
+        # Leaves lower in the cluster sit in their neighbours' shade.
+        shade[leaf] = rng.uniform(0.7, 1.0) * (0.8 + 0.2 * cy / size)
+    rgb = _tint(shade, color) * (0.85 + 0.3 * fbm(size, size, 4, 3, rng))[:, :, None]
+    return _with_alpha(rgb, alpha)
+
+
+def grass(size=128, seed=41, color=(0.36, 0.38, 0.19)):
+    """Tapering blades rising from the bottom row, some dry and bent."""
+    rng = np.random.default_rng(seed)
+    alpha = np.zeros((size, size))
+    shade = np.zeros((size, size))
+    for _ in range(40):
+        x0 = rng.uniform(4, size - 4)
+        height = rng.uniform(0.35, 0.98) * size
+        lean = rng.uniform(-0.35, 0.35)
+        width = rng.uniform(0.5, 1.1)
+        dry = rng.uniform(0.7, 1.15)
+        for y in range(int(height)):
+            t = y / height
+            x = x0 + lean * y * t
+            half = width * (1.0 - t) + 0.3
+            lo, hi = int(max(0, x - half)), int(min(size - 1, x + half))
+            alpha[y, lo:hi + 1] = 1.0
+            shade[y, lo:hi + 1] = dry * (0.55 + 0.45 * t)  # darker at the root
+    return _with_alpha(_tint(shade, color), alpha)
+
+
+def noren(size=128, seed=42, color=(0.11, 0.14, 0.27)):
+    """Indigo shop curtain in three panels, a faded white crest, a torn and
+    holed hem. Top rows hang from the rod."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size]
+    cloth = 0.75 + 0.25 * fbm(size, size, 6, 4, rng, stretch=(1, 3))
+    rgb = _tint(cloth, color)
+    crest = (np.hypot(xs - size / 2, ys - size * 0.62) - size * 0.14)
+    ring = np.abs(crest) < size * 0.025
+    rgb = np.where(ring[:, :, None], np.array([0.62, 0.62, 0.58]) * cloth[:, :, None], rgb)
+    rgb *= (1.0 - 0.3 * (1.0 - ys / size))[:, :, None]  # grime toward the hem
+
+    alpha = np.ones((size, size))
+    # Slits between the panels, up to near the rod.
+    for x in (size / 3, 2 * size / 3):
+        alpha[(np.abs(xs - x) < 1.5) & (ys < size * 0.82)] = 0.0
+    # Ragged hem and moth holes.
+    hem = size * (0.08 + 0.12 * value_noise(size, 1, 12, 1, rng)[0])
+    alpha[ys < hem[None, :]] = 0.0
+    holes = fbm(size, size, 10, 2, rng) > 0.78
+    alpha[holes & (ys < size * 0.6)] = 0.0
+    return _with_alpha(rgb, alpha)
+
+
+def chain_link(size=64, seed=43):
+    """Diamond wire mesh, galvanised with rust; tiles in both directions."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size]
+    period = size // 4
+    a = (xs + ys) % period
+    b = (xs - ys) % period
+    wire = (a < 2) | (b < 2)
+    rust = fbm(size, size, 4, 3, rng)
+    rgb = _mix(np.zeros((size, size, 3)) + np.array([0.55, 0.56, 0.55]),
+               np.zeros((size, size, 3)) + np.array([0.42, 0.26, 0.15]),
+               np.clip(rust * 1.6 - 0.6, 0, 1))
+    return _with_alpha(rgb, wire.astype(float))

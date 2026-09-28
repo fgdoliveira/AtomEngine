@@ -118,6 +118,23 @@ namespace Atom
             return static_cast<std::uint16_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 65535.0f));
         }
 
+        // glTF alpha: OPAQUE, MASK (with a cutoff) or BLEND. Blend isn't
+        // supported (it needs sorting); it's treated as a mask at 0.5.
+        void ReadAlpha(const cgltf_material& source, Material& material)
+        {
+            material.doubleSided = source.double_sided != 0;
+            if (source.alpha_mode == cgltf_alpha_mode_mask)
+            {
+                material.alphaMode = AlphaMode::Mask;
+                material.alphaCutoff = source.alpha_cutoff;
+            }
+            else if (source.alpha_mode == cgltf_alpha_mode_blend)
+            {
+                material.alphaMode = AlphaMode::Mask;
+                material.alphaCutoff = 0.5f;
+            }
+        }
+
         // nullopt for primitives that aren't drawable triangles.
         std::optional<PrimitiveGeometry> ReadPrimitive(const cgltf_primitive& primitive)
         {
@@ -200,6 +217,28 @@ namespace Atom
             }
             return geometry;
         }
+    }
+
+    std::vector<MaterialInfo> LoadModelMaterials(const std::string& path)
+    {
+        std::vector<MaterialInfo> result;
+        const GltfData data = ParseGltf(path);
+        if (!data)
+        {
+            return result;
+        }
+        for (cgltf_size i = 0; i < data->materials_count; ++i)
+        {
+            const cgltf_material& source = data->materials[i];
+            Material material{};
+            ReadAlpha(source, material);
+            result.push_back(MaterialInfo{
+                source.name ? source.name : "",
+                material.alphaMode,
+                material.alphaCutoff,
+                material.doubleSided });
+        }
+        return result;
     }
 
     std::vector<PrimitiveGeometry> LoadModelGeometry(const std::string& path)
@@ -298,6 +337,7 @@ namespace Atom
             }
             material.emissiveFactor =
                 glm::make_vec3(source.emissive_factor) * emissiveStrength;
+            ReadAlpha(source, material);
 
             materials[&source] = model->m_materials.size();
             model->m_materials.push_back(material);

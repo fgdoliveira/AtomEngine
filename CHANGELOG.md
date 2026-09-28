@@ -19,6 +19,19 @@
   term and follows F3. The build lints lightmap UVs (inside 0..1, no
   overlapping faces); the sampler clamps and stops at two mip levels so
   charts don't bleed.
+- **Alpha-tested materials (M17):** glTF `alphaMode` MASK with a cutoff and
+  `doubleSided`; pixels below the cutoff are discarded in the scene and in
+  the shadow pass, so leaves cast leaf-shaped shadows. Double-sided cards
+  flip their normal on the back face and let half the sun through (leaves
+  lit from behind). Alpha-to-coverage is used when the scene target has an
+  alpha channel (RGBA16F), a plain alpha test otherwise (R11G11B10).
+- **Content:** leaf, grass, torn-noren and chain-link textures (alpha
+  dilated so filtering never pulls in black); bushes, grass tufts, a
+  broadleaf tree and a chain-link fence section; a noren at every machiya
+  door. Placed along the street and in the shrine grounds.
+- **Bake of cards:** a second vertex-bake pass for alpha-tested cards, so
+  vertices on transparent texels still receive light; masked materials
+  whose alpha never crosses the cutoff fail the asset build.
 
 ## 0.0.2 — Interaction, dialogue and levels
 

@@ -25,6 +25,18 @@ namespace Atom
         bool hasLightmapUv = false; // had TEXCOORD_1
     };
 
+    // How a material is drawn, without its GPU textures (tools and tests).
+    struct MaterialInfo
+    {
+        std::string name;
+        AlphaMode alphaMode = AlphaMode::Opaque;
+        float alphaCutoff = 0.5f;
+        bool doubleSided = false;
+    };
+
+    // Every material of a glTF file, in file order; empty on failure.
+    std::vector<MaterialInfo> LoadModelMaterials(const std::string& path);
+
     // Every triangle primitive of a glTF file, in file order. For tools and
     // tests; empty if the file can't be loaded.
     std::vector<PrimitiveGeometry> LoadModelGeometry(const std::string& path);

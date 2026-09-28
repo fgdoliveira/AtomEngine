@@ -64,13 +64,31 @@ MATERIALS = {
     "shoji_glow": (lambda: tex.shoji(seed=28), 0.9, 0.95, 0.35),
     "lantern_paper": (lambda: tex.lantern_paper(), 0.5, 0.9, 0.9),
     "straw": (lambda: tex.flat((0.62, 0.52, 0.30), size=16, seed=34, variation=0.15), 1.0, 1.0, 0.0),
+    # Alpha-tested (see MASKED).
+    "leaves": (lambda: tex.leaves(), 1.0, 1.0, 0.0),
+    "grass": (lambda: tex.grass(), 1.0, 1.0, 0.0),
+    "noren": (lambda: tex.noren(), 1.0, 0.95, 0.0),
+    "chain_link": (lambda: tex.chain_link(), 0.5, 0.5, 0.0),
+}
+
+# Alpha-tested materials (M17): name -> alpha cutoff. Pixels below it are
+# not drawn; the cards are double-sided. Exported as glTF alphaMode MASK.
+MASKED = {
+    "leaves": 0.5,
+    "grass": 0.5,
+    "noren": 0.5,
+    "chain_link": 0.5,
 }
 
 
 def _make_image(name, pixels):
     height, width = pixels.shape[:2]
-    image = bpy.data.images.new(PREFIX + name, width, height, alpha=False)
+    image = bpy.data.images.new(PREFIX + name, width, height, alpha=name in MASKED)
     image.colorspace_settings.name = "sRGB"
+    if name in MASKED:
+        # Colour and alpha independent: premultiplying would blacken the
+        # (dilated) colour of transparent texels, for filtering and bakes.
+        image.alpha_mode = "CHANNEL_PACKED"
     image.pixels.foreach_set(pixels.ravel())
     image.pack()
     return image
@@ -97,7 +115,35 @@ def _make_material(name):
         links.new(texture.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = emission
 
+    if name in MASKED:
+        _make_masked(material, texture, bsdf, name, image)
+
     return material
+
+
+def _make_masked(material, texture, bsdf, name, image):
+    """Alpha test: alpha = 1 - (texture alpha < cutoff). The glTF exporter
+    reads this node chain as alphaMode MASK with that cutoff, and Cycles
+    honours it while baking, so leaves shade by their shape."""
+    cutoff = MASKED[name]
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    below = nodes.new("ShaderNodeMath")
+    below.operation = "LESS_THAN"
+    below.inputs[1].default_value = cutoff
+    keep = nodes.new("ShaderNodeMath")
+    keep.operation = "SUBTRACT"
+    keep.inputs[0].default_value = 1.0
+    links.new(texture.outputs["Alpha"], below.inputs[0])
+    links.new(below.outputs[0], keep.inputs[1])
+    links.new(keep.outputs[0], bsdf.inputs["Alpha"])
+    material.use_backface_culling = False  # exported as doubleSided
+
+    # Lint: a masked material whose texture is all opaque (or all empty)
+    # would draw a solid card (or nothing).
+    alpha = list(image.pixels)[3::4]
+    if not alpha or min(alpha) >= cutoff or max(alpha) < cutoff:
+        LINT_ERRORS.append(f"material {name}: alpha never crosses the cutoff {cutoff}")
 
 
 def clear_generated():
@@ -388,6 +434,12 @@ def build_machiya(materials, collection):
     for x in (-0.65, 1.25):
         m.box((x, front - 0.06, 1.35), (0.1, 0.12, 2.1), "wood_light")
     m.box((0.3, front - 0.06, 0.33), (2.0, 0.12, 0.06), "wood_light")
+    # Noren: a torn shop curtain hanging from a rod in front of the door.
+    y_noren = front - 0.3
+    m.cylinder((-0.7, y_noren, 2.42), 0.02, 0.04, "wood_dark", segments=6)
+    m.box((0.3, y_noren, 2.44), (2.1, 0.04, 0.04), "wood_dark")
+    m.quad([(-0.55, y_noren, 1.45), (1.15, y_noren, 1.45), (1.15, y_noren, 2.42), (-0.55, y_noren, 2.42)],
+           "noren")
     for x0 in (-2.8, 1.7):
         m.quad([(x0, y, 1.0), (x0 + 1.1, y, 1.0), (x0 + 1.1, y, 2.1), (x0, y, 2.1)], "lattice",
                uvs=[(0, 0), (1.8, 0), (1.8, 1.8), (0, 1.8)])
@@ -615,6 +667,54 @@ def build_cedar(materials, collection):
     return m.build("cedar", materials, collection)
 
 
+def _cards(m, center, width, height, material, count=3, turn=0.0):
+    """`count` vertical cards crossing at `center` (bottom centre), evenly
+    turned: from any side, some card faces you."""
+    cx, cy, cz = center
+    for i in range(count):
+        angle = math.radians(turn + 180.0 * i / count)
+        dx, dy = math.cos(angle) * width / 2, math.sin(angle) * width / 2
+        m.quad([(cx - dx, cy - dy, cz), (cx + dx, cy + dy, cz),
+                (cx + dx, cy + dy, cz + height), (cx - dx, cy - dy, cz + height)], material)
+
+
+def build_bush(materials, collection):
+    """A shrub that shows over a 1.4 m wall: crossed leaf cards."""
+    m = MeshBuilder()
+    _cards(m, (0, 0, 0), 1.5, 1.7, "leaves", count=3)
+    _cards(m, (0.3, 0.2, 0.5), 1.1, 1.3, "leaves", count=2, turn=30)
+    return m.build("bush", materials, collection)
+
+
+def build_grass_tuft(materials, collection):
+    m = MeshBuilder()
+    _cards(m, (0, 0, 0), 0.7, 0.5, "grass", count=3, turn=15)
+    return m.build("grass_tuft", materials, collection)
+
+
+def build_tree(materials, collection):
+    """A broadleaf tree: bark trunk and a canopy of leaf-card clusters."""
+    m = MeshBuilder()
+    m.cylinder((0, 0, 0), 0.16, 3.4, "bark", segments=8)
+    clusters = [((0, 0, 2.6), 2.4), ((0.9, 0.3, 2.9), 1.8), ((-0.8, 0.5, 3.0), 1.9),
+                ((0.2, -0.9, 2.8), 1.8), ((-0.3, -0.2, 3.6), 2.0), ((0.6, 0.8, 3.4), 1.6)]
+    for i, (center, size) in enumerate(clusters):
+        cx, cy, cz = center
+        _cards(m, (cx, cy, cz - size / 2), size, size, "leaves", count=3, turn=25 * i)
+    return m.build("tree", materials, collection)
+
+
+def build_chain_fence(materials, collection):
+    """A 4 m section of rusty chain-link between two posts."""
+    m = MeshBuilder()
+    for x in (-2.0, 2.0):
+        m.cylinder((x, 0, 0), 0.03, 1.9, "metal_dark", segments=6)
+    m.box((0, 0, 1.85), (4.0, 0.04, 0.04), "metal_dark")
+    m.quad([(-1.97, 0, 0.05), (1.97, 0, 0.05), (1.97, 0, 1.83), (-1.97, 0, 1.83)], "chain_link",
+           uvs=[(0, 0), (7.9, 0), (7.9, 3.6), (0, 3.6)])
+    return m.build("chain_fence", materials, collection)
+
+
 def build_haiden(materials, collection):
     """Main hall: raised platform with steps, lattice doors, deep gable roof.
     Front (-Y) steps rise 0.18 m each, low enough to walk up."""
@@ -690,6 +790,10 @@ PIECES = [
     build_cedar,
     build_haiden,
     build_offering_box,
+    build_bush,
+    build_grass_tuft,
+    build_tree,
+    build_chain_fence,
 ]
 
 
@@ -718,6 +822,9 @@ COLLISION = {
         + [((0, -3.5 - 0.3 * (k + 0.5), (0.9 - 0.18 * (k + 1)) / 2), (3.2, 0.3, 0.9 - 0.18 * (k + 1))) for k in range(4)]
         + [((0, 0.6, 0.9 + 1.6), (8.0, 5.0, 3.2))],
     "offering_box": [((0, 0, 0.3), (1.2, 0.6, 0.6))],
+    "bush": [((0, 0, 0.6), (1.0, 1.0, 1.2))],
+    "tree": [((0, 0, 1.5), (0.4, 0.4, 3.0))],
+    "chain_fence": [((0, 0, 0.95), (4.0, 0.1, 1.9))],
 }
 
 
