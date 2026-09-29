@@ -168,6 +168,7 @@ namespace AtomGame
             entity.name = data.name;
             entity.position = data.position;
             entity.interactable = data.interactable;
+            entity.hidden = data.hidden;
 
             const float yaw = glm::radians(data.yawDegrees);
             if (!data.model.empty())
@@ -382,6 +383,10 @@ namespace AtomGame
             for (std::size_t i = 0; i < m_data.halos.size(); ++i)
             {
                 const HaloData& h = m_data.halos[i];
+                if (IsHidden(m_haloAnchors[i]))
+                {
+                    continue;
+                }
                 const float intensity = h.intensity * FlickerFactor(m_time, h.position, h.flicker);
                 Atom::Particle p{};
                 p.position = Anchor(m_haloAnchors[i], h.position);
@@ -397,6 +402,10 @@ namespace AtomGame
         for (std::size_t i = 0; i < m_data.lights.size(); ++i)
         {
             const LiveLightData& l = m_data.lights[i];
+            if (IsHidden(m_lights[i].anchor))
+            {
+                continue;
+            }
             renderer.SubmitLiveLight(Atom::LiveLight{
                 Anchor(m_lights[i].anchor, l.position), l.radius,
                 l.color * l.intensity * FlickerFactor(m_time, l.position, l.flicker) });
@@ -434,7 +443,7 @@ namespace AtomGame
         }
 
         m_world.ForEach([&](EntityId, const Entity& entity) {
-            if (!entity.renderable || !entity.renderable->model)
+            if (!entity.renderable || !entity.renderable->model || entity.hidden)
             {
                 return;
             }
@@ -472,6 +481,15 @@ namespace AtomGame
             {
                 m_audio.SetVoicePosition(mover.voice, entity->position);
                 m_audio.SetVoiceGain(mover.voice, state.moving ? mover.data.gain : 0.0f);
+            }
+        }
+
+        // Sequence sounds follow their entity.
+        for (const FollowingVoice& voice : m_followingVoices)
+        {
+            if (const Entity* entity = m_world.Find(voice.entity))
+            {
+                m_audio.SetVoicePosition(voice.id, entity->position);
             }
         }
 
@@ -594,6 +612,65 @@ namespace AtomGame
             }
         });
         return found;
+    }
+
+    bool Level::IsHidden(const std::optional<EntityId>& entity) const
+    {
+        const Entity* anchor = entity ? m_world.Find(*entity) : nullptr;
+        return anchor && anchor->hidden;
+    }
+
+    bool Level::SetEntityVisible(const std::string& name, bool visible)
+    {
+        const auto id = FindEntity(name);
+        Entity* entity = id ? m_world.Find(*id) : nullptr;
+        if (entity)
+        {
+            entity->hidden = !visible;
+        }
+        return entity != nullptr;
+    }
+
+    std::optional<glm::vec3> Level::GetEntityPosition(const std::string& name) const
+    {
+        const auto id = FindEntity(name);
+        const Entity* entity = id ? m_world.Find(*id) : nullptr;
+        return entity ? std::optional<glm::vec3>(entity->position) : std::nullopt;
+    }
+
+    bool Level::SetEntityPosition(const std::string& name, const glm::vec3& position)
+    {
+        const auto id = FindEntity(name);
+        Entity* entity = id ? m_world.Find(*id) : nullptr;
+        if (entity)
+        {
+            entity->position = position;
+        }
+        return entity != nullptr;
+    }
+
+    void Level::PlaySound(const Atom::SoundHandle& sound, const std::string& entityName, float gain, bool loop)
+    {
+        Atom::PlayParams params{};
+        params.gain = gain;
+        params.loop = loop;
+        const auto id = entityName.empty() ? std::nullopt : FindEntity(entityName);
+        if (id)
+        {
+            params.spatial = true;
+            params.position = m_world.Find(*id)->position;
+            params.minDistance = 4.0f;
+            params.maxDistance = 90.0f;
+        }
+        const Atom::VoiceId voice = m_audio.Play(sound, params);
+        if (loop)
+        {
+            m_voices.push_back({ voice, {}, gain }); // stopped with the level
+        }
+        if (id)
+        {
+            m_followingVoices.push_back({ voice, *id });
+        }
     }
 
     glm::vec3 Level::Anchor(const std::optional<EntityId>& entity, const glm::vec3& offset) const

@@ -14,6 +14,7 @@ add_executable(
     CollisionGridTests.cpp
     ImpostorTests.cpp
     NightStreetTests.cpp
+    SequenceTests.cpp
 )
 
 target_link_libraries(

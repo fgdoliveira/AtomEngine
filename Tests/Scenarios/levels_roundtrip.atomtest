@@ -1,5 +1,5 @@
 # Street -> shrine grounds -> street -> machiya interior -> street ->
-# windmill field -> street.
+# windmill field -> street -> (bus) night city -> (bus) street.
 # Checks that the gate is locked until the keeper allows it, that flags
 # survive level changes, and that no ambience voices leak across them.
 # Voice budget: level voices + 1 persistent static voice.
@@ -93,4 +93,28 @@ teleport_to path_back
 interact path_back
 wait_for_level street
 expect_voices_max 7
+
+# The night bus (M26): wait at the stop, the bus arrives, fade to the city;
+# the player is frozen meanwhile, and the ride back mirrors it.
+teleport_to bus_stop 2
+face bus_stop
+interact bus_stop
+expect_mode sequence
+wait 0.5
+expect_target none                   # frozen: nothing can be used, nothing starts twice
+expect_mode sequence
+wait_for_sequence 20
+wait_for_level night_street 10
+expect_near -26 0.12 3.6 1
+expect_flag rode_bus_to_city
+expect_flag read_letter              # progress rode along
+teleport_to timetable 1.6
+face timetable
+interact timetable
+expect_mode sequence
+wait_for_sequence 20
+wait_for_level street 10
+expect_flag rode_bus_home
+expect_near 38 0 -3 1
+expect_voices_max 7                  # the bus's engine stopped with the city
 log roundtrip done

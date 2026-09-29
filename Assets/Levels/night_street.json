@@ -89,12 +89,32 @@
     { "position": [-0.9, 1.9, -18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
     { "position": [0.9, 1.9, -18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
     { "position": [-0.9, 1.9, 18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
-    { "position": [0.9, 1.9, 18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" }
+    { "position": [0.9, 1.9, 18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
+    { "position": [5.3, 0.8, -0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" },
+    { "position": [5.3, 0.8, 0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" }
   ],
   "lights": [
     { "position": [8.0, 5.0, 4.35], "color": [1.0, 0.55, 0.18], "intensity": 2.0, "radius": 7.0, "flicker": 0.85, "material": "atom_neon_amber" },
-    { "position": [0.0, 2.2, 0.0], "color": [0.8, 0.9, 1.0], "intensity": 1.8, "radius": 22.0, "entity": "train" }
+    { "position": [0.0, 2.2, 0.0], "color": [0.8, 0.9, 1.0], "intensity": 1.8, "radius": 22.0, "entity": "train" },
+    { "position": [7.0, 1.2, 0.0], "color": [1.0, 0.92, 0.8], "intensity": 1.4, "radius": 16.0, "entity": "bus" }
   ],
+  "sequences": {
+    "bus_to_street": [
+      { "type": "message", "text": "Last bus back to the rural line: 23:52. You wait under the railway." },
+      { "type": "wait", "seconds": 3 },
+      { "type": "show", "entity": "bus" },
+      { "type": "playSound", "sound": "bus_engine", "entity": "bus", "gain": 0.8, "loop": true },
+      { "type": "moveEntity", "entity": "bus", "to": [-28.6, 0.0, 1.7], "seconds": 8 },
+      { "type": "playAnimation", "entity": "bus", "clip": "doors_open" },
+      { "type": "playSound", "sound": "door_hiss", "entity": "bus", "gain": 0.9 },
+      { "type": "message", "text": "The same bus, the same driver. The doors fold open with a sigh." },
+      { "type": "wait", "seconds": 2.5 },
+      { "type": "message", "text": "You ride back through the dark. The city lights thin out, then stop." },
+      { "type": "setFlag", "flag": "rode_bus_home" },
+      { "type": "wait", "seconds": 1 },
+      { "type": "changeLevel", "level": "street", "spawn": "from_bus" }
+    ]
+  },
   "entities": [
     { "name": "lamp_1", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
     { "name": "lamp_2", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
@@ -104,6 +124,7 @@
     { "name": "lamp_6", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
     { "name": "lamp_7", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
     { "name": "lamp_8", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "bus", "position": [-140.0, 0.0, 1.7], "yaw": 180, "model": "Kit/bus.glb", "hidden": true },
     {
       "name": "train",
       "model": "Kit/night_train.glb",
@@ -136,8 +157,8 @@
     {
       "name": "timetable",
       "interactable": {
-        "prompt": "Read the timetable", "focus": [0.0, 1.55, 0.0], "radius": 2.4,
-        "action": { "type": "message", "text": "Last bus back to the rural line: 23:52. Someone has folded the corner down over everything after midnight." }
+        "prompt": "Wait for the last bus", "focus": [0.0, 1.55, 0.0], "radius": 2.4,
+        "action": { "type": "sequence", "id": "bus_to_street" }
       }
     },
     {

@@ -13,7 +13,8 @@
     "east_end":    { "position": [36.0, 0.0, 1.0], "yaw": -90 },
     "from_shrine": { "position": [-14.0, 0.0, 12.6], "yaw": 0 },
     "from_house":  { "position": [34.3, 0.0, -3.2], "yaw": 180 },
-    "from_fields": { "position": [-37.5, 0.0, 0.0], "yaw": 90 }
+    "from_fields": { "position": [-37.5, 0.0, 0.0], "yaw": 90 },
+    "from_bus":    { "position": [38.0, 0.0, -3.0], "yaw": -90 }
   },
   "lighting": {
     "sunDirection": [0.35, 0.6, -0.55],
@@ -54,7 +55,42 @@
     "flickerMaterial": "atom_vending_front",
     "flickerSites": [[-20.0, 0.0, -4.1], [29.8, 0.0, -4.1], [-2.6, 0.0, 4.1]]
   },
+  "sequences": {
+    "bus_to_city": [
+      { "type": "message", "text": "You sit on the bench to wait. Past the last house the road runs on into the fog." },
+      { "type": "wait", "seconds": 3 },
+      { "type": "show", "entity": "bus" },
+      { "type": "playSound", "sound": "bus_engine", "entity": "bus", "gain": 0.8, "loop": true },
+      { "type": "moveEntity", "entity": "bus", "to": [42.5, 0.0, -1.7], "seconds": 8 },
+      { "type": "playAnimation", "entity": "bus", "clip": "doors_open" },
+      { "type": "playSound", "sound": "door_hiss", "entity": "bus", "gain": 0.9 },
+      { "type": "message", "text": "Headlights. The bus stops with a sigh of air and the doors fold open. Nobody gets off." },
+      { "type": "wait", "seconds": 2.5 },
+      { "type": "message", "text": "You climb aboard. The driver doesn't look up." },
+      { "type": "setFlag", "flag": "rode_bus_to_city" },
+      { "type": "wait", "seconds": 1 },
+      { "type": "changeLevel", "level": "night_street", "spawn": "from_bus" }
+    ]
+  },
+  "halos": [
+    { "position": [-5.3, 0.8, -0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" },
+    { "position": [-5.3, 0.8, 0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" }
+  ],
+  "lights": [
+    { "position": [-7.0, 1.2, 0.0], "color": [1.0, 0.92, 0.8], "intensity": 1.4, "radius": 16.0, "entity": "bus" }
+  ],
   "entities": [
+    {
+      "name": "bus_stop",
+      "position": [39.3, 0.0, -5.0],
+      "model": "Kit/bus_stop.glb",
+      "collider": { "center": [0.0, 1.2, -0.5], "halfExtents": [1.6, 1.2, 0.1] },
+      "interactable": {
+        "prompt": "Wait for the bus", "focus": [0.0, 1.0, 0.1], "radius": 2.6,
+        "action": { "type": "sequence", "id": "bus_to_city" }
+      }
+    },
+    { "name": "bus", "position": [160.0, 0.0, -1.7], "model": "Kit/bus.glb", "hidden": true },
     {
       "name": "field_path",
       "position": [-40.0, 0.0, -1.5],

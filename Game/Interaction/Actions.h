@@ -38,5 +38,10 @@ namespace AtomGame
         std::string message; // optional
     };
 
-    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation>;
+    struct RunSequence
+    {
+        std::string id; // M26: one of the level's "sequences"
+    };
+
+    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence>;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Interaction/Actions.h"
+#include "Interaction/Sequence.h"
 #include "World/GameWorld.h"
 
 #include <glm/vec2.hpp>
@@ -149,6 +150,7 @@ namespace AtomGame
         std::optional<Interactable> interactable;
         std::optional<EntityAnimation> animation; // needs a model with the clip
         std::optional<EntityMover> mover;
+        bool hidden = false; // M26: until a sequence shows it
     };
 
     struct LevelUnease
@@ -240,6 +242,7 @@ namespace AtomGame
         std::vector<LiveLightData> lights;
         std::vector<AudioZone> audioZones;
         float zoneFadeSeconds = 2.0f;
+        std::map<std::string, Sequence> sequences; // M26
 
         const SpawnPoint* FindSpawn(std::string_view spawnName) const;
         std::string_view SurfaceAt(float x, float z) const;

@@ -35,6 +35,8 @@ add_library(
     Interaction/ActionExecutor.cpp
     Interaction/ActionExecutor.h
     Interaction/InteractionSystem.cpp
+    Interaction/Sequence.cpp
+    Interaction/Sequence.h
     Interaction/InteractionSystem.h
     Interaction/MessageFeed.cpp
     Interaction/MessageFeed.h

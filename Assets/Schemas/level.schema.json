@@ -251,6 +251,11 @@
     "entities": {
       "type": "array",
       "items": { "$ref": "#/definitions/entity" }
+    },
+    "sequences": {
+      "type": "object",
+      "description": "Named timed step lists (M26), started by a \"sequence\" action; the player is frozen while one runs.",
+      "additionalProperties": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/step" } }
     }
   },
   "definitions": {
@@ -265,7 +270,7 @@
       "type": "string",
       "description": "A sound from the library (Game/AudioScape.cpp).",
       "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak",
-               "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train"]
+               "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train", "bus_engine", "door_hiss"]
     },
     "entity": {
       "type": "object",
@@ -276,6 +281,7 @@
         "position": { "$ref": "#/definitions/vec3", "description": "Omit to take it from an entity:<name> marker." },
         "yaw": { "type": "number" },
         "model": { "type": "string", "description": "glb relative to Assets/." },
+        "hidden": { "type": "boolean", "description": "Not drawn until a sequence shows it (M26)." },
         "collider": {
           "type": "object",
           "additionalProperties": false,
@@ -333,7 +339,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation"] }
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence"] }
       },
       "oneOf": [
         {
@@ -358,8 +364,32 @@
             "clip": { "type": "string" }, "message": { "type": "string" }
           },
           "required": ["entity", "clip"], "additionalProperties": false
+        },
+        {
+          "properties": { "type": { "const": "sequence" }, "id": { "type": "string", "description": "One of the level's sequences (M26)." } },
+          "required": ["id"], "additionalProperties": false
         }
       ]
+    },
+    "step": {
+      "type": "object",
+      "description": "One step of a sequence (M26).",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["wait", "message", "setFlag", "show", "hide", "playSound", "playAnimation", "moveEntity", "changeLevel"] },
+        "seconds": { "type": "number", "exclusiveMinimum": 0, "description": "wait, moveEntity." },
+        "text": { "type": "string", "description": "message." },
+        "flag": { "type": "string", "description": "setFlag." },
+        "entity": { "type": "string", "description": "show, hide, playSound (follows it), playAnimation, moveEntity." },
+        "sound": { "$ref": "#/definitions/sound" },
+        "gain": { "type": "number" },
+        "loop": { "type": "boolean", "description": "playSound: loops until the level unloads." },
+        "clip": { "type": "string" },
+        "to": { "$ref": "#/definitions/vec3", "description": "moveEntity: where it stops (eases out)." },
+        "level": { "type": "string", "description": "changeLevel: always the last step." },
+        "spawn": { "type": "string" }
+      }
     }
   }
 }

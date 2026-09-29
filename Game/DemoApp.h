@@ -40,6 +40,7 @@ namespace AtomGame
             Exploring,     // walk, look, interact
             InDialogue,    // movement frozen; input drives the conversation
             Transitioning, // fading between levels; input ignored
+            InSequence,    // M26: a sequence runs; the player is frozen
         };
 
         void OnLevelUnloading(Level& outgoing);
@@ -117,6 +118,9 @@ namespace AtomGame
         EntityId m_target{};
 
         Mode m_mode = Mode::Exploring;
+        SequenceRunner m_sequence;
+        bool RunSequence(const std::string& id);
+        void UpdateSequence(float deltaSeconds);
         DialogueLibrary m_dialogues;
         DialogueRunner m_dialogue;
         DialogueView m_dialogueView;

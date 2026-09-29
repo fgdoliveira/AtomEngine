@@ -32,7 +32,7 @@ namespace AtomGame
         // Named sounds for level files: "wind", "cicadas", "drone",
         // "vending_hum", "static", "room_tone", "creak"; the night city's
         // "traffic", "neon_buzz", "voices", "street_bells",
-        // "pachinko_leak", "train".
+        // "pachinko_leak", "train"; the bus's "bus_engine", "door_hiss".
         Atom::SoundHandle GetSound(std::string_view name) const;
 
         struct Listener

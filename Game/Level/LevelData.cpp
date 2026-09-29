@@ -138,6 +138,15 @@ namespace AtomGame
                 }
                 return play;
             }
+            if (type == "sequence")
+            {
+                const std::string id = String(json, "id", path);
+                if (id.empty())
+                {
+                    throw LevelError(path, "sequence needs \"id\"");
+                }
+                return RunSequence{ id };
+            }
             throw LevelError(JsonPath(path, "type"), "unknown action type \"" + type + "\"");
         }
 
@@ -154,6 +163,7 @@ namespace AtomGame
             entity.position = Vec3(json, "position", glm::vec3{ 0.0f }, path);
             entity.yawDegrees = Number(json, "yaw", path, 0.0f);
             entity.model = String(json, "model", path);
+            entity.hidden = Bool(json, "hidden", path, false);
 
             if (const auto collider = json.find("collider"); collider != json.end())
             {
@@ -223,6 +233,72 @@ namespace AtomGame
                 entity.mover = m;
             }
             return entity;
+        }
+
+        SequenceStep ParseStep(const Json& json, const std::string& path)
+        {
+            using Type = SequenceStep::Type;
+            static const std::map<std::string, Type> types{
+                { "wait", Type::Wait }, { "message", Type::Message }, { "setFlag", Type::SetFlag },
+                { "show", Type::Show }, { "hide", Type::Hide }, { "playSound", Type::PlaySound },
+                { "playAnimation", Type::PlayAnimation }, { "moveEntity", Type::MoveEntity },
+                { "changeLevel", Type::ChangeLevel },
+            };
+            const std::string name = String(json, "type", path);
+            const auto found = types.find(name);
+            if (found == types.end())
+            {
+                throw LevelError(JsonPath(path, "type"), "unknown step type \"" + name + "\"");
+            }
+            SequenceStep step;
+            step.type = found->second;
+            step.seconds = Number(json, "seconds", path, 0.0f);
+            step.entity = String(json, "entity", path);
+            step.gain = Number(json, "gain", path, 1.0f);
+            step.loop = Bool(json, "loop", path, false);
+            step.to = Vec3(json, "to", step.to, path);
+            const auto require = [&](bool ok, const char* what) {
+                if (!ok)
+                {
+                    throw LevelError(path, name + " needs " + what);
+                }
+            };
+            switch (step.type)
+            {
+            case Type::Wait:
+                require(step.seconds > 0.0f, "\"seconds\" > 0");
+                break;
+            case Type::Message:
+                step.text = String(json, "text", path);
+                require(!step.text.empty(), "\"text\"");
+                break;
+            case Type::SetFlag:
+                step.text = String(json, "flag", path);
+                require(!step.text.empty(), "\"flag\"");
+                break;
+            case Type::Show:
+            case Type::Hide:
+                require(!step.entity.empty(), "\"entity\"");
+                break;
+            case Type::PlaySound:
+                step.text = String(json, "sound", path);
+                require(!step.text.empty(), "\"sound\"");
+                break;
+            case Type::PlayAnimation:
+                step.clip = String(json, "clip", path);
+                require(!step.entity.empty() && !step.clip.empty(), "\"entity\" and \"clip\"");
+                break;
+            case Type::MoveEntity:
+                require(!step.entity.empty() && json.contains("to") && step.seconds > 0.0f,
+                        "\"entity\", \"to\" and \"seconds\" > 0");
+                break;
+            case Type::ChangeLevel:
+                step.text = String(json, "level", path);
+                step.clip = String(json, "spawn", path);
+                require(!step.text.empty(), "\"level\"");
+                break;
+            }
+            return step;
         }
 
         // Placement from Blender markers (<level>.markers.json, written by
@@ -575,6 +651,32 @@ namespace AtomGame
                 }
             }
 
+            if (const auto sequences = root.find("sequences"); sequences != root.end())
+            {
+                if (!sequences->is_object())
+                {
+                    throw LevelError("/sequences", "must be an object of named step lists");
+                }
+                for (const auto& [id, steps] : sequences->items())
+                {
+                    const std::string at = JsonPath("/sequences", id);
+                    if (!steps.is_array() || steps.empty())
+                    {
+                        throw LevelError(at, "must be a non-empty array of steps");
+                    }
+                    Sequence sequence;
+                    for (std::size_t i = 0; i < steps.size(); ++i)
+                    {
+                        sequence.push_back(ParseStep(steps[i], JsonPath(at, i)));
+                        if (sequence.back().type == SequenceStep::Type::ChangeLevel && i + 1 != steps.size())
+                        {
+                            throw LevelError(JsonPath(at, i), "changeLevel must be the last step");
+                        }
+                    }
+                    level.sequences[id] = std::move(sequence);
+                }
+            }
+
             std::vector<std::string> entityPaths;
             std::size_t index = 0;
             for (const Json& entity : Array(root, "entities", ""))
@@ -659,6 +761,36 @@ namespace AtomGame
                 {
                     throw LevelError(JsonPath(JsonPath("/lights", i), "entity"),
                         "no entity named \"" + level.lights[i].entity + "\"");
+                }
+            }
+
+            // Sequences name entities and are named by actions (M26).
+            for (const auto& [id, sequence] : level.sequences)
+            {
+                for (std::size_t i = 0; i < sequence.size(); ++i)
+                {
+                    if (!sequence[i].entity.empty() && !entityExists(sequence[i].entity))
+                    {
+                        throw LevelError(JsonPath(JsonPath(JsonPath("/sequences", id), i), "entity"),
+                            "no entity named \"" + sequence[i].entity + "\"");
+                    }
+                }
+            }
+            for (std::size_t i = 0; i < level.entities.size(); ++i)
+            {
+                const auto& use = level.entities[i].interactable;
+                if (!use)
+                {
+                    continue;
+                }
+                for (const Action* action : { &use->action, use->lockedAction ? &*use->lockedAction : nullptr })
+                {
+                    const auto* run = action ? std::get_if<RunSequence>(action) : nullptr;
+                    if (run && !level.sequences.contains(run->id))
+                    {
+                        throw LevelError(JsonPath(entityPaths[i], "interactable"),
+                            "no sequence named \"" + run->id + "\"");
+                    }
                 }
             }
 

@@ -34,6 +34,7 @@ namespace AtomGame
                 { "wait_for_level", { 1, 2 } },     // name [timeout]
                 { "expect_mode", { 1, 1 } },
                 { "wait_for_mode", { 1, 2 } },      // mode [timeout]
+                { "wait_for_sequence", { 0, 1 } },  // [timeout]: the running sequence ends
                 { "expect_message", { 1, 32 } },    // words that must appear
                 { "expect_dialogue_node", { 1, 1 } },
                 { "expect_voices_max", { 1, 1 } },
@@ -302,6 +303,19 @@ namespace AtomGame
             if (m_elapsed > number(1, 10.0f))
             {
                 Fail(command, "still '" + current + "'");
+                return true;
+            }
+            return false;
+        }
+        if (name == "wait_for_sequence")
+        {
+            if (game.ModeName() != "sequence")
+            {
+                return true;
+            }
+            if (m_elapsed > number(0, 30.0f))
+            {
+                Fail(command, "the sequence is still running");
                 return true;
             }
             return false;

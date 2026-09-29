@@ -35,6 +35,8 @@ namespace AtomGame
         Atom::SoundHandle StreetBells(float seconds = 18.0f);   // bicycle bells now and then
         Atom::SoundHandle PachinkoLeak(float seconds = 12.0f);  // the hall through its doors
         Atom::SoundHandle Train(float seconds = 6.0f);          // wheels and rail joints
+        Atom::SoundHandle BusEngine();                          // M26: a diesel idling, looped
+        Atom::SoundHandle DoorHiss();                           // M26: air doors folding open
 
         // One-shots.
         Atom::SoundHandle Higurashi(std::uint32_t seed);

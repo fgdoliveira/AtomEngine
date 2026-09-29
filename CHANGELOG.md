@@ -63,6 +63,20 @@
     `ATOM_START_LEVEL=night_street`; the bus comes in M26.
   - Harness `expect_zone`; `night_street` scenario; unit tests for movers,
     flicker, crossfade, cells and the new level keys.
+- **The bus stop and the ride (M26):**
+  - Action sequences: named step lists in level files (`sequences`:
+    wait, message, setFlag, show/hide, playSound following an entity,
+    playAnimation, moveEntity easing to a stop, changeLevel last),
+    started by a `sequence` action. The player is frozen while one runs
+    and one can't start twice.
+  - A rural bus stop at the east end of the street; waiting there, the
+    bus comes out of the fog with headlights (halos and a live light) and
+    its engine, the doors fold open with a hiss, and the fade takes you
+    to the city stop. The city timetable runs the ride back.
+  - Kit: `bus_stop`, and `bus` with a `doors_open` clip; entities can
+    start `hidden`. Sounds: `bus_engine`, `door_hiss`.
+  - Harness `wait_for_sequence`; the roundtrip scenario now rides street
+    -> city -> street; unit tests for the runner and sequence parsing.
 
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 

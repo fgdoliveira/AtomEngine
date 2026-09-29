@@ -83,6 +83,14 @@ namespace AtomGame
         // model file has its own copy), for runtime effects on all of them.
         std::vector<Atom::Material*> FindSceneMaterials(std::string_view name);
 
+        // For sequences (M26): show or hide an entity (and what rides on
+        // it), move it, play a sound that follows it until the level unloads
+        // or the sound ends.
+        bool SetEntityVisible(const std::string& entity, bool visible);
+        std::optional<glm::vec3> GetEntityPosition(const std::string& entity) const;
+        bool SetEntityPosition(const std::string& entity, const glm::vec3& position);
+        void PlaySound(const Atom::SoundHandle& sound, const std::string& entity, float gain, bool loop);
+
         // Scales the gain of every emitter in a group (e.g. "vending").
         void SetGroupGain(std::string_view group, float scale);
         std::size_t GetVoiceCount() const { return m_voices.size(); }
@@ -138,6 +146,7 @@ namespace AtomGame
         // Live effects (M25).
         std::optional<EntityId> FindEntity(const std::string& name) const;
         glm::vec3 Anchor(const std::optional<EntityId>& entity, const glm::vec3& offset) const;
+        bool IsHidden(const std::optional<EntityId>& entity) const;
         struct Mover
         {
             EntityId entity;
@@ -161,5 +170,11 @@ namespace AtomGame
             float level = 0.0f;
         };
         std::vector<ZoneVoice> m_zoneVoices;
+        struct FollowingVoice
+        {
+            Atom::VoiceId id = 0;
+            EntityId entity;
+        };
+        std::vector<FollowingVoice> m_followingVoices; // M26
     };
 }

@@ -114,6 +114,7 @@ namespace AtomGame
         // Drop everything that points into the level that's about to die.
         m_target = {};
         m_speaker = {};
+        m_sequence.Stop(); // its steps name the old level's entities
         if (m_dialogue.IsActive())
         {
             m_dialogue.Close();
@@ -272,6 +273,10 @@ namespace AtomGame
             break;
         case Mode::InDialogue:
             UpdateDialogue(deltaSeconds);
+            break;
+        case Mode::InSequence:
+            m_target = {};
+            UpdateSequence(deltaSeconds);
             break;
         case Mode::Transitioning:
             m_target = {};
@@ -586,9 +591,56 @@ namespace AtomGame
                 Level* level = m_levels->GetLevel();
                 return level && level->PlayAnimation(entity, clip);
             },
+            [this](const std::string& id) { return RunSequence(id); },
         };
         std::cout << "Interacted with " << target.name << '\n';
         ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
+    }
+
+    bool DemoApp::RunSequence(const std::string& id)
+    {
+        Level* level = m_levels->GetLevel();
+        if (!level || m_mode != Mode::Exploring)
+        {
+            return false;
+        }
+        const auto found = level->GetData().sequences.find(id);
+        if (found == level->GetData().sequences.end() || !m_sequence.Start(found->second, id))
+        {
+            return false;
+        }
+        m_mode = Mode::InSequence;
+        return true;
+    }
+
+    void DemoApp::UpdateSequence(float deltaSeconds)
+    {
+        Level* level = m_levels->GetLevel();
+        if (!level)
+        {
+            m_sequence.Stop();
+        }
+        else
+        {
+            const SequenceHooks hooks{
+                [this](const std::string& text) { m_messages.Show(text); },
+                [this](const std::string& flag) { m_gameState.SetFlag(flag); std::cout << "Flag set: " << flag << '\n'; },
+                [level](const std::string& entity, bool visible) { level->SetEntityVisible(entity, visible); },
+                [this, level](const std::string& sound, const std::string& entity, float gain, bool loop) {
+                    level->PlaySound(m_audioScape.GetSound(sound), entity, gain, loop);
+                },
+                [level](const std::string& entity, const std::string& clip) { return level->PlayAnimation(entity, clip); },
+                [level](const std::string& entity) { return level->GetEntityPosition(entity); },
+                [level](const std::string& entity, const glm::vec3& position) { level->SetEntityPosition(entity, position); },
+                [this](const std::string& name, const std::string& spawn) { m_levels->RequestChange(name, spawn); },
+            };
+            m_sequence.Update(deltaSeconds, hooks);
+        }
+        // A sequence ending in a level change hands over to the transition.
+        if (!m_sequence.IsRunning() && m_mode == Mode::InSequence)
+        {
+            m_mode = m_levels->IsTransitioning() ? Mode::Transitioning : Mode::Exploring;
+        }
     }
 
     void DemoApp::DrawInteractionPrompt(float scale)
@@ -942,6 +994,7 @@ namespace AtomGame
         {
         case Mode::InDialogue: return "dialogue";
         case Mode::Transitioning: return "transitioning";
+        case Mode::InSequence: return "sequence";
         default: return "exploring";
         }
     }

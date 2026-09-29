@@ -34,6 +34,8 @@ namespace AtomGame
         m_library["street_bells"] = SoundSynth::StreetBells();
         m_library["pachinko_leak"] = SoundSynth::PachinkoLeak();
         m_library["train"] = SoundSynth::Train();
+        m_library["bus_engine"] = SoundSynth::BusEngine();
+        m_library["door_hiss"] = SoundSynth::DoorHiss();
 
         for (int surface = 0; surface < SurfaceCount; ++surface)
         {

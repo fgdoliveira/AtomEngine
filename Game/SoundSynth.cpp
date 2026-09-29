@@ -475,6 +475,55 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle BusEngine()
+    {
+        // A diesel at a fast idle: firing pulses at 30 Hz (whole cycles in
+        // two seconds, so it loops seamlessly) through a boomy body, a
+        // rattle on top, and the fan's hiss.
+        std::vector<float> out(Frames(2.0f));
+        Noise noise(951);
+        Biquad body = Biquad::Bandpass(95.0f, 1.5f);
+        Biquad rattle = Biquad::Bandpass(700.0f, 3.0f);
+        OnePoleLowpass fan;
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float cycle = std::fmod(t * 30.0f, 1.0f);
+            const float pulse = std::exp(-cycle / 0.12f);
+            float s = body.Process(pulse * 2.0f + noise() * 0.1f) * 3.0f;
+            s += std::sin(TwoPi * 60.0f * t) * 0.25f;
+            s += rattle.Process(noise() * pulse) * 0.6f;
+            s += fan.Process(noise(), 1500.0f) * 0.15f;
+            out[i] = s;
+        }
+        Normalize(out, 0.8f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle DoorHiss()
+    {
+        // Compressed air let out as the doors fold: a sharp hiss that
+        // falls away, and the thunk of the doors at the end.
+        std::vector<float> out(Frames(1.4f));
+        Noise noise(961);
+        Biquad air = Biquad::Highpass(2500.0f);
+        Biquad thunk = Biquad::Bandpass(140.0f, 2.0f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float hiss = std::clamp(t / 0.02f, 0.0f, 1.0f) * std::exp(-t / 0.35f);
+            float s = air.Process(noise()) * hiss;
+            const float since = t - 0.9f;
+            if (since > 0.0f)
+            {
+                s += thunk.Process(noise() * std::exp(-since / 0.01f)) * 8.0f;
+            }
+            out[i] = s;
+        }
+        Normalize(out, 0.8f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle Higurashi(std::uint32_t seed)
     {
         // The evening cicada's falling "kana-kana-kana": a train of short

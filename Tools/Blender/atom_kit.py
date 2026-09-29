@@ -979,6 +979,66 @@ def build_night_train(materials, collection):
     return m.build("night_train", materials, collection)
 
 
+def build_bus_stop(materials, collection):
+    """A rural bus stop (M26): a steel shelter with a bench and posters,
+    the stop's round sign and a back-lit timetable on a post at its east
+    end. Faces the road (-Y)."""
+    m = MeshBuilder()
+    width, back = 3.0, 0.5
+    m.box((0, back, 1.2), (width, 0.06, 2.2), "metal_white", faces=SIDES)
+    for x in (-width / 2, width / 2):
+        m.box((x, 0.05, 1.25), (0.08, 0.95, 2.5), "metal_dark", faces=SIDES + [(0, 0, 1)])
+    m.box((0, 0.0, 2.55), (width + 0.3, 1.3, 0.1), "metal_dark")
+    m.box((0, 0.25, 0.45), (width - 0.4, 0.4, 0.06), "wood_light")
+    for x in (-0.9, 0.9):
+        m.box((x, 0.25, 0.21), (0.06, 0.3, 0.42), "metal_dark", faces=SIDES)
+    y = back - 0.03 - DECAL_OFFSET
+    m.quad([(-1.2, y, 0.7), (1.2, y, 0.7), (1.2, y, 2.0), (-1.2, y, 2.0)], "posters")
+    px = width / 2 + 0.6
+    m.cylinder((px, -0.2, 0), 0.05, 2.5, "metal_dark", segments=8)
+    m.box((px, -0.2, 1.5), (0.5, 0.06, 0.7), "metal_dark", faces=SIDES[:2] + [(0, 0, 1), (0, 0, -1)])
+    for yy, flip in ((-0.24, False), (-0.16, True)):
+        xs = (px + 0.25, px - 0.25) if flip else (px - 0.25, px + 0.25)
+        m.quad([(xs[0], yy, 1.17), (xs[1], yy, 1.17), (xs[1], yy, 1.83), (xs[0], yy, 1.83)], "timetable")
+    m.cylinder((px, -0.2, 2.5), 0.25, 0.04, "metal_white", segments=12)
+    return m.build("bus_stop", materials, collection)
+
+
+def build_bus(materials, collection):
+    """The night bus (M26): 10.5 m along X, driver's end at -X, doors on
+    the +Y side near the front. Lit windows glow from the train's mask;
+    headlights and a lit destination sign at the front. The door (child)
+    folds open with clip "doors_open"."""
+    m = MeshBuilder(grid=4.0)
+    length, width, height, floor = 10.5, 2.5, 2.9, 0.35
+    x0, x1, y = -length / 2, length / 2, width / 2
+    uvs = [(0.05, 0), (0.62, 0), (0.62, 1), (0.05, 1)]
+    m.quad([(x1, y, floor), (x0, y, floor), (x0, y, floor + height), (x1, y, floor + height)], "train_side", uvs=uvs)
+    m.quad([(x0, -y, floor), (x1, -y, floor), (x1, -y, floor + height), (x0, -y, floor + height)], "train_side", uvs=uvs)
+    m.box((0, 0, floor + height + 0.08), (length, width, 0.16), "metal_white", faces=[(0, 0, 1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)])
+    m.box((x1, 0, floor + height / 2), (0.02, width, height), "metal_white", faces=[(1, 0, 0)])
+    m.box((x0, 0, floor + 0.6), (0.02, width, 1.2), "metal_white", faces=[(-1, 0, 0)])
+    m.quad([(x0 - 0.02, y - 0.1, floor + 1.25), (x0 - 0.02, -y + 0.1, floor + 1.25),
+            (x0 - 0.02, -y + 0.1, floor + 2.45), (x0 - 0.02, y - 0.1, floor + 2.45)], "black")
+    m.quad([(x0 - 0.02, 0.8, floor + 2.5), (x0 - 0.02, -0.8, floor + 2.5),
+            (x0 - 0.02, -0.8, floor + 2.8), (x0 - 0.02, 0.8, floor + 2.8)], "timetable")
+    for yy in (-0.85, 0.85):
+        m.quad([(x0 - 0.03, yy + 0.18, floor + 0.35), (x0 - 0.03, yy - 0.18, floor + 0.35),
+                (x0 - 0.03, yy - 0.18, floor + 0.55), (x0 - 0.03, yy + 0.18, floor + 0.55)], "lamp_glass")
+    for wx in (x0 + 2.0, x1 - 2.5):
+        for side in (-1, 1):
+            m.box((wx, side * (y - 0.13), 0.45), (0.95, 0.3, 0.9), "black", faces=[(0, side, 0)])  # wheels, 2 cm proud
+    m.box((0, 0, floor / 2 + 0.05), (length - 0.4, width - 0.3, floor - 0.1), "black", faces=SIDES)
+    bus = m.build("bus", materials, collection)
+
+    door = MeshBuilder()
+    door.box((0, 0, 1.25), (1.0, 0.04, 2.3), "metal_white")
+    door.quad([(0.4, 0.03, 0.9), (-0.4, 0.03, 0.9), (-0.4, 0.03, 2.2), (0.4, 0.03, 2.2)], "black")
+    leaf = _child(door, "bus_door", materials, collection, bus, (x0 + 1.6, y + 0.03, floor))
+    _animate(leaf, "doors_open", "location", [(0, x0 + 1.6), (24, x0 + 2.55)], index=0)
+    return bus
+
+
 def build_signpost(materials, collection):
     """A wooden field-path marker (static)."""
     m = MeshBuilder()
@@ -1073,6 +1133,8 @@ PIECES = [
     build_street_lamp,
     build_neon_sign,
     build_night_train,
+    build_bus_stop,
+    build_bus,
 ]
 
 
