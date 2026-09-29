@@ -241,6 +241,16 @@ namespace Atom
         }
     }
 
+    void AudioSystem::SetReverb(float mix, float size, float feedback)
+    {
+        if (!m_stream)
+        {
+            return;
+        }
+        const StreamLock lock(m_stream);
+        m_reverb.Configure(mix, size, feedback, SampleRate);
+    }
+
     std::size_t AudioSystem::GetVoiceCount() const
     {
         const StreamLock lock(m_stream);
@@ -366,6 +376,14 @@ namespace Atom
             return !voice.params.loop
                 && voice.cursor >= static_cast<double>(voice.sound->samples.size());
         });
+
+        if (m_reverb.IsActive())
+        {
+            for (int frame = 0; frame < frames; ++frame)
+            {
+                m_reverb.Process(m_mixBuffer[frame * 2], m_mixBuffer[frame * 2 + 1]);
+            }
+        }
 
         // Soft clip so stacked sounds saturate gently instead of wrapping.
         for (float& sample : m_mixBuffer)

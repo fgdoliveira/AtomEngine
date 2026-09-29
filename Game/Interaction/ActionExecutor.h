@@ -21,6 +21,7 @@ namespace AtomGame
         std::function<bool(const std::string& dialogueId)> startDialogue;
         std::function<void(const std::string& level, const std::string& spawn)> changeLevel;
         std::function<bool(const std::string& entity, const std::string& clip)> playAnimation;
+        std::function<bool(const std::string& sequence)> runSequence;
     };
 
     void ExecuteAction(const Action& action, ActionContext& context);

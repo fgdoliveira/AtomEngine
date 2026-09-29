@@ -29,6 +29,17 @@ namespace Atom
         // emission from the same image as the base color, so a separate
         // emissive texture is not needed yet.
         glm::vec3 emissiveFactor{ 0.0f };
+        // Which pixels glow (M23). Without one, the base colour glows.
+        const Texture* emissiveTexture = nullptr;
+
+        // Share of the runtime fog applied (M23): 1 = all, 0 = none. Lights
+        // (signs, lamps) cut through fog; far cards get a reduced amount.
+        float fogAmount = 1.0f;
+
+        // Wet surface (M25), 0..1: the emitted light (sign reflections)
+        // ripples with animated noise and the surface catches a faint
+        // moving sheen. glTF extras "atom_wet".
+        float wet = 0.0f;
 
         // Baked light texture (M16), mapped by the mesh's second UV set.
         // When present it replaces the ambient term; intensity scales it.

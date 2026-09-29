@@ -3,11 +3,13 @@
 A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)**. Its demo is a first-person walk
 through a foggy rural Japanese street in the spirit of 2000s horror (Silent
-Hill 2's daytime town, Siren) — *2000s-inspired art direction on a modern,
-resolution-independent renderer*.
+Hill 2's daytime town, Siren) — and, a night bus ride away, one street of a
+neon city that implies a whole one — *2000s-inspired art direction on a
+modern, resolution-independent renderer*.
 
-Current version: **0.0.3** — baked lighting, alpha-tested materials and
-decals, animation, a fourth level, and faster authoring.
+Current version: **0.0.4** — the night city: distance layers and impostors,
+night rendering (emissive masks, glow, a sky), a wet neon street, action
+sequences (the bus), a pachinko hall with live render-to-texture screens.
 See [CHANGELOG.md](CHANGELOG.md).
 
 ## What's in it
@@ -15,26 +17,34 @@ See [CHANGELOG.md](CHANGELOG.md).
 **Rendering** — forward renderer on SDL_GPU / D3D12 with HLSL shaders compiled
 offline to DXIL; off-screen HDR target with configurable render scale and
 MSAA; hemispheric + sun lighting with baked light (vertex colours and
-lightmaps); exponential height fog; a directional shadow map (texel-snapped,
-PCF); alpha-tested foliage and cloth, and decals; rigid node animation and
-wind sway in the vertex shader; ACES tonemapping, colour grade, film grain
-and vignette; instanced particles; frustum culling; a 2D text/UI overlay.
+lightmaps, per chunk); a few live point lights; exponential height fog; a
+directional shadow map (texel-snapped, PCF); alpha-tested foliage and cloth,
+and decals; emissive masks, a quarter-resolution glow and halo billboards;
+a night-sky panorama; wet surfaces; rigid node animation and wind sway in
+the vertex shader; ACES tonemapping, colour grade, film grain and vignette;
+instanced particles; chunk and cell culling with near/mid/far layers,
+impostors and skyline cards; draw sorting; render-to-texture; a 2D
+text/UI overlay.
 
 **World** — glTF models, collision proxies, light bakes and lightmaps
 generated procedurally by Blender scripts (deterministic, with a geometry
 lint); levels described in JSON with schemas (models, spawns, lighting,
-ambience, footstep surfaces, entities, animations), placed with Blender
-markers; a level manager that loads, unloads (RAII), fades between levels
-and hot-reloads them.
+ambience, footstep surfaces, entities, animations, chunks and cells, lights,
+sequences, screens), placed with Blender markers; a level manager that
+loads, unloads (RAII), fades between levels and hot-reloads them; a shared
+model cache and a grid-accelerated collision world.
 
 **Gameplay** — a first-person controller with wall sliding and step-up;
-entities built from capabilities (drawn, interactable) instead of a class
-hierarchy; data-driven actions; persistent story flags; branching,
-flag-gated dialogue from JSON.
+entities built from capabilities (drawn, interactable, animated, moving)
+instead of a class hierarchy; data-driven actions and timed action
+sequences; persistent story flags; branching, flag-gated dialogue from JSON;
+a pachinko attract loop on a fixed-timestep clock.
 
-**Audio** — a software mixer with 3D attenuation and panning; every sound is
-synthesised in code at startup (wind, cicadas, footsteps per surface,
-vending machine hum, radio static, room tone, a windmill's creak).
+**Audio** — a software mixer with 3D attenuation and panning and a room
+reverb; ambience that crossfades per cell; every sound is synthesised in
+code at startup (wind, cicadas, footsteps per surface, vending machine hum,
+radio static, room tone, a windmill's creak, city traffic, neon buzz, a
+train, a bus, a pachinko hall).
 
 **Testing** — doctest unit tests for the pure logic, and an in-game
 scenario harness that drives the real game from scripts.
@@ -69,13 +79,15 @@ stb, nlohmann/json 3.12.0, doctest 2.5.3.
 
 The demo: talk to the shrine keeper by the torii, find a way through the
 shrine gate, try the door of the house at the east end of the street, and
-take the field path at the west end to the windmill.
+take the field path at the west end to the windmill. At the bus stop past
+the house, wait for the night bus to the city: walk its street and alley,
+listen for the train, and step into the pachinko hall.
 
 Developer switches (environment variables):
 
 | Variable | Effect |
 |---|---|
-| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level |
+| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`) |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
@@ -115,6 +127,13 @@ byte-identical.
 ```sh
 blender -b --factory-startup -P Tools/Blender/build_assets.py
 ```
+
+Lightmap bakes are cached in `build/bake_cache/`: a bake whose inputs
+haven't changed is skipped (a full build takes about 16 minutes cold, 2
+warm). After `--`, `--no-cache` bakes everything and `--gpu` bakes on an
+NVIDIA GPU for quick light tuning — those lightmaps aren't byte-identical,
+and a test refuses them in `Assets/`, so rebuild on the CPU before
+committing.
 
 Levels are JSON files in `Assets/Levels/`, dialogue in `Assets/Dialogue/`;
 both declare a schema from `Assets/Schemas/` for editor completion and

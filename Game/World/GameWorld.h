@@ -66,6 +66,7 @@ namespace AtomGame
         std::optional<Renderable> renderable;
         std::optional<Interactable> interactable;
         std::optional<Animated> animated;
+        bool hidden = false; // M26: not drawn (a bus before it arrives)
     };
 
     // Owns the entities of the current world. Everything else refers to

@@ -35,6 +35,9 @@ namespace Atom
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
+        bool hasEmissiveTexture = false;
+        float fogAmount = 1.0f;
+        float wet = 0.0f;
     };
 
     // Every material of a glTF file, in file order; empty on failure.
@@ -82,6 +85,10 @@ namespace Atom
         void Submit(Renderer& renderer, const glm::mat4& transform,
                     int clip = -1, float time = 0.0f) const;
 
+        // World-space box around every part in its rest pose.
+        const glm::vec3& GetBoundsMin() const { return m_boundsMin; }
+        const glm::vec3& GetBoundsMax() const { return m_boundsMax; }
+
         // -1 if the model has no clip of that name.
         int FindClip(std::string_view name) const;
         const AnimationClip* GetClip(int clip) const;
@@ -104,5 +111,7 @@ namespace Atom
         std::vector<Part> m_parts;
         std::vector<Node> m_nodes;
         std::vector<AnimationClip> m_clips;
+        glm::vec3 m_boundsMin{ 0.0f };
+        glm::vec3 m_boundsMax{ 0.0f };
     };
 }

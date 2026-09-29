@@ -96,12 +96,12 @@ namespace AtomGame
         // material here: it may already be gone.
         m_config = config;
         m_level = level;
-        m_flickerScreen = level && !config.flickerMaterial.empty()
-            ? level->FindSceneMaterial(config.flickerMaterial)
-            : nullptr;
-        if (m_flickerScreen)
+        m_flickerScreens = level && !config.flickerMaterial.empty()
+            ? level->FindSceneMaterials(config.flickerMaterial)
+            : std::vector<Atom::Material*>{};
+        if (!m_flickerScreens.empty())
         {
-            m_flickerEmission = m_flickerScreen->emissiveFactor;
+            m_flickerEmission = m_flickerScreens.front()->emissiveFactor;
         }
 
         m_figureVisible = false;
@@ -122,9 +122,9 @@ namespace AtomGame
         {
             m_figureVisible = false;
             m_flickerTime = -1.0f;
-            if (m_flickerScreen)
+            for (Atom::Material* screen : m_flickerScreens)
             {
-                m_flickerScreen->emissiveFactor = m_flickerEmission;
+                screen->emissiveFactor = m_flickerEmission;
             }
         }
     }
@@ -218,7 +218,7 @@ namespace AtomGame
         AudioScape& /*audio*/
     )
     {
-        if (!m_flickerScreen)
+        if (m_flickerScreens.empty())
         {
             return;
         }
@@ -260,7 +260,10 @@ namespace AtomGame
             m_flickerCooldown = wait(m_random);
         }
 
-        m_flickerScreen->emissiveFactor = on ? m_flickerEmission : glm::vec3{ 0.0f };
+        for (Atom::Material* screen : m_flickerScreens)
+        {
+            screen->emissiveFactor = on ? m_flickerEmission : glm::vec3{ 0.0f };
+        }
         if (m_level)
         {
             m_level->SetGroupGain("vending", on ? 1.0f : 0.15f);

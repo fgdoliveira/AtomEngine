@@ -11,6 +11,11 @@ add_executable(
     ModelTests.cpp
     AnimationTests.cpp
     AuthoringTests.cpp
+    CollisionGridTests.cpp
+    ImpostorTests.cpp
+    NightStreetTests.cpp
+    SequenceTests.cpp
+    PachinkoTests.cpp
 )
 
 target_link_libraries(

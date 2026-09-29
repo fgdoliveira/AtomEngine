@@ -3,12 +3,17 @@
 Texture2D<float4> SceneTexture : register(t0, space2);
 SamplerState SceneSampler : register(s0, space2);
 
+// Blurred bright parts (M23), 1/4 size; bilinear upsampling softens it more.
+Texture2D<float4> GlowTexture : register(t1, space2);
+SamplerState GlowSampler : register(s1, space2);
+
 // Mirrors PostUniforms in Renderer.cpp.
 cbuffer PostUniforms : register(b0, space3)
 {
     float4 u_tint;       // rgb tint, w: enabled
     float4 u_params;     // x: exposure, y: saturation, z: grain, w: vignette
     float4 u_output;     // xy: output size in pixels, z: frame index, w: fade to black
+    float4 u_glow;       // x: strength (0 = off)
 };
 
 struct PSInput
@@ -46,6 +51,9 @@ float4 main(PSInput input) : SV_Target0
     {
         return float4(color * visible, 1.0);
     }
+
+    // Glow is light: added in HDR, before the tonemap compresses it.
+    color += GlowTexture.Sample(GlowSampler, input.uv).rgb * u_glow.x;
 
     color = TonemapAces(color * u_params.x);
 

@@ -75,7 +75,7 @@ namespace AtomGame
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
         m_levels = std::make_unique<LevelManager>(Level::Services{
-            GetRenderer(), GetAudio(), m_audioScape, m_assetRoot });
+            GetRenderer(), GetAudio(), m_audioScape, m_assetRoot, m_modelCache });
         m_levels->onUnloading = [this](Level& outgoing) { OnLevelUnloading(outgoing); };
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
             OnLevelLoaded(incoming, spawn);
@@ -114,6 +114,7 @@ namespace AtomGame
         // Drop everything that points into the level that's about to die.
         m_target = {};
         m_speaker = {};
+        m_sequence.Stop(); // its steps name the old level's entities
         if (m_dialogue.IsActive())
         {
             m_dialogue.Close();
@@ -249,7 +250,7 @@ namespace AtomGame
         UpdateHotReload(deltaSeconds);
         if (Level* level = m_levels->GetLevel())
         {
-            level->Update(deltaSeconds);
+            level->Update(deltaSeconds, m_player.GetFeetPosition());
         }
         if (m_levels->IsTransitioning())
         {
@@ -272,6 +273,10 @@ namespace AtomGame
             break;
         case Mode::InDialogue:
             UpdateDialogue(deltaSeconds);
+            break;
+        case Mode::InSequence:
+            m_target = {};
+            UpdateSequence(deltaSeconds);
             break;
         case Mode::Transitioning:
             m_target = {};
@@ -302,7 +307,7 @@ namespace AtomGame
 
         if (Level* level = m_levels->GetLevel())
         {
-            level->Submit(renderer);
+            level->Submit(renderer, m_player.GetFeetPosition());
         }
 
         // Fog banks stay faintly visible with fog off: morning haze.
@@ -428,11 +433,26 @@ namespace AtomGame
         const Atom::RenderSettings& settings = GetRenderer().GetSettings();
         const glm::vec3& feet = m_player.GetFeetPosition();
 
-        char text[640];
+        // Per distance layer (M22): chunks in view, draw calls, triangles,
+        // and shadow-pass draws - mid and far should show none.
+        char layers[320];
+        const char* layerNames[] = { "Near", "Mid ", "Far " };
+        int written = 0;
+        for (std::size_t i = 0; i < Atom::RenderLayerCount; ++i)
+        {
+            const Atom::LayerStats& l = stats.layers[i];
+            written += std::snprintf(layers + written, sizeof(layers) - written,
+                "%s  chunks %u/%u  draws %u  tris %.1fk  shadow %u\n",
+                layerNames[i], l.chunksVisible, l.chunks, l.drawn, l.triangles / 1000.0f, l.shadowDrawn);
+        }
+
+        char text[1024];
         std::snprintf(text, sizeof(text),
             "%.2f ms  (%.0f fps)\n"
             "Scene %ux%u  (%.0f%%)  MSAA %ux\n"
             "Draws %u / %u   shadow casters %u\n"
+            "%s"
+            "Binds: pipelines %u  materials %u   Models loaded %zu, shared %zu\n"
             "Particles %u\n"
             "Fog %s   Shadows %s   Baked light %s   Post %s\n"
             "Particles %s   Unease %s   Audio %s\n"
@@ -442,6 +462,8 @@ namespace AtomGame
             m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f,
             stats.sceneWidth, stats.sceneHeight, settings.renderScale * 100.0f, stats.msaaSamples,
             stats.drawn, stats.submitted, stats.shadowDrawn,
+            layers,
+            stats.pipelineBinds, stats.materialBinds, m_modelCache.GetLoads(), m_modelCache.GetHits(),
             stats.particles,
             FogPresets[m_fogPreset].name,
             GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
@@ -569,9 +591,56 @@ namespace AtomGame
                 Level* level = m_levels->GetLevel();
                 return level && level->PlayAnimation(entity, clip);
             },
+            [this](const std::string& id) { return RunSequence(id); },
         };
         std::cout << "Interacted with " << target.name << '\n';
         ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
+    }
+
+    bool DemoApp::RunSequence(const std::string& id)
+    {
+        Level* level = m_levels->GetLevel();
+        if (!level || m_mode != Mode::Exploring)
+        {
+            return false;
+        }
+        const auto found = level->GetData().sequences.find(id);
+        if (found == level->GetData().sequences.end() || !m_sequence.Start(found->second, id))
+        {
+            return false;
+        }
+        m_mode = Mode::InSequence;
+        return true;
+    }
+
+    void DemoApp::UpdateSequence(float deltaSeconds)
+    {
+        Level* level = m_levels->GetLevel();
+        if (!level)
+        {
+            m_sequence.Stop();
+        }
+        else
+        {
+            const SequenceHooks hooks{
+                [this](const std::string& text) { m_messages.Show(text); },
+                [this](const std::string& flag) { m_gameState.SetFlag(flag); std::cout << "Flag set: " << flag << '\n'; },
+                [level](const std::string& entity, bool visible) { level->SetEntityVisible(entity, visible); },
+                [this, level](const std::string& sound, const std::string& entity, float gain, bool loop) {
+                    level->PlaySound(m_audioScape.GetSound(sound), entity, gain, loop);
+                },
+                [level](const std::string& entity, const std::string& clip) { return level->PlayAnimation(entity, clip); },
+                [level](const std::string& entity) { return level->GetEntityPosition(entity); },
+                [level](const std::string& entity, const glm::vec3& position) { level->SetEntityPosition(entity, position); },
+                [this](const std::string& name, const std::string& spawn) { m_levels->RequestChange(name, spawn); },
+            };
+            m_sequence.Update(deltaSeconds, hooks);
+        }
+        // A sequence ending in a level change hands over to the transition.
+        if (!m_sequence.IsRunning() && m_mode == Mode::InSequence)
+        {
+            m_mode = m_levels->IsTransitioning() ? Mode::Transitioning : Mode::Exploring;
+        }
     }
 
     void DemoApp::DrawInteractionPrompt(float scale)
@@ -697,6 +766,10 @@ namespace AtomGame
             lighting.fogColor = l.fogColor;
             lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
             lighting.bakedLight = m_bakedLightEnabled ? l.bakedLight : 0.0f;
+            lighting.glowStrength = l.glowStrength;
+            lighting.glowThreshold = l.glowThreshold;
+            lighting.skyPanorama = level->GetSkyPanorama();
+            lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;
         }
         lighting.fogDensity = FogPresets[m_fogPreset].density;
         lighting.fogHeightFalloff = 0.08f;
@@ -921,6 +994,7 @@ namespace AtomGame
         {
         case Mode::InDialogue: return "dialogue";
         case Mode::Transitioning: return "transitioning";
+        case Mode::InSequence: return "sequence";
         default: return "exploring";
         }
     }
@@ -948,6 +1022,18 @@ namespace AtomGame
         const Level* level = m_levels->GetLevel();
         const glm::vec3& feet = m_player.GetFeetPosition();
         return level ? std::string(level->GetData().SurfaceAt(feet.x, feet.z)) : "";
+    }
+
+    std::pair<std::uint32_t, std::uint32_t> DemoApp::ScreenStats() const
+    {
+        const Atom::FrameStats& stats = const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats();
+        return { stats.renderTextures, stats.renderTextureDraws };
+    }
+
+    float DemoApp::ZoneLevel(const std::string& cell) const
+    {
+        const Level* level = m_levels->GetLevel();
+        return level ? level->GetZoneLevel(cell) : 0.0f;
     }
 
     ArrivalError DemoApp::Arrival() const

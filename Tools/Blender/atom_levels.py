@@ -8,6 +8,7 @@ and exported to its own pair of files.
 import math
 
 import atom_kit as kit
+import atom_pachinko
 from atom_street import Street
 
 
@@ -231,14 +232,16 @@ LEVELS = [
     ("shrine", build_shrine_grounds),
     ("interior", build_machiya_interior),
     ("fields", build_windmill_field),
+    ("pachinko", atom_pachinko.build_pachinko_hall),
 ]
 
 # The level file each Blender level belongs to (markers are written next to it).
-LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field"}
+LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
+               "pachinko": "pachinko_hall"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.
-BAKE_MODES = {"interior": "ao"}
+BAKE_MODES = {"interior": "ao", "pachinko": "ao"}
 
 # Levels that also get a lightmap (atom_lightmap), with the bake-only lights
 # that make it: (location, rotation in degrees, (width, height), watts, rgb).
@@ -252,4 +255,9 @@ LIGHTMAPS = {
     ] + [
         ((0.0, 0.05, 1.0), (90, 0, 0), (1.4, 2.0), 25.0, (0.85, 0.9, 1.0)),
     ],
+    "pachinko": atom_pachinko.LIGHTS,
 }
+
+# Lightmap settings other than the defaults (M27): the hall is dense and
+# full of small bright emitters (clamped, so they don't leave speckles).
+LIGHTMAP_OPTIONS = {"pachinko": {"size": 1024, "samples": 192, "clamp": 2.0}}

@@ -138,6 +138,15 @@ namespace AtomGame
                 }
                 return play;
             }
+            if (type == "sequence")
+            {
+                const std::string id = String(json, "id", path);
+                if (id.empty())
+                {
+                    throw LevelError(path, "sequence needs \"id\"");
+                }
+                return RunSequence{ id };
+            }
             throw LevelError(JsonPath(path, "type"), "unknown action type \"" + type + "\"");
         }
 
@@ -154,6 +163,7 @@ namespace AtomGame
             entity.position = Vec3(json, "position", glm::vec3{ 0.0f }, path);
             entity.yawDegrees = Number(json, "yaw", path, 0.0f);
             entity.model = String(json, "model", path);
+            entity.hidden = Bool(json, "hidden", path, false);
 
             if (const auto collider = json.find("collider"); collider != json.end())
             {
@@ -203,7 +213,92 @@ namespace AtomGame
                 }
                 entity.animation = a;
             }
+
+            if (const auto mover = json.find("mover"); mover != json.end())
+            {
+                const std::string at = JsonPath(path, "mover");
+                EntityMover m;
+                m.travel = Vec3(*mover, "travel", m.travel, at);
+                m.travelSeconds = Number(*mover, "travelSeconds", at, m.travelSeconds);
+                m.waitSeconds = Number(*mover, "waitSeconds", at, m.waitSeconds);
+                m.startSeconds = Number(*mover, "startSeconds", at, m.startSeconds);
+                m.sound = String(*mover, "sound", at);
+                m.gain = Number(*mover, "gain", at, m.gain);
+                m.minDistance = Number(*mover, "minDistance", at, m.minDistance);
+                m.maxDistance = Number(*mover, "maxDistance", at, m.maxDistance);
+                if (!mover->contains("travel") || m.travelSeconds <= 0.0f || m.waitSeconds < 0.0f)
+                {
+                    throw LevelError(at, "a mover needs \"travel\", \"travelSeconds\" > 0 and \"waitSeconds\" >= 0");
+                }
+                entity.mover = m;
+            }
             return entity;
+        }
+
+        SequenceStep ParseStep(const Json& json, const std::string& path)
+        {
+            using Type = SequenceStep::Type;
+            static const std::map<std::string, Type> types{
+                { "wait", Type::Wait }, { "message", Type::Message }, { "setFlag", Type::SetFlag },
+                { "show", Type::Show }, { "hide", Type::Hide }, { "playSound", Type::PlaySound },
+                { "playAnimation", Type::PlayAnimation }, { "moveEntity", Type::MoveEntity },
+                { "changeLevel", Type::ChangeLevel },
+            };
+            const std::string name = String(json, "type", path);
+            const auto found = types.find(name);
+            if (found == types.end())
+            {
+                throw LevelError(JsonPath(path, "type"), "unknown step type \"" + name + "\"");
+            }
+            SequenceStep step;
+            step.type = found->second;
+            step.seconds = Number(json, "seconds", path, 0.0f);
+            step.entity = String(json, "entity", path);
+            step.gain = Number(json, "gain", path, 1.0f);
+            step.loop = Bool(json, "loop", path, false);
+            step.to = Vec3(json, "to", step.to, path);
+            const auto require = [&](bool ok, const char* what) {
+                if (!ok)
+                {
+                    throw LevelError(path, name + " needs " + what);
+                }
+            };
+            switch (step.type)
+            {
+            case Type::Wait:
+                require(step.seconds > 0.0f, "\"seconds\" > 0");
+                break;
+            case Type::Message:
+                step.text = String(json, "text", path);
+                require(!step.text.empty(), "\"text\"");
+                break;
+            case Type::SetFlag:
+                step.text = String(json, "flag", path);
+                require(!step.text.empty(), "\"flag\"");
+                break;
+            case Type::Show:
+            case Type::Hide:
+                require(!step.entity.empty(), "\"entity\"");
+                break;
+            case Type::PlaySound:
+                step.text = String(json, "sound", path);
+                require(!step.text.empty(), "\"sound\"");
+                break;
+            case Type::PlayAnimation:
+                step.clip = String(json, "clip", path);
+                require(!step.entity.empty() && !step.clip.empty(), "\"entity\" and \"clip\"");
+                break;
+            case Type::MoveEntity:
+                require(!step.entity.empty() && json.contains("to") && step.seconds > 0.0f,
+                        "\"entity\", \"to\" and \"seconds\" > 0");
+                break;
+            case Type::ChangeLevel:
+                step.text = String(json, "level", path);
+                step.clip = String(json, "spawn", path);
+                require(!step.text.empty(), "\"level\"");
+                break;
+            }
+            return step;
         }
 
         // Placement from Blender markers (<level>.markers.json, written by
@@ -300,6 +395,15 @@ namespace AtomGame
                 l.fogColor = Vec3(*light, "fogColor", l.fogColor, at);
                 l.shadows = Bool(*light, "shadows", at, l.shadows);
                 l.bakedLight = Number(*light, "bakedLight", at, l.bakedLight);
+                if (const auto glow = light->find("glow"); glow != light->end())
+                {
+                    l.glowStrength = Number(*glow, "strength", "/lighting/glow", l.glowStrength);
+                    l.glowThreshold = Number(*glow, "threshold", "/lighting/glow", l.glowThreshold);
+                    if (l.glowStrength < 0.0f || l.glowThreshold <= 0.0f)
+                    {
+                        throw LevelError("/lighting/glow", "strength must be >= 0 and threshold > 0");
+                    }
+                }
                 if (l.bakedLight < 0.0f || l.bakedLight > 1.0f)
                 {
                     throw LevelError("/lighting/bakedLight", "must be between 0 and 1");
@@ -313,6 +417,36 @@ namespace AtomGame
                 {
                     const std::string at = JsonPath("/audio/beds", index++);
                     level.beds.push_back(AudioBed{ String(bed, "sound", at), Number(bed, "gain", at, 1.0f) });
+                }
+                index = 0;
+                for (const Json& zone : Array(*audio, "zones", "/audio"))
+                {
+                    const std::string at = JsonPath("/audio/zones", index++);
+                    AudioZone z{ String(zone, "cell", at), {} };
+                    std::size_t bedIndex = 0;
+                    for (const Json& bed : Array(zone, "beds", at))
+                    {
+                        const std::string bedAt = JsonPath(JsonPath(at, "beds"), bedIndex++);
+                        z.beds.push_back(AudioBed{ String(bed, "sound", bedAt), Number(bed, "gain", bedAt, 1.0f) });
+                    }
+                    if (z.cell.empty())
+                    {
+                        throw LevelError(at, "a zone needs a \"cell\"");
+                    }
+                    level.audioZones.push_back(std::move(z));
+                }
+                level.zoneFadeSeconds = Number(*audio, "zoneFadeSeconds", "/audio", level.zoneFadeSeconds);
+                if (const auto reverb = audio->find("reverb"); reverb != audio->end())
+                {
+                    const std::string at = "/audio/reverb";
+                    LevelReverb& r = level.reverb;
+                    r.mix = Number(*reverb, "mix", at, r.mix);
+                    r.size = Number(*reverb, "size", at, r.size);
+                    r.feedback = Number(*reverb, "feedback", at, r.feedback);
+                    if (r.mix < 0.0f || r.mix > 1.0f || r.size <= 0.0f || r.feedback < 0.0f || r.feedback >= 1.0f)
+                    {
+                        throw LevelError(at, "mix 0..1, size > 0, feedback 0..<1");
+                    }
                 }
                 index = 0;
                 for (const Json& emitter : Array(*audio, "emitters", "/audio"))
@@ -374,6 +508,197 @@ namespace AtomGame
                 for (const Json& site : Array(*unease, "flickerSites", "/unease"))
                 {
                     level.unease.flickerSites.push_back(Vec3(site, JsonPath("/unease/flickerSites", index++)));
+                }
+            }
+
+            if (const auto sky = root.find("sky"); sky != root.end())
+            {
+                LevelSky s{ String(*sky, "panorama", "/sky"), Number(*sky, "intensity", "/sky", 1.0f) };
+                if (s.panorama.empty())
+                {
+                    throw LevelError("/sky", "sky needs a \"panorama\"");
+                }
+                level.sky = s;
+            }
+            std::size_t haloIndex = 0;
+            for (const Json& halo : Array(root, "halos", ""))
+            {
+                const std::string at = JsonPath("/halos", haloIndex++);
+                HaloData h;
+                h.position = Vec3(halo, "position", h.position, at);
+                h.size = Number(halo, "size", at, h.size);
+                h.color = Vec3(halo, "color", h.color, at);
+                h.intensity = Number(halo, "intensity", at, h.intensity);
+                h.flicker = Number(halo, "flicker", at, h.flicker);
+                h.entity = String(halo, "entity", at);
+                if (!halo.contains("position"))
+                {
+                    throw LevelError(at, "a halo needs a \"position\"");
+                }
+                level.halos.push_back(h);
+            }
+
+            std::size_t screenIndex = 0;
+            for (const Json& screen : Array(root, "screens", ""))
+            {
+                const std::string at = JsonPath("/screens", screenIndex++);
+                ScreenData s{ String(screen, "material", at),
+                              static_cast<std::uint32_t>(Number(screen, "seed", at, 1.0f)) };
+                if (s.material.empty())
+                {
+                    throw LevelError(at, "a screen needs a \"material\"");
+                }
+                level.screens.push_back(s);
+            }
+
+            std::size_t lightIndex = 0;
+            for (const Json& light : Array(root, "lights", ""))
+            {
+                const std::string at = JsonPath("/lights", lightIndex++);
+                LiveLightData l;
+                l.position = Vec3(light, "position", l.position, at);
+                l.color = Vec3(light, "color", l.color, at);
+                l.intensity = Number(light, "intensity", at, l.intensity);
+                l.radius = Number(light, "radius", at, l.radius);
+                l.flicker = Number(light, "flicker", at, l.flicker);
+                l.entity = String(light, "entity", at);
+                l.material = String(light, "material", at);
+                if (!light.contains("position") || l.radius <= 0.0f)
+                {
+                    throw LevelError(at, "a light needs a \"position\" and a positive \"radius\"");
+                }
+                level.lights.push_back(l);
+            }
+
+            std::size_t impostorIndex = 0;
+            for (const Json& impostor : Array(root, "impostors", ""))
+            {
+                const std::string at = JsonPath("/impostors", impostorIndex++);
+                ImpostorData d;
+                d.set = String(impostor, "set", at);
+                d.position = Vec3(impostor, "position", d.position, at);
+                d.yawDegrees = Number(impostor, "yaw", at, 0.0f);
+                const std::string layer = String(impostor, "layer", at, "far");
+                if (layer == "mid") d.layer = ChunkLayer::Mid;
+                else if (layer == "far") d.layer = ChunkLayer::Far;
+                else throw LevelError(JsonPath(at, "layer"), "must be \"mid\" or \"far\"");
+                if (d.set.empty() || !impostor.contains("position"))
+                {
+                    throw LevelError(at, "an impostor needs \"set\" and \"position\"");
+                }
+                level.impostors.push_back(d);
+            }
+
+            std::size_t chunkIndex = 0;
+            for (const Json& chunk : Array(root, "chunks", ""))
+            {
+                const std::string at = JsonPath("/chunks", chunkIndex++);
+                ChunkData c;
+                c.name = String(chunk, "name", at);
+                c.model = String(chunk, "model", at);
+                c.collision = String(chunk, "collision", at);
+                const std::string layer = String(chunk, "layer", at, "near");
+                if (layer == "near") c.layer = ChunkLayer::Near;
+                else if (layer == "mid") c.layer = ChunkLayer::Mid;
+                else if (layer == "far") c.layer = ChunkLayer::Far;
+                else throw LevelError(JsonPath(at, "layer"), "must be \"near\", \"mid\" or \"far\"");
+                // Only near chunks cast shadows unless told otherwise:
+                // distant shells in the shadow pass cost and show nothing.
+                c.castsShadow = Bool(chunk, "castsShadow", at, c.layer == ChunkLayer::Near);
+                c.cell = String(chunk, "cell", at);
+                c.lightmap = String(chunk, "lightmap", at);
+                if (c.name.empty() || c.model.empty())
+                {
+                    throw LevelError(at, "a chunk needs \"name\" and \"model\"");
+                }
+                if (!c.cell.empty() && c.layer != ChunkLayer::Near)
+                {
+                    throw LevelError(JsonPath(at, "cell"), "only near chunks belong to cells");
+                }
+                level.chunks.push_back(std::move(c));
+            }
+
+            std::size_t cellIndex = 0;
+            for (const Json& cell : Array(root, "cells", ""))
+            {
+                const std::string at = JsonPath("/cells", cellIndex++);
+                CellData c;
+                c.name = String(cell, "name", at);
+                const glm::vec3 min = Vec3(cell, "min", glm::vec3{ 0.0f }, at);
+                const glm::vec3 max = Vec3(cell, "max", glm::vec3{ 0.0f }, at);
+                c.min = { min.x, min.z };
+                c.max = { max.x, max.z };
+                std::size_t n = 0;
+                for (const Json& neighbour : Array(cell, "neighbours", at))
+                {
+                    if (!neighbour.is_string())
+                    {
+                        throw LevelError(JsonPath(JsonPath(at, "neighbours"), n), "must be a cell name");
+                    }
+                    c.neighbours.push_back(neighbour.get<std::string>());
+                    ++n;
+                }
+                if (c.name.empty())
+                {
+                    throw LevelError(at, "a cell needs a \"name\"");
+                }
+                level.cells.push_back(std::move(c));
+            }
+            const auto cellExists = [&](const std::string& name) {
+                return std::any_of(level.cells.begin(), level.cells.end(),
+                    [&](const CellData& c) { return c.name == name; });
+            };
+            for (std::size_t i = 0; i < level.cells.size(); ++i)
+            {
+                for (std::size_t n = 0; n < level.cells[i].neighbours.size(); ++n)
+                {
+                    if (!cellExists(level.cells[i].neighbours[n]))
+                    {
+                        throw LevelError(JsonPath(JsonPath(JsonPath("/cells", i), "neighbours"), n),
+                            "no cell named \"" + level.cells[i].neighbours[n] + "\"");
+                    }
+                }
+            }
+            for (std::size_t i = 0; i < level.chunks.size(); ++i)
+            {
+                if (!level.chunks[i].cell.empty() && !cellExists(level.chunks[i].cell))
+                {
+                    throw LevelError(JsonPath(JsonPath("/chunks", i), "cell"),
+                        "no cell named \"" + level.chunks[i].cell + "\"");
+                }
+            }
+            for (std::size_t i = 0; i < level.audioZones.size(); ++i)
+            {
+                if (!cellExists(level.audioZones[i].cell))
+                {
+                    throw LevelError(JsonPath(JsonPath("/audio/zones", i), "cell"),
+                        "no cell named \"" + level.audioZones[i].cell + "\"");
+                }
+            }
+
+            if (const auto sequences = root.find("sequences"); sequences != root.end())
+            {
+                if (!sequences->is_object())
+                {
+                    throw LevelError("/sequences", "must be an object of named step lists");
+                }
+                for (const auto& [id, steps] : sequences->items())
+                {
+                    const std::string at = JsonPath("/sequences", id);
+                    if (!steps.is_array() || steps.empty())
+                    {
+                        throw LevelError(at, "must be a non-empty array of steps");
+                    }
+                    Sequence sequence;
+                    for (std::size_t i = 0; i < steps.size(); ++i)
+                    {
+                        sequence.push_back(ParseStep(steps[i], JsonPath(at, i)));
+                        if (sequence.back().type == SequenceStep::Type::ChangeLevel && i + 1 != steps.size())
+                        {
+                            throw LevelError(JsonPath(at, i), "changeLevel must be the last step");
+                        }
+                    }
+                    level.sequences[id] = std::move(sequence);
                 }
             }
 
@@ -442,6 +767,58 @@ namespace AtomGame
                 }
             }
 
+            // Halos and lights riding on an entity need it to exist.
+            const auto entityExists = [&](const std::string& name) {
+                return std::any_of(level.entities.begin(), level.entities.end(),
+                    [&](const EntityData& e) { return e.name == name; });
+            };
+            for (std::size_t i = 0; i < level.halos.size(); ++i)
+            {
+                if (!level.halos[i].entity.empty() && !entityExists(level.halos[i].entity))
+                {
+                    throw LevelError(JsonPath(JsonPath("/halos", i), "entity"),
+                        "no entity named \"" + level.halos[i].entity + "\"");
+                }
+            }
+            for (std::size_t i = 0; i < level.lights.size(); ++i)
+            {
+                if (!level.lights[i].entity.empty() && !entityExists(level.lights[i].entity))
+                {
+                    throw LevelError(JsonPath(JsonPath("/lights", i), "entity"),
+                        "no entity named \"" + level.lights[i].entity + "\"");
+                }
+            }
+
+            // Sequences name entities and are named by actions (M26).
+            for (const auto& [id, sequence] : level.sequences)
+            {
+                for (std::size_t i = 0; i < sequence.size(); ++i)
+                {
+                    if (!sequence[i].entity.empty() && !entityExists(sequence[i].entity))
+                    {
+                        throw LevelError(JsonPath(JsonPath(JsonPath("/sequences", id), i), "entity"),
+                            "no entity named \"" + sequence[i].entity + "\"");
+                    }
+                }
+            }
+            for (std::size_t i = 0; i < level.entities.size(); ++i)
+            {
+                const auto& use = level.entities[i].interactable;
+                if (!use)
+                {
+                    continue;
+                }
+                for (const Action* action : { &use->action, use->lockedAction ? &*use->lockedAction : nullptr })
+                {
+                    const auto* run = action ? std::get_if<RunSequence>(action) : nullptr;
+                    if (run && !level.sequences.contains(run->id))
+                    {
+                        throw LevelError(JsonPath(entityPaths[i], "interactable"),
+                            "no sequence named \"" + run->id + "\"");
+                    }
+                }
+            }
+
             if (level.spawns.empty())
             {
                 throw LevelError("/spawns", "needs at least one spawn in \"spawns\"");
@@ -454,6 +831,44 @@ namespace AtomGame
             }
             return level;
         }
+    }
+
+    std::vector<bool> VisibleCells(const std::vector<CellData>& cells, const glm::vec3& position)
+    {
+        std::vector<bool> visible(cells.size(), false);
+        const auto inside = [&](const CellData& c) {
+            return position.x >= c.min.x && position.x <= c.max.x
+                && position.z >= c.min.y && position.z <= c.max.y;
+        };
+        const auto current = std::find_if(cells.begin(), cells.end(), inside);
+        if (current == cells.end())
+        {
+            // Nowhere known (a gap between cells, a teleport): draw it all
+            // rather than risk a hole.
+            visible.assign(cells.size(), true);
+            return visible;
+        }
+        for (std::size_t i = 0; i < cells.size(); ++i)
+        {
+            const bool neighbour = std::find(current->neighbours.begin(), current->neighbours.end(),
+                                             cells[i].name) != current->neighbours.end();
+            visible[i] = &cells[i] == &*current || neighbour;
+        }
+        return visible;
+    }
+
+    int CellAt(const std::vector<CellData>& cells, const glm::vec3& position)
+    {
+        for (std::size_t i = 0; i < cells.size(); ++i)
+        {
+            const CellData& c = cells[i];
+            if (position.x >= c.min.x && position.x <= c.max.x
+                && position.z >= c.min.y && position.z <= c.max.y)
+            {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
     }
 
     const SpawnPoint* LevelData::FindSpawn(std::string_view spawnName) const

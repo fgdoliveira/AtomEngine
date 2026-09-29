@@ -1,10 +1,12 @@
 #pragma once
 
+#include "Renderer/Glow.h"
 #include "Renderer/Lighting.h"
 #include "Renderer/Material.h"
 #include "Renderer/Mesh.h"
 #include "Renderer/Particles.h"
 #include "Renderer/RenderSettings.h"
+#include "Renderer/RenderTexture.h"
 #include "Renderer/RenderTargets.h"
 #include "Renderer/Texture.h"
 #include "UI/UIRenderer.h"
@@ -42,15 +44,49 @@ namespace Atom
         bool vsync = true;
     };
 
+    // Distance layers of a level (M22): near is walkable detail, mid the
+    // simplified buildings around it, far the skyline. Counted separately.
+    enum class RenderLayer : std::uint8_t
+    {
+        Near,
+        Mid,
+        Far,
+    };
+    inline constexpr std::size_t RenderLayerCount = 3;
+
+    // A group of draws culled as a whole (a building, half a block): one
+    // box test per chunk instead of one per mesh.
+    struct ChunkInfo
+    {
+        glm::vec3 boundsMin{ 0.0f }; // world space
+        glm::vec3 boundsMax{ 0.0f };
+        RenderLayer layer = RenderLayer::Near;
+        bool castsShadow = true;
+    };
+
+    struct LayerStats
+    {
+        std::uint32_t chunks = 0;        // submitted
+        std::uint32_t chunksVisible = 0; // in the camera frustum
+        std::uint32_t drawn = 0;         // draw calls
+        std::uint32_t triangles = 0;
+        std::uint32_t shadowDrawn = 0;   // draws in the shadow pass
+    };
+
     struct FrameStats
     {
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
         std::uint32_t shadowDrawn = 0;
+        std::array<LayerStats, RenderLayerCount> layers{};
+        std::uint32_t pipelineBinds = 0;
+        std::uint32_t materialBinds = 0;
         std::uint32_t particles = 0;
         std::uint32_t sceneWidth = 0;
         std::uint32_t sceneHeight = 0;
         std::uint32_t msaaSamples = 0;
+        std::uint32_t renderTextures = 0;  // M27: drawn into this frame
+        std::uint32_t renderTextureDraws = 0; // scene draws sampling one
     };
 
     class Renderer
@@ -86,6 +122,11 @@ namespace Atom
         // Loads a PNG/JPG/... file; nullptr (with a message) on failure.
         std::unique_ptr<Texture> LoadTexture(const std::string& path, bool srgb = true);
 
+        // Render-to-texture (M27): drawn each frame before the scene, from
+        // whatever its canvas received that frame.
+        std::unique_ptr<RenderTexture> CreateRenderTexture(std::uint32_t width, std::uint32_t height);
+        void UnregisterRenderTexture(RenderTexture* target);
+
         // The projection is built at render time from the swapchain size so
         // it always matches the window.
         void SetCamera(
@@ -94,6 +135,13 @@ namespace Atom
             float nearPlane,
             float farPlane
         );
+
+        // Draws submitted between BeginChunk and EndChunk belong to that
+        // chunk: culled with it, counted in its layer, and left out of the
+        // shadow pass when it casts none. Outside a chunk: near, casts
+        // shadows, culled per mesh.
+        void BeginChunk(const ChunkInfo& chunk);
+        void EndChunk() { m_currentChunk = -1; }
 
         // Queues a mesh for this frame. The mesh and material (and its
         // textures) must outlive Render().
@@ -118,6 +166,10 @@ namespace Atom
         // Queues billboards for this frame (sorted and drawn after opaque
         // geometry). The atlas is split into `columns` equal cells.
         void SubmitParticles(std::span<const Particle> particles);
+        // Additive glows around lights (M23), same billboards as particles.
+        void SubmitHalos(std::span<const Particle> halos);
+        // A live point light for this frame (M25); see LiveLight.
+        void SubmitLiveLight(const LiveLight& light);
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
@@ -135,7 +187,12 @@ namespace Atom
             const Mesh* mesh = nullptr;
             const Material* material = nullptr;
             glm::mat4 model{1.0f};
+            int chunk = -1; // index into m_chunks, -1 = none
         };
+
+        // Order draws so state changes are rare: decals last (they need the
+        // finished surfaces), then by pipeline variant, then by material.
+        void SortDrawCommands();
 
         struct Camera
         {
@@ -150,7 +207,7 @@ namespace Atom
         bool CreatePostPipeline();
         bool CreateShadowResources();
         bool CreateParticleResources();
-        SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples);
+        SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples, bool additive = false);
         // Sorts back to front and copies this frame's particles to the GPU.
         bool UploadParticles(SDL_GPUCommandBuffer* commandBuffer);
         void DrawParticles(
@@ -159,6 +216,7 @@ namespace Atom
             const glm::mat4& viewProjection
         );
         bool CanUseAlphaToCoverage(std::uint32_t samples) const;
+        bool GlowActive() const;
 
         // Decals: alpha blending, no depth writes, a depth bias toward the
         // camera so they win against the surface they lie on.
@@ -219,6 +277,17 @@ namespace Atom
         SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
 
         std::array<SDL_GPUGraphicsPipeline*, 3> m_particlePipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_haloPipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_skyPipelines{};
+        SDL_GPUGraphicsPipeline* GetSkyPipeline(std::uint32_t samples);
+        bool RenderTextures(SDL_GPUCommandBuffer* commandBuffer);
+        void DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
+                     const glm::mat4& projection);
+        Glow m_glow;
+        std::vector<Particle> m_halos;
+        std::array<LiveLight, MaxLiveLights> m_liveLights{};
+        std::size_t m_liveLightCount = 0;
+        std::uint32_t m_uploadedHalos = 0;
         SDL_GPUBuffer* m_particleBuffer = nullptr;
         SDL_GPUTransferBuffer* m_particleTransfer = nullptr;
         std::vector<Particle> m_particles;
@@ -228,6 +297,8 @@ namespace Atom
         SDL_GPUSampler* m_sampler = nullptr;      // material textures
         SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
         SDL_GPUSampler* m_lightmapSampler = nullptr; // clamped, few mips
+        SDL_GPUSampler* m_pixelSampler = nullptr;    // nearest, clamped (render textures)
+        std::vector<RenderTexture*> m_renderTextures;
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;
@@ -237,6 +308,8 @@ namespace Atom
 
         Camera m_camera;
         std::vector<DrawCommand> m_drawCommands;
+        std::vector<ChunkInfo> m_chunks; // this frame's
+        int m_currentChunk = -1;
         FrameStats m_stats;
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;

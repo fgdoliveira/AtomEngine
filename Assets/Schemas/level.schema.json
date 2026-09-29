@@ -21,6 +21,39 @@
         "intensity": { "type": "number", "minimum": 0, "default": 1 }
       }
     },
+    "chunks": {
+      "type": "array",
+      "description": "Pieces drawn and culled as a whole (about one building or half a block), with their distance layer (M22).",
+      "items": {
+        "type": "object",
+        "required": ["name", "model"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "model": { "type": "string", "description": "glb relative to Assets/." },
+          "collision": { "type": "string", "description": "Optional collision glb, added to the level's." },
+          "layer": { "enum": ["near", "mid", "far"], "default": "near" },
+          "castsShadow": { "type": "boolean", "description": "Default: true for near, false for mid and far." },
+          "cell": { "type": "string", "description": "Near chunks only: drawn when the player is in this cell or a neighbour." },
+          "lightmap": { "type": "string", "description": "Baked light texture for this chunk's model (M25), relative to Assets/." }
+        }
+      }
+    },
+    "cells": {
+      "type": "array",
+      "description": "Connected rooms of the level; near chunks of far cells aren't drawn (M22).",
+      "items": {
+        "type": "object",
+        "required": ["name", "min", "max"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "min": { "$ref": "#/definitions/vec3", "description": "Ground-plane bounds (x and z are used)." },
+          "max": { "$ref": "#/definitions/vec3" },
+          "neighbours": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
     "defaultSpawn": { "type": "string", "description": "Defaults to the first spawn by name." },
     "spawns": {
       "type": "object",
@@ -44,7 +77,89 @@
         "groundColor": { "$ref": "#/definitions/vec3" },
         "fogColor": { "$ref": "#/definitions/vec3" },
         "shadows": { "type": "boolean" },
-        "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." }
+        "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." },
+        "glow": {
+          "type": "object",
+          "description": "Bright parts blurred and added back (M23).",
+          "additionalProperties": false,
+          "properties": {
+            "strength": { "type": "number", "minimum": 0, "default": 0.35 },
+            "threshold": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
+          }
+        }
+      }
+    },
+    "sky": {
+      "type": "object",
+      "description": "Night sky panorama (equirectangular) behind everything (M23). Match fogColor to its horizon.",
+      "required": ["panorama"],
+      "additionalProperties": false,
+      "properties": {
+        "panorama": { "type": "string", "description": "Texture relative to Assets/." },
+        "intensity": { "type": "number", "minimum": 0, "default": 1 }
+      }
+    },
+    "impostors": {
+      "type": "array",
+      "description": "Pre-rendered buildings on camera-facing cards (M24).",
+      "items": {
+        "type": "object",
+        "required": ["set", "position"],
+        "additionalProperties": false,
+        "properties": {
+          "set": { "type": "string", "description": "Impostor descriptor (.json) relative to Assets/." },
+          "position": { "$ref": "#/definitions/vec3", "description": "Centre of the building's footprint." },
+          "yaw": { "type": "number" },
+          "layer": { "enum": ["mid", "far"], "default": "far" }
+        }
+      }
+    },
+    "halos": {
+      "type": "array",
+      "description": "Soft additive glows around lights (M23).",
+      "items": {
+        "type": "object",
+        "required": ["position"],
+        "additionalProperties": false,
+        "properties": {
+          "position": { "$ref": "#/definitions/vec3" },
+          "size": { "type": "number", "description": "Metres across." },
+          "color": { "$ref": "#/definitions/vec3", "description": "Linear RGB." },
+          "intensity": { "type": "number" },
+          "flicker": { "type": "number", "minimum": 0, "maximum": 1 },
+          "entity": { "type": "string", "description": "Rides on this entity (M25); position is then an offset from it." }
+        }
+      }
+    },
+    "screens": {
+      "type": "array",
+      "description": "Live screens (M27): scene materials of this name show a 320x240 render texture running a pachinko attract loop.",
+      "items": {
+        "type": "object",
+        "required": ["material"],
+        "additionalProperties": false,
+        "properties": {
+          "material": { "type": "string" },
+          "seed": { "type": "integer", "minimum": 0, "description": "Different seeds play differently." }
+        }
+      }
+    },
+    "lights": {
+      "type": "array",
+      "description": "Live point lights computed per pixel (M25): what moves or flickers. At most 4 are drawn.",
+      "items": {
+        "type": "object",
+        "required": ["position", "radius"],
+        "additionalProperties": false,
+        "properties": {
+          "position": { "$ref": "#/definitions/vec3" },
+          "color": { "$ref": "#/definitions/vec3", "description": "Linear RGB." },
+          "intensity": { "type": "number", "minimum": 0 },
+          "radius": { "type": "number", "exclusiveMinimum": 0, "description": "Metres; no light past it." },
+          "flicker": { "type": "number", "minimum": 0, "maximum": 1, "description": "Stutters like a halo at the same position." },
+          "entity": { "type": "string", "description": "Rides on this entity; position is then an offset from it." },
+          "material": { "type": "string", "description": "A scene material whose emission stutters along." }
+        }
       }
     },
     "outdoor": { "type": "boolean", "default": true },
@@ -78,6 +193,41 @@
               "minDistance": { "type": "number" },
               "maxDistance": { "type": "number" }
             }
+          }
+        },
+        "zones": {
+          "type": "array",
+          "description": "Ambience per cell (M25): beds fade in while the player is in the cell.",
+          "items": {
+            "type": "object",
+            "required": ["cell", "beds"],
+            "additionalProperties": false,
+            "properties": {
+              "cell": { "type": "string" },
+              "beds": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["sound"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "sound": { "$ref": "#/definitions/sound" },
+                    "gain": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zoneFadeSeconds": { "type": "number", "minimum": 0, "default": 2 },
+        "reverb": {
+          "type": "object",
+          "description": "Room reverb on the whole mix while in the level (M27).",
+          "additionalProperties": false,
+          "properties": {
+            "mix": { "type": "number", "minimum": 0, "maximum": 1 },
+            "size": { "type": "number", "exclusiveMinimum": 0, "description": "Scales the echo delays: 1 is a small hall." },
+            "feedback": { "type": "number", "minimum": 0, "exclusiveMaximum": 1, "description": "How long the tail rings." }
           }
         }
       }
@@ -124,6 +274,11 @@
     "entities": {
       "type": "array",
       "items": { "$ref": "#/definitions/entity" }
+    },
+    "sequences": {
+      "type": "object",
+      "description": "Named timed step lists (M26), started by a \"sequence\" action; the player is frozen while one runs.",
+      "additionalProperties": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/step" } }
     }
   },
   "definitions": {
@@ -137,7 +292,8 @@
     "sound": {
       "type": "string",
       "description": "A sound from the library (Game/AudioScape.cpp).",
-      "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak"]
+      "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak",
+               "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train", "bus_engine", "door_hiss", "pachinko_hall"]
     },
     "entity": {
       "type": "object",
@@ -148,6 +304,7 @@
         "position": { "$ref": "#/definitions/vec3", "description": "Omit to take it from an entity:<name> marker." },
         "yaw": { "type": "number" },
         "model": { "type": "string", "description": "glb relative to Assets/." },
+        "hidden": { "type": "boolean", "description": "Not drawn until a sequence shows it (M26)." },
         "collider": {
           "type": "object",
           "additionalProperties": false,
@@ -182,6 +339,22 @@
             "soundsPerLoop": { "type": "integer", "minimum": 1 },
             "soundOffset": { "$ref": "#/definitions/vec3" }
           }
+        },
+        "mover": {
+          "type": "object",
+          "description": "Shuttles the entity to position + travel and back (M25), e.g. a train.",
+          "required": ["travel", "travelSeconds"],
+          "additionalProperties": false,
+          "properties": {
+            "travel": { "$ref": "#/definitions/vec3" },
+            "travelSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "waitSeconds": { "type": "number", "minimum": 0 },
+            "startSeconds": { "type": "number" },
+            "sound": { "$ref": "#/definitions/sound", "description": "Loops, follows the entity, heard while it moves." },
+            "gain": { "type": "number" },
+            "minDistance": { "type": "number" },
+            "maxDistance": { "type": "number" }
+          }
         }
       }
     },
@@ -189,7 +362,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation"] }
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence"] }
       },
       "oneOf": [
         {
@@ -214,8 +387,32 @@
             "clip": { "type": "string" }, "message": { "type": "string" }
           },
           "required": ["entity", "clip"], "additionalProperties": false
+        },
+        {
+          "properties": { "type": { "const": "sequence" }, "id": { "type": "string", "description": "One of the level's sequences (M26)." } },
+          "required": ["id"], "additionalProperties": false
         }
       ]
+    },
+    "step": {
+      "type": "object",
+      "description": "One step of a sequence (M26).",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["wait", "message", "setFlag", "show", "hide", "playSound", "playAnimation", "moveEntity", "changeLevel"] },
+        "seconds": { "type": "number", "exclusiveMinimum": 0, "description": "wait, moveEntity." },
+        "text": { "type": "string", "description": "message." },
+        "flag": { "type": "string", "description": "setFlag." },
+        "entity": { "type": "string", "description": "show, hide, playSound (follows it), playAnimation, moveEntity." },
+        "sound": { "$ref": "#/definitions/sound" },
+        "gain": { "type": "number" },
+        "loop": { "type": "boolean", "description": "playSound: loops until the level unloads." },
+        "clip": { "type": "string" },
+        "to": { "$ref": "#/definitions/vec3", "description": "moveEntity: where it stops (eases out)." },
+        "level": { "type": "string", "description": "changeLevel: always the last step." },
+        "spawn": { "type": "string" }
+      }
     }
   }
 }

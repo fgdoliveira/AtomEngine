@@ -6,6 +6,9 @@ Headless:
 Writes Assets/Kit/<piece>.glb, Assets/Street/street.glb (visuals) and
 Assets/Street/street_col.glb (collision proxies, no materials).
 
+Options (after "--"): --no-cache re-bakes every lightmap; --gpu bakes them
+on the NVIDIA GPU for fast iteration (never commit those).
+
 From a live Blender (e.g. Blender MCP), exec this file with __file__ set to
 build a preview in a dedicated "AtomKit" scene; the open scene is untouched
 and nothing is exported.
@@ -20,6 +23,7 @@ import sys
 import time
 
 import bpy
+from mathutils import Vector
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.normpath(os.path.join(SCRIPT_DIR, "..", ".."))
@@ -34,14 +38,20 @@ import atom_street  # noqa: E402
 import atom_levels  # noqa: E402
 import atom_bake  # noqa: E402
 import atom_lightmap  # noqa: E402
+import atom_city  # noqa: E402
+import atom_night  # noqa: E402
+import atom_pachinko  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
 importlib.reload(atom_kit)
 importlib.reload(atom_street)
+importlib.reload(atom_pachinko)  # before atom_levels, which uses it
 importlib.reload(atom_levels)
 importlib.reload(atom_bake)
 importlib.reload(atom_lightmap)
+importlib.reload(atom_city)
+importlib.reload(atom_night)
 
 
 def parse_args():
@@ -49,6 +59,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Assets"))
     parser.add_argument("--no-export", action="store_true")
+    # Lightmaps whose inputs are unchanged since the last bake are kept
+    # (fingerprints in build/bake_cache/); --no-cache bakes everything.
+    parser.add_argument("--no-cache", action="store_true")
+    # Bake lightmaps on the NVIDIA GPU: seconds instead of minutes, for
+    # tuning light. Not byte-identical to the CPU: rebuild without it
+    # before committing (a test refuses GPU-baked lightmaps).
+    parser.add_argument("--gpu", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -96,7 +113,7 @@ def export_objects(objects, scene, path, materials=True):
                 export_image_format="AUTO",
                 export_cameras=False,
                 export_lights=False,
-                export_extras=False,
+                export_extras=True,  # material custom props (atom_fog)
                 export_vertex_color="NAME",
                 export_vertex_color_name=atom_bake.ATTRIBUTE,
                 export_all_vertex_colors=False,
@@ -145,6 +162,27 @@ def write_markers(collection, path):
     return count
 
 
+# The street's chunks along X (Blender metres): name -> [x0, x1).
+STREET_CHUNKS = {"west": (-1e9, -13.0), "centre": (-13.0, 13.0), "east": (13.0, 1e9)}
+
+
+def split_into_chunks(objects, ranges, spanning=30.0):
+    """Groups objects by the X range their origin falls in; objects wider
+    than `spanning` metres go to "base". Deterministic: keeps input order."""
+    groups = {"base": []}
+    groups.update({name: [] for name in ranges})
+    for obj in objects:
+        corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+        width = max(c.x for c in corners) - min(c.x for c in corners)
+        if width > spanning:
+            groups["base"].append(obj)
+            continue
+        x = obj.matrix_world.translation.x
+        name = next(n for n, (x0, x1) in ranges.items() if x0 <= x < x1)
+        groups[name].append(obj)
+    return groups
+
+
 def export_piece(obj, scene, out_dir):
     """Exports a kit piece centred on the origin, with its moving parts
     (children) and their animation clips."""
@@ -156,6 +194,8 @@ def export_piece(obj, scene, out_dir):
 
 def main():
     args = parse_args()
+    atom_lightmap.CACHE_DIR = None if args.no_cache else os.path.join(REPO_ROOT, "build", "bake_cache")
+    atom_lightmap.USE_GPU = args.gpu
 
     scene = fresh_scene()
     atom_kit.clear_generated()
@@ -193,6 +233,20 @@ def main():
         scene.collection.children.link(level_collection)
         levels.append((folder, build(pieces, collision, materials, level_collection)))
 
+    # City layers (M24): middle shells, far skyline, and the impostor source.
+    city_collection = bpy.data.collections.new("City")
+    scene.collection.children.link(city_collection)
+    mid_blocks = atom_city.build_mid_blocks(materials, city_collection)
+    skyline = atom_city.build_skyline(materials, city_collection)
+    tower = atom_city.build_impostor_tower(materials, city_collection)
+    tower.location = (0.0, -600.0, 0.0)  # out of the way of the other scenes
+
+    # Level E, the night street (M25): its own collection, around its own
+    # origin like the other levels.
+    night_collection = bpy.data.collections.new("Night")
+    scene.collection.children.link(night_collection)
+    night = atom_night.build_night_street(pieces, collision, materials, night_collection)
+
     # Geometry that would z-fight is a build error, like a compile error:
     # nothing is exported until it is fixed.
     if atom_kit.LINT_ERRORS:
@@ -218,7 +272,14 @@ def main():
             mesh = next(obj for obj in level.visual if obj.name == folder)
             level_dir = os.path.join(args.out, folder.capitalize())
             os.makedirs(level_dir, exist_ok=True)
-            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"))
+            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"),
+                               **atom_levels.LIGHTMAP_OPTIONS.get(folder, {}))
+
+    # The night street: a lightmap per cell, lit by the street's own lamps,
+    # windows and signs.
+    night_dir = os.path.join(args.out, "Night")
+    os.makedirs(night_dir, exist_ok=True)
+    atom_night.bake(scene, night, night_dir)
 
     if atom_kit.LINT_ERRORS:
         for error in atom_kit.LINT_ERRORS:
@@ -233,6 +294,19 @@ def main():
         print("Preview built in scene", SCENE_NAME, "- export with blender -b")
         return
 
+    # Night sky panorama (M23), written like the lightmaps: our own PNG
+    # writer, so it's byte-identical across rebuilds.
+    sky_dir = os.path.join(args.out, "Sky")
+    os.makedirs(sky_dir, exist_ok=True)
+    sky = atom_textures.night_sky()
+    height, width = sky.shape[:2]
+    encoded = bytearray(width * height * 3)
+    flat = sky.reshape(-1)
+    for i in range(width * height * 3):
+        encoded[i] = int(round(float(flat[i]) * 255.0))
+    atom_lightmap._write_png(os.path.join(sky_dir, "night_sky.png"), width, encoded, height)
+    print("Exported", os.path.relpath(os.path.join(sky_dir, "night_sky.png"), REPO_ROOT))
+
     kit_dir = os.path.join(args.out, "Kit")
     street_dir = os.path.join(args.out, "Street")
     os.makedirs(kit_dir, exist_ok=True)
@@ -241,9 +315,33 @@ def main():
     for obj in pieces.values():
         export_piece(obj, scene, kit_dir)
 
-    export_objects(street.visual, scene, os.path.join(street_dir, "street.glb"))
+    # Chunks (M22): pieces go to the chunk of their stretch of street, so
+    # each stretch is culled as a whole; what spans the whole street
+    # (ground, wires, decals) stays in the base model.
+    chunks = split_into_chunks(street.visual, STREET_CHUNKS)
+    export_objects(chunks.pop("base"), scene, os.path.join(street_dir, "street.glb"))
+    for name, objects in chunks.items():
+        export_objects(objects, scene, os.path.join(street_dir, "street_" + name + ".glb"))
     export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
                    materials=False)
+
+    # Mid and far layers aren't baked: lit windows come from their emissive
+    # masks, the rest from the level's ambient.
+    city_dir = os.path.join(args.out, "City")
+    os.makedirs(city_dir, exist_ok=True)
+    export_objects([mid_blocks], scene, os.path.join(city_dir, "mid_blocks.glb"))
+    export_objects([skyline], scene, os.path.join(city_dir, "skyline.glb"))
+    atom_city.render_impostor(scene, tower, os.path.join(city_dir, "tower_impostor.png"),
+                              os.path.join(city_dir, "tower_impostor.json"))
+    print("Exported", os.path.relpath(os.path.join(city_dir, "tower_impostor.png"), REPO_ROOT))
+
+    # Night street: the always-drawn base (the road west, the railway,
+    # cables, wet-road decals), a chunk per cell, one collision file.
+    export_objects([night.base, night.decals], scene, os.path.join(night_dir, "night_street.glb"))
+    for cell, obj in night.cells.items():
+        export_objects([obj], scene, os.path.join(night_dir, "night_" + cell + ".glb"))
+    export_objects(night.colliders, scene, os.path.join(night_dir, "night_street_col.glb"), materials=False)
+    write_markers(night.collection, os.path.join(args.out, "Levels", "night_street.markers.json"))
 
     for folder, level in levels:
         level_dir = os.path.join(args.out, folder.capitalize())
