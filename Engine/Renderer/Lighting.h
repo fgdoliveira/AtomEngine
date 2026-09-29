@@ -4,6 +4,21 @@
 
 namespace Atom
 {
+    class Texture;
+
+    // A light computed per pixel at runtime (M25): a point light with a
+    // linear-squared falloff to zero at `radius`. Everything static is
+    // baked; the few live ones are what moves or flickers (a passing train,
+    // a failing sign). Submitted per frame, at most MaxLiveLights.
+    struct LiveLight
+    {
+        glm::vec3 position{ 0.0f };
+        float radius = 10.0f;
+        glm::vec3 color{ 1.0f }; // linear, times intensity
+    };
+
+    inline constexpr int MaxLiveLights = 4;
+
     // Per-frame lighting and atmosphere. Colours are linear.
     struct SceneLighting
     {
@@ -32,5 +47,14 @@ namespace Atom
         float shadowHalfExtent = 30.0f;   // metres covered either side
         float shadowAmbientShare = 0.35f; // how much sky light shadows block
         float shadowNormalOffset = 0.06f; // metres; fights shadow acne
+
+        // Glow (M23): what exceeds the threshold is blurred and added back.
+        float glowStrength = 0.35f;
+        float glowThreshold = 1.0f;
+
+        // Night sky (M23): an equirectangular panorama behind everything;
+        // nullptr clears to the fog colour as before.
+        const Texture* skyPanorama = nullptr;
+        float skyIntensity = 1.0f;
     };
 }

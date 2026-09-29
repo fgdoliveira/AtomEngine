@@ -44,6 +44,8 @@ namespace
         std::string DialogueNodeId() const override { return ""; }
         std::size_t VoiceCount() const override { return voices; }
         std::string SurfaceName() const override { return surface; }
+        float ZoneLevel(const std::string&) const override { return 0.0f; }
+        std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override { return { 0, 0 }; }
         ArrivalError Arrival() const override { return arrival; }
         std::optional<float> animationTime;
         bool animationPlaying = false;
@@ -53,6 +55,8 @@ namespace
         int reloads = 0;
         glm::vec3 feet{ 0.0f };
         std::string ReloadLevel() override { ++reloads; return reloadError; }
+        std::string requestedLevel;
+        void RequestLevel(const std::string& level, const std::string&) override { requestedLevel = level; }
         glm::vec3 FeetPosition() const override { return feet; }
         void Log(const std::string&) override {}
     };

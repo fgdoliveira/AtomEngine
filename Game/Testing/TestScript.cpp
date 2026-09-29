@@ -34,13 +34,17 @@ namespace AtomGame
                 { "wait_for_level", { 1, 2 } },     // name [timeout]
                 { "expect_mode", { 1, 1 } },
                 { "wait_for_mode", { 1, 2 } },      // mode [timeout]
+                { "wait_for_sequence", { 0, 1 } },  // [timeout]: the running sequence ends
                 { "expect_message", { 1, 32 } },    // words that must appear
                 { "expect_dialogue_node", { 1, 1 } },
                 { "expect_voices_max", { 1, 1 } },
                 { "expect_surface", { 1, 1 } },     // footstep surface name
+                { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
+                { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "reload_level", { 0, 0 } },       // hot reload in place
+                { "goto_level", { 1, 2 } },         // level [spawn]: change as a door would
                 { "expect_near", { 3, 4 } },        // x y z [metres]: the player's feet
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
@@ -304,6 +308,19 @@ namespace AtomGame
             }
             return false;
         }
+        if (name == "wait_for_sequence")
+        {
+            if (game.ModeName() != "sequence")
+            {
+                return true;
+            }
+            if (m_elapsed > number(0, 30.0f))
+            {
+                Fail(command, "the sequence is still running");
+                return true;
+            }
+            return false;
+        }
         if (name == "expect_mode")
         {
             if (game.ModeName() != args[0])
@@ -379,6 +396,11 @@ namespace AtomGame
             }
             return false;
         }
+        if (name == "goto_level")
+        {
+            game.RequestLevel(args[0], args.size() > 1 ? args[1] : std::string{});
+            return true;
+        }
         if (name == "reload_level")
         {
             if (const std::string error = game.ReloadLevel(); !error.empty())
@@ -397,6 +419,23 @@ namespace AtomGame
                 std::ostringstream where;
                 where << "player is at " << feet.x << ' ' << feet.y << ' ' << feet.z;
                 Fail(command, where.str());
+            }
+            return true;
+        }
+        if (name == "expect_screens")
+        {
+            const auto [targets, draws] = game.ScreenStats();
+            if (targets == 0 || draws < static_cast<std::uint32_t>(number(0, 1.0f)))
+            {
+                Fail(command, std::to_string(targets) + " render textures, " + std::to_string(draws) + " screen draws");
+            }
+            return true;
+        }
+        if (name == "expect_zone")
+        {
+            if (game.ZoneLevel(args[0]) < 0.9f)
+            {
+                Fail(command, "zone '" + args[0] + "' is at " + std::to_string(game.ZoneLevel(args[0])));
             }
             return true;
         }

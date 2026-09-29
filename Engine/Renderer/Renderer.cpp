@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <tuple>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -52,6 +53,21 @@ namespace Atom
             } };
         }
 
+        bool IsBoxVisible(const Frustum& frustum, const glm::vec3& boxMin, const glm::vec3& boxMax)
+        {
+            const glm::vec3 center = (boxMin + boxMax) * 0.5f;
+            const glm::vec3 extent = (boxMax - boxMin) * 0.5f;
+            for (const glm::vec4& plane : frustum.planes)
+            {
+                const glm::vec3 normal{ plane };
+                if (glm::dot(normal, center) + plane.w < -glm::dot(glm::abs(normal), extent))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         bool IsVisible(
             const Frustum& frustum,
             const Mesh& mesh,
@@ -90,7 +106,8 @@ namespace Atom
             glm::vec4 baseColorFactor;
             glm::vec4 emissiveFactor; // w: baked-light weight for this draw
             glm::vec4 lightmap;       // x: intensity, y: weight (0 = none)
-            glm::vec4 alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage
+            glm::vec4 alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
+                                      // z: has emissive texture, w: fog amount
         };
 
         // Mirrors the cbuffer in Shaders/Shadow.frag.hlsl.
@@ -105,6 +122,7 @@ namespace Atom
             glm::vec4 tint;   // w: enabled
             glm::vec4 params; // exposure, saturation, grain, vignette
             glm::vec4 output; // width, height, frame index, fade
+            glm::vec4 glow;   // x: strength
         };
 
         constexpr std::uint32_t MaxParticles = 4096;
@@ -144,12 +162,17 @@ namespace Atom
             glm::vec4 cameraPosition; // w: height falloff
             glm::vec4 fogParams;      // x: base height
             glm::vec4 shadowParams;   // enabled, texel uv, ambient share, normal offset
+            glm::vec4 time;           // x: seconds, y: live light count
+            glm::vec4 liveLightPosition[MaxLiveLights]; // w: radius
+            glm::vec4 liveLightColor[MaxLiveLights];
         };
 
         SceneUniforms MakeSceneUniforms(
             const SceneLighting& lighting,
             const glm::mat4& view,
-            const glm::mat4& lightViewProjection
+            const glm::mat4& lightViewProjection,
+            float time,
+            std::span<const LiveLight> liveLights
         )
         {
             // The camera sits at the translation of the inverse view.
@@ -174,6 +197,12 @@ namespace Atom
                 glm::vec4{ cameraPosition, lighting.fogHeightFalloff };
             uniforms.fogParams =
                 glm::vec4{ lighting.fogBaseHeight, 0.0f, 0.0f, 0.0f };
+            uniforms.time = glm::vec4{ time, static_cast<float>(liveLights.size()), 0.0f, 0.0f };
+            for (std::size_t i = 0; i < liveLights.size(); ++i)
+            {
+                uniforms.liveLightPosition[i] = glm::vec4{ liveLights[i].position, liveLights[i].radius };
+                uniforms.liveLightColor[i] = glm::vec4{ liveLights[i].color, 0.0f };
+            }
             return uniforms;
         }
 
@@ -346,6 +375,7 @@ namespace Atom
             && CreatePostPipeline()
             && CreateShadowResources()
             && CreateParticleResources()
+            && m_glow.Initialize(m_device, m_targets.GetColorFormat())
             && m_ui.Initialize(
                 m_device, SDL_GetGPUSwapchainTextureFormat(m_device, m_window))
             && GetScenePipeline(m_targets.ClampSampleCount(m_settings.msaaSamples));
@@ -389,7 +419,13 @@ namespace Atom
         lightmapInfo.max_lod = 2.0f;
         m_lightmapSampler = SDL_CreateGPUSampler(m_device, &lightmapInfo);
 
-        if (!m_sampler || !m_postSampler || !m_lightmapSampler)
+        // Render textures (M27): nearest, so screen pixels stay square.
+        SDL_GPUSamplerCreateInfo pixelInfo = postInfo;
+        pixelInfo.min_filter = SDL_GPU_FILTER_NEAREST;
+        pixelInfo.mag_filter = SDL_GPU_FILTER_NEAREST;
+        m_pixelSampler = SDL_CreateGPUSampler(m_device, &pixelInfo);
+
+        if (!m_sampler || !m_postSampler || !m_lightmapSampler || !m_pixelSampler)
         {
             std::cerr
                 << "Failed to create samplers: "
@@ -457,7 +493,7 @@ namespace Atom
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 3, .uniformBuffers = 2 }
+            ShaderResources{ .samplers = 4, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -581,7 +617,7 @@ namespace Atom
             m_device,
             "Post.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 1, .uniformBuffers = 1 }
+            ShaderResources{ .samplers = 2, .uniformBuffers = 1 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -682,7 +718,29 @@ namespace Atom
         const glm::mat4& model
     )
     {
-        m_drawCommands.push_back(DrawCommand{ &mesh, &material, model });
+        m_drawCommands.push_back(DrawCommand{ &mesh, &material, model, m_currentChunk });
+    }
+
+    void Renderer::BeginChunk(const ChunkInfo& chunk)
+    {
+        m_currentChunk = static_cast<int>(m_chunks.size());
+        m_chunks.push_back(chunk);
+    }
+
+    void Renderer::SortDrawCommands()
+    {
+        const auto key = [](const DrawCommand& c) {
+            const Material& m = *c.material;
+            return std::tuple{
+                m.alphaMode == AlphaMode::Blend,
+                m.alphaMode == AlphaMode::Mask,
+                m.doubleSided,
+                c.material,
+                c.mesh };
+        };
+        // Stable: equal keys keep submission order (decals over decals).
+        std::stable_sort(m_drawCommands.begin(), m_drawCommands.end(),
+            [&](const DrawCommand& a, const DrawCommand& b) { return key(a) < key(b); });
     }
 
     bool Renderer::Render()
@@ -697,13 +755,17 @@ namespace Atom
         struct ClearOnExit
         {
             std::vector<DrawCommand>& commands;
+            std::vector<ChunkInfo>& chunks;
+            int& currentChunk;
             UIRenderer& ui;
             ~ClearOnExit()
             {
                 commands.clear();
+                chunks.clear();
+                currentChunk = -1;
                 ui.EndFrame();
             }
-        } clearDrawCommands{ m_drawCommands, m_ui };
+        } clearDrawCommands{ m_drawCommands, m_chunks, m_currentChunk, m_ui };
 
         SDL_GPUCommandBuffer* commandBuffer =
             SDL_AcquireGPUCommandBuffer(m_device);
@@ -768,6 +830,11 @@ namespace Atom
 
         m_stats = FrameStats{};
         m_stats.submitted = static_cast<std::uint32_t>(m_drawCommands.size());
+        for (const ChunkInfo& chunk : m_chunks)
+        {
+            ++m_stats.layers[static_cast<std::size_t>(chunk.layer)].chunks;
+        }
+        SortDrawCommands();
 
         // Particles are only valid for the frame they were submitted in.
         struct ClearParticles
@@ -785,8 +852,12 @@ namespace Atom
                 m_settings.msaaSamples)
             && UploadParticles(commandBuffer)
             && m_ui.Upload(commandBuffer)
+            && RenderTextures(commandBuffer)
             && RenderShadowPass(commandBuffer, lightViewProjection)
             && RenderScenePass(commandBuffer, lightViewProjection)
+            && (!GlowActive()
+                || m_glow.Render(commandBuffer, m_targets.GetSceneTexture(),
+                                 m_targets.GetWidth(), m_targets.GetHeight(), m_lighting.glowThreshold))
             && RenderPostPass(
                 commandBuffer,
                 swapchainTexture,
@@ -988,6 +1059,21 @@ namespace Atom
         const Frustum frustum = ExtractFrustum(viewProjection);
         const bool bindMaterials = sceneSamples > 0;
         SDL_GPUGraphicsPipeline* bound = nullptr;
+        const Material* boundMaterial = nullptr;
+
+        // One box test per chunk for this view; the shadow pass drops chunks
+        // that cast no shadow (skyline, mid-distance shells).
+        std::vector<char> chunkVisible(m_chunks.size());
+        for (std::size_t i = 0; i < m_chunks.size(); ++i)
+        {
+            const ChunkInfo& chunk = m_chunks[i];
+            chunkVisible[i] = (bindMaterials || chunk.castsShadow)
+                && IsBoxVisible(frustum, chunk.boundsMin, chunk.boundsMax);
+            if (bindMaterials && chunkVisible[i])
+            {
+                ++m_stats.layers[static_cast<std::size_t>(chunk.layer)].chunksVisible;
+            }
+        }
 
         ObjectUniforms uniforms{};
         uniforms.viewProjection = viewProjection;
@@ -1003,11 +1089,26 @@ namespace Atom
             {
                 continue;
             }
+            if (command.chunk >= 0 && !chunkVisible[command.chunk])
+            {
+                continue;
+            }
             if (!IsVisible(frustum, *command.mesh, command.model))
             {
                 continue;
             }
             ++drawn;
+            LayerStats& layer = m_stats.layers[static_cast<std::size_t>(
+                command.chunk >= 0 ? m_chunks[command.chunk].layer : RenderLayer::Near)];
+            if (bindMaterials)
+            {
+                ++layer.drawn;
+                layer.triangles += command.mesh->GetIndexCount() / 3;
+            }
+            else
+            {
+                ++layer.shadowDrawn;
+            }
 
             uniforms.model = command.model;
             SDL_PushGPUVertexUniformData(
@@ -1037,6 +1138,8 @@ namespace Atom
                 {
                     SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
                     bound = pipeline;
+                    boundMaterial = nullptr; // rebind textures with a new pipeline
+                    ++m_stats.pipelineBinds;
                 }
 
                 // Baked meshes blend toward their vertex light; others keep
@@ -1049,9 +1152,10 @@ namespace Atom
                     glm::vec4{
                         material.lightmapIntensity,
                         material.lightmap ? m_lighting.bakedLight : 0.0f,
-                        0.0f,
+                        material.wet,
                         0.0f },
-                    glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f, 0.0f, 0.0f }
+                    glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f,
+                               material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,
@@ -1060,20 +1164,41 @@ namespace Atom
                     sizeof(materialUniforms)
                 );
 
-                const SDL_GPUTextureSamplerBinding textureBinding{
-                    baseColor->GetGPUTexture(),
-                    m_sampler
-                };
-                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+                if (baseColor->IsPixelArt()
+                    || (material.emissiveTexture && material.emissiveTexture->IsPixelArt()))
+                {
+                    ++m_stats.renderTextureDraws; // a live screen (M27)
+                }
 
-                const Texture* lightmap = material.lightmap
-                    ? material.lightmap
-                    : m_whiteTexture.get();
-                const SDL_GPUTextureSamplerBinding lightmapBinding{
-                    lightmap->GetGPUTexture(),
-                    m_lightmapSampler
-                };
-                SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
+                // Sorted by material: consecutive draws often share textures.
+                if (&material != boundMaterial)
+                {
+                    boundMaterial = &material;
+                    ++m_stats.materialBinds;
+                    const SDL_GPUTextureSamplerBinding textureBinding{
+                        baseColor->GetGPUTexture(),
+                        baseColor->IsPixelArt() ? m_pixelSampler : m_sampler
+                    };
+                    SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+
+                    const Texture* lightmap = material.lightmap
+                        ? material.lightmap
+                        : m_whiteTexture.get();
+                    const SDL_GPUTextureSamplerBinding lightmapBinding{
+                        lightmap->GetGPUTexture(),
+                        m_lightmapSampler
+                    };
+                    SDL_BindGPUFragmentSamplers(renderPass, 2, &lightmapBinding, 1);
+
+                    const Texture* emissive = material.emissiveTexture
+                        ? material.emissiveTexture
+                        : m_whiteTexture.get();
+                    const SDL_GPUTextureSamplerBinding emissiveBinding{
+                        emissive->GetGPUTexture(),
+                        emissive->IsPixelArt() ? m_pixelSampler : m_sampler
+                    };
+                    SDL_BindGPUFragmentSamplers(renderPass, 3, &emissiveBinding, 1);
+                }
             }
             else
             {
@@ -1209,7 +1334,9 @@ namespace Atom
 
         // Once per frame; stays bound for every draw in this command buffer.
         const SceneUniforms sceneUniforms = MakeSceneUniforms(
-            m_lighting, m_camera.view, lightViewProjection);
+            m_lighting, m_camera.view, lightViewProjection, m_wind.w,
+            std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount));
+        m_liveLightCount = 0;
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
             1,
@@ -1222,6 +1349,8 @@ namespace Atom
             m_shadowSampler
         };
         SDL_BindGPUFragmentSamplers(renderPass, 1, &shadowBinding, 1);
+
+        DrawSky(renderPass, commandBuffer, projection);
 
         m_stats.sceneWidth = m_targets.GetWidth();
         m_stats.sceneHeight = m_targets.GetHeight();
@@ -1238,6 +1367,132 @@ namespace Atom
     void Renderer::SubmitParticles(std::span<const Particle> particles)
     {
         m_particles.insert(m_particles.end(), particles.begin(), particles.end());
+    }
+
+    std::unique_ptr<RenderTexture> Renderer::CreateRenderTexture(std::uint32_t width, std::uint32_t height)
+    {
+        std::unique_ptr<RenderTexture> target(new RenderTexture());
+        target->m_texture = Texture::CreateRenderTarget(m_device, width, height);
+        if (!target->m_texture
+            || !target->m_canvas.Initialize(m_device, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB))
+        {
+            std::cerr << "Failed to create a " << width << "x" << height << " render texture\n";
+            return nullptr;
+        }
+        target->m_owner = this;
+        m_renderTextures.push_back(target.get());
+        return target;
+    }
+
+    void Renderer::UnregisterRenderTexture(RenderTexture* target)
+    {
+        std::erase(m_renderTextures, target);
+    }
+
+    bool Renderer::RenderTextures(SDL_GPUCommandBuffer* commandBuffer)
+    {
+        for (RenderTexture* target : m_renderTextures)
+        {
+            if (target->Render(commandBuffer))
+            {
+                ++m_stats.renderTextures;
+            }
+        }
+        return true;
+    }
+
+    void Renderer::SubmitLiveLight(const LiveLight& light)
+    {
+        // Past the limit, the extra lights are dropped (a level asks for
+        // few; the shader loops over what it gets).
+        if (m_liveLightCount < m_liveLights.size())
+        {
+            m_liveLights[m_liveLightCount++] = light;
+        }
+    }
+
+    void Renderer::SubmitHalos(std::span<const Particle> halos)
+    {
+        m_halos.insert(m_halos.end(), halos.begin(), halos.end());
+    }
+
+    bool Renderer::GlowActive() const
+    {
+        return m_settings.post.enabled && m_lighting.glowStrength > 0.0f;
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetSkyPipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = SampleSlot(samples);
+        if (m_skyPipelines[slot])
+        {
+            return m_skyPipelines[slot];
+        }
+        SDL_GPUShader* vertexShader = LoadShader(
+            m_device, "Sky.vert", SDL_GPU_SHADERSTAGE_VERTEX, ShaderResources{ .uniformBuffers = 1 });
+        SDL_GPUShader* fragmentShader = LoadShader(
+            m_device, "Sky.frag", SDL_GPU_SHADERSTAGE_FRAGMENT,
+            ShaderResources{ .samplers = 1, .uniformBuffers = 1 });
+        if (vertexShader && fragmentShader)
+        {
+            SDL_GPUColorTargetDescription colorTarget{};
+            colorTarget.format = m_targets.GetColorFormat();
+            SDL_GPUGraphicsPipelineCreateInfo createInfo{};
+            createInfo.vertex_shader = vertexShader;
+            createInfo.fragment_shader = fragmentShader;
+            createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+            createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+            createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+            createInfo.multisample_state.sample_count = SampleCountFor(slot);
+            // On the far plane, drawn first: everything else covers it.
+            createInfo.depth_stencil_state.enable_depth_test = true;
+            createInfo.depth_stencil_state.enable_depth_write = false;
+            createInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+            createInfo.target_info.color_target_descriptions = &colorTarget;
+            createInfo.target_info.num_color_targets = 1;
+            createInfo.target_info.depth_stencil_format = RenderTargets::GetDepthFormat();
+            createInfo.target_info.has_depth_stencil_target = true;
+            m_skyPipelines[slot] = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+            if (!m_skyPipelines[slot])
+            {
+                std::cerr << "Failed to create sky pipeline: " << SDL_GetError() << '\n';
+            }
+        }
+        if (vertexShader)
+        {
+            SDL_ReleaseGPUShader(m_device, vertexShader);
+        }
+        if (fragmentShader)
+        {
+            SDL_ReleaseGPUShader(m_device, fragmentShader);
+        }
+        return m_skyPipelines[slot];
+    }
+
+    void Renderer::DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
+                           const glm::mat4& projection)
+    {
+        if (!m_lighting.skyPanorama)
+        {
+            return; // the pass cleared to the fog colour
+        }
+        SDL_GPUGraphicsPipeline* pipeline = GetSkyPipeline(m_targets.GetSamples());
+        if (!pipeline)
+        {
+            return;
+        }
+        // Rotation only: the sky is infinitely far, so moving never changes it.
+        glm::mat4 view = m_camera.view;
+        view[3] = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
+        const glm::mat4 inverse = glm::inverse(projection * view);
+        const glm::vec4 params{ m_lighting.skyIntensity, 0.0f, 0.0f, 0.0f };
+
+        SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &inverse, sizeof(inverse));
+        SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
+        const SDL_GPUTextureSamplerBinding binding{ m_lighting.skyPanorama->GetGPUTexture(), m_sampler };
+        SDL_BindGPUFragmentSamplers(renderPass, 0, &binding, 1);
+        SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
     }
 
     void Renderer::SetParticleAtlas(const Texture* atlas, std::uint32_t columns)
@@ -1269,12 +1524,13 @@ namespace Atom
         return true;
     }
 
-    SDL_GPUGraphicsPipeline* Renderer::GetParticlePipeline(std::uint32_t samples)
+    SDL_GPUGraphicsPipeline* Renderer::GetParticlePipeline(std::uint32_t samples, bool additive)
     {
         const std::size_t slot = SampleSlot(samples);
-        if (m_particlePipelines[slot])
+        auto& pipelines = additive ? m_haloPipelines : m_particlePipelines;
+        if (pipelines[slot])
         {
-            return m_particlePipelines[slot];
+            return pipelines[slot];
         }
 
         SDL_GPUShader* vertexShader = LoadShader(
@@ -1285,7 +1541,7 @@ namespace Atom
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
-            "Particle.frag",
+            additive ? "Halo.frag" : "Particle.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
             // Slot 1 carries SceneUniforms (fog), shared with Basic.frag.
             ShaderResources{ .samplers = 1, .uniformBuffers = 2 }
@@ -1327,6 +1583,12 @@ namespace Atom
         colorTarget.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
         colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
         colorTarget.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+        if (additive)
+        {
+            // Light adds: colour * alpha + what's there.
+            colorTarget.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+            colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+        }
 
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
@@ -1371,8 +1633,10 @@ namespace Atom
     bool Renderer::UploadParticles(SDL_GPUCommandBuffer* commandBuffer)
     {
         m_uploadedParticles = 0;
-        if (m_particles.empty() || !m_particleAtlas)
+        m_uploadedHalos = 0;
+        if ((m_particles.empty() && m_halos.empty()) || !m_particleAtlas)
         {
+            m_halos.clear();
             return true;
         }
 
@@ -1388,9 +1652,13 @@ namespace Atom
             }
         );
 
+        // Halos follow the particles in the same instance buffer; additive,
+        // so they need no sorting.
         const auto count = static_cast<std::uint32_t>(
             std::min<std::size_t>(m_particles.size(), MaxParticles));
-        const Uint32 bytes = count * sizeof(Particle);
+        const auto halos = static_cast<std::uint32_t>(
+            std::min<std::size_t>(m_halos.size(), MaxParticles - count));
+        const Uint32 bytes = (count + halos) * sizeof(Particle);
 
         // Cycling hands us a fresh buffer if last frame's copy is in flight.
         void* mapped = SDL_MapGPUTransferBuffer(m_device, m_particleTransfer, true);
@@ -1402,8 +1670,10 @@ namespace Atom
                 << '\n';
             return false;
         }
-        std::memcpy(mapped, m_particles.data(), bytes);
+        std::memcpy(mapped, m_particles.data(), count * sizeof(Particle));
+        std::memcpy(static_cast<Particle*>(mapped) + count, m_halos.data(), halos * sizeof(Particle));
         SDL_UnmapGPUTransferBuffer(m_device, m_particleTransfer);
+        m_halos.clear();
 
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         SDL_GPUTransferBufferLocation source{};
@@ -1415,6 +1685,7 @@ namespace Atom
         SDL_EndGPUCopyPass(copyPass);
 
         m_uploadedParticles = count;
+        m_uploadedHalos = halos;
         return true;
     }
 
@@ -1424,15 +1695,17 @@ namespace Atom
         const glm::mat4& viewProjection
     )
     {
-        m_stats.particles = m_uploadedParticles;
-        if (m_uploadedParticles == 0)
+        m_stats.particles = m_uploadedParticles + m_uploadedHalos;
+        if (m_uploadedParticles + m_uploadedHalos == 0)
         {
             return;
         }
 
         SDL_GPUGraphicsPipeline* pipeline =
             GetParticlePipeline(m_targets.GetSamples());
-        if (!pipeline)
+        SDL_GPUGraphicsPipeline* haloPipeline =
+            GetParticlePipeline(m_targets.GetSamples(), true);
+        if (!pipeline || !haloPipeline)
         {
             return;
         }
@@ -1456,7 +1729,19 @@ namespace Atom
 
         const SDL_GPUBufferBinding instances{ m_particleBuffer, 0 };
         SDL_BindGPUVertexBuffers(renderPass, 0, &instances, 1);
-        SDL_DrawGPUPrimitives(renderPass, 6, m_uploadedParticles, 0, 0);
+        if (m_uploadedParticles > 0)
+        {
+            SDL_DrawGPUPrimitives(renderPass, 6, m_uploadedParticles, 0, 0);
+        }
+        if (m_uploadedHalos > 0)
+        {
+            // Same billboards, instances after the particles, added on.
+            SDL_BindGPUGraphicsPipeline(renderPass, haloPipeline);
+            SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniforms, sizeof(uniforms));
+            SDL_BindGPUFragmentSamplers(renderPass, 0, &atlasBinding, 1);
+            SDL_BindGPUVertexBuffers(renderPass, 0, &instances, 1);
+            SDL_DrawGPUPrimitives(renderPass, 6, m_uploadedHalos, 0, m_uploadedParticles);
+        }
     }
 
     bool Renderer::RenderPostPass(
@@ -1498,7 +1783,15 @@ namespace Atom
                 // Wrapped so the float keeps integer precision.
                 static_cast<float>(m_frameIndex % 4096),
                 std::clamp(m_fade, 0.0f, 1.0f)
-            }
+            },
+            // Slightly unstable, like the glow of old hardware and film:
+            // a few percent of slow shimmer.
+            glm::vec4{
+                GlowActive()
+                    ? m_lighting.glowStrength * (1.0f + 0.04f * std::sin(m_frameIndex * 0.071f)
+                                                      + 0.02f * std::sin(m_frameIndex * 0.23f))
+                    : 0.0f,
+                0.0f, 0.0f, 0.0f }
         };
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
@@ -1507,11 +1800,11 @@ namespace Atom
             sizeof(postUniforms)
         );
 
-        const SDL_GPUTextureSamplerBinding sceneBinding{
-            m_targets.GetSceneTexture(),
-            m_postSampler
+        const SDL_GPUTextureSamplerBinding bindings[2]{
+            { m_targets.GetSceneTexture(), m_postSampler },
+            { m_glow.GetTexture(), m_postSampler },
         };
-        SDL_BindGPUFragmentSamplers(renderPass, 0, &sceneBinding, 1);
+        SDL_BindGPUFragmentSamplers(renderPass, 0, bindings, 2);
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 
         SDL_EndGPURenderPass(renderPass);
@@ -1525,10 +1818,22 @@ namespace Atom
         if (m_device)
         {
             m_ui.Shutdown();
+            m_glow.Release();
+            for (auto* pipelines : { &m_haloPipelines, &m_skyPipelines })
+            {
+                for (SDL_GPUGraphicsPipeline*& pipeline : *pipelines)
+                {
+                    if (pipeline)
+                    {
+                        SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                        pipeline = nullptr;
+                    }
+                }
+            }
             m_whiteTexture.reset();
             m_targets.Release();
 
-            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler })
+            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler, m_pixelSampler })
             {
                 if (sampler)
                 {
@@ -1603,6 +1908,7 @@ namespace Atom
         m_sampler = nullptr;
         m_postSampler = nullptr;
         m_lightmapSampler = nullptr;
+        m_pixelSampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
         m_windowClaimed = false;

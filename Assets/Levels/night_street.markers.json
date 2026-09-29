@@ -1,0 +1,183 @@
+{
+  "_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit",
+  "entities": {
+    "alley_shrine": {
+      "position": [
+        4.85,
+        0.12,
+        -18.0
+      ],
+      "yaw": 0.0
+    },
+    "bicycles": {
+      "position": [
+        12.7,
+        0.12,
+        4.4
+      ],
+      "yaw": 0.0
+    },
+    "lamp_1": {
+      "position": [
+        -31.0,
+        0.12,
+        3.4
+      ],
+      "yaw": 90.0
+    },
+    "lamp_2": {
+      "position": [
+        -22.0,
+        0.12,
+        -3.4
+      ],
+      "yaw": -90.0
+    },
+    "lamp_3": {
+      "position": [
+        -10.0,
+        0.12,
+        3.4
+      ],
+      "yaw": 90.0
+    },
+    "lamp_4": {
+      "position": [
+        0.0,
+        0.12,
+        -3.4
+      ],
+      "yaw": -90.0
+    },
+    "lamp_5": {
+      "position": [
+        10.0,
+        0.12,
+        3.4
+      ],
+      "yaw": 90.0
+    },
+    "lamp_6": {
+      "position": [
+        19.0,
+        0.12,
+        -3.4
+      ],
+      "yaw": -90.0
+    },
+    "lamp_7": {
+      "position": [
+        10.5,
+        0.12,
+        -20.0
+      ],
+      "yaw": -180.0
+    },
+    "lamp_8": {
+      "position": [
+        23.0,
+        0.12,
+        -26.0
+      ],
+      "yaw": -180.0
+    },
+    "notice_board": {
+      "position": [
+        -2.0,
+        0.12,
+        4.9
+      ],
+      "yaw": 0.0
+    },
+    "pachinko_doors": {
+      "position": [
+        16.75,
+        0.12,
+        -30.0
+      ],
+      "yaw": 0.0
+    },
+    "phone_box": {
+      "position": [
+        -12.0,
+        0.12,
+        -4.4
+      ],
+      "yaw": 0.0
+    },
+    "ramen_shop": {
+      "position": [
+        -10.5,
+        0.12,
+        5.0
+      ],
+      "yaw": 0.0
+    },
+    "shutter": {
+      "position": [
+        8.0,
+        0.12,
+        5.0
+      ],
+      "yaw": 0.0
+    },
+    "timetable": {
+      "position": [
+        -22.5,
+        0.12,
+        3.35
+      ],
+      "yaw": 0.0
+    },
+    "train": {
+      "position": [
+        -18.0,
+        8.2,
+        -150.0
+      ],
+      "yaw": 0.0
+    },
+    "vending_1": {
+      "position": [
+        0.9,
+        0.12,
+        -4.55
+      ],
+      "yaw": 0.0
+    },
+    "vending_2": {
+      "position": [
+        2.1,
+        0.12,
+        -4.55
+      ],
+      "yaw": 0.0
+    },
+    "vending_plaza": {
+      "position": [
+        12.2,
+        0.12,
+        -29.55
+      ],
+      "yaw": 0.0
+    }
+  },
+  "spawns": {
+    "from_bus": {
+      "position": [
+        -26.0,
+        0.12,
+        3.6
+      ],
+      "yaw": 90.0
+    },
+    "start": {
+      "position": [
+        -30.0,
+        0.0,
+        -0.0
+      ],
+      "yaw": 90.0
+    }
+  }
+}

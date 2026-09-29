@@ -12,11 +12,13 @@ target_sources(
         Physics/CollisionWorld.cpp
         Platform/Input.cpp
         Platform/Window.cpp
+        Renderer/Glow.cpp
         Renderer/Mesh.cpp
         Renderer/RenderTargets.cpp
         Renderer/Renderer.cpp
         Renderer/Shader.cpp
         Renderer/Texture.cpp
+        Renderer/RenderTexture.cpp
         Scene/Camera.cpp
         UI/Font.cpp
         UI/UIRenderer.cpp
@@ -30,6 +32,7 @@ target_sources(
         Physics/CollisionWorld.h
         Platform/Input.h
         Platform/Window.h
+        Renderer/Glow.h
         Renderer/Lighting.h
         Renderer/Material.h
         Renderer/Mesh.h
@@ -39,6 +42,8 @@ target_sources(
         Renderer/Renderer.h
         Renderer/Shader.h
         Renderer/Texture.h
+        Renderer/RenderTexture.h
+        Audio/Reverb.h
         Scene/Camera.h
         UI/Font.h
         UI/UIRenderer.h

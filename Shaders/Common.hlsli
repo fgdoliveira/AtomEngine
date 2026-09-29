@@ -13,6 +13,9 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_cameraPosition; // xyz, w: height falloff
     float4 u_fogParams;      // x: base height
     float4 u_shadowParams;   // x: enabled, y: texel size (uv), z: ambient share, w: normal offset (m)
+    float4 u_time;           // x: seconds, y: live light count (M25)
+    float4 u_liveLightPosition[4]; // xyz, w: radius
+    float4 u_liveLightColor[4];    // rgb (times intensity)
 };
 
 // Exponential height fog, integrated along the view ray: density falls off

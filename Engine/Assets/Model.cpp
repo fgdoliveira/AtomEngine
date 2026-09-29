@@ -11,6 +11,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -123,6 +125,22 @@ namespace Atom
         // glTF alpha: OPAQUE, MASK (with a cutoff) or BLEND (decals).
         void ReadAlpha(const cgltf_material& source, Material& material)
         {
+            // AtomEngine's own settings travel in the material's glTF extras
+            // (Blender custom properties): {"atom_fog": 0.5}.
+            if (source.extras.data)
+            {
+                const auto read = [&](const char* name, float& value) {
+                    if (const char* key = std::strstr(source.extras.data, name))
+                    {
+                        if (const char* colon = std::strchr(key, ':'))
+                        {
+                            value = std::clamp(std::strtof(colon + 1, nullptr), 0.0f, 1.0f);
+                        }
+                    }
+                };
+                read("\"atom_fog\"", material.fogAmount);
+                read("\"atom_wet\"", material.wet);
+            }
             material.doubleSided = source.double_sided != 0;
             if (source.alpha_mode == cgltf_alpha_mode_mask)
             {
@@ -314,7 +332,10 @@ namespace Atom
                 source.name ? source.name : "",
                 material.alphaMode,
                 material.alphaCutoff,
-                material.doubleSided });
+                material.doubleSided,
+                source.emissive_texture.texture != nullptr,
+                material.fogAmount,
+                material.wet });
         }
         return result;
     }
@@ -415,6 +436,20 @@ namespace Atom
             }
             material.emissiveFactor =
                 glm::make_vec3(source.emissive_factor) * emissiveStrength;
+            // An emissive texture that is just the base colour again (older
+            // kit pieces glow by their base colour) is left out: same look,
+            // one binding fewer.
+            if (const cgltf_texture* emissive = source.emissive_texture.texture;
+                emissive && emissive->image
+                && !(source.has_pbr_metallic_roughness
+                     && source.pbr_metallic_roughness.base_color_texture.texture
+                     && source.pbr_metallic_roughness.base_color_texture.texture->image == emissive->image))
+            {
+                if (const auto found = textures.find(emissive->image); found != textures.end())
+                {
+                    material.emissiveTexture = found->second;
+                }
+            }
             ReadAlpha(source, material);
 
             materials[&source] = model->m_materials.size();
@@ -525,6 +560,25 @@ namespace Atom
                     world,
                     animatedNode
                 });
+            }
+        }
+
+        // Bounds of the whole model: every part's mesh box, transformed.
+        bool first = true;
+        for (const Part& part : model->m_parts)
+        {
+            const glm::vec3 low = part.mesh->GetBoundsMin();
+            const glm::vec3 high = part.mesh->GetBoundsMax();
+            for (int corner = 0; corner < 8; ++corner)
+            {
+                const glm::vec3 local{
+                    (corner & 1) ? high.x : low.x,
+                    (corner & 2) ? high.y : low.y,
+                    (corner & 4) ? high.z : low.z };
+                const glm::vec3 world{ part.transform * glm::vec4{ local, 1.0f } };
+                model->m_boundsMin = first ? world : glm::min(model->m_boundsMin, world);
+                model->m_boundsMax = first ? world : glm::max(model->m_boundsMax, world);
+                first = false;
             }
         }
 

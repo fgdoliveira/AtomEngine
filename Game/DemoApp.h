@@ -40,6 +40,7 @@ namespace AtomGame
             Exploring,     // walk, look, interact
             InDialogue,    // movement frozen; input drives the conversation
             Transitioning, // fading between levels; input ignored
+            InSequence,    // M26: a sequence runs; the player is frozen
         };
 
         void OnLevelUnloading(Level& outgoing);
@@ -79,9 +80,15 @@ namespace AtomGame
         std::string DialogueNodeId() const override;
         std::size_t VoiceCount() const override;
         std::string SurfaceName() const override;
+        float ZoneLevel(const std::string& cell) const override;
+        std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override;
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;
+        void RequestLevel(const std::string& level, const std::string& spawn) override
+        {
+            m_levels->RequestChange(level, spawn);
+        }
         glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
         void Log(const std::string& text) override;
@@ -97,6 +104,7 @@ namespace AtomGame
         FileWatcher m_levelFiles;
         FileWatcher m_dialogueFiles;
         std::unique_ptr<TestRunner> m_testRunner;
+        ModelCache m_modelCache; // declared before the levels: outlives them
         std::unique_ptr<LevelManager> m_levels;
 
         Atom::Camera m_camera;
@@ -111,6 +119,9 @@ namespace AtomGame
         EntityId m_target{};
 
         Mode m_mode = Mode::Exploring;
+        SequenceRunner m_sequence;
+        bool RunSequence(const std::string& id);
+        void UpdateSequence(float deltaSeconds);
         DialogueLibrary m_dialogues;
         DialogueRunner m_dialogue;
         DialogueView m_dialogueView;

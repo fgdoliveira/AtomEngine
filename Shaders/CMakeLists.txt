@@ -22,6 +22,11 @@ set(ATOM_SHADER_SOURCES
     Basic.frag.hlsl
     Fullscreen.vert.hlsl
     Post.frag.hlsl
+    GlowBright.frag.hlsl
+    GlowBlur.frag.hlsl
+    Sky.vert.hlsl
+    Sky.frag.hlsl
+    Halo.frag.hlsl
     Shadow.vert.hlsl
     Shadow.frag.hlsl
     Particle.vert.hlsl

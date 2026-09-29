@@ -50,6 +50,12 @@ namespace AtomGame
                     context.messages.Show(play.message);
                 }
             },
+            [&](const RunSequence& run) {
+                if (!context.runSequence || !context.runSequence(run.id))
+                {
+                    std::cerr << "Cannot run sequence '" << run.id << "'\n";
+                }
+            },
             [&](const ChangeLevel& change) {
                 if (context.changeLevel)
                 {

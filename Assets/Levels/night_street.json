@@ -1,0 +1,219 @@
+{
+  "$schema": "../Schemas/level.schema.json",
+  "name": "night_street",
+  "model": "Night/night_street.glb",
+  "collision": "Night/night_street_col.glb",
+  "cells": [
+    { "name": "bus_stop", "min": [-34.0, 0, -5.0], "max": [-18.0, 0, 5.0], "neighbours": ["main_street"] },
+    { "name": "main_street", "min": [-18.0, 0, -5.0], "max": [22.0, 0, 5.0], "neighbours": ["bus_stop", "alley"] },
+    { "name": "alley", "min": [4.5, 0, -21.0], "max": [7.5, 0, -5.0], "neighbours": ["main_street", "pachinko_front"] },
+    { "name": "pachinko_front", "min": [7.5, 0, -30.0], "max": [26.0, 0, -17.0], "neighbours": ["alley"] }
+  ],
+  "chunks": [
+    { "name": "bus_stop", "model": "Night/night_bus_stop.glb", "cell": "bus_stop", "lightmap": "Night/night_bus_stop_lm.png", "castsShadow": false },
+    { "name": "main_street", "model": "Night/night_main_street.glb", "cell": "main_street", "lightmap": "Night/night_main_street_lm.png", "castsShadow": false },
+    { "name": "alley", "model": "Night/night_alley.glb", "cell": "alley", "lightmap": "Night/night_alley_lm.png", "castsShadow": false },
+    { "name": "pachinko_front", "model": "Night/night_pachinko_front.glb", "cell": "pachinko_front", "lightmap": "Night/night_pachinko_front_lm.png", "castsShadow": false },
+    { "name": "mid_blocks", "model": "City/mid_blocks.glb", "layer": "mid" },
+    { "name": "skyline", "model": "City/skyline.glb", "layer": "far" }
+  ],
+  "impostors": [
+    { "set": "City/tower_impostor.json", "position": [115.0, 0.0, 15.0], "yaw": 90 },
+    { "set": "City/tower_impostor.json", "position": [95.0, 0.0, -85.0], "yaw": 30 },
+    { "set": "City/tower_impostor.json", "position": [-35.0, 0.0, -125.0], "yaw": 0 },
+    { "set": "City/tower_impostor.json", "position": [-120.0, 0.0, -55.0], "yaw": 200 },
+    { "set": "City/tower_impostor.json", "position": [-130.0, 0.0, 45.0], "yaw": 270 },
+    { "set": "City/tower_impostor.json", "position": [-45.0, 0.0, 120.0], "yaw": 160 },
+    { "set": "City/tower_impostor.json", "position": [75.0, 0.0, 115.0], "yaw": 45 }
+  ],
+  "defaultSpawn": "start",
+  "spawns": {
+    "start": {},
+    "from_bus": {},
+    "from_pachinko": { "position": [16.75, 0.12, -27.0], "yaw": 180 }
+  },
+  "lighting": {
+    "sunDirection": [0.0, 1.0, 0.0],
+    "sunColor": [0.0, 0.0, 0.0],
+    "skyColor": [0.05, 0.06, 0.10],
+    "groundColor": [0.02, 0.02, 0.03],
+    "fogColor": [0.05, 0.028, 0.022],
+    "shadows": false,
+    "glow": { "strength": 0.9, "threshold": 0.6 }
+  },
+  "sky": { "panorama": "Sky/night_sky.png", "intensity": 1.0 },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "traffic", "gain": 0.3 },
+      { "sound": "wind", "gain": 0.15 },
+      { "sound": "drone", "gain": 0.08 }
+    ],
+    "zones": [
+      { "cell": "bus_stop", "beds": [{ "sound": "traffic", "gain": 0.3 }] },
+      { "cell": "main_street", "beds": [{ "sound": "voices", "gain": 0.3 }, { "sound": "street_bells", "gain": 0.35 }, { "sound": "neon_buzz", "gain": 0.08 }] },
+      { "cell": "alley", "beds": [{ "sound": "drone", "gain": 0.18 }, { "sound": "neon_buzz", "gain": 0.04 }] },
+      { "cell": "pachinko_front", "beds": [{ "sound": "pachinko_leak", "gain": 0.45 }] }
+    ],
+    "zoneFadeSeconds": 2.0,
+    "emitters": [
+      { "sound": "vending_hum", "group": "vending", "position": [1.5, 1.0, -4.5], "gain": 0.22, "minDistance": 1.5, "maxDistance": 12 },
+      { "sound": "neon_buzz", "position": [8.0, 5.0, 4.35], "gain": 0.3, "minDistance": 1.5, "maxDistance": 14 },
+      { "sound": "pachinko_leak", "position": [16.75, 1.5, -30.0], "gain": 0.5, "minDistance": 3, "maxDistance": 32 }
+    ]
+  },
+  "surfaces": {
+    "default": "concrete",
+    "zones": [
+      { "min": [-120, 0, -3.0], "max": [22, 0, 3.0], "surface": "asphalt" }
+    ]
+  },
+  "particles": { "leaves": false, "fogBanks": true },
+  "unease": { "figure": false },
+  "halos": [
+    { "position": [-31.0, 4.4, 2.35], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [-22.0, 4.4, -2.35], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [-10.0, 4.4, 2.35], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [0.0, 4.4, -2.35], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [10.0, 4.4, 2.35], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [19.0, 4.4, -2.35], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [9.45, 4.4, -20.0], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [21.95, 4.4, -26.0], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [4.85, 3.7, -12.0], "size": 1.0, "color": [1.0, 0.85, 0.6], "intensity": 0.35 },
+    { "position": [-25.0, 5.0, -4.35], "size": 2.6, "color": [1.0, 0.3, 0.6], "intensity": 0.45 },
+    { "position": [-12.5, 5.0, 4.35], "size": 2.6, "color": [1.0, 0.3, 0.6], "intensity": 0.45 },
+    { "position": [-3.0, 5.0, -4.35], "size": 2.6, "color": [0.3, 0.8, 1.0], "intensity": 0.45 },
+    { "position": [8.0, 5.0, 4.35], "size": 2.8, "color": [1.0, 0.6, 0.2], "intensity": 0.5, "flicker": 0.85 },
+    { "position": [13.0, 5.0, -4.35], "size": 2.6, "color": [0.3, 0.8, 1.0], "intensity": 0.45 },
+    { "position": [19.5, 5.0, 4.35], "size": 2.6, "color": [1.0, 0.3, 0.6], "intensity": 0.45 },
+    { "position": [16.75, 11.0, -30.2], "size": 9.0, "color": [1.0, 0.45, 0.6], "intensity": 0.35 },
+    { "position": [-0.9, 1.9, -18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
+    { "position": [0.9, 1.9, -18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
+    { "position": [-0.9, 1.9, 18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
+    { "position": [0.9, 1.9, 18.5], "size": 1.6, "color": [1.0, 0.92, 0.75], "intensity": 0.6, "entity": "train" },
+    { "position": [5.3, 0.8, -0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" },
+    { "position": [5.3, 0.8, 0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" }
+  ],
+  "lights": [
+    { "position": [8.0, 5.0, 4.35], "color": [1.0, 0.55, 0.18], "intensity": 2.0, "radius": 7.0, "flicker": 0.85, "material": "atom_neon_amber" },
+    { "position": [0.0, 2.2, 0.0], "color": [0.8, 0.9, 1.0], "intensity": 1.8, "radius": 22.0, "entity": "train" },
+    { "position": [7.0, 1.2, 0.0], "color": [1.0, 0.92, 0.8], "intensity": 1.4, "radius": 16.0, "entity": "bus" }
+  ],
+  "sequences": {
+    "bus_to_street": [
+      { "type": "message", "text": "Last bus back to the rural line: 23:52. You wait under the railway." },
+      { "type": "wait", "seconds": 3 },
+      { "type": "show", "entity": "bus" },
+      { "type": "playSound", "sound": "bus_engine", "entity": "bus", "gain": 0.8, "loop": true },
+      { "type": "moveEntity", "entity": "bus", "to": [-28.6, 0.0, 1.7], "seconds": 8 },
+      { "type": "playAnimation", "entity": "bus", "clip": "doors_open" },
+      { "type": "playSound", "sound": "door_hiss", "entity": "bus", "gain": 0.9 },
+      { "type": "message", "text": "The same bus, the same driver. The doors fold open with a sigh." },
+      { "type": "wait", "seconds": 2.5 },
+      { "type": "message", "text": "You ride back through the dark. The city lights thin out, then stop." },
+      { "type": "setFlag", "flag": "rode_bus_home" },
+      { "type": "wait", "seconds": 1 },
+      { "type": "changeLevel", "level": "street", "spawn": "from_bus" }
+    ]
+  },
+  "entities": [
+    { "name": "lamp_1", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_2", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_3", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_4", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_5", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_6", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_7", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_8", "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "bus", "position": [-140.0, 0.0, 1.7], "yaw": 180, "model": "Kit/bus.glb", "hidden": true },
+    {
+      "name": "train",
+      "model": "Kit/night_train.glb",
+      "mover": { "travel": [0.0, 0.0, 300.0], "travelSeconds": 14, "waitSeconds": 22, "startSeconds": 16,
+                 "sound": "train", "gain": 0.9, "minDistance": 8, "maxDistance": 120 }
+    },
+    {
+      "name": "vending_1",
+      "model": "Kit/vending_machine.glb",
+      "collider": { "center": [0.0, 0.92, 0.0], "halfExtents": [0.52, 0.92, 0.4] },
+      "interactable": {
+        "prompt": "Buy a drink", "focus": [0.0, 1.1, 0.45],
+        "action": { "type": "setFlag", "flag": "city_coffee", "message": "It takes your coin and drops a warm can of coffee. The first thing tonight that worked." }
+      }
+    },
+    {
+      "name": "vending_2",
+      "model": "Kit/vending_machine.glb",
+      "collider": { "center": [0.0, 0.92, 0.0], "halfExtents": [0.52, 0.92, 0.4] },
+      "interactable": {
+        "prompt": "Buy a drink", "focus": [0.0, 1.1, 0.45],
+        "action": { "type": "message", "text": "SOLD OUT, every button. Someone has written 'same as the street' on the glass." }
+      }
+    },
+    {
+      "name": "vending_plaza",
+      "model": "Kit/vending_machine.glb",
+      "collider": { "center": [0.0, 0.92, 0.0], "halfExtents": [0.52, 0.92, 0.4] }
+    },
+    {
+      "name": "timetable",
+      "interactable": {
+        "prompt": "Wait for the last bus", "focus": [0.0, 1.55, 0.0], "radius": 2.4,
+        "action": { "type": "sequence", "id": "bus_to_street" }
+      }
+    },
+    {
+      "name": "phone_box",
+      "interactable": {
+        "prompt": "Use the phone", "focus": [0.0, 1.3, 0.45], "radius": 2.4,
+        "requires": "read_letter",
+        "action": { "type": "setFlag", "flag": "called_the_house", "message": "You dial the number from the letter. It rings once. Someone picks up, breathes, and says nothing." },
+        "locked": { "type": "message", "text": "A dial tone. You don't know anyone's number in this city." }
+      }
+    },
+    {
+      "name": "notice_board",
+      "interactable": {
+        "prompt": "Read the notices", "focus": [0.0, 1.6, 0.1],
+        "action": { "type": "setFlag", "flag": "read_city_notice", "message": "MISSING. The photo shows a rural street you know: the torii, three vending machines. 'Last seen waiting for the night bus.'" }
+      }
+    },
+    {
+      "name": "ramen_shop",
+      "interactable": {
+        "prompt": "Look inside", "focus": [0.0, 1.6, 0.2],
+        "action": { "type": "message", "text": "Steam on the glass. A chef wipes the counter, over and over, in front of empty stools." }
+      }
+    },
+    {
+      "name": "shutter",
+      "interactable": {
+        "prompt": "Knock on the shutter", "focus": [0.0, 1.5, 0.1],
+        "action": { "type": "message", "text": "Behind the shutter, a radio plays the same song from the beginning, again and again." }
+      }
+    },
+    {
+      "name": "bicycles",
+      "interactable": {
+        "prompt": "Look at the bicycles", "focus": [0.0, 0.8, 0.0],
+        "action": { "type": "message", "text": "All three are locked to each other. One still has a shrine charm on the handlebar." }
+      }
+    },
+    {
+      "name": "alley_shrine",
+      "interactable": {
+        "prompt": "Look at the shrine", "focus": [0.3, 1.0, 0.0], "radius": 2.0,
+        "requires": "prayed_at_hokora",
+        "action": { "type": "setFlag", "flag": "saw_city_ofuda", "message": "A tiny shrine wedged between two pipes. The ofuda is the same one as at the hokora on the rural street - freshly pasted." },
+        "locked": { "type": "message", "text": "A tiny shrine wedged between two pipes, with a paper talisman. Someone keeps it clean." }
+      }
+    },
+    {
+      "name": "pachinko_doors",
+      "interactable": {
+        "prompt": "Enter the pachinko hall", "focus": [0.0, 1.5, 0.2], "radius": 3.0,
+        "action": { "type": "changeLevel", "level": "pachinko_hall", "spawn": "entrance" }
+      }
+    }
+  ]
+}

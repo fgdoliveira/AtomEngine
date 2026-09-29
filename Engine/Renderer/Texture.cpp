@@ -135,6 +135,39 @@ namespace Atom
         return texture;
     }
 
+    std::unique_ptr<Texture> Texture::CreateRenderTarget(
+        SDL_GPUDevice* device,
+        std::uint32_t width,
+        std::uint32_t height
+    )
+    {
+        if (!device || width == 0 || height == 0)
+        {
+            return nullptr;
+        }
+        SDL_GPUTextureCreateInfo createInfo{};
+        createInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        createInfo.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB;
+        createInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        createInfo.width = width;
+        createInfo.height = height;
+        createInfo.layer_count_or_depth = 1;
+        createInfo.num_levels = 1;
+        createInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+        std::unique_ptr<Texture> texture(new Texture(device));
+        texture->m_width = width;
+        texture->m_height = height;
+        texture->m_pixelArt = true;
+        texture->m_texture = SDL_CreateGPUTexture(device, &createInfo);
+        if (!texture->m_texture)
+        {
+            std::cerr << "Failed to create render target: " << SDL_GetError() << '\n';
+            return nullptr;
+        }
+        return texture;
+    }
+
     Texture::~Texture()
     {
         if (m_texture)

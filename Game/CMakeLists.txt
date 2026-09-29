@@ -19,6 +19,7 @@ add_library(
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h
     Level/FileWatcher.h
+    Level/ModelCache.h
     Level/JsonText.h
     Dialogue/DialogueRunner.cpp
     Dialogue/DialogueRunner.h
@@ -34,11 +35,20 @@ add_library(
     Interaction/ActionExecutor.cpp
     Interaction/ActionExecutor.h
     Interaction/InteractionSystem.cpp
+    Interaction/Sequence.cpp
+    Interaction/Sequence.h
     Interaction/InteractionSystem.h
     Interaction/MessageFeed.cpp
     Interaction/MessageFeed.h
     World/GameState.h
     World/GameWorld.h
+    World/Impostors.cpp
+    World/Impostors.h
+    World/LiveEffects.cpp
+    World/FixedStep.h
+    World/PachinkoAttract.cpp
+    World/PachinkoAttract.h
+    World/LiveEffects.h
 )
 
 target_include_directories(

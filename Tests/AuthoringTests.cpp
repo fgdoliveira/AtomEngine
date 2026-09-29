@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 
 using namespace AtomGame;
@@ -156,4 +157,114 @@ TEST_CASE("The file watcher reports each change once")
 
     std::filesystem::remove(path);
     CHECK(watcher.Poll().size() == 1); // disappearing counts
+}
+
+TEST_CASE("Chunks and cells parse, with defaults by layer and checked names")
+{
+    const auto result = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "cells": [ { "name": "street", "min": [-10,0,-5], "max": [10,0,5], "neighbours": ["alley"] },
+                   { "name": "alley", "min": [10,0,-2], "max": [20,0,2], "neighbours": ["street", "yard"] },
+                   { "name": "yard", "min": [20,0,-8], "max": [30,0,8] } ],
+        "chunks": [ { "name": "shops", "model": "City/shops.glb", "cell": "street" },
+                    { "name": "blocks", "model": "City/blocks.glb", "layer": "mid" },
+                    { "name": "skyline", "model": "City/skyline.glb", "layer": "far", "castsShadow": true } ])"));
+    INFO(result.error);
+    REQUIRE(result.level.has_value());
+    const LevelData& data = *result.level;
+    REQUIRE(data.chunks.size() == 3);
+    CHECK(data.chunks[0].layer == ChunkLayer::Near);
+    CHECK(data.chunks[0].castsShadow);          // near: casts by default
+    CHECK(data.chunks[1].layer == ChunkLayer::Mid);
+    CHECK_FALSE(data.chunks[1].castsShadow);    // mid: doesn't by default
+    CHECK(data.chunks[2].castsShadow);          // unless told so
+    CHECK(data.cells.size() == 3);
+
+    const auto badLayer = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "chunks": [ { "name": "x", "model": "m", "layer": "middle" } ])"));
+    CHECK(badLayer.error.rfind("/chunks/0/layer:", 0) == 0);
+
+    const auto badCell = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "chunks": [ { "name": "x", "model": "m", "cell": "nowhere" } ])"));
+    CHECK(badCell.error.rfind("/chunks/0/cell:", 0) == 0);
+
+    const auto farInCell = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "cells": [ { "name": "c", "min": [0,0,0], "max": [1,0,1] } ],
+        "chunks": [ { "name": "x", "model": "m", "layer": "far", "cell": "c" } ])"));
+    CHECK(farInCell.error.rfind("/chunks/0/cell:", 0) == 0);
+
+    const auto badNeighbour = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "cells": [ { "name": "c", "min": [0,0,0], "max": [1,0,1], "neighbours": ["d"] } ])"));
+    CHECK(badNeighbour.error.rfind("/cells/0/neighbours/0:", 0) == 0);
+}
+
+TEST_CASE("Visible cells: the player's cell and its neighbours, or everything when lost")
+{
+    std::vector<CellData> cells{
+        { "street", { -10, -5 }, { 10, 5 }, { "alley" } },
+        { "alley", { 10, -2 }, { 20, 2 }, { "street", "yard" } },
+        { "yard", { 20, -8 }, { 30, 8 }, { "alley" } },
+    };
+    const auto inStreet = VisibleCells(cells, { 0, 0, 0 });
+    CHECK(inStreet == std::vector<bool>{ true, true, false }); // the yard is behind the alley
+
+    const auto inAlley = VisibleCells(cells, { 15, 0, 0 });
+    CHECK(inAlley == std::vector<bool>{ true, true, true });
+
+    const auto outside = VisibleCells(cells, { 100, 0, 100 });
+    CHECK(outside == std::vector<bool>{ true, true, true });
+
+    CHECK(VisibleCells({}, { 0, 0, 0 }).empty());
+}
+
+TEST_CASE("Night settings parse: sky, halos and glow, with checked values")
+{
+    const auto result = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "lighting": { "glow": { "strength": 0.9, "threshold": 0.6 } },
+        "sky": { "panorama": "Sky/night_sky.png", "intensity": 0.8 },
+        "halos": [ { "position": [1,4,2], "size": 1.5, "color": [1,0.8,0.5], "intensity": 0.3, "flicker": 0.5 },
+                   { "position": [0,1,0] } ])"));
+    INFO(result.error);
+    REQUIRE(result.level.has_value());
+    const LevelData& data = *result.level;
+    CHECK(data.lighting.glowStrength == doctest::Approx(0.9f));
+    CHECK(data.lighting.glowThreshold == doctest::Approx(0.6f));
+    REQUIRE(data.sky.has_value());
+    CHECK(data.sky->panorama == "Sky/night_sky.png");
+    REQUIRE(data.halos.size() == 2);
+    CHECK(data.halos[0].flicker == doctest::Approx(0.5f));
+    CHECK(data.halos[1].size == doctest::Approx(1.0f)); // defaults
+
+    const auto day = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } })"));
+    REQUIRE(day.level.has_value());
+    CHECK_FALSE(day.level->sky.has_value());
+    CHECK(day.level->lighting.glowStrength > 0.0f); // gentle glow by default
+
+    const auto noPosition = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "halos": [ { "size": 1 } ])"));
+    CHECK(noPosition.error.rfind("/halos/0:", 0) == 0);
+
+    const auto badGlow = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "lighting": { "glow": { "threshold": 0 } })"));
+    CHECK(badGlow.error.rfind("/lighting/glow:", 0) == 0);
+}
+
+TEST_CASE("Committed lightmaps were baked on the CPU (byte-identical builds)")
+{
+    // build_assets --gpu marks its lightmaps: fast to iterate with, but not
+    // reproducible, so they must be rebuilt on the CPU before committing.
+    int lightmaps = 0;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(Assets))
+    {
+        const std::string name = entry.path().filename().string();
+        if (!name.ends_with("_lm.png"))
+        {
+            continue;
+        }
+        ++lightmaps;
+        std::ifstream file(entry.path(), std::ios::binary);
+        const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        INFO(name);
+        CHECK(bytes.find("atom-gpu-bake") == std::string::npos);
+    }
+    CHECK(lightmaps >= 6);
 }
