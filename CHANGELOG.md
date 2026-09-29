@@ -98,6 +98,15 @@
     hall and out; unit tests for the fixed step, the attract loop
     (deterministic, in bounds, scores), the reverb and the new keys.
   - The playable game (input, ball physics, fullscreen) is v0.0.5.
+- **Asset build: bake cache and GPU baking:**
+  - Lightmaps whose inputs are unchanged (mesh and lightmap UVs, the
+    meshes around it, materials and their images, lights, settings,
+    Blender version, the baker's code) are kept: fingerprints live in
+    `build/bake_cache/`. A build that doesn't touch lit levels takes about
+    2 minutes instead of 16; `--no-cache` bakes everything.
+  - `--gpu` bakes on the NVIDIA GPU (OptiX, else CUDA): all six lightmaps
+    in under 3 minutes, for tuning light. Not byte-identical to the CPU,
+    so those files are marked and a test refuses them in `Assets/`.
 
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 

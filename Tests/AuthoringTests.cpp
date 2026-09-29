@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 
 using namespace AtomGame;
@@ -245,4 +246,25 @@ TEST_CASE("Night settings parse: sky, halos and glow, with checked values")
     const auto badGlow = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
         "lighting": { "glow": { "threshold": 0 } })"));
     CHECK(badGlow.error.rfind("/lighting/glow:", 0) == 0);
+}
+
+TEST_CASE("Committed lightmaps were baked on the CPU (byte-identical builds)")
+{
+    // build_assets --gpu marks its lightmaps: fast to iterate with, but not
+    // reproducible, so they must be rebuilt on the CPU before committing.
+    int lightmaps = 0;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(Assets))
+    {
+        const std::string name = entry.path().filename().string();
+        if (!name.ends_with("_lm.png"))
+        {
+            continue;
+        }
+        ++lightmaps;
+        std::ifstream file(entry.path(), std::ios::binary);
+        const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        INFO(name);
+        CHECK(bytes.find("atom-gpu-bake") == std::string::npos);
+    }
+    CHECK(lightmaps >= 6);
 }

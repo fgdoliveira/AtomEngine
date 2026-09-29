@@ -6,6 +6,9 @@ Headless:
 Writes Assets/Kit/<piece>.glb, Assets/Street/street.glb (visuals) and
 Assets/Street/street_col.glb (collision proxies, no materials).
 
+Options (after "--"): --no-cache re-bakes every lightmap; --gpu bakes them
+on the NVIDIA GPU for fast iteration (never commit those).
+
 From a live Blender (e.g. Blender MCP), exec this file with __file__ set to
 build a preview in a dedicated "AtomKit" scene; the open scene is untouched
 and nothing is exported.
@@ -56,6 +59,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Assets"))
     parser.add_argument("--no-export", action="store_true")
+    # Lightmaps whose inputs are unchanged since the last bake are kept
+    # (fingerprints in build/bake_cache/); --no-cache bakes everything.
+    parser.add_argument("--no-cache", action="store_true")
+    # Bake lightmaps on the NVIDIA GPU: seconds instead of minutes, for
+    # tuning light. Not byte-identical to the CPU: rebuild without it
+    # before committing (a test refuses GPU-baked lightmaps).
+    parser.add_argument("--gpu", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -184,6 +194,8 @@ def export_piece(obj, scene, out_dir):
 
 def main():
     args = parse_args()
+    atom_lightmap.CACHE_DIR = None if args.no_cache else os.path.join(REPO_ROOT, "build", "bake_cache")
+    atom_lightmap.USE_GPU = args.gpu
 
     scene = fresh_scene()
     atom_kit.clear_generated()
