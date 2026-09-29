@@ -9,6 +9,7 @@
 #include "World/Impostors.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -66,8 +67,9 @@ namespace AtomGame
         // decides which cells are drawn).
         void Submit(Atom::Renderer& renderer, const glm::vec3& viewer) const;
 
-        // Advances animations and fires their sounds.
-        void Update(float deltaSeconds);
+        // Advances animations (and their sounds), movers, flickering
+        // materials, and the cell ambience crossfade around `listener`.
+        void Update(float deltaSeconds, const glm::vec3& listener);
 
         // The level's night sky panorama, if it has one.
         const Atom::Texture* GetSkyPanorama() const { return m_skyPanorama.get(); }
@@ -84,6 +86,9 @@ namespace AtomGame
         // Scales the gain of every emitter in a group (e.g. "vending").
         void SetGroupGain(std::string_view group, float scale);
         std::size_t GetVoiceCount() const { return m_voices.size(); }
+
+        // Cell ambience (M25): how far each zone bed has faded in (0..1).
+        float GetZoneLevel(std::string_view cell) const;
 
     private:
         struct OwnedVoice
@@ -104,6 +109,7 @@ namespace AtomGame
 
         std::unique_ptr<Atom::Texture> m_lightmap; // declared first: outlives the scene
         std::unique_ptr<Atom::Texture> m_skyPanorama;
+        std::vector<std::unique_ptr<Atom::Texture>> m_chunkLightmaps; // M25, also before the models
         float m_time = 0.0f; // for halo flicker
         std::shared_ptr<Atom::Model> m_scene;
         struct Chunk
@@ -128,5 +134,32 @@ namespace AtomGame
         Atom::CollisionWorld m_collision;
         GameWorld m_world; // after the models: entities die first
         std::vector<OwnedVoice> m_voices;
+
+        // Live effects (M25).
+        std::optional<EntityId> FindEntity(const std::string& name) const;
+        glm::vec3 Anchor(const std::optional<EntityId>& entity, const glm::vec3& offset) const;
+        struct Mover
+        {
+            EntityId entity;
+            glm::vec3 start{ 0.0f };
+            EntityMover data;
+            Atom::VoiceId voice = 0;
+        };
+        std::vector<Mover> m_movers;
+        std::vector<std::optional<EntityId>> m_haloAnchors;  // per m_data.halos
+        struct LiveLight
+        {
+            std::optional<EntityId> anchor;
+            std::vector<std::pair<Atom::Material*, glm::vec3>> materials; // base emission
+        };
+        std::vector<LiveLight> m_lights;                      // per m_data.lights
+        struct ZoneVoice
+        {
+            Atom::VoiceId id = 0;
+            int cell = -1;
+            float gain = 1.0f;
+            float level = 0.0f;
+        };
+        std::vector<ZoneVoice> m_zoneVoices;
     };
 }

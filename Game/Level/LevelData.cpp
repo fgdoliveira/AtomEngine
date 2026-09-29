@@ -203,6 +203,25 @@ namespace AtomGame
                 }
                 entity.animation = a;
             }
+
+            if (const auto mover = json.find("mover"); mover != json.end())
+            {
+                const std::string at = JsonPath(path, "mover");
+                EntityMover m;
+                m.travel = Vec3(*mover, "travel", m.travel, at);
+                m.travelSeconds = Number(*mover, "travelSeconds", at, m.travelSeconds);
+                m.waitSeconds = Number(*mover, "waitSeconds", at, m.waitSeconds);
+                m.startSeconds = Number(*mover, "startSeconds", at, m.startSeconds);
+                m.sound = String(*mover, "sound", at);
+                m.gain = Number(*mover, "gain", at, m.gain);
+                m.minDistance = Number(*mover, "minDistance", at, m.minDistance);
+                m.maxDistance = Number(*mover, "maxDistance", at, m.maxDistance);
+                if (!mover->contains("travel") || m.travelSeconds <= 0.0f || m.waitSeconds < 0.0f)
+                {
+                    throw LevelError(at, "a mover needs \"travel\", \"travelSeconds\" > 0 and \"waitSeconds\" >= 0");
+                }
+                entity.mover = m;
+            }
             return entity;
         }
 
@@ -324,6 +343,24 @@ namespace AtomGame
                     level.beds.push_back(AudioBed{ String(bed, "sound", at), Number(bed, "gain", at, 1.0f) });
                 }
                 index = 0;
+                for (const Json& zone : Array(*audio, "zones", "/audio"))
+                {
+                    const std::string at = JsonPath("/audio/zones", index++);
+                    AudioZone z{ String(zone, "cell", at), {} };
+                    std::size_t bedIndex = 0;
+                    for (const Json& bed : Array(zone, "beds", at))
+                    {
+                        const std::string bedAt = JsonPath(JsonPath(at, "beds"), bedIndex++);
+                        z.beds.push_back(AudioBed{ String(bed, "sound", bedAt), Number(bed, "gain", bedAt, 1.0f) });
+                    }
+                    if (z.cell.empty())
+                    {
+                        throw LevelError(at, "a zone needs a \"cell\"");
+                    }
+                    level.audioZones.push_back(std::move(z));
+                }
+                level.zoneFadeSeconds = Number(*audio, "zoneFadeSeconds", "/audio", level.zoneFadeSeconds);
+                index = 0;
                 for (const Json& emitter : Array(*audio, "emitters", "/audio"))
                 {
                     const std::string at = JsonPath("/audio/emitters", index++);
@@ -405,11 +442,31 @@ namespace AtomGame
                 h.color = Vec3(halo, "color", h.color, at);
                 h.intensity = Number(halo, "intensity", at, h.intensity);
                 h.flicker = Number(halo, "flicker", at, h.flicker);
+                h.entity = String(halo, "entity", at);
                 if (!halo.contains("position"))
                 {
                     throw LevelError(at, "a halo needs a \"position\"");
                 }
                 level.halos.push_back(h);
+            }
+
+            std::size_t lightIndex = 0;
+            for (const Json& light : Array(root, "lights", ""))
+            {
+                const std::string at = JsonPath("/lights", lightIndex++);
+                LiveLightData l;
+                l.position = Vec3(light, "position", l.position, at);
+                l.color = Vec3(light, "color", l.color, at);
+                l.intensity = Number(light, "intensity", at, l.intensity);
+                l.radius = Number(light, "radius", at, l.radius);
+                l.flicker = Number(light, "flicker", at, l.flicker);
+                l.entity = String(light, "entity", at);
+                l.material = String(light, "material", at);
+                if (!light.contains("position") || l.radius <= 0.0f)
+                {
+                    throw LevelError(at, "a light needs a \"position\" and a positive \"radius\"");
+                }
+                level.lights.push_back(l);
             }
 
             std::size_t impostorIndex = 0;
@@ -448,6 +505,7 @@ namespace AtomGame
                 // distant shells in the shadow pass cost and show nothing.
                 c.castsShadow = Bool(chunk, "castsShadow", at, c.layer == ChunkLayer::Near);
                 c.cell = String(chunk, "cell", at);
+                c.lightmap = String(chunk, "lightmap", at);
                 if (c.name.empty() || c.model.empty())
                 {
                     throw LevelError(at, "a chunk needs \"name\" and \"model\"");
@@ -506,6 +564,14 @@ namespace AtomGame
                 {
                     throw LevelError(JsonPath(JsonPath("/chunks", i), "cell"),
                         "no cell named \"" + level.chunks[i].cell + "\"");
+                }
+            }
+            for (std::size_t i = 0; i < level.audioZones.size(); ++i)
+            {
+                if (!cellExists(level.audioZones[i].cell))
+                {
+                    throw LevelError(JsonPath(JsonPath("/audio/zones", i), "cell"),
+                        "no cell named \"" + level.audioZones[i].cell + "\"");
                 }
             }
 
@@ -574,6 +640,28 @@ namespace AtomGame
                 }
             }
 
+            // Halos and lights riding on an entity need it to exist.
+            const auto entityExists = [&](const std::string& name) {
+                return std::any_of(level.entities.begin(), level.entities.end(),
+                    [&](const EntityData& e) { return e.name == name; });
+            };
+            for (std::size_t i = 0; i < level.halos.size(); ++i)
+            {
+                if (!level.halos[i].entity.empty() && !entityExists(level.halos[i].entity))
+                {
+                    throw LevelError(JsonPath(JsonPath("/halos", i), "entity"),
+                        "no entity named \"" + level.halos[i].entity + "\"");
+                }
+            }
+            for (std::size_t i = 0; i < level.lights.size(); ++i)
+            {
+                if (!level.lights[i].entity.empty() && !entityExists(level.lights[i].entity))
+                {
+                    throw LevelError(JsonPath(JsonPath("/lights", i), "entity"),
+                        "no entity named \"" + level.lights[i].entity + "\"");
+                }
+            }
+
             if (level.spawns.empty())
             {
                 throw LevelError("/spawns", "needs at least one spawn in \"spawns\"");
@@ -610,6 +698,20 @@ namespace AtomGame
             visible[i] = &cells[i] == &*current || neighbour;
         }
         return visible;
+    }
+
+    int CellAt(const std::vector<CellData>& cells, const glm::vec3& position)
+    {
+        for (std::size_t i = 0; i < cells.size(); ++i)
+        {
+            const CellData& c = cells[i];
+            if (position.x >= c.min.x && position.x <= c.max.x
+                && position.z >= c.min.y && position.z <= c.max.y)
+            {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
     }
 
     const SpawnPoint* LevelData::FindSpawn(std::string_view spawnName) const

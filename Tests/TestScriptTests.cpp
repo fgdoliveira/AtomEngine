@@ -44,6 +44,7 @@ namespace
         std::string DialogueNodeId() const override { return ""; }
         std::size_t VoiceCount() const override { return voices; }
         std::string SurfaceName() const override { return surface; }
+        float ZoneLevel(const std::string&) const override { return 0.0f; }
         ArrivalError Arrival() const override { return arrival; }
         std::optional<float> animationTime;
         bool animationPlaying = false;

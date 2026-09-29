@@ -45,6 +45,24 @@
     380 m) with lit windows and reduced fog, in front of the panorama.
   - All on `night_test`; the F1 layer stats show mid and far chunks
     culled per chunk and never in the shadow pass.
+- **The night street, level E (M25):**
+  - Four cells (bus stop, main street, alley, pachinko front), each a
+    chunk with its own night lightmap baked from lamps, shop windows,
+    the pachinko front, neon spill and a faint moon; the layout (alley
+    end wall, side-opening plaza, railway overhead) hides undrawn cells.
+  - Wet road: sign and window reflection decals, puddles, and a shader
+    ripple and sheen on wet materials (`atom_wet` in glTF extras).
+  - Live lights: up to 4 runtime point lights (`lights`); a failing amber
+    sign whose light, halo and glow stutter together, and a train on the
+    elevated line (`mover` on entities) carrying its light, halos and a
+    sound that pans as it passes.
+  - Cell ambience: `audio.zones` crossfade as you walk; new synthesised
+    sounds: traffic, neon buzz, voices, street bells, pachinko leak, train.
+  - Interactables tie back to the rural street (the letter's phone
+    number, the hokora's ofuda). Reached for now with
+    `ATOM_START_LEVEL=night_street`; the bus comes in M26.
+  - Harness `expect_zone`; `night_street` scenario; unit tests for movers,
+    flicker, crossfade, cells and the new level keys.
 
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 

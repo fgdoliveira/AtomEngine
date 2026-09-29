@@ -162,12 +162,17 @@ namespace Atom
             glm::vec4 cameraPosition; // w: height falloff
             glm::vec4 fogParams;      // x: base height
             glm::vec4 shadowParams;   // enabled, texel uv, ambient share, normal offset
+            glm::vec4 time;           // x: seconds, y: live light count
+            glm::vec4 liveLightPosition[MaxLiveLights]; // w: radius
+            glm::vec4 liveLightColor[MaxLiveLights];
         };
 
         SceneUniforms MakeSceneUniforms(
             const SceneLighting& lighting,
             const glm::mat4& view,
-            const glm::mat4& lightViewProjection
+            const glm::mat4& lightViewProjection,
+            float time,
+            std::span<const LiveLight> liveLights
         )
         {
             // The camera sits at the translation of the inverse view.
@@ -192,6 +197,12 @@ namespace Atom
                 glm::vec4{ cameraPosition, lighting.fogHeightFalloff };
             uniforms.fogParams =
                 glm::vec4{ lighting.fogBaseHeight, 0.0f, 0.0f, 0.0f };
+            uniforms.time = glm::vec4{ time, static_cast<float>(liveLights.size()), 0.0f, 0.0f };
+            for (std::size_t i = 0; i < liveLights.size(); ++i)
+            {
+                uniforms.liveLightPosition[i] = glm::vec4{ liveLights[i].position, liveLights[i].radius };
+                uniforms.liveLightColor[i] = glm::vec4{ liveLights[i].color, 0.0f };
+            }
             return uniforms;
         }
 
@@ -1134,7 +1145,7 @@ namespace Atom
                     glm::vec4{
                         material.lightmapIntensity,
                         material.lightmap ? m_lighting.bakedLight : 0.0f,
-                        0.0f,
+                        material.wet,
                         0.0f },
                     glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f,
                                material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount }
@@ -1310,7 +1321,9 @@ namespace Atom
 
         // Once per frame; stays bound for every draw in this command buffer.
         const SceneUniforms sceneUniforms = MakeSceneUniforms(
-            m_lighting, m_camera.view, lightViewProjection);
+            m_lighting, m_camera.view, lightViewProjection, m_wind.w,
+            std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount));
+        m_liveLightCount = 0;
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
             1,
@@ -1341,6 +1354,16 @@ namespace Atom
     void Renderer::SubmitParticles(std::span<const Particle> particles)
     {
         m_particles.insert(m_particles.end(), particles.begin(), particles.end());
+    }
+
+    void Renderer::SubmitLiveLight(const LiveLight& light)
+    {
+        // Past the limit, the extra lights are dropped (a level asks for
+        // few; the shader loops over what it gets).
+        if (m_liveLightCount < m_liveLights.size())
+        {
+            m_liveLights[m_liveLightCount++] = light;
+        }
     }
 
     void Renderer::SubmitHalos(std::span<const Particle> halos)

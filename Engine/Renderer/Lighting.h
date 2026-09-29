@@ -6,6 +6,19 @@ namespace Atom
 {
     class Texture;
 
+    // A light computed per pixel at runtime (M25): a point light with a
+    // linear-squared falloff to zero at `radius`. Everything static is
+    // baked; the few live ones are what moves or flickers (a passing train,
+    // a failing sign). Submitted per frame, at most MaxLiveLights.
+    struct LiveLight
+    {
+        glm::vec3 position{ 0.0f };
+        float radius = 10.0f;
+        glm::vec3 color{ 1.0f }; // linear, times intensity
+    };
+
+    inline constexpr int MaxLiveLights = 4;
+
     // Per-frame lighting and atmosphere. Colours are linear.
     struct SceneLighting
     {

@@ -34,7 +34,8 @@
           "collision": { "type": "string", "description": "Optional collision glb, added to the level's." },
           "layer": { "enum": ["near", "mid", "far"], "default": "near" },
           "castsShadow": { "type": "boolean", "description": "Default: true for near, false for mid and far." },
-          "cell": { "type": "string", "description": "Near chunks only: drawn when the player is in this cell or a neighbour." }
+          "cell": { "type": "string", "description": "Near chunks only: drawn when the player is in this cell or a neighbour." },
+          "lightmap": { "type": "string", "description": "Baked light texture for this chunk's model (M25), relative to Assets/." }
         }
       }
     },
@@ -125,7 +126,26 @@
           "size": { "type": "number", "description": "Metres across." },
           "color": { "$ref": "#/definitions/vec3", "description": "Linear RGB." },
           "intensity": { "type": "number" },
-          "flicker": { "type": "number", "minimum": 0, "maximum": 1 }
+          "flicker": { "type": "number", "minimum": 0, "maximum": 1 },
+          "entity": { "type": "string", "description": "Rides on this entity (M25); position is then an offset from it." }
+        }
+      }
+    },
+    "lights": {
+      "type": "array",
+      "description": "Live point lights computed per pixel (M25): what moves or flickers. At most 4 are drawn.",
+      "items": {
+        "type": "object",
+        "required": ["position", "radius"],
+        "additionalProperties": false,
+        "properties": {
+          "position": { "$ref": "#/definitions/vec3" },
+          "color": { "$ref": "#/definitions/vec3", "description": "Linear RGB." },
+          "intensity": { "type": "number", "minimum": 0 },
+          "radius": { "type": "number", "exclusiveMinimum": 0, "description": "Metres; no light past it." },
+          "flicker": { "type": "number", "minimum": 0, "maximum": 1, "description": "Stutters like a halo at the same position." },
+          "entity": { "type": "string", "description": "Rides on this entity; position is then an offset from it." },
+          "material": { "type": "string", "description": "A scene material whose emission stutters along." }
         }
       }
     },
@@ -161,7 +181,32 @@
               "maxDistance": { "type": "number" }
             }
           }
-        }
+        },
+        "zones": {
+          "type": "array",
+          "description": "Ambience per cell (M25): beds fade in while the player is in the cell.",
+          "items": {
+            "type": "object",
+            "required": ["cell", "beds"],
+            "additionalProperties": false,
+            "properties": {
+              "cell": { "type": "string" },
+              "beds": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["sound"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "sound": { "$ref": "#/definitions/sound" },
+                    "gain": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zoneFadeSeconds": { "type": "number", "minimum": 0, "default": 2 }
       }
     },
     "surfaces": {
@@ -219,7 +264,8 @@
     "sound": {
       "type": "string",
       "description": "A sound from the library (Game/AudioScape.cpp).",
-      "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak"]
+      "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak",
+               "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train"]
     },
     "entity": {
       "type": "object",
@@ -263,6 +309,22 @@
             "sound": { "$ref": "#/definitions/sound" },
             "soundsPerLoop": { "type": "integer", "minimum": 1 },
             "soundOffset": { "$ref": "#/definitions/vec3" }
+          }
+        },
+        "mover": {
+          "type": "object",
+          "description": "Shuttles the entity to position + travel and back (M25), e.g. a train.",
+          "required": ["travel", "travelSeconds"],
+          "additionalProperties": false,
+          "properties": {
+            "travel": { "$ref": "#/definitions/vec3" },
+            "travelSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "waitSeconds": { "type": "number", "minimum": 0 },
+            "startSeconds": { "type": "number" },
+            "sound": { "$ref": "#/definitions/sound", "description": "Loops, follows the entity, heard while it moves." },
+            "gain": { "type": "number" },
+            "minDistance": { "type": "number" },
+            "maxDistance": { "type": "number" }
           }
         }
       }

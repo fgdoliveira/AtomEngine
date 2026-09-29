@@ -28,6 +28,9 @@ LINT_ERRORS = []
 # Materials
 # --------------------------------------------------------------------------
 
+# The flickering sign's colours (M25): amber tubes, a pale border.
+_AMBER = {"tube_color": (1.0, 0.62, 0.15), "border_color": (1.0, 0.9, 0.6)}
+
 # name: (generator, metres per texture tile, roughness, emission strength)
 MATERIALS = {
     "wood_dark": (lambda: tex.wood_boards(), 1.6, 0.85, 0.0),
@@ -81,6 +84,16 @@ MATERIALS = {
     # City layers (M24).
     "facade_atlas": (lambda: tex.facade_atlas()[0], 1.0, 0.9, 0.0),
     "skyline": (lambda: tex.skyline()[0], 1.0, 1.0, 0.0),
+    # Night street (M25).
+    "wet_asphalt": (lambda: tex.wet_asphalt(), 4.0, 0.25, 0.0),
+    "shopfront_atlas": (lambda: tex.shopfront_atlas()[0], 1.0, 0.6, 0.0),
+    "neon_amber": (lambda: tex.neon_sign(seed=62, **_AMBER)[0], 1.0, 0.5, 0.0),
+    "pachinko_front": (lambda: tex.pachinko_front()[0], 1.0, 0.5, 0.0),
+    "train_side": (lambda: tex.train_side()[0], 1.0, 0.4, 0.0),
+    "timetable": (lambda: tex.timetable()[0], 1.0, 0.5, 0.0),
+    "neon_reflection": (lambda: tex.neon_reflection()[0], 1.0, 0.2, 0.0),
+    "puddle": (lambda: tex.puddle(), 1.0, 0.1, 0.0),
+    "posters": (lambda: tex.posters(), 1.0, 0.9, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
@@ -92,6 +105,21 @@ EMISSIVE = {
     "lamp_glass": (lambda: tex.lamp_glass()[1], 4.0, 0.45),
     "facade_atlas": (lambda: tex.facade_atlas()[1], 2.0, 0.7),
     "skyline": (lambda: tex.skyline()[1], 1.5, 0.25),
+    "shopfront_atlas": (lambda: tex.shopfront_atlas()[1], 1.2, 0.5),
+    "neon_amber": (lambda: tex.neon_sign(seed=62, **_AMBER)[1], 5.0, 0.35),
+    "pachinko_front": (lambda: tex.pachinko_front()[1], 2.2, 0.3),
+    "train_side": (lambda: tex.train_side()[1], 2.5, 0.5),
+    "timetable": (lambda: tex.timetable()[1], 1.2, 0.6),
+    "neon_reflection": (lambda: tex.neon_reflection()[1], 1.5, 0.6),
+}
+
+# Wet surfaces (M25): material -> wetness 0..1 (glTF extras "atom_wet").
+# The engine ripples their emitted light (sign reflections) and lays a
+# faint moving sheen over them.
+WET = {
+    "wet_asphalt": 0.5,
+    "neon_reflection": 1.0,
+    "puddle": 1.0,
 }
 
 # Alpha-tested materials (M17): name -> alpha cutoff. Pixels below it are
@@ -117,7 +145,8 @@ SWAY = {
 # (DECAL_OFFSET in front of it), drawn after everything else with a depth
 # bias. Exported as glTF alphaMode BLEND. The only faces the lint allows to
 # lie (nearly) in the plane of another piece's face.
-DECALS = {"water_stain", "grime", "shop_sign", "ofuda", "road_diamond", "road_paint"}
+DECALS = {"water_stain", "grime", "shop_sign", "ofuda", "road_diamond", "road_paint",
+          "neon_reflection", "puddle", "posters"}
 DECAL_OFFSET = 0.002  # metres
 
 # Faces of different pieces closer than this, parallel and overlapping,
@@ -168,6 +197,9 @@ def _make_material(name):
         links.new(mask.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = strength
         material["atom_fog"] = fog  # exported as material extras
+
+    if name in WET:
+        material["atom_wet"] = WET[name]
 
     if name in MASKED:
         _make_masked(material, texture, bsdf, name, image)
@@ -921,6 +953,32 @@ def build_neon_sign(materials, collection):
     return m.build("neon_sign", materials, collection)
 
 
+def build_night_train(materials, collection):
+    """Two commuter cars for the night city's elevated line (M25), 37 m
+    long along Y, wheels on the ground plane (the entity sits on the rail
+    deck). Lit windows glow from their mask; headlights at both ends."""
+    m = MeshBuilder(grid=4.0)
+    length, width, height, floor = 18.0, 2.8, 3.2, 0.5
+    for centre in (-9.25, 9.25):
+        y0, y1 = centre - length / 2, centre + length / 2
+        x = width / 2
+        side_uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        m.quad([(x, y0, floor), (x, y1, floor), (x, y1, floor + height), (x, y0, floor + height)],
+               "train_side", uvs=side_uvs)
+        m.quad([(-x, y1, floor), (-x, y0, floor), (-x, y0, floor + height), (-x, y1, floor + height)],
+               "train_side", uvs=side_uvs)
+        m.box((0, centre, floor + height + 0.1), (width, length, 0.2), "metal_white", faces=[(0, 0, 1)])
+        for y, normal in ((y0, (0, -1, 0)), (y1, (0, 1, 0))):
+            m.box((0, y, floor + height / 2), (width, 0.02, height), "metal_white", faces=[normal])
+        m.box((0, centre, floor / 2 + 0.05), (width - 0.4, length - 2.0, floor - 0.1), "black", faces=SIDES)
+    for y, sign in ((-18.51, -1), (18.51, 1)):
+        for x in (-0.9, 0.9):
+            # Counter-clockwise seen from outside the end.
+            m.quad([(x + 0.18 * sign, y, 1.3), (x - 0.18 * sign, y, 1.3), (x - 0.18 * sign, y, 1.55), (x + 0.18 * sign, y, 1.55)],
+                   "lamp_glass")
+    return m.build("night_train", materials, collection)
+
+
 def build_signpost(materials, collection):
     """A wooden field-path marker (static)."""
     m = MeshBuilder()
@@ -1014,6 +1072,7 @@ PIECES = [
     build_signpost,
     build_street_lamp,
     build_neon_sign,
+    build_night_train,
 ]
 
 

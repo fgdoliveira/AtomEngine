@@ -49,6 +49,12 @@ namespace AtomGame
         float intensity = 1.0f;
     };
 
+    struct AudioBed
+    {
+        std::string sound;
+        float gain = 1.0f;
+    };
+
     // A soft additive glow around a light (M23), drawn as a billboard.
     struct HaloData
     {
@@ -57,12 +63,28 @@ namespace AtomGame
         glm::vec3 color{ 1.0f };    // linear
         float intensity = 1.0f;
         float flicker = 0.0f;       // 0..1: how much it stutters
+        std::string entity;         // M25: rides on this entity; position is then an offset
     };
 
-    struct AudioBed
+    // A light computed at runtime (M25): what moves or flickers. The rest of
+    // a night street's light is baked.
+    struct LiveLightData
     {
-        std::string sound;
-        float gain = 1.0f;
+        glm::vec3 position{ 0.0f };
+        glm::vec3 color{ 1.0f };    // linear
+        float intensity = 1.0f;
+        float radius = 8.0f;        // metres; no light past it
+        float flicker = 0.0f;       // like a halo's; the same place stutters the same
+        std::string entity;         // rides on this entity; position is then an offset
+        std::string material;       // optional: its emission stutters along
+    };
+
+    // Ambience of one cell (M25): its beds fade in while the player is in
+    // it and out when they leave, so moving through the street crossfades.
+    struct AudioZone
+    {
+        std::string cell;
+        std::vector<AudioBed> beds;
     };
 
     struct AudioEmitter
@@ -100,6 +122,21 @@ namespace AtomGame
         glm::vec3 soundOffset{ 0.0f, 1.0f, 0.0f };
     };
 
+    // Shuttles the entity between its position and position + travel
+    // (M25: a train on its line), with an optional looping sound that
+    // follows it and plays only while it moves.
+    struct EntityMover
+    {
+        glm::vec3 travel{ 0.0f };
+        float travelSeconds = 10.0f;
+        float waitSeconds = 20.0f;
+        float startSeconds = 0.0f; // where in the cycle it starts
+        std::string sound;
+        float gain = 1.0f;
+        float minDistance = 5.0f;
+        float maxDistance = 80.0f;
+    };
+
     struct EntityData
     {
         std::string name;
@@ -111,6 +148,7 @@ namespace AtomGame
         std::optional<ColliderBox> collider;
         std::optional<Interactable> interactable;
         std::optional<EntityAnimation> animation; // needs a model with the clip
+        std::optional<EntityMover> mover;
     };
 
     struct LevelUnease
@@ -138,6 +176,7 @@ namespace AtomGame
         ChunkLayer layer = ChunkLayer::Near;
         bool castsShadow = true;
         std::string cell;       // optional; only near chunks
+        std::string lightmap;   // optional (M25), relative to Assets/
     };
 
     // A connected "room" of the level (M22): a stretch of street, an alley.
@@ -163,6 +202,9 @@ namespace AtomGame
     // Which cells are drawn from `position`: its cell and that cell's
     // neighbours. Outside every cell (or with no cells), all of them.
     std::vector<bool> VisibleCells(const std::vector<CellData>& cells, const glm::vec3& position);
+
+    // Index of the cell containing `position` (first match), or -1.
+    int CellAt(const std::vector<CellData>& cells, const glm::vec3& position);
 
     // Baked light texture for the scene model (M16), mapped by its second
     // UV set. Written by the asset build next to the model.
@@ -195,6 +237,9 @@ namespace AtomGame
         std::optional<LevelSky> sky;
         std::vector<HaloData> halos;
         std::vector<ImpostorData> impostors;
+        std::vector<LiveLightData> lights;
+        std::vector<AudioZone> audioZones;
+        float zoneFadeSeconds = 2.0f;
 
         const SpawnPoint* FindSpawn(std::string_view spawnName) const;
         std::string_view SurfaceAt(float x, float z) const;

@@ -160,6 +160,8 @@ namespace Atom
         void SubmitParticles(std::span<const Particle> particles);
         // Additive glows around lights (M23), same billboards as particles.
         void SubmitHalos(std::span<const Particle> halos);
+        // A live point light for this frame (M25); see LiveLight.
+        void SubmitLiveLight(const LiveLight& light);
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
@@ -274,6 +276,8 @@ namespace Atom
                      const glm::mat4& projection);
         Glow m_glow;
         std::vector<Particle> m_halos;
+        std::array<LiveLight, MaxLiveLights> m_liveLights{};
+        std::size_t m_liveLightCount = 0;
         std::uint32_t m_uploadedHalos = 0;
         SDL_GPUBuffer* m_particleBuffer = nullptr;
         SDL_GPUTransferBuffer* m_particleTransfer = nullptr;

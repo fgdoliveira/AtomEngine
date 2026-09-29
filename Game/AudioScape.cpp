@@ -28,6 +28,12 @@ namespace AtomGame
         m_library["static"] = SoundSynth::RadioStatic();
         m_library["room_tone"] = SoundSynth::RoomTone();
         m_library["creak"] = SoundSynth::Creak();
+        m_library["traffic"] = SoundSynth::Traffic();
+        m_library["neon_buzz"] = SoundSynth::NeonBuzz();
+        m_library["voices"] = SoundSynth::Voices();
+        m_library["street_bells"] = SoundSynth::StreetBells();
+        m_library["pachinko_leak"] = SoundSynth::PachinkoLeak();
+        m_library["train"] = SoundSynth::Train();
 
         for (int surface = 0; surface < SurfaceCount; ++surface)
         {

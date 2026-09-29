@@ -79,6 +79,7 @@ namespace AtomGame
         std::string DialogueNodeId() const override;
         std::size_t VoiceCount() const override;
         std::string SurfaceName() const override;
+        float ZoneLevel(const std::string& cell) const override;
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;

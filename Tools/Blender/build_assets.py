@@ -36,6 +36,7 @@ import atom_levels  # noqa: E402
 import atom_bake  # noqa: E402
 import atom_lightmap  # noqa: E402
 import atom_city  # noqa: E402
+import atom_night  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
@@ -45,6 +46,7 @@ importlib.reload(atom_levels)
 importlib.reload(atom_bake)
 importlib.reload(atom_lightmap)
 importlib.reload(atom_city)
+importlib.reload(atom_night)
 
 
 def parse_args():
@@ -225,6 +227,12 @@ def main():
     tower = atom_city.build_impostor_tower(materials, city_collection)
     tower.location = (0.0, -600.0, 0.0)  # out of the way of the other scenes
 
+    # Level E, the night street (M25): its own collection, around its own
+    # origin like the other levels.
+    night_collection = bpy.data.collections.new("Night")
+    scene.collection.children.link(night_collection)
+    night = atom_night.build_night_street(pieces, collision, materials, night_collection)
+
     # Geometry that would z-fight is a build error, like a compile error:
     # nothing is exported until it is fixed.
     if atom_kit.LINT_ERRORS:
@@ -251,6 +259,12 @@ def main():
             level_dir = os.path.join(args.out, folder.capitalize())
             os.makedirs(level_dir, exist_ok=True)
             atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"))
+
+    # The night street: a lightmap per cell, lit by the street's own lamps,
+    # windows and signs.
+    night_dir = os.path.join(args.out, "Night")
+    os.makedirs(night_dir, exist_ok=True)
+    atom_night.bake(scene, night, night_dir)
 
     if atom_kit.LINT_ERRORS:
         for error in atom_kit.LINT_ERRORS:
@@ -305,6 +319,14 @@ def main():
     atom_city.render_impostor(scene, tower, os.path.join(city_dir, "tower_impostor.png"),
                               os.path.join(city_dir, "tower_impostor.json"))
     print("Exported", os.path.relpath(os.path.join(city_dir, "tower_impostor.png"), REPO_ROOT))
+
+    # Night street: the always-drawn base (the road west, the railway,
+    # cables, wet-road decals), a chunk per cell, one collision file.
+    export_objects([night.base, night.decals], scene, os.path.join(night_dir, "night_street.glb"))
+    for cell, obj in night.cells.items():
+        export_objects([obj], scene, os.path.join(night_dir, "night_" + cell + ".glb"))
+    export_objects(night.colliders, scene, os.path.join(night_dir, "night_street_col.glb"), materials=False)
+    write_markers(night.collection, os.path.join(args.out, "Levels", "night_street.markers.json"))
 
     for folder, level in levels:
         level_dir = os.path.join(args.out, folder.capitalize())

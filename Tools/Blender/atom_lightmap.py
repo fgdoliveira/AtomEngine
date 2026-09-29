@@ -54,16 +54,41 @@ def _unwrap(obj, size):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+def point_light(location, watts, color, radius=0.15):
+    """A bake-only point light (M25): a lamp head, a bare bulb."""
+    return {"type": "POINT", "location": location, "watts": watts, "color": color, "radius": radius}
+
+
+def sun_light(rotation, strength, color, angle=1.0):
+    """A bake-only sun (M25): moonlight. `rotation` in degrees; strength in
+    W/m^2; `angle` (degrees) softens its shadows."""
+    return {"type": "SUN", "rotation": rotation, "watts": strength, "color": color, "angle": angle}
+
+
 def _add_lights(lights, collection):
-    """lights: (location, rotation in degrees, (width, height), watts, rgb)."""
+    """lights: area lights as (location, rotation in degrees, (width,
+    height), watts, rgb), or the dicts made by point_light and sun_light."""
     objects = []
-    for index, (location, rotation, size, watts, color) in enumerate(lights):
-        data = bpy.data.lights.new(f"atom_bake_light_{index}", type="AREA")
-        data.shape = "RECTANGLE"
-        data.size, data.size_y = size
-        data.energy = watts
-        data.color = color
-        obj = bpy.data.objects.new(f"atom_bake_light_{index}", data)
+    for index, light in enumerate(lights):
+        name = f"atom_bake_light_{index}"
+        if isinstance(light, dict):
+            data = bpy.data.lights.new(name, type=light["type"])
+            if light["type"] == "POINT":
+                data.shadow_soft_size = light["radius"]
+            else:
+                data.angle = math.radians(light["angle"])
+            data.energy = light["watts"]
+            data.color = light["color"]
+            location = light.get("location", (0.0, 0.0, 0.0))
+            rotation = light.get("rotation", (0.0, 0.0, 0.0))
+        else:
+            location, rotation, size, watts, color = light
+            data = bpy.data.lights.new(name, type="AREA")
+            data.shape = "RECTANGLE"
+            data.size, data.size_y = size
+            data.energy = watts
+            data.color = color
+        obj = bpy.data.objects.new(name, data)
         obj.location = location
         obj.rotation_euler = Euler([math.radians(a) for a in rotation])
         collection.objects.link(obj)
@@ -146,22 +171,31 @@ def _lint(obj, name):
     atom_kit.LINT_ERRORS.extend(errors)
 
 
-def bake(scene, obj, lights, png_path, size=512):
-    """Unwraps `obj`, bakes its light with `lights` and writes `png_path`."""
+def bake(scene, obj, lights, png_path, size=512, samples=SAMPLES, context=(), sky=None, clamp=0.0):
+    """Unwraps `obj`, bakes its light with `lights` and writes `png_path`.
+    `context` objects stay in the scene while baking (M25): they cast
+    shadows onto `obj`, bounce light onto it and, if emissive (signs, lit
+    windows), light it. `sky` = (rgb, strength) lets a faint sky in; by
+    default the sky is black. `clamp` > 0 caps indirect samples: small,
+    bright emitters (neon) otherwise leave speckles (fireflies)."""
     name = obj.name
     _unwrap(obj, size)
     _lint(obj, name)
 
     light_objects = _add_lights(lights, obj.users_collection[0])
     world = scene.world
-    saved_strength = None
+    saved_strength = saved_color = None
     if world:
         background = next(n for n in world.node_tree.nodes if n.type == "BACKGROUND")
         saved_strength = background.inputs["Strength"].default_value
+        saved_color = tuple(background.inputs["Color"].default_value)
         background.inputs["Strength"].default_value = 0.0
+        if sky:
+            background.inputs["Color"].default_value = tuple(sky[0]) + (1.0,)
+            background.inputs["Strength"].default_value = sky[1]
 
-    # Only this mesh and its lights take part.
-    taking_part = set([obj] + light_objects)
+    # Only this mesh, its context and its lights take part.
+    taking_part = set([obj] + list(context) + light_objects)
     hidden = [o for o in scene.objects if o not in taking_part and not o.hide_render]
     for o in hidden:
         o.hide_render = True
@@ -178,7 +212,9 @@ def bake(scene, obj, lights, png_path, size=512):
         tree.nodes.active = node
         nodes_added.append((tree, node))
 
-    scene.cycles.samples = SAMPLES
+    scene.cycles.samples = samples
+    saved_clamp = scene.cycles.sample_clamp_indirect
+    scene.cycles.sample_clamp_indirect = clamp
     scene.render.bake.margin = MARGIN_PX
     scene.render.bake.use_clear = True
     bpy.ops.object.select_all(action="DESELECT")
@@ -203,6 +239,7 @@ def bake(scene, obj, lights, png_path, size=512):
     print(f"lightmap: {name}: median {luminance[len(luminance) // 2]:.3f} "
           f"p90 {luminance[9 * len(luminance) // 10]:.3f} max {luminance[-1]:.3f}")
 
+    scene.cycles.sample_clamp_indirect = saved_clamp
     for tree, node in nodes_added:
         tree.nodes.remove(node)
     bpy.data.images.remove(image)
@@ -212,3 +249,4 @@ def bake(scene, obj, lights, png_path, size=512):
         o.hide_render = False
     if saved_strength is not None:
         background.inputs["Strength"].default_value = saved_strength
+        background.inputs["Color"].default_value = saved_color

@@ -20,7 +20,8 @@ cbuffer MaterialUniforms : register(b0, space3)
 {
     float4 u_baseColorFactor;
     float4 u_emissiveFactor; // w: baked-light weight (0 = none)
-    float4 u_lightmap;       // x: intensity, y: weight (0 = no lightmap)
+    float4 u_lightmap;       // x: intensity, y: weight (0 = no lightmap),
+                             // z: wet (M25)
     float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                              // z: has emissive texture, w: fog amount
 };
@@ -68,6 +69,38 @@ float ComputeShadow(float3 worldPosition, float3 normal)
         }
     }
     return visibility / 9.0;
+}
+
+// Value noise in [0, 1] (M25): a hash per lattice point, smoothly blended.
+float Hash(float2 p)
+{
+    return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+
+float ValueNoise(float2 p)
+{
+    const float2 i = floor(p);
+    const float2 f = frac(p);
+    const float2 s = f * f * (3.0 - 2.0 * f);
+    return lerp(lerp(Hash(i), Hash(i + float2(1, 0)), s.x),
+                lerp(Hash(i + float2(0, 1)), Hash(i + float2(1, 1)), s.x), s.y);
+}
+
+// Live point lights (M25): Lambert with a falloff that reaches zero at the
+// radius, so a light's reach is exact and cheap to reason about.
+float3 LiveLights(float3 worldPosition, float3 normal)
+{
+    float3 light = 0.0;
+    const int count = (int)u_time.y;
+    [loop] for (int i = 0; i < count; ++i)
+    {
+        const float3 toLight = u_liveLightPosition[i].xyz - worldPosition;
+        const float distance = length(toLight);
+        const float reach = saturate(1.0 - distance / u_liveLightPosition[i].w);
+        const float lambert = saturate(dot(normal, toLight / max(distance, 1e-4)));
+        light += u_liveLightColor[i].rgb * (reach * reach * lambert);
+    }
+    return light;
 }
 
 float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
@@ -121,16 +154,31 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
         : saturate(facing);
     const float3 sun = sunLight * u_sunColor.rgb * shadow;
 
-    const float3 lit = baseColor.rgb * (ambient + sun);
+    const float3 lit = baseColor.rgb * (ambient + sun + LiveLights(input.worldPosition, normal));
     // An emissive mask says exactly what glows; without one, the base
     // colour does (older kit pieces: vending screens, shoji).
     const float3 emissiveSource = u_alpha.z > 0.0
         ? EmissiveTexture.Sample(EmissiveSampler, input.uv).rgb
         : baseColor.rgb;
-    const float3 emitted = emissiveSource * u_emissiveFactor.rgb;
+    float3 emitted = emissiveSource * u_emissiveFactor.rgb;
+
+    // Wet surfaces (M25): reflections break up in slow ripples, stretched
+    // along the street, and a faint sheen drifts over the surface. Noise in
+    // world space, so neighbouring decals ripple as one sheet of water.
+    float3 sheen = 0.0;
+    if (u_lightmap.z > 0.0)
+    {
+        const float2 p = input.worldPosition.xz * float2(0.9, 3.5);
+        const float t = u_time.x;
+        const float ripple = ValueNoise(p + float2(t * 0.35, t * 0.9))
+                           * 0.6 + ValueNoise(p * 2.3 - float2(t * 0.7, 0.0)) * 0.4;
+        emitted *= lerp(1.0, 0.35 + 1.3 * ripple, u_lightmap.z);
+        // Brighter where the surface is lit: wet ground glints in lamp pools.
+        sheen = (lit * 0.5 + u_skyColor.rgb * 0.6) * u_lightmap.z * smoothstep(0.62, 0.9, ripple);
+    }
 
     const float fog = ComputeFog(input.worldPosition) * u_alpha.w;
-    const float3 color = lerp(lit + emitted, u_fogColor.rgb, fog);
+    const float3 color = lerp(lit + emitted + sheen, u_fogColor.rgb, fog);
 
     return float4(color, baseColor.a);
 }

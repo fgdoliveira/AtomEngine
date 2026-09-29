@@ -249,7 +249,7 @@ namespace AtomGame
         UpdateHotReload(deltaSeconds);
         if (Level* level = m_levels->GetLevel())
         {
-            level->Update(deltaSeconds);
+            level->Update(deltaSeconds, m_player.GetFeetPosition());
         }
         if (m_levels->IsTransitioning())
         {
@@ -969,6 +969,12 @@ namespace AtomGame
         const Level* level = m_levels->GetLevel();
         const glm::vec3& feet = m_player.GetFeetPosition();
         return level ? std::string(level->GetData().SurfaceAt(feet.x, feet.z)) : "";
+    }
+
+    float DemoApp::ZoneLevel(const std::string& cell) const
+    {
+        const Level* level = m_levels->GetLevel();
+        return level ? level->GetZoneLevel(cell) : 0.0f;
     }
 
     ArrivalError DemoApp::Arrival() const

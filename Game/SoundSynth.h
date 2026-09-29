@@ -28,6 +28,14 @@ namespace AtomGame
         Atom::SoundHandle RadioStatic(float seconds = 6.0f);
         Atom::SoundHandle RoomTone(float seconds = 8.0f);
 
+        // The night city (M25).
+        Atom::SoundHandle Traffic(float seconds = 20.0f);       // distant roads, swelling
+        Atom::SoundHandle NeonBuzz();                           // ballast hum, sizzling tubes
+        Atom::SoundHandle Voices(float seconds = 16.0f);        // murmur from a bar, muffled
+        Atom::SoundHandle StreetBells(float seconds = 18.0f);   // bicycle bells now and then
+        Atom::SoundHandle PachinkoLeak(float seconds = 12.0f);  // the hall through its doors
+        Atom::SoundHandle Train(float seconds = 6.0f);          // wheels and rail joints
+
         // One-shots.
         Atom::SoundHandle Higurashi(std::uint32_t seed);
         Atom::SoundHandle Creak(); // windmill axle

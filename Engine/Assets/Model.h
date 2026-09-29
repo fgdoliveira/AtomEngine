@@ -37,6 +37,7 @@ namespace Atom
         bool doubleSided = false;
         bool hasEmissiveTexture = false;
         float fogAmount = 1.0f;
+        float wet = 0.0f;
     };
 
     // Every material of a glTF file, in file order; empty on failure.

@@ -321,6 +321,160 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle Traffic(float seconds)
+    {
+        // Roads a few blocks away: a low roar that swells as cars pass,
+        // with the odd far horn.
+        std::vector<float> out(Frames(seconds));
+        Noise noise(901);
+        Wander passing(902, 0.5f);
+        Wander distant(903, 0.12f);
+        OnePoleLowpass road1, road2;
+        Biquad air = Biquad::Highpass(30.0f);
+        float hornPhase = 0.0f;
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float swell = passing.Next();
+            const float cutoff = 220.0f + 380.0f * swell * swell;
+            float s = road2.Process(road1.Process(noise(), cutoff), cutoff) * (0.4f + 0.6f * distant.Next());
+            s = air.Process(s) * (0.5f + swell);
+            // Two short horn blasts, far off, at fixed points of the loop.
+            for (const float at : { seconds * 0.3f, seconds * 0.72f })
+            {
+                const float since = t - at;
+                if (since >= 0.0f && since < 0.45f)
+                {
+                    hornPhase += TwoPi * 392.0f / Rate;
+                    const float envelope = std::sin(std::numbers::pi_v<float> * since / 0.45f);
+                    s += (std::sin(hornPhase) + 0.5f * std::sin(hornPhase * 1.26f)) * envelope * 0.02f;
+                }
+            }
+            out[i] = s;
+        }
+        MakeLoop(out, 2.0f);
+        Normalize(out, 0.7f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle NeonBuzz()
+    {
+        // Sign ballasts at 120 Hz with harsh odd harmonics, and the dry
+        // sizzle of an old tube. Two seconds of whole cycles: seamless.
+        std::vector<float> out(Frames(2.0f));
+        Noise noise(911);
+        Biquad sizzle = Biquad::Bandpass(3800.0f, 1.5f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            float s = std::sin(TwoPi * 120.0f * t) * 0.45f
+                + std::sin(TwoPi * 360.0f * t) * 0.25f
+                + std::sin(TwoPi * 600.0f * t) * 0.12f
+                + std::sin(TwoPi * 840.0f * t) * 0.06f;
+            const float crackle = std::pow(0.5f + 0.5f * std::sin(TwoPi * 120.0f * t), 12.0f);
+            s += sizzle.Process(noise()) * (0.2f + crackle);
+            out[i] = s;
+        }
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle Voices(float seconds)
+    {
+        // A crowd behind a wall: voice-band noise chopped into syllables
+        // by slow random envelopes, low-passed so no word comes through.
+        std::vector<float> out(Frames(seconds));
+        Noise noise(921);
+        Biquad formantA = Biquad::Bandpass(520.0f, 2.5f);
+        Biquad formantB = Biquad::Bandpass(1150.0f, 3.0f);
+        Wander syllablesA(922, 5.0f);
+        Wander syllablesB(923, 3.5f);
+        Wander mood(924, 0.15f);
+        OnePoleLowpass wall;
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float n = noise();
+            const float a = formantA.Process(n) * std::pow(syllablesA.Next(), 2.0f);
+            const float b = formantB.Process(n) * std::pow(syllablesB.Next(), 2.0f);
+            out[i] = wall.Process((a + b * 0.7f) * (0.5f + mood.Next()), 1400.0f);
+        }
+        MakeLoop(out, 1.5f);
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle StreetBells(float seconds)
+    {
+        // Bicycle bells ringing now and then up the street: two metal
+        // partials, inharmonic, with a fast strike and a long ring.
+        std::vector<float> out(Frames(seconds), 0.0f);
+        const float rings[][2] = { { 2.0f, 1.0f }, { 2.25f, 0.8f }, { 9.5f, 0.6f }, { 14.0f, 0.9f }, { 14.2f, 0.7f } };
+        for (const auto& ring : rings)
+        {
+            const std::size_t first = Frames(ring[0]);
+            for (std::size_t i = 0; i < Frames(1.2f) && first + i < out.size(); ++i)
+            {
+                const float t = static_cast<float>(i) / Rate;
+                const float envelope = std::exp(-t / 0.35f) * std::clamp(t / 0.002f, 0.0f, 1.0f);
+                out[first + i] += (std::sin(TwoPi * 2350.0f * t) + 0.6f * std::sin(TwoPi * 3170.0f * t)
+                    + 0.3f * std::sin(TwoPi * 5230.0f * t)) * envelope * ring[1];
+            }
+        }
+        Normalize(out, 0.5f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle PachinkoLeak(float seconds)
+    {
+        // A pachinko hall heard through glass doors: the roar of steel
+        // balls (dense bright clicks), a pounding march under it, all
+        // muffled - the hall itself (M27) is where it gets loud.
+        std::vector<float> out(Frames(seconds));
+        Noise noise(931);
+        Biquad balls = Biquad::Bandpass(3200.0f, 1.2f);
+        Wander surge(932, 0.4f);
+        OnePoleLowpass door1, door2;
+        const float notes[] = { 262.0f, 330.0f, 392.0f, 330.0f, 294.0f, 349.0f, 440.0f, 349.0f };
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float click = noise.Uniform() < 0.08f ? noise() * 3.0f : 0.0f;
+            float s = balls.Process(click + noise() * 0.2f) * (0.6f + 0.4f * surge.Next());
+            const float beat = std::fmod(t, 0.5f);
+            const float note = notes[static_cast<std::size_t>(t / 0.5f) % 8];
+            s += std::sin(TwoPi * note * t) * std::exp(-beat / 0.2f) * 0.5f;
+            s += std::sin(TwoPi * 55.0f * t) * std::exp(-beat / 0.05f) * 0.8f;
+            out[i] = door2.Process(door1.Process(s, 900.0f), 1200.0f);
+        }
+        MakeLoop(out, 0.5f);
+        Normalize(out, 0.7f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle Train(float seconds)
+    {
+        // Wheels on rail: a heavy rumble, a steel whine, and the
+        // da-dum of the rail joints (two bogies, twice a second).
+        std::vector<float> out(Frames(seconds));
+        Noise noise(941);
+        OnePoleLowpass rumble1, rumble2;
+        Biquad whine = Biquad::Bandpass(1900.0f, 8.0f);
+        Biquad joint = Biquad::Bandpass(160.0f, 2.0f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            float s = rumble2.Process(rumble1.Process(noise(), 90.0f), 140.0f) * 8.0f;
+            s += whine.Process(noise()) * 0.3f;
+            const float cycle = std::fmod(t, 0.5f);
+            const float hit = std::exp(-cycle / 0.02f) + std::exp(-std::max(cycle - 0.09f, 0.0f) / 0.02f) * (cycle > 0.09f);
+            s += joint.Process(noise() * hit) * 6.0f;
+            out[i] = s;
+        }
+        MakeLoop(out, 0.25f);
+        Normalize(out, 0.8f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle Higurashi(std::uint32_t seed)
     {
         // The evening cicada's falling "kana-kana-kana": a train of short

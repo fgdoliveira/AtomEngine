@@ -4,12 +4,14 @@
 #include "AudioScape.h"
 #include "PlayerController.h"
 #include "Renderer/Renderer.h"
+#include "World/LiveEffects.h"
 
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <glm/geometric.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <optional>
@@ -122,6 +124,20 @@ namespace AtomGame
                 std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' has no collision\n";
                 return nullptr;
             }
+            if (!data.lightmap.empty())
+            {
+                // Per-chunk lightmaps (M25): a whole street at a useful
+                // density doesn't fit one texture.
+                auto lightmap = services.renderer.LoadTexture(assets + data.lightmap);
+                if (!lightmap)
+                {
+                    std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' is missing its lightmap "
+                              << data.lightmap << '\n';
+                    return nullptr;
+                }
+                chunk.model->SetLightmap(lightmap.get(), 1.0f);
+                level->m_chunkLightmaps.push_back(std::move(lightmap));
+            }
             chunk.layer = static_cast<Atom::RenderLayer>(data.layer);
             chunk.castsShadow = data.castsShadow;
             for (std::size_t c = 0; c < d.cells.size(); ++c)
@@ -225,6 +241,67 @@ namespace AtomGame
             level->m_voices.push_back({ id, emitter.group, emitter.gain });
         }
 
+        // Cell ambience (M25): every zone's beds play from the start, silent
+        // until the player walks into the zone's cell.
+        for (const AudioZone& zone : d.audioZones)
+        {
+            const int cell = static_cast<int>(std::find_if(d.cells.begin(), d.cells.end(),
+                [&](const CellData& c) { return c.name == zone.cell; }) - d.cells.begin());
+            for (const AudioBed& bed : zone.beds)
+            {
+                Atom::PlayParams params{};
+                params.loop = true;
+                params.gain = 0.0f;
+                const Atom::VoiceId id = services.audio.Play(services.sounds.GetSound(bed.sound), params);
+                level->m_voices.push_back({ id, {}, 0.0f });
+                level->m_zoneVoices.push_back({ id, cell, bed.gain, 0.0f });
+            }
+        }
+
+        // Movers, and what rides on entities (M25).
+        for (const EntityData& data : d.entities)
+        {
+            if (!data.mover)
+            {
+                continue;
+            }
+            Mover mover{ *level->FindEntity(data.name), data.position, *data.mover };
+            if (!data.mover->sound.empty())
+            {
+                Atom::PlayParams params{};
+                params.loop = true;
+                params.gain = 0.0f;
+                params.spatial = true;
+                params.position = data.position;
+                params.minDistance = data.mover->minDistance;
+                params.maxDistance = data.mover->maxDistance;
+                mover.voice = services.audio.Play(services.sounds.GetSound(data.mover->sound), params);
+                level->m_voices.push_back({ mover.voice, {}, 0.0f });
+            }
+            level->m_movers.push_back(std::move(mover));
+        }
+        for (const HaloData& halo : d.halos)
+        {
+            level->m_haloAnchors.push_back(halo.entity.empty() ? std::nullopt : level->FindEntity(halo.entity));
+        }
+        for (const LiveLightData& data : d.lights)
+        {
+            LiveLight light{ data.entity.empty() ? std::nullopt : level->FindEntity(data.entity), {} };
+            if (!data.material.empty())
+            {
+                for (Atom::Material* material : level->FindSceneMaterials(data.material))
+                {
+                    light.materials.emplace_back(material, material->emissiveFactor);
+                }
+                if (light.materials.empty())
+                {
+                    std::cerr << "Level '" << d.name << "': no material '" << data.material << "' to flicker\n";
+                    return nullptr;
+                }
+            }
+            level->m_lights.push_back(std::move(light));
+        }
+
         std::cout
             << "Level '" << d.name << "' loaded: " << level->m_world.Count() << " entities, "
             << level->m_models.size() << " extra models, " << level->m_voices.size() << " voices\n";
@@ -305,21 +382,24 @@ namespace AtomGame
             for (std::size_t i = 0; i < m_data.halos.size(); ++i)
             {
                 const HaloData& h = m_data.halos[i];
-                float intensity = h.intensity;
-                if (h.flicker > 0.0f)
-                {
-                    const float t = m_time * 7.0f + static_cast<float>(i) * 13.1f;
-                    const float wobble = std::sin(t) * std::sin(t * 2.3f + 1.0f) * std::sin(t * 0.37f);
-                    intensity *= wobble > 0.55f ? 1.0f - h.flicker : 1.0f;
-                }
+                const float intensity = h.intensity * FlickerFactor(m_time, h.position, h.flicker);
                 Atom::Particle p{};
-                p.position = h.position;
+                p.position = Anchor(m_haloAnchors[i], h.position);
                 p.size = h.size;
                 p.color = glm::vec4{ h.color * intensity, 1.0f };
                 p.atlasCell = 0.0f; // the soft round puff
                 halos.push_back(p);
             }
             renderer.SubmitHalos(halos);
+        }
+
+        // Live lights (M25): the few lights computed per pixel.
+        for (std::size_t i = 0; i < m_data.lights.size(); ++i)
+        {
+            const LiveLightData& l = m_data.lights[i];
+            renderer.SubmitLiveLight(Atom::LiveLight{
+                Anchor(m_lights[i].anchor, l.position), l.radius,
+                l.color * l.intensity * FlickerFactor(m_time, l.position, l.flicker) });
         }
 
         // Impostors (M24): the card turns to face the viewer; the view shown
@@ -372,9 +452,50 @@ namespace AtomGame
         });
     }
 
-    void Level::Update(float deltaSeconds)
+    void Level::Update(float deltaSeconds, const glm::vec3& listener)
     {
         m_time += deltaSeconds;
+
+        // Movers (M25): the entity shuttles along its line; its sound
+        // follows it and is heard only while it moves.
+        for (const Mover& mover : m_movers)
+        {
+            const MoverState state = EvaluateMover(
+                mover.data.travelSeconds, mover.data.waitSeconds, m_time + mover.data.startSeconds);
+            Entity* entity = m_world.Find(mover.entity);
+            if (!entity)
+            {
+                continue;
+            }
+            entity->position = mover.start + mover.data.travel * state.progress;
+            if (mover.voice)
+            {
+                m_audio.SetVoicePosition(mover.voice, entity->position);
+                m_audio.SetVoiceGain(mover.voice, state.moving ? mover.data.gain : 0.0f);
+            }
+        }
+
+        // A flickering light's material stutters with it.
+        for (std::size_t i = 0; i < m_lights.size(); ++i)
+        {
+            const LiveLightData& l = m_data.lights[i];
+            const float factor = FlickerFactor(m_time, l.position, l.flicker);
+            for (auto& [material, base] : m_lights[i].materials)
+            {
+                material->emissiveFactor = base * factor;
+            }
+        }
+
+        // Cell ambience (M25): the zone of the listener's cell fades in,
+        // the others out.
+        const int cell = CellAt(m_data.cells, listener);
+        for (ZoneVoice& voice : m_zoneVoices)
+        {
+            const float target = voice.cell == cell ? 1.0f : 0.0f;
+            voice.level = StepTowards(voice.level, target, deltaSeconds, m_data.zoneFadeSeconds);
+            m_audio.SetVoiceGain(voice.id, voice.gain * voice.level);
+        }
+
         m_world.ForEach([&](EntityId, Entity& entity) {
             if (!entity.animated || !entity.animated->playing)
             {
@@ -461,6 +582,41 @@ namespace AtomGame
             }
         }
         return found;
+    }
+
+    std::optional<EntityId> Level::FindEntity(const std::string& name) const
+    {
+        std::optional<EntityId> found;
+        m_world.ForEach([&](EntityId id, const Entity& entity) {
+            if (!found && entity.name == name)
+            {
+                found = id;
+            }
+        });
+        return found;
+    }
+
+    glm::vec3 Level::Anchor(const std::optional<EntityId>& entity, const glm::vec3& offset) const
+    {
+        if (!entity)
+        {
+            return offset;
+        }
+        const Entity* anchor = m_world.Find(*entity);
+        return anchor ? anchor->position + offset : offset;
+    }
+
+    float Level::GetZoneLevel(std::string_view cellName) const
+    {
+        float level = 0.0f;
+        for (const ZoneVoice& voice : m_zoneVoices)
+        {
+            if (voice.cell >= 0 && m_data.cells[voice.cell].name == cellName)
+            {
+                level = std::max(level, voice.level);
+            }
+        }
+        return level;
     }
 
     void Level::SetGroupGain(std::string_view group, float scale)

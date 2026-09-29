@@ -42,6 +42,8 @@ add_library(
     World/GameWorld.h
     World/Impostors.cpp
     World/Impostors.h
+    World/LiveEffects.cpp
+    World/LiveEffects.h
 )
 
 target_include_directories(

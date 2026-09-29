@@ -609,7 +609,7 @@ def night_sky(width=1024, height=512, seed=60):
     return np.clip(rgb, 0.0, 1.0).astype(np.float32)
 
 
-def neon_sign(width=64, height=256, seed=61):
+def neon_sign(width=64, height=256, seed=61, tube_color=(1.0, 0.25, 0.55), border_color=(0.25, 0.85, 1.0)):
     """A vertical shop sign: dark lacquered board, tube lettering. Returns
     (base, emissive mask), rows bottom first like the other materials.
     Unlit, the tubes read as pale glass; the mask lights exactly them."""
@@ -634,8 +634,8 @@ def neon_sign(width=64, height=256, seed=61):
     base = np.where((tube | border)[:, :, None], np.array([0.55, 0.50, 0.55]), base)
 
     mask = np.zeros((height, width, 3))
-    mask = np.where(tube[:, :, None], np.array([1.0, 0.25, 0.55]), mask)   # pink
-    mask = np.where(border[:, :, None], np.array([0.25, 0.85, 1.0]), mask)  # cyan
+    mask = np.where(tube[:, :, None], np.array(tube_color), mask)      # pink by default
+    mask = np.where(border[:, :, None], np.array(border_color), mask)  # cyan by default
     return _rgba(base), _rgba(mask)
 
 
@@ -719,3 +719,210 @@ def skyline(width=1024, height=256, seed=71):
     base = np.where(windows[:, :, None], np.array([0.6, 0.5, 0.35]), base)
     mask = np.where(windows[:, :, None], np.array([1.0, 0.8, 0.55]), np.zeros((height, width, 3)))
     return _with_alpha(base, alpha), _rgba(mask)
+
+
+# --------------------------------------------------------------------------
+# Night street (M25)
+# --------------------------------------------------------------------------
+
+def wet_asphalt(size=256, seed=81):
+    """Asphalt after rain: darker, the patches darker still."""
+    return asphalt(size, seed, color=(0.11, 0.11, 0.12))
+
+
+# Shopfront atlas styles, one per quadrant (index % 2 across, // 2 up):
+# (awning colour, interior light, sign lettering light); None = shuttered.
+SHOP_STYLES = [
+    ((0.45, 0.10, 0.08), (1.00, 0.78, 0.50), (1.00, 0.90, 0.70)),   # ramen: warm
+    ((0.12, 0.33, 0.55), (0.90, 0.97, 1.00), (0.50, 0.85, 1.00)),   # convenience store: cold
+    ((0.22, 0.07, 0.17), (1.00, 0.40, 0.32), (1.00, 0.30, 0.60)),   # bar: red
+    None,                                                          # closed: shutter
+]
+
+
+def shopfront_atlas(size=256, seed=80):
+    """Ground-floor shopfronts, one per quadrant; a quadrant covers a 4 m
+    wide, 4 m tall front. Rows bottom first. Returns (base, emissive mask):
+    lit glass (shelves and counters as darker bands), a coloured awning and
+    a sign board whose lettering glows. The shuttered one only has a dim
+    sign and a graffiti tag."""
+    rng = np.random.default_rng(seed)
+    half = size // 2
+    base = np.zeros((size, size, 3))
+    mask = np.zeros((size, size, 3))
+    ys, xs = np.mgrid[0:half, 0:half]
+    v, u = ys / half, xs / half
+    for index, style in enumerate(SHOP_STYLES):
+        x0, y0 = (index % 2) * half, (index // 2) * half
+        grime = 0.8 + 0.2 * fbm(half, half, 6, 3, rng)
+        region = _tint(grime, (0.30, 0.29, 0.28))            # concrete frame
+        glow = np.zeros((half, half, 3))
+        kick = v < 0.05
+        glass = (v >= 0.05) & (v < 0.62) & (np.abs(u - 0.5) < 0.46) & (np.abs(u - 0.62) > 0.012)
+        awning = (v >= 0.62) & (v < 0.70)
+        board = (v >= 0.72) & (v < 0.95) & (np.abs(u - 0.5) < 0.47)
+        glyphs = np.zeros((half, half), bool)
+        for k in range(4):
+            gx = 0.12 + 0.2 * k
+            cell = board & (u > gx) & (u < gx + 0.14) & (v > 0.76) & (v < 0.91)
+            glyphs |= cell & (fbm(half, half, 9, 1, rng) > 0.42)
+        region = np.where(kick[:, :, None], np.array([0.10, 0.10, 0.10]), region)
+        if style is None:
+            # A rolled-down shutter over the whole front, ribbed.
+            shutter = (v >= 0.05) & (v < 0.70) & (np.abs(u - 0.5) < 0.47)
+            ribs = 0.75 + 0.25 * ((ys % 4) < 2) + 0.1 * fbm(half, half, 8, 2, rng, stretch=(4, 1))
+            region = np.where(shutter[:, :, None], _tint(ribs, (0.42, 0.43, 0.44)), region)
+            tag = shutter & (fbm(half, half, 5, 3, rng) > 0.66) & (v < 0.45)
+            region = np.where(tag[:, :, None], np.array([0.55, 0.15, 0.40]), region)
+            region = np.where(board[:, :, None], np.array([0.20, 0.19, 0.17]), region)
+            region = np.where(glyphs[:, :, None], np.array([0.35, 0.33, 0.30]), region)
+            glow = np.where(glyphs[:, :, None], np.array([0.12, 0.10, 0.08]), glow)
+        else:
+            awning_color, interior, lettering = style
+            shelves = 0.55 + 0.45 * (((ys // 6) % 3) != 0) * (0.7 + 0.3 * fbm(half, half, 12, 2, rng))
+            light = _tint(shelves, interior)
+            region = np.where(glass[:, :, None], light * 0.45, region)
+            glow = np.where(glass[:, :, None], light, glow)
+            folds = 0.8 + 0.2 * np.cos(u * 40.0)
+            region = np.where(awning[:, :, None], _tint(folds, awning_color), region)
+            region = np.where(board[:, :, None], np.array([0.12, 0.11, 0.10]), region)
+            region = np.where(glyphs[:, :, None], np.array(lettering) * 0.6, region)
+            glow = np.where(glyphs[:, :, None], np.array(lettering), glow)
+        base[y0:y0 + half, x0:x0 + half] = region
+        mask[y0:y0 + half, x0:x0 + half] = glow
+    return _rgba(base), _rgba(mask)
+
+
+# Neon reflection colours, one per column of neon_reflection().
+REFLECTION_COLORS = [
+    (1.0, 0.25, 0.55),   # pink
+    (0.25, 0.85, 1.0),   # cyan
+    (1.0, 0.62, 0.15),   # amber
+    (1.0, 0.85, 0.60),   # warm white (shop windows, lamps)
+]
+
+
+def neon_reflection(width=128, height=128, seed=82):
+    """Sign light smeared on wet asphalt: a soft vertical streak per column
+    (see REFLECTION_COLORS), strongest at v = 0 (under the light) and
+    fading away from it, broken into ripples. A decal: returns (base with
+    alpha, emissive mask)."""
+    rng = np.random.default_rng(seed)
+    columns = len(REFLECTION_COLORS)
+    ys, xs = np.mgrid[0:height, 0:width]
+    column = xs * columns // width
+    u = (xs % (width // columns)) / (width // columns) - 0.5
+    v = ys / height
+    across = np.exp(-(u / 0.2) ** 2)
+    along = np.clip(1.0 - v, 0.0, 1.0) ** 1.5
+    ripples = 0.55 + 0.45 * fbm(width, height, 6, 3, rng, stretch=(1, 6))
+    alpha = np.clip(across * along * ripples * 1.1, 0.0, 0.85)
+    colors = np.array(REFLECTION_COLORS)[column]
+    rgba = _with_alpha(colors * 0.3, alpha * (alpha > 0.02))
+    return rgba, _rgba(colors * (alpha > 0.02)[:, :, None] * np.clip(alpha * 1.4, 0, 1)[:, :, None])
+
+
+def puddle(size=128, seed=83):
+    """A puddle: dark water with a ragged edge (decal)."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size]
+    r = np.hypot(xs / size - 0.5, ys / size - 0.5) * 2.0
+    shape = 1.0 - r + 0.45 * (fbm(size, size, 4, 3, rng) - 0.5)
+    alpha = np.clip((shape - 0.25) * 6.0, 0.0, 0.85)
+    rgb = np.zeros((size, size, 3)) + np.array([0.03, 0.035, 0.045])
+    return _with_alpha(rgb, alpha)
+
+
+def pachinko_front(width=512, height=256, seed=84):
+    """The pachinko hall's front, 16 m wide and 8 m tall (rows bottom
+    first): glass doors onto rows of bright machines, a red awning edged
+    with bulbs, and a huge sign board with lettering outlined in bulbs.
+    Returns (base, emissive mask)."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    v, u = ys / height, xs / width
+    base = _tint(0.8 + 0.2 * fbm(width, height, 8, 3, rng), (0.16, 0.14, 0.14))
+    glow = np.zeros((height, width, 3))
+
+    doors = (v > 0.02) & (v < 0.40) & ((xs % 64) > 4)
+    machines = 0.4 + 0.6 * ((xs % 10) < 6) * (0.6 + 0.4 * fbm(width, height, 24, 2, rng))
+    hue = np.where(((xs // 10) % 3)[:, :, None] == 0, np.array([1.0, 0.55, 0.25]),
+                   np.where(((xs // 10) % 3)[:, :, None] == 1, np.array([1.0, 0.3, 0.6]), np.array([0.5, 0.8, 1.0])))
+    interior = hue * machines[:, :, None]
+    base = np.where(doors[:, :, None], interior * 0.4, base)
+    glow = np.where(doors[:, :, None], interior, glow)
+
+    awning = (v >= 0.42) & (v < 0.52)
+    base = np.where(awning[:, :, None], np.array([0.55, 0.06, 0.05]), base)
+    bulbs = awning & ((xs % 8) < 3) & (np.abs(ys - height * 0.47) < 2)
+    base = np.where(bulbs[:, :, None], np.array([0.9, 0.85, 0.6]), base)
+    glow = np.where(bulbs[:, :, None], np.array([1.0, 0.9, 0.6]), glow)
+
+    board = (v >= 0.55) & (v < 0.97)
+    base = np.where(board[:, :, None], np.array([0.08, 0.03, 0.05]), base)
+    edge = board & ((v < 0.57) | (v > 0.95) | (u < 0.01) | (u > 0.99))
+    marquee = edge & (((xs + ys) % 6) < 2)
+    base = np.where(marquee[:, :, None], np.array([0.9, 0.8, 0.5]), base)
+    glow = np.where(marquee[:, :, None], np.array([1.0, 0.85, 0.5]), glow)
+    for k in range(5):
+        gx = 0.08 + 0.18 * k
+        cell = board & (u > gx) & (u < gx + 0.13) & (v > 0.61) & (v < 0.91)
+        strokes = cell & ((((ys // 5) % 3) == 0) | (((xs // 6) % 3) == 0)) & (fbm(width, height, 10, 1, rng) > 0.35)
+        color = np.array([1.0, 0.25, 0.7]) if k % 2 == 0 else np.array([1.0, 0.75, 0.2])
+        base = np.where(strokes[:, :, None], color * 0.5, base)
+        glow = np.where(strokes[:, :, None], color, glow)
+    return _rgba(base), _rgba(glow)
+
+
+def train_side(width=256, height=64, seed=85):
+    """One side of a commuter car, 18 m long and 3.2 m tall (rows bottom
+    first): dull steel, a coloured line, a band of lit windows broken by
+    doors. Returns (base, emissive mask)."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    v = ys / height
+    base = _tint(0.8 + 0.2 * fbm(width, height, 8, 2, rng, stretch=(4, 1)), (0.55, 0.56, 0.57))
+    base = np.where(((v > 0.28) & (v < 0.34))[:, :, None], np.array([0.1, 0.45, 0.25]), base)
+    doors = ((xs % 64) > 26) & ((xs % 64) < 38)
+    windows = (v > 0.42) & (v < 0.78) & ((xs % 16) > 1) & ~doors
+    door_glass = doors & (v > 0.45) & (v < 0.75)
+    lit = windows | door_glass
+    base = np.where(doors[:, :, None] & ~door_glass[:, :, None], np.array([0.45, 0.46, 0.47]), base)
+    base = np.where(lit[:, :, None], np.array([0.55, 0.58, 0.55]), base)
+    glow = np.where(lit[:, :, None], np.array([0.85, 0.95, 0.9]), np.zeros((height, width, 3)))
+    return _rgba(base), _rgba(glow)
+
+
+def posters(width=128, height=128, seed=86):
+    """Layers of torn posters on a wall (decal): coloured sheets, blocks of
+    print, ragged edges."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    rgb = np.zeros((height, width, 3)) + np.array([0.75, 0.72, 0.62])
+    alpha = np.zeros((height, width))
+    palette = [(0.80, 0.25, 0.20), (0.85, 0.80, 0.55), (0.25, 0.40, 0.65), (0.90, 0.88, 0.82)]
+    for k in range(6):
+        x0, y0 = rng.integers(0, width - 50), rng.integers(0, height - 60)
+        w, h = rng.integers(36, 56), rng.integers(44, 64)
+        sheet = (xs >= x0) & (xs < x0 + w) & (ys >= y0) & (ys < y0 + h)
+        rgb = np.where(sheet[:, :, None], np.array(palette[k % 4]), rgb)
+        text = sheet & ((ys - y0) % 7 < 2) & ((xs - x0) > 4) & ((xs - x0) < w - 4)
+        rgb = np.where(text[:, :, None], np.array([0.15, 0.13, 0.12]), rgb)
+        alpha = np.where(sheet, 0.9, alpha)
+    torn = fbm(width, height, 10, 3, rng) > 0.64
+    alpha = np.where(torn, 0.0, alpha)
+    rgb *= (0.7 + 0.3 * fbm(width, height, 5, 3, rng))[:, :, None]
+    return _with_alpha(rgb, alpha)
+
+
+def timetable(width=64, height=96, seed=87):
+    """A back-lit bus timetable: columns of times on white. Returns (base,
+    emissive mask) - the panel glows faintly."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    rgb = np.zeros((height, width, 3)) + np.array([0.88, 0.88, 0.84])
+    header = ys > height * 0.82
+    rgb = np.where(header[:, :, None], np.array([0.15, 0.30, 0.60]), rgb)
+    times = (~header) & (ys % 6 < 2) & ((xs % 20) > 3) & ((xs % 20) < 15) & (rng.random((height, width)) > 0.15)
+    rgb = np.where(times[:, :, None], np.array([0.10, 0.10, 0.12]), rgb)
+    return _rgba(rgb), _rgba(rgb * 0.8)

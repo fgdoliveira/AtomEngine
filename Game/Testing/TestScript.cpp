@@ -38,6 +38,7 @@ namespace AtomGame
                 { "expect_dialogue_node", { 1, 1 } },
                 { "expect_voices_max", { 1, 1 } },
                 { "expect_surface", { 1, 1 } },     // footstep surface name
+                { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "reload_level", { 0, 0 } },       // hot reload in place
@@ -403,6 +404,14 @@ namespace AtomGame
                 std::ostringstream where;
                 where << "player is at " << feet.x << ' ' << feet.y << ' ' << feet.z;
                 Fail(command, where.str());
+            }
+            return true;
+        }
+        if (name == "expect_zone")
+        {
+            if (game.ZoneLevel(args[0]) < 0.9f)
+            {
+                Fail(command, "zone '" + args[0] + "' is at " + std::to_string(game.ZoneLevel(args[0])));
             }
             return true;
         }

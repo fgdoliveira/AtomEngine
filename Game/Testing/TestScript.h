@@ -42,6 +42,7 @@ namespace AtomGame
         virtual std::string DialogueNodeId() const = 0;
         virtual std::size_t VoiceCount() const = 0; // looping voices (leak checks)
         virtual std::string SurfaceName() const = 0; // footstep surface underfoot
+        virtual float ZoneLevel(const std::string& cell) const = 0; // cell ambience faded in, 0..1 (M25)
         virtual ArrivalError Arrival() const = 0;
         // Animation of a named entity (M19): time into its clip, nullopt if
         // it has none; and whether it is still playing.

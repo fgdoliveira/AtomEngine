@@ -129,13 +129,17 @@ namespace Atom
             // (Blender custom properties): {"atom_fog": 0.5}.
             if (source.extras.data)
             {
-                if (const char* key = std::strstr(source.extras.data, "\"atom_fog\""))
-                {
-                    if (const char* colon = std::strchr(key, ':'))
+                const auto read = [&](const char* name, float& value) {
+                    if (const char* key = std::strstr(source.extras.data, name))
                     {
-                        material.fogAmount = std::clamp(std::strtof(colon + 1, nullptr), 0.0f, 1.0f);
+                        if (const char* colon = std::strchr(key, ':'))
+                        {
+                            value = std::clamp(std::strtof(colon + 1, nullptr), 0.0f, 1.0f);
+                        }
                     }
-                }
+                };
+                read("\"atom_fog\"", material.fogAmount);
+                read("\"atom_wet\"", material.wet);
             }
             material.doubleSided = source.double_sided != 0;
             if (source.alpha_mode == cgltf_alpha_mode_mask)
@@ -330,7 +334,8 @@ namespace Atom
                 material.alphaCutoff,
                 material.doubleSided,
                 source.emissive_texture.texture != nullptr,
-                material.fogAmount });
+                material.fogAmount,
+                material.wet });
         }
         return result;
     }

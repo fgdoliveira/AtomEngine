@@ -1,0 +1,37 @@
+# The night street (M25): level E loads with its per-cell lightmaps; the
+# cell ambience crossfades as the player walks from the bus stop into the
+# pachinko plaza; the interactables tie back to the rural street.
+expect_level street
+goto_level night_street from_bus
+wait_for_level night_street
+expect_mode exploring
+wait 2.5
+expect_zone bus_stop
+expect_surface concrete
+teleport 0 0 0 90                    # main street, on the road
+wait 2.5
+expect_zone main_street
+expect_surface asphalt
+teleport_to notice_board 1.2
+face notice_board
+interact notice_board
+expect_flag read_city_notice
+teleport_to phone_box 1.6
+face phone_box
+interact phone_box
+expect_message dial tone             # the letter from the house wasn't read
+teleport 6 0.12 -12 0                # in the alley
+wait 2.5
+expect_zone alley
+teleport 16.75 0.12 -24 0            # the pachinko front
+wait 2.5
+expect_zone pachinko_front
+teleport_to pachinko_doors 2
+face pachinko_doors
+interact pachinko_doors
+expect_message steel balls
+expect_voices_max 22
+goto_level street
+wait_for_level street
+expect_voices_max 7
+log night street done
