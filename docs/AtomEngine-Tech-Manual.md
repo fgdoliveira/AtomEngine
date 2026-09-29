@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.3 / M20**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39).
+A study guide to every concept the engine uses, as of **v0.0.4 / M28**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -48,9 +48,16 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 37. [Decals (M18)](#37-decals-m18)
 38. [Animation and vertex sway (M19)](#38-animation-and-vertex-sway-m19)
 39. [Authoring iteration (M20)](#39-authoring-iteration-m20)
-40. [Anatomy of a frame and what it costs](#40-anatomy-of-a-frame-and-what-it-costs)
-41. [Build system and project layout](#41-build-system-and-project-layout)
-42. [Glossary](#42-glossary)
+40. [Representation and performance foundations (M22)](#40-representation-and-performance-foundations-m22)
+41. [Night rendering (M23)](#41-night-rendering-m23)
+42. [Middle and far layers: shells, impostors and skyline cards (M24)](#42-middle-and-far-layers-shells-impostors-and-skyline-cards-m24)
+43. [The night street: cells, night lightmaps, live lights, wet road (M25)](#43-the-night-street-cells-night-lightmaps-live-lights-wet-road-m25)
+44. [Action sequences: the night bus (M26)](#44-action-sequences-the-night-bus-m26)
+45. [Render-to-texture and the pachinko hall (M27)](#45-render-to-texture-and-the-pachinko-hall-m27)
+46. [The asset build at scale: bake cache and GPU baking](#46-the-asset-build-at-scale-bake-cache-and-gpu-baking)
+47. [Anatomy of a frame and what it costs](#47-anatomy-of-a-frame-and-what-it-costs)
+48. [Build system and project layout](#48-build-system-and-project-layout)
+49. [Glossary](#49-glossary)
 
 ---
 
@@ -369,7 +376,8 @@ The "JPEG of 3D": JSON scene description + binary buffers (`.glb` packs both in 
 - `atom_street.py` — lays out the street from linked instances, power-line catenaries, ground, bounds.
 - `atom_levels.py` (v0.0.2) — the shrine grounds (level B), the machiya interior (level C) and, since v0.0.3, the windmill field (level D), each with its own collision; the shrine keeper and the other kit pieces live in `atom_kit.py`.
 - **Lint** (v0.0.2): every mesh is checked for z-fighting before export; a clash of materials stops the build (§33). Since v0.0.3 it also rejects near-coplanar faces closer than 5 mm unless one is a decal (§37), masked textures whose alpha never crosses the cutoff (§36) and overlapping lightmap UVs (§35).
-- **Bakes** (v0.0.3): `atom_bake.py` bakes light into vertex colours and writes sway weights into their alpha (§34, §38); `atom_lightmap.py` bakes lightmaps (§35). Markers become `<level>.markers.json` (§39). A full build takes about two minutes and stays byte-identical.
+- **Bakes** (v0.0.3): `atom_bake.py` bakes light into vertex colours and writes sway weights into their alpha (§34, §38); `atom_lightmap.py` bakes lightmaps (§35), since v0.0.4 per chunk, in context and cached (§43, §46). Markers become `<level>.markers.json` (§39). Output stays byte-identical.
+- **v0.0.4**: `atom_city.py` (mid shells, skyline, impostor rendering, §42), `atom_night.py` (the night street, §43), `atom_pachinko.py` (the pachinko hall, §45).
 - `build_assets.py` — entry point. Exports **headless only** (`blender -b --factory-startup -P …`); in a live Blender it only builds a preview scene. Output is **deterministic** (byte-identical rebuilds), and the `.glb` files are committed so building the engine never needs Blender.
 
 ---
@@ -737,7 +745,7 @@ It never draws and never reads devices: the game feeds it commands (`Advance`, `
 
 **AtomEngine.** `Assets/Levels/<name>.json` describes: the scene model and collision mesh, named **spawns** (position + yaw), lighting (sun, sky, ground, exposure), fog, ambience beds and positional emitters (with groups, e.g. `vending`), **footstep surfaces** (a default plus rectangular zones on the ground plane; first match wins), particles, unease settings, `outdoor`, and **entities** with capabilities and actions (§29). `ParseLevel` produces plain `LevelData` and validates it (needs a spawn, the default spawn exists, vectors have 3 numbers, action types are known, surface names are known — §33). The street itself moved from C++ into `street.json`.
 
-Four levels ship: **A** the street, **B** the shrine grounds (through the barred gate), **C** a machiya interior (through the house door at the east end) and, since v0.0.3, **D** the windmill field (through the field path at the west end, §38). A level file may leave spawn and entity positions to Blender markers (§39).
+Four levels ship with v0.0.3: **A** the street, **B** the shrine grounds (through the barred gate), **C** a machiya interior (through the house door at the east end) and **D** the windmill field (through the field path at the west end, §38). v0.0.4 adds **E** the night street (by bus from the stop at the east end, §43–§44) and **F** the pachinko hall (through its doors on the night street, §45), plus `night_test`, a testbed. A level file may leave spawn and entity positions to Blender markers (§39).
 
 ### Ownership: what lives with a level
 **Concept.** Most "leaks" in games are really *ownership* bugs: something from the old level keeps running (a sound humming forever) or keeps a pointer into freed memory. The cure is to make ownership explicit and let **RAII** (destructors) clean up.
@@ -991,7 +999,216 @@ Placement belongs in the 3D tool, behaviour in data.
 
 ---
 
-## 40. Anatomy of a frame and what it costs
+## 40. Representation and performance foundations (M22)
+
+**Concept.** A small playable area can imply a much bigger place if what's far away is drawn cheaply. Games do this with **representation layers**:
+- **near** (0–40 m): full geometry, collision, baked light, decals, animation;
+- **middle** (40–150 m): simple box shells, no collision, no shadows;
+- **far** (150 m+): flat cards and the sky.
+
+To make that affordable the engine must stop thinking of a level as one model. It needs pieces it can cull, skip in the shadow pass, and share.
+
+### Chunks and layers
+- A level lists **chunks** (`chunks`: name, model, optional collision, `layer` near/mid/far, `castsShadow`, optional `cell`). A chunk is about one building or half a block.
+- Each chunk is drawn and culled as a whole: `Renderer::BeginChunk`/`EndChunk` wrap its draws with a `ChunkInfo` (bounds from the model, layer, shadow flag). One box test against the frustum decides for all of its draws.
+- `castsShadow` defaults to true for near chunks and false for mid and far ones. A chunk that casts no shadow never enters the shadow pass: distant shells there would cost and show nothing.
+- The rural street was split into a base (ground, wires, decals that span it) and three chunks along the road, with no visual change.
+
+### Cells
+**Concept.** Classic games (and "portals" in general) divide a place into connected rooms and draw only the room you're in and the rooms next to it. The **layout** hides the rest: a bend, an alley end wall, a footbridge.
+
+**AtomEngine.** `cells` are rectangles on the ground plane with a list of neighbours. `VisibleCells(cells, position)` returns the player's cell and its neighbours; near chunks of any other cell are skipped. Mid and far chunks always draw. Outside every cell (a gap, a teleport) everything is drawn rather than risk a hole.
+
+### A uniform grid for collision
+**Concept.** A triangle soup tested triangle by triangle is O(n) per query. A **broad phase** first narrows down which triangles could be involved. The simplest is a **uniform grid**: each triangle is listed in every cell its bounds overlap, and a query only looks at the cells it touches.
+
+**AtomEngine.**
+- `CollisionWorld` builds a 4 m XZ grid lazily, on the first query after triangles change (`Append` adds a chunk's collision).
+- A triangle spanning several cells would be found several times; a per-query **mark** skips repeats.
+- Candidates are sorted back into triangle order before testing, so every query returns *exactly* what the brute-force scan returned. Unit tests prove it against the old scan; the grid is about 5× faster on the street.
+
+### Draw sorting and the model cache
+- **Draw sorting.** Before drawing, commands are stable-sorted by (decal, alpha-masked, double-sided, material, mesh). Draws that share a pipeline and a material follow each other, and the renderer skips rebinding what's already bound. The street's 238 draws need 2 pipeline binds and about 80 material binds.
+- **`ModelCache`.** A model used by two levels, or by several entities, is loaded once. Entries are **weak pointers**: a model dies with the last level that uses it, and during a level change the next level picks up the models the old one still holds. A file changed on disk is loaded again (hot reload, §39). Materials are shared with the model, so runtime edits (a flickering sign, a lightmap) reach every user.
+- **F1 per layer.** The overlay shows, per layer: chunks visible/submitted, draws, triangles and shadow draws.
+
+**Code.** `Engine/Renderer/Renderer.*` (`ChunkInfo`, `RenderLayer`, `LayerStats`, `SortDrawCommands`), `Engine/Physics/CollisionWorld.*`, `Game/Level/ModelCache.h`, `Game/Level/LevelData.*` (`ChunkData`, `CellData`, `VisibleCells`), `Level::Submit`, `build_assets.py` (`split_into_chunks`), `Tests/CollisionGridTests.cpp`.
+
+---
+
+## 41. Night rendering (M23)
+
+### Emissive masks
+**Concept.** Until now a glowing material glowed with its base colour (the vending machine front). At night that's too coarse: a building's lit windows, a sign's tubes and its dark board all share one texture. An **emissive texture** (a mask) says exactly which pixels emit light and in what colour, independently of how the surface looks unlit.
+
+**AtomEngine.** `Material::emissiveTexture` (glTF `emissiveTexture`, fragment slot t3). The shader's emitted term is `emissiveMask × emissiveFactor` when a mask exists, `baseColor × emissiveFactor` otherwise. Blender materials get their masks from `atom_kit.EMISSIVE` (mask generator, strength, fog amount).
+
+### Fog amount
+A light seen through fog still reads as a light: the glow reaches you even when the wall around it has faded. Each material carries a **fog amount** (glTF extras `atom_fog`, 0..1): the share of the runtime fog it receives. Signs and lamps take about a third; far cards (§42) get less than full fog so the skyline doesn't vanish.
+
+### Glow
+**Concept.** **Bloom** (here, "glow") imitates light scattering in the eye and the lens: bright things bleed into their surroundings. The standard recipe:
+1. a **bright pass** keeps only what's brighter than a threshold;
+2. a **blur** spreads it;
+3. a **composite** adds it back over the image.
+
+**AtomEngine** (`Engine/Renderer/Glow.*`):
+- The bright pass runs at **¼ size** of the scene, with a **soft knee**: brightness above the threshold eases in over a band instead of switching on, so nothing pops.
+- The blur is a **separable Gaussian**: one horizontal and one vertical pass do what a 2D kernel would at a fraction of the taps. 9 taps are read as 5 samples by placing each between two texels, so bilinear filtering blends them for free; the rounded weights are normalised so the total energy stays 1. At ¼ size the blur spans about 36 scene pixels.
+- The post pass adds the glow in HDR, before tonemapping, with a slight shimmer (a period, analogue feel).
+- Levels set `lighting.glow` (strength, threshold). It costs about 0.09 ms on the Iris Xe.
+
+### Halos
+Soft additive glows around lamps and signs, drawn as **billboards** through the particle path (§25) with an additive-blend pipeline variant. They're submitted separately (`SubmitHalos`) and drawn after the particles with a first-instance offset into the same instance buffer. A halo can **flicker** (§43).
+
+### The night sky
+**Concept.** An **equirectangular panorama** maps longitude to x and latitude to y, so one 2:1 image covers every direction.
+
+**AtomEngine.** The sky is one fullscreen triangle on the far plane (`z = w`, depth 1, behind everything). Each pixel rebuilds its view direction from its clip position with the inverse view-projection of a camera at the origin (**rotation only**), so the panorama stays fixed in the world as you turn and never moves as you walk. The Blender build paints it (deep blue overhead, a city's orange glow low in the haze, stars, faint clouds) and writes it with the deterministic PNG writer.
+
+**Code.** `Shaders/Basic.frag.hlsl` (emissive, fog amount), `Shaders/GlowBright/GlowBlur.frag.hlsl`, `Shaders/Post.frag.hlsl`, `Shaders/Sky.*.hlsl`, `Shaders/Halo.frag.hlsl`, `Renderer::SubmitHalos/DrawSky`, `atom_textures.py` (`night_sky`, `neon_sign`), `atom_kit.py` (`EMISSIVE`, `build_street_lamp`, `build_neon_sign`), `Assets/Levels/night_test.json`.
+
+---
+
+## 42. Middle and far layers: shells, impostors and skyline cards (M24)
+
+### Facade shells (middle layer)
+Box buildings with one **facade atlas**: four styles (office block, tiled flats, dark brick, grey tower) in the four quadrants of one texture, lit windows in its emissive mask. Each face maps a whole quadrant, about 3 m a floor. No collision, no shadows, no bake: lit windows come from the mask, the rest from the level's ambient. They ring the playable area 40–90 m out.
+
+### Impostors
+**Concept.** An **impostor** replaces a detailed object with a picture of it on a flat card that turns to face the camera. Far enough away, the eye can't tell. Rendering the object from several directions and showing the view closest to the current one keeps the picture right as you walk around it.
+
+**AtomEngine.**
+- **Baking** (`atom_city.render_impostor`): Cycles renders the building **orthographically** (like a card seen from far away) from **8 directions** into one RGBA atlas, 128×256 per view, on the CPU with a fixed seed (byte-identical rebuilds). Transparent texels are **dilated**: they take the colour of their opaque neighbours, so filtering never pulls a dark fringe into the edges. A small JSON descriptor records the atlas, the view count and the card size.
+- **At runtime** (`Game/World/Impostors.*`): one quad per view, and a material whose base colour is black and whose emissive texture and alpha both come from the atlas (the render already holds the lighting). The card turns to face the viewer; `SelectImpostorView` picks the view rendered from the closest direction.
+- **Hysteresis.** Near the boundary between two views the choice would flip back and forth every frame as the camera sways. The current view is kept until the camera is 7.5° past the boundary; only then does it switch. Unit tests swing the camera across a boundary and check that the view never flickers.
+- Levels place impostors (`impostors`: descriptor, position, yaw, layer); each card is its own chunk in its layer, never in the shadow pass.
+
+### Skyline cards (far layer)
+Three rings of inward-facing, **alpha-tested** silhouette cards at 180, 260 and 380 m, taller the further out, so each shows above the one in front. Their texture repeats at different rates per ring, so the silhouettes don't line up, and parallax between the rings sells depth in front of the panorama. Lit windows glow from the mask with little fog.
+
+**Code.** `Tools/Blender/atom_city.py`, `atom_textures.py` (`facade_atlas`, `skyline`), `Game/World/Impostors.*`, `Level::Submit`, `Assets/City/`, `Tests/ImpostorTests.cpp`.
+
+---
+
+## 43. The night street: cells, night lightmaps, live lights, wet road (M25)
+
+**Level E**, the night street, is the first place built for the layered approach: four cells (the bus stop, the main street, a narrow alley and the pachinko front), with the mid shells, skyline and impostors of §42 around them.
+
+### Layout does the culling
+Each cell is one mesh and one near chunk. The alley's far end is a wall; the plaza opens off the alley to the side; an elevated railway crosses over the street. From the main street, no line of sight reaches the pachinko front, so it isn't drawn until you're in the alley. Buildings that form a neighbouring cell's walls belong to the cell they're seen from.
+
+### A lightmap per chunk, baked in context
+- A whole street at a useful density doesn't fit one texture, so **chunks carry their own lightmaps** (`chunks[].lightmap`): 1024² for the main street and the pachinko front, 512² for the others.
+- Each cell is baked **with the other cells present** (`context`): they cast shadows onto it, bounce light onto it and, being emissive, light it. A lamp near a border lights both sides the same, with no seam.
+- Bake-only lights: point lights in every lamp head, an area light outside each lit shop window, the pachinko front's floodlight, vending machines, and a weak **sun** for moonlight. Signs and windows add their own emission to the bake: neon spill for free.
+- Small, very bright emitters make Cycles leave isolated bright texels (**fireflies**). The night bakes **clamp** indirect samples to remove them.
+
+### Live lights
+**Concept.** Baked light can't move or flicker. The few lights that must are computed per pixel at runtime.
+
+**AtomEngine.**
+- Up to 4 **point lights** per frame (`Renderer::SubmitLiveLight`, level `lights`) reach the shader in the per-frame uniforms. Each is Lambert with a falloff `(1 − d/radius)²` that reaches zero exactly at its radius, so its reach is exact and cheap to reason about.
+- A light, a halo or an emissive material can **flicker**. `FlickerFactor(time, seed, amount)` multiplies three incommensurate sines: their product rarely peaks, so the drops are short and never rhythmic. The seed is the *position*, so a halo, a live light and a sign's material at the same place stutter together.
+- A light or halo can ride on an entity (`entity`, position as an offset).
+- **Movers** (`mover` on an entity) shuttle it between two points: wait, travel, wait, travel back. The elevated train uses one; its headlights (halos), its live light and its sound follow it across the street. A looping sound on a mover plays only while it moves and pans across the stereo field as it passes.
+
+### The wet road
+No reflections are computed. The look comes from:
+- dark wet asphalt;
+- **reflection decals**: soft coloured streaks under each sign and window, one colour per column of a single texture;
+- puddle decals;
+- a **wet** material setting (glTF extras `atom_wet`). On wet materials the shader breaks the emitted light (the reflections) into slow ripples of world-space value noise, stretched along the street, and lays a faint moving sheen that is brighter where the ground is lit.
+
+### Ambience per cell
+`audio.zones` give each cell its own beds (traffic at the bus stop, voices and bicycle bells on the main street, a drone in the alley, the pachinko hall leaking through its doors). All of them play from the start at zero; each frame the beds of the player's cell step toward full and the others toward silence (`StepTowards`, a linear crossfade over `zoneFadeSeconds`).
+
+**Code.** `Tools/Blender/atom_night.py`, `atom_lightmap.py` (point and sun lights, `context`, `clamp`), `Game/World/LiveEffects.*`, `Level::Update/Submit` (movers, lights, zones), `Engine/Renderer/Lighting.h` (`LiveLight`), `Shaders/Basic.frag.hlsl` (`LiveLights`, wet), `Game/SoundSynth.cpp` (traffic, neon buzz, voices, bells, pachinko leak, train), `Tests/NightStreetTests.cpp`, `Tests/Scenarios/night_street.atomtest`.
+
+---
+
+## 44. Action sequences: the night bus (M26)
+
+**Concept.** An interaction that does one thing (a message, a flag, a level change) isn't enough for a moment that plays out over time: wait, something approaches, a sound, a door, a fade. A **sequence** is a list of timed steps written as data and run by a small interpreter. It's the same idea as actions (§29), stretched over time.
+
+**AtomEngine.**
+- Levels define named `sequences`. Steps: `wait`, `message`, `setFlag`, `show`/`hide` an entity, `playSound` (optionally following an entity, optionally looping), `playAnimation`, `moveEntity` (eased to a stop, like a vehicle braking), `changeLevel`. A `sequence` action starts one.
+- `SequenceRunner` executes instant steps until one takes time, and carries leftover time into the next step, so a sequence runs the same at any frame rate. It doesn't know the game: it calls **hooks** (message, move, play…) that `DemoApp` supplies, which keeps it unit-testable.
+- While one runs the game is in `Mode::InSequence`: the player is frozen, nothing can be targeted, and a second sequence can't start.
+- The parser checks that every entity a step names exists, that every sequence an action names exists, and that `changeLevel` is the last step (after it the level is gone).
+- Entities can start **hidden**; a hidden entity isn't drawn, and neither is anything riding on it.
+
+**The bus.** At the rural stop (east end of the street) and the city stop (by the railway), waiting starts the sequence. The bus, hidden far down the road, appears and drives in with its headlights and engine, then the doors fold open with a hiss (a `doors_open` clip). The fade then takes you to the other stop.
+
+**Harness.** `wait_for_sequence`. The roundtrip scenario now rides street → city → street and checks the frozen player, the flags and the arrival spot.
+
+**Code.** `Game/Interaction/Sequence.*`, `Game/Level/LevelData.cpp` (`ParseStep`), `Level::SetEntityVisible/SetEntityPosition/PlaySound`, `DemoApp::RunSequence/UpdateSequence`, `atom_kit.py` (`build_bus`, `build_bus_stop`), `Tests/SequenceTests.cpp`.
+
+---
+
+## 45. Render-to-texture and the pachinko hall (M27)
+
+### Render-to-texture
+**Concept.** A texture doesn't have to come from a file. The GPU can draw into it (a **render target**) and then sample it like any other texture. That's how in-world screens, mirrors and security cameras work.
+
+**AtomEngine.**
+- `Texture::CreateRenderTarget`: a one-mip RGBA8 sRGB texture usable both as a colour target and in a sampler.
+- `RenderTexture` pairs one with a **canvas**: the same immediate-mode 2D batcher as the UI (§28), at the target's fixed virtual resolution (320×240). Whatever is drawn into the canvas during a frame is rendered into the texture before the scene pass, so the scene samples this frame's picture.
+- Render targets are marked as **pixel art** and sampled with **nearest** filtering: up close, the screen shows square pixels instead of a blur.
+- F1 counts render textures drawn and scene draws sampling one; the harness checks them with `expect_screens`.
+
+### A fixed timestep
+**Concept.** A simulation advanced by the frame's `dt` behaves differently at 30 fps and at 144 fps: collisions are missed, bounces change. A **fixed timestep** accumulates frame time and spends it in whole steps of a constant size. After a long hitch only a few steps run and the backlog is dropped (otherwise the catch-up takes longer than the frame, the next frame has even more to catch up: the "spiral of death").
+
+**AtomEngine.** `FixedStep`: 1/60 s steps, at most 5 per frame. Unit tests show 60 steps per second from 144 fps and from 30 fps, and a capped two-second stall.
+
+### The attract loop
+`PachinkoAttract` is what a machine shows while nobody plays:
+- balls fall through staggered pins and bounce off the reel window;
+- one landing in the start pocket spins the three reels and rolls up a 7-segment score;
+- a ring of chasing bulbs flashes on a win.
+
+Everything is plain rectangles. It runs on the fixed step with a **seeded xorshift** generator, so it's **deterministic**: the same seed and step count give the same picture on any machine at any frame rate. Tests check that, and that balls stay on the field and score. Levels map it onto materials (`screens`: material name, seed). Two seeds alternate along the rows so neighbours don't play in sync. The playable game (v0.0.5) will draw into the same kind of texture.
+
+### Room reverb
+**Concept.** A room answers a sound with a dense tail of reflections. Schroeder's classic reverb imitates it with **comb filters** (a delay fed back into itself, each an echo that repeats and decays) in parallel, followed by an **all-pass** filter that smears those echoes into a wash without colouring the tone.
+
+**AtomEngine.** `Reverb` (in `Engine/Audio`) runs four damped combs and an all-pass per channel on the master mix, with slightly different delays left and right for width. The damping makes highs die first, as in a real room. Levels set it with `audio.reverb` (mix, size, feedback); leaving the level turns it off. It is pure DSP, unit-tested for silence when off and for a tail that decays.
+
+### Level F, the pachinko hall
+Behind the city's pachinko doors:
+- four double rows of machines under fluorescent panels, and a prize counter at the back;
+- one 1024² lightmap baked from the panels, with the machines' faces and lamp boxes bleeding colour onto the carpet;
+- the hall's loud bed with the reverb inside, and the low-passed leak outside.
+
+**Code.** `Engine/Renderer/RenderTexture.*`, `Texture::CreateRenderTarget`, `Renderer::CreateRenderTexture/RenderTextures`, `Game/World/FixedStep.h`, `Game/World/PachinkoAttract.*`, `Engine/Audio/Reverb.h`, `Level::Create/Update` (screens, reverb), `Tools/Blender/atom_pachinko.py`, `Tests/PachinkoTests.cpp`.
+
+---
+
+## 46. The asset build at scale: bake cache and GPU baking
+
+**Concept.** A build step that always redoes everything gets slower as content grows. The standard answer is an **incremental build**: remember a **fingerprint** (a hash) of everything a result depends on, and redo the work only when the fingerprint changes. This is what `make` does with timestamps and what content pipelines do with hashes.
+
+**AtomEngine.**
+- Lightmap bakes are the expensive step: about 13 of the ~16 minutes of a full build go to the night street's four lightmaps, CPU path tracing at 192 samples.
+- `atom_lightmap.fingerprint` hashes everything a bake depends on:
+  - the mesh and its lightmap UVs, and the meshes around it (their geometry and render UVs);
+  - their materials, every node input and every image's pixels;
+  - the lights and the settings (size, samples, sky, clamp);
+  - the device, Blender's version and the baker's own source code.
+- Records live in `build/bake_cache/` (not committed; a fresh clone bakes once), one per lightmap and device. A bake is skipped only if the fingerprint matches **and** the PNG on disk is exactly the file the last bake wrote.
+- A build that doesn't touch lit levels takes about 2 minutes instead of 16; changing one level's lights re-bakes only that level. `--no-cache` bakes everything.
+
+### GPU baking and determinism
+- `--gpu` bakes on the NVIDIA GPU (OptiX, else CUDA): all six lightmaps in under 3 minutes instead of about 16.
+- The price is **reproducibility**. A GPU path tracer and a CPU one give the same lighting with a different noise pattern, and a GPU bake isn't byte-repeatable even on the same machine. In a measured comparison on the main street, 71 % of texels differed between CPU and GPU, and two GPU runs differed by one level in a few texels.
+- So GPU bakes are for tuning light only. Their PNGs carry a text chunk (`atom-gpu-bake`), and a unit test refuses any such lightmap in `Assets/`: rebuild on the CPU before committing.
+
+**Code.** `Tools/Blender/atom_lightmap.py` (`fingerprint`, `CACHE_DIR`, `USE_GPU`), `build_assets.py` (`--no-cache`, `--gpu`), `Tests/AuthoringTests.cpp`.
+
+---
+
+## 47. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -1009,11 +1226,26 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 **v0.0.2, per level** (same machine and settings): street ≈ 2.6 ms, shrine grounds ≈ 1.8 ms, interior ≈ 1.5 ms. The UI overlay (a few batched quads) is negligible. The interior is cheapest because the level turns shadows off and has few draws.
 
-**v0.0.3** adds more vertices (tessellation for the bake, §34), a lightmap sample in the interior, alpha-tested cards in the scene and shadow passes, decals, and sway in the vertex shader. Its per-level frame times are measured for the v0.0.3 release (M21) and not recorded here yet.
+**v0.0.3** adds more vertices (tessellation for the bake, §34), a lightmap sample in the interior, alpha-tested cards in the scene and shadow passes, decals, and sway in the vertex shader: street ≈ 3.5 ms, shrine grounds ≈ 2.9 ms, interior ≈ 1.5 ms, windmill field ≈ 2.2 ms.
+
+**v0.0.4**, per level (Release, IMMEDIATE present mode, 1280×720, Iris Xe, default spawn, averaged over 4000+ frames):
+
+| Level | Frame | Draws (near / mid / far) | Shadow draws |
+|---|---|---|---|
+| street | ≈ 3.9 ms | 238 / 0 / 0 | 114 |
+| shrine grounds | ≈ 3.4 ms | 104 / 0 / 0 | 137 |
+| machiya interior | ≈ 2.0 ms | 11 / 0 / 0 | 0 |
+| windmill field | ≈ 2.5 ms | 88 / 0 / 0 | 109 |
+| night street | ≈ 3.5 ms | 52 / 4 / 4 | 0 |
+| pachinko hall | ≈ 2.6 ms | 13 / 0 / 0 | 0 |
+
+- **Per layer**: on the night street, without the mid and far layers the frame is ≈ 2.8 ms, so shells, skyline and seven impostors cost ≈ 0.65 ms for 8 draws, none in the shadow pass.
+- **The older levels** are 0.3–0.5 ms slower than in v0.0.3. The likeliest cause is the glow pass (§41), which now runs in every level; it wasn't measured separately.
+- **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 41. Build system and project layout
+## 48. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3.
@@ -1021,8 +1253,9 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
+- **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39).
-- **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmap and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
+- **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
 ```
@@ -1030,11 +1263,13 @@ Engine/  Assets/ Audio/ Core/ Physics/ Platform/ Renderer/ Scene/ UI/
 Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Atmosphere, UneaseDirector, Main
          World/ Interaction/ Dialogue/ Level/ Testing/
-Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI (.hlsl)
-         + Common.hlsli, Sway.hlsli
-Tools/Blender/  kit + street + levels + lint + bakes (vertex, lightmap)
-                + markers + export
-Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ (.glb, lightmap .png),
+Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
+         GlowBright, GlowBlur (.hlsl) + Common.hlsli, Sway.hlsli
+Tools/Blender/  kit + street + levels + city + night + pachinko + lint
+                + bakes (vertex, lightmap, cached) + impostors + markers
+                + export
+Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/
+         Sky/ (.glb, lightmap .png, impostor atlas),
          Levels/*.json (+ *.markers.json), Dialogue/*.json,
          Schemas/*.schema.json, Fonts/
 docs/    this manual
@@ -1046,7 +1281,7 @@ external/ SDL glm cgltf stb json doctest
 
 ---
 
-## 42. Glossary
+## 49. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -1060,10 +1295,15 @@ external/ SDL glm cgltf stb json doctest
 - **Baked lighting** — light computed offline and stored (in vertex colours or lightmaps) instead of computed every frame.
 - **Chart (UV)** — a connected piece of a model laid flat in a UV set; lightmap charts must not overlap.
 - **Bandwidth** — bytes moved between GPU and memory per second; the usual bottleneck on integrated GPUs.
+- **Bloom / glow** — bright parts of the image blurred and added back, imitating light scattering in the eye and lens.
+- **Broad phase** — a cheap first test that narrows down which objects or triangles could collide, before the exact test.
 - **Beer–Lambert law** — light through a medium decays as e^(−density·distance); the basis of exponential fog.
 - **Billboard** — a quad that always faces the camera.
 - **Biquad** — a standard 2nd-order digital filter (low/high/band-pass).
 - **Catenary** — the sag curve of a hanging cable (approximated by a parabola for the power lines).
+- **Cell** — a connected area of a level (a stretch of street, an alley); only the player's cell and its neighbours are drawn.
+- **Chunk** — a piece of a level drawn and culled as a whole, with a distance layer and a shadow flag.
+- **Comb filter** — a delay fed back into itself: an echo that repeats and decays; the building block of classic reverbs.
 - **Clip (animation)** — a named set of keyframed channels that move a model's nodes.
 - **Clip space / NDC** — coordinates after projection / after dividing by w.
 - **Command buffer** — recorded GPU work, submitted as a unit.
@@ -1075,16 +1315,23 @@ external/ SDL glm cgltf stb json doctest
 - **Crossfade loop** — blending a sound's end into its start so it loops seamlessly.
 - **Cycles** — Blender's path tracer, used here to bake light.
 - **Decal** — a layer of detail (stain, sign, marking) drawn over a surface: blended, depth-tested without writing depth, with a depth bias.
+- **Determinism** — the same inputs always producing exactly the same output (byte-identical assets, the same attract loop at any frame rate).
 - **Data-driven** — behaviour and content described in data files (levels, dialogue, actions) and interpreted by generic code.
 - **Dangling reference** — a pointer or index to an object that no longer exists.
 - **dt** — delta time, seconds since the last frame.
 - **DXIL / HLSL / dxc** — D3D12 shader bytecode / shader language / compiler.
+- **Emissive mask** — a texture saying which pixels of a surface emit light, and in what colour.
+- **Equirectangular** — a 2:1 panorama mapping longitude to x and latitude to y; covers every direction.
 - **Double-sided** — rendered from both sides (no back-face culling), with the normal flipped on the back.
 - **Entity** — a thing in the world: a name, a position and a set of capabilities.
+- **Fingerprint** — a hash of everything a result depends on; unchanged fingerprint, unchanged result, so the work can be skipped.
+- **Fireflies** — isolated, far too bright texels from a path tracer finding a rare, very bright light path.
+- **Fixed timestep** — advancing a simulation in constant steps paid for by accumulated frame time, so it behaves the same at any frame rate.
 - **Frustum** — the camera's visible volume.
 - **Film grain** — animated noise imitating film, applied in post.
 - **Generational handle** — (slot, generation) reference that fails safely once its object is removed.
 - **Glyph atlas** — a texture holding every rasterised character of a font.
+- **Hysteresis** — keeping a state until the input has clearly moved past the switching point, so it doesn't flicker at the boundary.
 - **Hot reload** — replacing content in a running program when its files change, without restarting.
 - **JSON Pointer** — a path to one value inside a JSON document, e.g. `/entities/3/interactable/action/type`.
 - **JSON Schema** — a description of a JSON file's shape that editors use for completion and validation.
@@ -1092,6 +1339,8 @@ external/ SDL glm cgltf stb json doctest
 - **Height fog** — fog whose density falls off with altitude.
 - **HDR / LDR** — high / low dynamic range (values above 1.0 or clipped).
 - **Hemispheric ambient** — ambient light blended between a sky colour and a ground colour by the surface's up-facing.
+- **Impostor** — a pre-rendered picture of an object on a camera-facing card, showing the view closest to the camera's direction.
+- **Incremental build** — redoing only the work whose inputs changed.
 - **Immediate-mode UI** — UI re-described every frame by the game instead of kept as a persistent widget tree.
 - **Instancing** — drawing many copies of a mesh in one draw call with per-instance data.
 - **Integration / scenario test** — a test that drives the real, running program end to end.
@@ -1101,6 +1350,7 @@ external/ SDL glm cgltf stb json doctest
 - **Lambert** — diffuse lighting ∝ cos(angle between normal and light).
 - **Lightmap** — a texture of baked light mapped by its own non-overlapping UV set.
 - **Lint** — an automatic check that rejects suspicious input (here: z-fighting geometry at export).
+- **Mover** — an entity capability shuttling it between two points (the train).
 - **Marker** — an empty in Blender named `spawn:`/`entity:` that places something the level file describes.
 - **Mipmap** — pre-filtered smaller copies of a texture.
 - **MSAA / resolve** — multisample AA / averaging samples into a normal image.
@@ -1113,13 +1363,19 @@ external/ SDL glm cgltf stb json doctest
 - **Pipeline** — shaders + fixed-function state, baked.
 - **RAII** — resource acquisition is initialisation: an object's destructor releases what it owns, so cleanup follows ownership automatically.
 - **Raycast** — finding the first surface a line segment hits; used for line of sight.
+- **Render target / render-to-texture** — a texture the GPU draws into and later samples like any other.
+- **Representation layer** — near, middle or far: how detailed (and how expensive) a piece of the world is drawn.
+- **Reverb** — the dense tail of reflections a room adds to a sound; here imitated with comb and all-pass filters.
 - **Render pass** — scope of drawing into a set of attachments, with load/store ops.
 - **Rigid animation** — whole parts moving by node transforms, without deforming (no skinning).
 - **Render scale** — scene resolution as a fraction of the window.
+- **Separable filter** — a 2D filter split into a horizontal and a vertical 1D pass (the Gaussian blur of the glow).
+- **Sequence (action)** — a list of timed steps written as data and run over several frames (the bus arriving).
 - **Sample / frame (audio)** — one amplitude value / one value per channel at a point in time.
 - **Sampler** — texture read settings (filter, wrap).
 - **Shadow acne** — speckled false self-shadowing from depth-comparison errors.
 - **Shadow map** — a depth image rendered from a light, used to test visibility from that light.
+- **Skyline card** — a flat, alpha-tested cut-out of distant buildings; rings of them give parallax in front of the sky.
 - **Skinning** — deforming a mesh by weighted joints (a skeleton); not used in AtomEngine.
 - **Slerp** — spherical linear interpolation between rotations (quaternions), at constant angular speed.
 - **Slot map** — a container of reusable slots addressed by generational handles.
@@ -1130,6 +1386,7 @@ external/ SDL glm cgltf stb json doctest
 - **Story flag** — a named boolean recording progress ("keeper_permission"), surviving level changes.
 - **Swapchain** — the window's ring of presentable images.
 - **Sway (vertex)** — moving vertices in the vertex shader by a weighted wind offset, for foliage and cloth.
+- **Soft knee** — a threshold that eases in over a band instead of switching on (the glow's bright pass).
 - **Tessellation (here)** — splitting large faces into a grid so vertex-stored data (baked light) has vertices to live on.
 - **Texel snapping** — moving a shadow box only in whole-texel steps to stop shimmering.
 - **Tonemapping** — compressing HDR values into the display range with a smooth curve.
@@ -1142,4 +1399,6 @@ external/ SDL glm cgltf stb json doctest
 - **Voice** — one playing instance of a sound in a mixer.
 - **Vsync** — syncing presentation to the monitor refresh.
 - **Winding** — vertex order of a triangle (CW/CCW), used for back-face culling.
+- **Wet material** — a material whose emitted light ripples and which catches a moving sheen; the fake wet road.
+- **xorshift** — a tiny, fast pseudo-random generator; seeded, it gives the same sequence on every platform.
 - **Z-fighting** — flicker when two surfaces share the same (or nearly the same) depth, so the depth test picks a different winner per pixel and frame; in AtomEngine caused by coplanar overlapping faces (§33).
