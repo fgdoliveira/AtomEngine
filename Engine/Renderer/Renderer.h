@@ -6,6 +6,7 @@
 #include "Renderer/Mesh.h"
 #include "Renderer/Particles.h"
 #include "Renderer/RenderSettings.h"
+#include "Renderer/RenderTexture.h"
 #include "Renderer/RenderTargets.h"
 #include "Renderer/Texture.h"
 #include "UI/UIRenderer.h"
@@ -84,6 +85,8 @@ namespace Atom
         std::uint32_t sceneWidth = 0;
         std::uint32_t sceneHeight = 0;
         std::uint32_t msaaSamples = 0;
+        std::uint32_t renderTextures = 0;  // M27: drawn into this frame
+        std::uint32_t renderTextureDraws = 0; // scene draws sampling one
     };
 
     class Renderer
@@ -118,6 +121,11 @@ namespace Atom
 
         // Loads a PNG/JPG/... file; nullptr (with a message) on failure.
         std::unique_ptr<Texture> LoadTexture(const std::string& path, bool srgb = true);
+
+        // Render-to-texture (M27): drawn each frame before the scene, from
+        // whatever its canvas received that frame.
+        std::unique_ptr<RenderTexture> CreateRenderTexture(std::uint32_t width, std::uint32_t height);
+        void UnregisterRenderTexture(RenderTexture* target);
 
         // The projection is built at render time from the swapchain size so
         // it always matches the window.
@@ -272,6 +280,7 @@ namespace Atom
         std::array<SDL_GPUGraphicsPipeline*, 3> m_haloPipelines{};
         std::array<SDL_GPUGraphicsPipeline*, 3> m_skyPipelines{};
         SDL_GPUGraphicsPipeline* GetSkyPipeline(std::uint32_t samples);
+        bool RenderTextures(SDL_GPUCommandBuffer* commandBuffer);
         void DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
                      const glm::mat4& projection);
         Glow m_glow;
@@ -288,6 +297,8 @@ namespace Atom
         SDL_GPUSampler* m_sampler = nullptr;      // material textures
         SDL_GPUSampler* m_postSampler = nullptr;  // scene -> swapchain
         SDL_GPUSampler* m_lightmapSampler = nullptr; // clamped, few mips
+        SDL_GPUSampler* m_pixelSampler = nullptr;    // nearest, clamped (render textures)
+        std::vector<RenderTexture*> m_renderTextures;
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;

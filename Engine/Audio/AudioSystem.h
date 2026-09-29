@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Audio/Reverb.h"
+
 #include <glm/vec3.hpp>
 
 #include <cstdint>
@@ -67,6 +69,8 @@ namespace Atom
             const glm::vec3& right
         );
         void SetMasterGain(float gain);
+        // Room reverb on the whole mix (M27); mix 0 turns it off.
+        void SetReverb(float mix, float size, float feedback);
         float GetMasterGain() const { return m_masterGain; }
         std::size_t GetVoiceCount() const;
         // Looping voices only: the ones that play until stopped, so a leak
@@ -114,5 +118,6 @@ namespace Atom
         glm::vec3 m_listenerPosition{ 0.0f };
         glm::vec3 m_listenerRight{ 1.0f, 0.0f, 0.0f };
         float m_masterGain = 0.8f;
+        Reverb m_reverb;
     };
 }

@@ -37,11 +37,13 @@ import atom_bake  # noqa: E402
 import atom_lightmap  # noqa: E402
 import atom_city  # noqa: E402
 import atom_night  # noqa: E402
+import atom_pachinko  # noqa: E402
 
 # Pick up edits when re-run inside a long-lived Blender session.
 importlib.reload(atom_textures)
 importlib.reload(atom_kit)
 importlib.reload(atom_street)
+importlib.reload(atom_pachinko)  # before atom_levels, which uses it
 importlib.reload(atom_levels)
 importlib.reload(atom_bake)
 importlib.reload(atom_lightmap)
@@ -258,7 +260,8 @@ def main():
             mesh = next(obj for obj in level.visual if obj.name == folder)
             level_dir = os.path.join(args.out, folder.capitalize())
             os.makedirs(level_dir, exist_ok=True)
-            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"))
+            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"),
+                               **atom_levels.LIGHTMAP_OPTIONS.get(folder, {}))
 
     # The night street: a lightmap per cell, lit by the street's own lamps,
     # windows and signs.

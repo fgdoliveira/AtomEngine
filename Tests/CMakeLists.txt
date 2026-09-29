@@ -15,6 +15,7 @@ add_executable(
     ImpostorTests.cpp
     NightStreetTests.cpp
     SequenceTests.cpp
+    PachinkoTests.cpp
 )
 
 target_link_libraries(

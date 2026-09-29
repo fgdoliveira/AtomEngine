@@ -926,3 +926,64 @@ def timetable(width=64, height=96, seed=87):
     times = (~header) & (ys % 6 < 2) & ((xs % 20) > 3) & ((xs % 20) < 15) & (rng.random((height, width)) > 0.15)
     rgb = np.where(times[:, :, None], np.array([0.10, 0.10, 0.12]), rgb)
     return _rgba(rgb), _rgba(rgb * 0.8)
+
+
+# --------------------------------------------------------------------------
+# Pachinko hall (M27)
+# --------------------------------------------------------------------------
+
+def carpet(size=256, seed=90):
+    """Hall carpet: dark red with a gold diamond lattice, worn in patches."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:size, 0:size]
+    u, v = (xs % 64) / 64.0 - 0.5, (ys % 64) / 64.0 - 0.5
+    diamond = np.abs(np.abs(u) + np.abs(v) - 0.35) < 0.04
+    dots = (np.abs(u) + np.abs(v)) < 0.06
+    rgb = _tint(0.85 + 0.15 * fbm(size, size, 32, 2, rng), (0.32, 0.06, 0.08))
+    rgb = np.where((diamond | dots)[:, :, None], np.array([0.55, 0.42, 0.15]), rgb)
+    wear = np.clip(fbm(size, size, 4, 3, rng) * 1.6 - 0.7, 0, 1) * 0.35
+    return _rgba(rgb * (1.0 - wear[:, :, None]))
+
+
+def pachinko_face(width=64, height=128, seed=91):
+    """A machine's playfield behind glass (rows bottom first): a painted
+    field, a ring of lamps and a gold frame. Returns (base, emissive
+    mask): the lamps and the brighter art glow."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width]
+    u, v = xs / width, ys / height
+    art = fbm(width, height, 3, 3, rng)
+    rgb = np.stack([0.25 + 0.6 * art, 0.12 + 0.3 * (1 - art), 0.45 + 0.4 * np.sin(v * 6.0) ** 2], axis=2)
+    frame = (u < 0.06) | (u > 0.94) | (v < 0.04) | (v > 0.96)
+    rgb = np.where(frame[:, :, None], np.array([0.75, 0.6, 0.25]), rgb)
+    ring = np.abs(np.hypot((u - 0.5) * 1.0, (v - 0.55) * 0.5) - 0.36) < 0.03
+    lamps = ring & (((xs + ys) % 6) < 3)
+    rgb = np.where(lamps[:, :, None], np.array([1.0, 0.9, 0.5]), rgb)
+    mask = np.where(lamps[:, :, None], np.array([1.0, 0.85, 0.45]), rgb * 0.25)
+    mask = np.where(frame[:, :, None], np.array([0.0, 0.0, 0.0]), mask)
+    return _rgba(rgb), _rgba(mask)
+
+
+def machine_top(width=64, height=16, seed=92):
+    """The lamp box on top of a machine: a coloured band of lights."""
+    ys, xs = np.mgrid[0:height, 0:width]
+    hue = np.where((xs // 8)[:, :, None] % 3 == 0, np.array([1.0, 0.25, 0.5]),
+                   np.where((xs // 8)[:, :, None] % 3 == 1, np.array([1.0, 0.8, 0.2]), np.array([0.3, 0.8, 1.0])))
+    lit = (ys > 3) & (ys < height - 3)
+    rgb = np.where(lit[:, :, None], hue, np.array([0.1, 0.1, 0.12]))
+    return _rgba(rgb * 0.8), _rgba(np.where(lit[:, :, None], hue, 0.0))
+
+
+def ceiling_panel(size=32):
+    """A fluorescent ceiling panel: a milky diffuser (the whole face glows)."""
+    ys, xs = np.mgrid[0:size, 0:size]
+    frame = (xs < 2) | (xs > size - 3) | (ys < 2) | (ys > size - 3)
+    rgb = np.where(frame[:, :, None], np.array([0.6, 0.6, 0.6]), np.array([0.95, 0.97, 1.0]))
+    return _rgba(rgb), _rgba(np.where(frame[:, :, None], 0.0, rgb))
+
+
+def screen_placeholder(size=16):
+    """What a machine screen shows in Blender; the engine replaces it with
+    a live render texture (the level's "screens")."""
+    flat = np.ones((size, size, 3)) * np.array([0.1, 0.12, 0.3])
+    return _rgba(flat), _rgba(flat)

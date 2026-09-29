@@ -94,6 +94,14 @@ MATERIALS = {
     "neon_reflection": (lambda: tex.neon_reflection()[0], 1.0, 0.2, 0.0),
     "puddle": (lambda: tex.puddle(), 1.0, 0.1, 0.0),
     "posters": (lambda: tex.posters(), 1.0, 0.9, 0.0),
+    # Pachinko hall (M27).
+    "carpet": (lambda: tex.carpet(), 2.0, 1.0, 0.0),
+    "hall_wall": (lambda: tex.flat((0.22, 0.07, 0.09), size=32, seed=93, variation=0.1), 2.0, 0.9, 0.0),
+    "pachinko_face": (lambda: tex.pachinko_face()[0], 1.0, 0.3, 0.0),
+    "machine_top": (lambda: tex.machine_top()[0], 1.0, 0.4, 0.0),
+    "ceiling_panel": (lambda: tex.ceiling_panel()[0], 1.0, 0.5, 0.0),
+    "pachinko_screen": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
+    "pachinko_screen_b": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
@@ -111,6 +119,12 @@ EMISSIVE = {
     "train_side": (lambda: tex.train_side()[1], 2.5, 0.5),
     "timetable": (lambda: tex.timetable()[1], 1.2, 0.6),
     "neon_reflection": (lambda: tex.neon_reflection()[1], 1.5, 0.6),
+    "pachinko_face": (lambda: tex.pachinko_face()[1], 1.5, 0.8),
+    "machine_top": (lambda: tex.machine_top()[1], 2.5, 0.6),
+    "ceiling_panel": (lambda: tex.ceiling_panel()[1], 1.6, 0.8),
+    # Screens: the engine swaps the texture for a live one; the strength stays.
+    "pachinko_screen": (lambda: tex.screen_placeholder()[1], 1.3, 0.8),
+    "pachinko_screen_b": (lambda: tex.screen_placeholder()[1], 1.3, 0.8),
 }
 
 # Wet surfaces (M25): material -> wetness 0..1 (glTF extras "atom_wet").

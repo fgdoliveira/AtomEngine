@@ -524,6 +524,41 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle PachinkoHall(float seconds)
+    {
+        // Inside the hall: the steel-ball roar at full brightness, a march
+        // from every machine a little out of step, and a shrill jingle when
+        // someone somewhere wins. The level's reverb makes it a room.
+        std::vector<float> out(Frames(seconds));
+        Noise noise(971);
+        Biquad balls = Biquad::Bandpass(3600.0f, 0.9f);
+        Biquad chime = Biquad::Bandpass(5200.0f, 4.0f);
+        Wander surge(972, 0.6f);
+        const float notes[] = { 262.0f, 330.0f, 392.0f, 330.0f, 294.0f, 349.0f, 440.0f, 349.0f };
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float click = noise.Uniform() < 0.25f ? noise() * 2.0f : 0.0f;
+            float s = balls.Process(click + noise() * 0.3f) * (0.7f + 0.3f * surge.Next()) * 1.4f;
+            for (const float offset : { 0.0f, 0.13f, 0.31f })
+            {
+                const float local = t + offset;
+                const float beat = std::fmod(local, 0.5f);
+                const float note = notes[static_cast<std::size_t>(local / 0.5f) % 8] * (1.0f + offset * 0.1f);
+                s += std::sin(TwoPi * note * t) * std::exp(-beat / 0.18f) * 0.22f;
+            }
+            const float since = std::fmod(t, seconds / 2.0f) - 3.0f;
+            if (since > 0.0f && since < 1.2f)
+            {
+                s += chime.Process(noise()) * 0.4f + std::sin(TwoPi * (1568.0f + 400.0f * std::floor(since * 8.0f)) * t) * 0.12f;
+            }
+            out[i] = s;
+        }
+        MakeLoop(out, 0.5f);
+        Normalize(out, 0.75f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle Higurashi(std::uint32_t seed)
     {
         // The evening cicada's falling "kana-kana-kana": a train of short

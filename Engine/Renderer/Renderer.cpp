@@ -419,7 +419,13 @@ namespace Atom
         lightmapInfo.max_lod = 2.0f;
         m_lightmapSampler = SDL_CreateGPUSampler(m_device, &lightmapInfo);
 
-        if (!m_sampler || !m_postSampler || !m_lightmapSampler)
+        // Render textures (M27): nearest, so screen pixels stay square.
+        SDL_GPUSamplerCreateInfo pixelInfo = postInfo;
+        pixelInfo.min_filter = SDL_GPU_FILTER_NEAREST;
+        pixelInfo.mag_filter = SDL_GPU_FILTER_NEAREST;
+        m_pixelSampler = SDL_CreateGPUSampler(m_device, &pixelInfo);
+
+        if (!m_sampler || !m_postSampler || !m_lightmapSampler || !m_pixelSampler)
         {
             std::cerr
                 << "Failed to create samplers: "
@@ -846,6 +852,7 @@ namespace Atom
                 m_settings.msaaSamples)
             && UploadParticles(commandBuffer)
             && m_ui.Upload(commandBuffer)
+            && RenderTextures(commandBuffer)
             && RenderShadowPass(commandBuffer, lightViewProjection)
             && RenderScenePass(commandBuffer, lightViewProjection)
             && (!GlowActive()
@@ -1157,6 +1164,12 @@ namespace Atom
                     sizeof(materialUniforms)
                 );
 
+                if (baseColor->IsPixelArt()
+                    || (material.emissiveTexture && material.emissiveTexture->IsPixelArt()))
+                {
+                    ++m_stats.renderTextureDraws; // a live screen (M27)
+                }
+
                 // Sorted by material: consecutive draws often share textures.
                 if (&material != boundMaterial)
                 {
@@ -1164,7 +1177,7 @@ namespace Atom
                     ++m_stats.materialBinds;
                     const SDL_GPUTextureSamplerBinding textureBinding{
                         baseColor->GetGPUTexture(),
-                        m_sampler
+                        baseColor->IsPixelArt() ? m_pixelSampler : m_sampler
                     };
                     SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
 
@@ -1182,7 +1195,7 @@ namespace Atom
                         : m_whiteTexture.get();
                     const SDL_GPUTextureSamplerBinding emissiveBinding{
                         emissive->GetGPUTexture(),
-                        m_sampler
+                        emissive->IsPixelArt() ? m_pixelSampler : m_sampler
                     };
                     SDL_BindGPUFragmentSamplers(renderPass, 3, &emissiveBinding, 1);
                 }
@@ -1354,6 +1367,38 @@ namespace Atom
     void Renderer::SubmitParticles(std::span<const Particle> particles)
     {
         m_particles.insert(m_particles.end(), particles.begin(), particles.end());
+    }
+
+    std::unique_ptr<RenderTexture> Renderer::CreateRenderTexture(std::uint32_t width, std::uint32_t height)
+    {
+        std::unique_ptr<RenderTexture> target(new RenderTexture());
+        target->m_texture = Texture::CreateRenderTarget(m_device, width, height);
+        if (!target->m_texture
+            || !target->m_canvas.Initialize(m_device, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB))
+        {
+            std::cerr << "Failed to create a " << width << "x" << height << " render texture\n";
+            return nullptr;
+        }
+        target->m_owner = this;
+        m_renderTextures.push_back(target.get());
+        return target;
+    }
+
+    void Renderer::UnregisterRenderTexture(RenderTexture* target)
+    {
+        std::erase(m_renderTextures, target);
+    }
+
+    bool Renderer::RenderTextures(SDL_GPUCommandBuffer* commandBuffer)
+    {
+        for (RenderTexture* target : m_renderTextures)
+        {
+            if (target->Render(commandBuffer))
+            {
+                ++m_stats.renderTextures;
+            }
+        }
+        return true;
     }
 
     void Renderer::SubmitLiveLight(const LiveLight& light)
@@ -1788,7 +1833,7 @@ namespace Atom
             m_whiteTexture.reset();
             m_targets.Release();
 
-            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler })
+            for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler, m_pixelSampler })
             {
                 if (sampler)
                 {
@@ -1863,6 +1908,7 @@ namespace Atom
         m_sampler = nullptr;
         m_postSampler = nullptr;
         m_lightmapSampler = nullptr;
+        m_pixelSampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
         m_windowClaimed = false;

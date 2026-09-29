@@ -40,6 +40,7 @@ namespace AtomGame
                 { "expect_voices_max", { 1, 1 } },
                 { "expect_surface", { 1, 1 } },     // footstep surface name
                 { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
+                { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "reload_level", { 0, 0 } },       // hot reload in place
@@ -418,6 +419,15 @@ namespace AtomGame
                 std::ostringstream where;
                 where << "player is at " << feet.x << ' ' << feet.y << ' ' << feet.z;
                 Fail(command, where.str());
+            }
+            return true;
+        }
+        if (name == "expect_screens")
+        {
+            const auto [targets, draws] = game.ScreenStats();
+            if (targets == 0 || draws < static_cast<std::uint32_t>(number(0, 1.0f)))
+            {
+                Fail(command, std::to_string(targets) + " render textures, " + std::to_string(draws) + " screen draws");
             }
             return true;
         }

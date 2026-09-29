@@ -131,6 +131,19 @@
         }
       }
     },
+    "screens": {
+      "type": "array",
+      "description": "Live screens (M27): scene materials of this name show a 320x240 render texture running a pachinko attract loop.",
+      "items": {
+        "type": "object",
+        "required": ["material"],
+        "additionalProperties": false,
+        "properties": {
+          "material": { "type": "string" },
+          "seed": { "type": "integer", "minimum": 0, "description": "Different seeds play differently." }
+        }
+      }
+    },
     "lights": {
       "type": "array",
       "description": "Live point lights computed per pixel (M25): what moves or flickers. At most 4 are drawn.",
@@ -206,7 +219,17 @@
             }
           }
         },
-        "zoneFadeSeconds": { "type": "number", "minimum": 0, "default": 2 }
+        "zoneFadeSeconds": { "type": "number", "minimum": 0, "default": 2 },
+        "reverb": {
+          "type": "object",
+          "description": "Room reverb on the whole mix while in the level (M27).",
+          "additionalProperties": false,
+          "properties": {
+            "mix": { "type": "number", "minimum": 0, "maximum": 1 },
+            "size": { "type": "number", "exclusiveMinimum": 0, "description": "Scales the echo delays: 1 is a small hall." },
+            "feedback": { "type": "number", "minimum": 0, "exclusiveMaximum": 1, "description": "How long the tail rings." }
+          }
+        }
       }
     },
     "surfaces": {
@@ -270,7 +293,7 @@
       "type": "string",
       "description": "A sound from the library (Game/AudioScape.cpp).",
       "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak",
-               "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train", "bus_engine", "door_hiss"]
+               "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train", "bus_engine", "door_hiss", "pachinko_hall"]
     },
     "entity": {
       "type": "object",

@@ -1024,6 +1024,12 @@ namespace AtomGame
         return level ? std::string(level->GetData().SurfaceAt(feet.x, feet.z)) : "";
     }
 
+    std::pair<std::uint32_t, std::uint32_t> DemoApp::ScreenStats() const
+    {
+        const Atom::FrameStats& stats = const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats();
+        return { stats.renderTextures, stats.renderTextureDraws };
+    }
+
     float DemoApp::ZoneLevel(const std::string& cell) const
     {
         const Level* level = m_levels->GetLevel();

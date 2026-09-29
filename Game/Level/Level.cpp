@@ -64,6 +64,10 @@ namespace AtomGame
         {
             m_audio.Stop(voice.id);
         }
+        if (m_data.reverb.mix > 0.0f)
+        {
+            m_audio.SetReverb(0.0f, 1.0f, 0.0f); // the room stays behind
+        }
         std::cout << "Level '" << m_data.name << "' unloaded (" << m_voices.size() << " voices stopped)\n";
     }
 
@@ -240,6 +244,30 @@ namespace AtomGame
             params.maxDistance = emitter.maxDistance;
             const Atom::VoiceId id = services.audio.Play(services.sounds.GetSound(emitter.sound), params);
             level->m_voices.push_back({ id, emitter.group, emitter.gain });
+        }
+
+        // Live screens (M27): a render texture per screen material, running
+        // its own attract loop; the material shows it as colour and glow.
+        for (const ScreenData& data : d.screens)
+        {
+            Screen screen{ services.renderer.CreateRenderTexture(PachinkoAttract::Width, PachinkoAttract::Height),
+                           PachinkoAttract(data.seed), FixedStep{} };
+            const std::vector<Atom::Material*> materials = level->FindSceneMaterials(data.material);
+            if (!screen.target || materials.empty())
+            {
+                std::cerr << "Level '" << d.name << "': no screen material '" << data.material << "'\n";
+                return nullptr;
+            }
+            for (Atom::Material* material : materials)
+            {
+                material->baseColorTexture = &screen.target->GetTexture();
+                material->emissiveTexture = &screen.target->GetTexture();
+            }
+            level->m_screens.push_back(std::move(screen));
+        }
+        if (d.reverb.mix > 0.0f)
+        {
+            services.audio.SetReverb(d.reverb.mix, d.reverb.size, d.reverb.feedback);
         }
 
         // Cell ambience (M25): every zone's beds play from the start, silent
@@ -482,6 +510,17 @@ namespace AtomGame
                 m_audio.SetVoicePosition(mover.voice, entity->position);
                 m_audio.SetVoiceGain(mover.voice, state.moving ? mover.data.gain : 0.0f);
             }
+        }
+
+        // Screens (M27): the attract loops tick at a fixed step and draw
+        // this frame's picture into their render texture.
+        for (Screen& screen : m_screens)
+        {
+            for (int steps = screen.clock.Advance(deltaSeconds); steps > 0; --steps)
+            {
+                screen.attract.Step();
+            }
+            screen.attract.Draw(screen.target->GetCanvas());
         }
 
         // Sequence sounds follow their entity.

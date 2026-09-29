@@ -436,6 +436,18 @@ namespace AtomGame
                     level.audioZones.push_back(std::move(z));
                 }
                 level.zoneFadeSeconds = Number(*audio, "zoneFadeSeconds", "/audio", level.zoneFadeSeconds);
+                if (const auto reverb = audio->find("reverb"); reverb != audio->end())
+                {
+                    const std::string at = "/audio/reverb";
+                    LevelReverb& r = level.reverb;
+                    r.mix = Number(*reverb, "mix", at, r.mix);
+                    r.size = Number(*reverb, "size", at, r.size);
+                    r.feedback = Number(*reverb, "feedback", at, r.feedback);
+                    if (r.mix < 0.0f || r.mix > 1.0f || r.size <= 0.0f || r.feedback < 0.0f || r.feedback >= 1.0f)
+                    {
+                        throw LevelError(at, "mix 0..1, size > 0, feedback 0..<1");
+                    }
+                }
                 index = 0;
                 for (const Json& emitter : Array(*audio, "emitters", "/audio"))
                 {
@@ -524,6 +536,19 @@ namespace AtomGame
                     throw LevelError(at, "a halo needs a \"position\"");
                 }
                 level.halos.push_back(h);
+            }
+
+            std::size_t screenIndex = 0;
+            for (const Json& screen : Array(root, "screens", ""))
+            {
+                const std::string at = JsonPath("/screens", screenIndex++);
+                ScreenData s{ String(screen, "material", at),
+                              static_cast<std::uint32_t>(Number(screen, "seed", at, 1.0f)) };
+                if (s.material.empty())
+                {
+                    throw LevelError(at, "a screen needs a \"material\"");
+                }
+                level.screens.push_back(s);
             }
 
             std::size_t lightIndex = 0;

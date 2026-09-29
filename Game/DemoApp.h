@@ -81,6 +81,7 @@ namespace AtomGame
         std::size_t VoiceCount() const override;
         std::string SurfaceName() const override;
         float ZoneLevel(const std::string& cell) const override;
+        std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override;
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;

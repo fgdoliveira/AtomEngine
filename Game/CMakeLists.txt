@@ -45,6 +45,9 @@ add_library(
     World/Impostors.cpp
     World/Impostors.h
     World/LiveEffects.cpp
+    World/FixedStep.h
+    World/PachinkoAttract.cpp
+    World/PachinkoAttract.h
     World/LiveEffects.h
 )
 

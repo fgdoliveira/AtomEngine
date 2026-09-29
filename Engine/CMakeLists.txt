@@ -18,6 +18,7 @@ target_sources(
         Renderer/Renderer.cpp
         Renderer/Shader.cpp
         Renderer/Texture.cpp
+        Renderer/RenderTexture.cpp
         Scene/Camera.cpp
         UI/Font.cpp
         UI/UIRenderer.cpp
@@ -41,6 +42,8 @@ target_sources(
         Renderer/Renderer.h
         Renderer/Shader.h
         Renderer/Texture.h
+        Renderer/RenderTexture.h
+        Audio/Reverb.h
         Scene/Camera.h
         UI/Font.h
         UI/UIRenderer.h

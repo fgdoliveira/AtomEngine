@@ -80,6 +80,22 @@ namespace AtomGame
         std::string material;       // optional: its emission stutters along
     };
 
+    // A live screen (M27): every scene material of this name shows a
+    // render texture running a pachinko attract loop.
+    struct ScreenData
+    {
+        std::string material;
+        std::uint32_t seed = 1;
+    };
+
+    // Room reverb on the whole mix while in the level (M27).
+    struct LevelReverb
+    {
+        float mix = 0.0f;
+        float size = 1.0f;
+        float feedback = 0.5f;
+    };
+
     // Ambience of one cell (M25): its beds fade in while the player is in
     // it and out when they leave, so moving through the street crossfades.
     struct AudioZone
@@ -243,6 +259,8 @@ namespace AtomGame
         std::vector<AudioZone> audioZones;
         float zoneFadeSeconds = 2.0f;
         std::map<std::string, Sequence> sequences; // M26
+        std::vector<ScreenData> screens;           // M27
+        LevelReverb reverb;                        // M27
 
         const SpawnPoint* FindSpawn(std::string_view spawnName) const;
         std::string_view SurfaceAt(float x, float z) const;

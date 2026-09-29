@@ -36,6 +36,7 @@ namespace AtomGame
         m_library["train"] = SoundSynth::Train();
         m_library["bus_engine"] = SoundSynth::BusEngine();
         m_library["door_hiss"] = SoundSynth::DoorHiss();
+        m_library["pachinko_hall"] = SoundSynth::PachinkoHall();
 
         for (int surface = 0; surface < SurfaceCount; ++surface)
         {

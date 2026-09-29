@@ -1,4 +1,4 @@
-# The night street (M25): level E loads with its per-cell lightmaps; the
+# The night street (M25) and the pachinko hall (M27): level E loads with its per-cell lightmaps; the
 # cell ambience crossfades as the player walks from the bus stop into the
 # pachinko plaza; the interactables tie back to the rural street.
 expect_level street
@@ -28,9 +28,24 @@ wait 2.5
 expect_zone pachinko_front
 teleport_to pachinko_doors 2
 face pachinko_doors
-interact pachinko_doors
-expect_message steel balls
 expect_voices_max 22
+interact pachinko_doors
+wait_for_level pachinko_hall
+
+# The pachinko hall (M27): the machine screens show live render textures,
+# the attract loops running; out again through the doors.
+expect_voices_max 4                  # hall bed + drone + static (+1 slack)
+wait 0.5
+expect_screens 2                     # both screen materials sample a live texture
+teleport_to machine 1.2
+face machine
+interact machine
+expect_message keeps playing
+teleport_to exit_doors 1.8
+face exit_doors
+interact exit_doors
+wait_for_level night_street
+expect_near 16.75 0.12 -27 1
 goto_level street
 wait_for_level street
 expect_voices_max 7

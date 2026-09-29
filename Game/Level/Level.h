@@ -6,7 +6,9 @@
 #include "Renderer/Renderer.h"
 #include "Physics/CollisionWorld.h"
 #include "World/GameWorld.h"
+#include "World/FixedStep.h"
 #include "World/Impostors.h"
+#include "World/PachinkoAttract.h"
 
 #include <memory>
 #include <optional>
@@ -118,6 +120,15 @@ namespace AtomGame
         std::unique_ptr<Atom::Texture> m_lightmap; // declared first: outlives the scene
         std::unique_ptr<Atom::Texture> m_skyPanorama;
         std::vector<std::unique_ptr<Atom::Texture>> m_chunkLightmaps; // M25, also before the models
+        // Live screens (M27): declared before the models whose materials
+        // sample them, so they outlive those materials.
+        struct Screen
+        {
+            std::unique_ptr<Atom::RenderTexture> target;
+            PachinkoAttract attract;
+            FixedStep clock;
+        };
+        std::vector<Screen> m_screens;
         float m_time = 0.0f; // for halo flicker
         std::shared_ptr<Atom::Model> m_scene;
         struct Chunk

@@ -77,6 +77,27 @@
     start `hidden`. Sounds: `bus_engine`, `door_hiss`.
   - Harness `wait_for_sequence`; the roundtrip scenario now rides street
     -> city -> street; unit tests for the runner and sequence parsing.
+- **The pachinko hall, level F, and render-to-texture (M27):**
+  - `RenderTexture`: a colour target drawn before the scene each frame
+    and usable as any material's texture, sampled with nearest filtering;
+    its canvas is the UI's 2D batcher at a fixed 320x240. F1 stats count
+    render textures drawn and scene draws sampling one.
+  - The attract loop: balls fall through pins into a start pocket that
+    spins the reels and rolls a 7-segment score, all rectangles, on a
+    fixed-timestep clock (60 Hz, capped catch-up) and a seeded generator:
+    the same picture at any frame rate. Levels map it onto materials
+    (`screens`); two seeds alternate along the rows.
+  - Level F: rows of machines under fluorescent panels, a prize counter,
+    a 1024 lightmap baked from the panels with the machines' glow bleeding
+    colour. Entered through the city's pachinko doors (fade), left the
+    same way.
+  - Audio: a room reverb on the master mix (Schroeder combs + allpass),
+    set per level (`audio.reverb`); the hall's own loud bed inside, the
+    low-passed leak outside.
+  - Harness `expect_screens`; the night street scenario now goes into the
+    hall and out; unit tests for the fixed step, the attract loop
+    (deterministic, in bounds, scores), the reverb and the new keys.
+  - The playable game (input, ball physics, fullscreen) is v0.0.5.
 
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 
