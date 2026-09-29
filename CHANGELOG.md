@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.0.4 — in progress
+## 0.0.4 — The night city
+
+A night bus from the rural street leads to one street of a neon city built
+to imply a whole one: distance layers and impostors behind it, emissive
+light and glow, a wet road, live lights, per-cell ambience, and a pachinko
+hall whose machines run live screens. The playable pachinko game is next
+(v0.0.5).
 
 ### Added
 - **Representation foundations (M22):**
@@ -107,6 +113,26 @@
   - `--gpu` bakes on the NVIDIA GPU (OptiX, else CUDA): all six lightmaps
     in under 3 minutes, for tuning light. Not byte-identical to the CPU,
     so those files are marked and a test refuses them in `Assets/`.
+
+### Measured
+Release, uncapped (IMMEDIATE present mode), Iris Xe, 1280×720, at each
+level's default spawn, averaged over 4000+ frames:
+
+| Level | Frame | Draws (near / mid / far) | Shadow draws |
+|---|---|---|---|
+| street | ≈ 3.9 ms (0.0.3: 3.5) | 238 / 0 / 0 | 114 |
+| shrine grounds | ≈ 3.4 ms (2.9) | 104 / 0 / 0 | 137 |
+| machiya interior | ≈ 2.0 ms (1.5) | 11 / 0 / 0 | 0 |
+| windmill field | ≈ 2.5 ms (2.2) | 88 / 0 / 0 | 109 |
+| night street | ≈ 3.5 ms (new) | 52 / 4 / 4 | 0 |
+| pachinko hall | ≈ 2.6 ms (new) | 13 / 0 / 0 | 0 |
+
+Per layer on the night street: without the mid and far layers (mid
+shells, skyline cards and seven impostors) the frame is ≈ 2.8 ms, so they
+cost ≈ 0.65 ms for 8 draws; they never enter the shadow pass. The older
+levels are 0.3–0.5 ms slower than in 0.0.3; the likeliest cause is the
+glow pass, which now runs in every level (default strength 0.35), not
+measured separately. A 144 Hz frame (6.9 ms) still has room everywhere.
 
 ## 0.0.3 — Baked light, alpha materials, animation and authoring
 
