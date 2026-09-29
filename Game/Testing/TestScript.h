@@ -57,7 +57,19 @@ namespace AtomGame
         virtual void RequestLevel(const std::string& level, const std::string& spawn) = 0;
         virtual glm::vec3 FeetPosition() const = 0;
         virtual void Log(const std::string& text) = 0;
+
+        // Documentation captures: saves the next frame as out/img/<stem>.png
+        // and returns the full path; CapturePending is true until written.
+        virtual std::string Capture(const std::string& stem, bool includeUi) = 0;
+        virtual bool CapturePending() const = 0;
+        // A render or scene switch (msaa, fog, fov, ...); false if unknown
+        // or the value is invalid.
+        virtual bool Set(const std::string& what, const std::string& value) = 0;
     };
+
+    // The panning camera's easing (smoothstep): 0 -> 0, 1 -> 1, gentle at
+    // both ends so a pan starts and stops without a jolt.
+    float EasePan(float t);
 
     struct TestCommand
     {
@@ -107,5 +119,9 @@ namespace AtomGame
         std::string m_failure;
         std::string m_level; // level seen on the previous frame
         float m_animationStart = 0.0f; // expect_animating: time when it began
+        int m_frames = 0;              // capture: frames spent in the command
+        int m_captured = 0;            // capture: images written so far
+        bool m_requested = false;      // screenshot/capture: a request is in flight
+        std::string m_capturePath;     // screenshot: where it goes
     };
 }

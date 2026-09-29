@@ -25,7 +25,8 @@ namespace
         ArrivalError arrival{};
 
         bool TeleportTo(const std::string& entity, float) override { return entity != "missing"; }
-        void Teleport(const glm::vec3&, float) override {}
+        void Teleport(const glm::vec3& to, float yaw) override { feet = to; yawDegrees = yaw; }
+        float yawDegrees = 0.0f;
         bool Face(const std::string& entity) override { return entity != "missing"; }
         std::string CurrentTarget() override { return target; }
         bool Interact() override
@@ -46,6 +47,15 @@ namespace
         std::string SurfaceName() const override { return surface; }
         float ZoneLevel(const std::string&) const override { return 0.0f; }
         std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override { return { 0, 0 }; }
+        std::string Capture(const std::string& stem, bool) override { captures.push_back(stem); return {}; }
+        bool CapturePending() const override { return false; }
+        bool Set(const std::string& what, const std::string& value) override
+        {
+            settings.push_back(what + "=" + value);
+            return what != "nonsense";
+        }
+        std::vector<std::string> captures;
+        std::vector<std::string> settings;
         ArrivalError Arrival() const override { return arrival; }
         std::optional<float> animationTime;
         bool animationPlaying = false;
@@ -275,4 +285,40 @@ TEST_CASE("wait lasts roughly the requested time")
     CHECK(runner.Passed());
     CHECK(frames >= 30);
     CHECK(frames <= 33);
+}
+
+TEST_CASE("Docs commands: capture sequences, settings and the panning camera")
+{
+    FakeGame game;
+    TestRunner runner(Parse(R"(
+        set msaa 4
+        capture shots/spin 3 2
+        pan 0 0 0 0 10 0 -4 90 1
+    )"));
+    for (int frame = 0; frame < 200 && !runner.IsFinished(); ++frame)
+    {
+        runner.Update(1.0f / 30.0f, game);
+    }
+    INFO(runner.GetFailure());
+    CHECK(runner.Passed());
+    CHECK(game.settings == std::vector<std::string>{ "msaa=4" });
+    CHECK(game.captures == std::vector<std::string>{ "shots/spin_000", "shots/spin_001", "shots/spin_002" });
+    CHECK(game.feet.x == doctest::Approx(10.0f));  // the pan ends exactly at its target
+    CHECK(game.feet.z == doctest::Approx(-4.0f));
+    CHECK(game.yawDegrees == doctest::Approx(90.0f));
+
+    FakeGame other;
+    TestRunner bad(Parse("set nonsense 1\n"));
+    bad.Update(1.0f / 30.0f, other);
+    CHECK_FALSE(bad.Passed());
+}
+
+TEST_CASE("Pan easing starts and stops gently")
+{
+    CHECK(EasePan(0.0f) == 0.0f);
+    CHECK(EasePan(1.0f) == 1.0f);
+    CHECK(EasePan(0.5f) == doctest::Approx(0.5f));
+    CHECK(EasePan(0.05f) < 0.05f);  // slower than linear at the start
+    CHECK(EasePan(0.95f) > 0.95f);  // and at the end
+    CHECK(EasePan(2.0f) == 1.0f);
 }

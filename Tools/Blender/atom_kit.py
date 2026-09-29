@@ -102,6 +102,11 @@ MATERIALS = {
     "ceiling_panel": (lambda: tex.ceiling_panel()[0], 1.0, 0.5, 0.0),
     "pachinko_screen": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
     "pachinko_screen_b": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
+    # Documentation scene: a measuring grid and three flat cube colours.
+    "grid": (lambda: tex.grid(), 2.0, 0.9, 0.0),
+    "cube_red": (lambda: tex.flat((0.72, 0.16, 0.12)), 1.0, 0.6, 0.0),
+    "cube_teal": (lambda: tex.flat((0.10, 0.52, 0.55)), 1.0, 0.6, 0.0),
+    "cube_gold": (lambda: tex.flat((0.80, 0.62, 0.18)), 1.0, 0.6, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
@@ -1053,6 +1058,30 @@ def build_bus(materials, collection):
     return bus
 
 
+def _demo_cube(name, size, material, seconds, clip):
+    """A cube floating above a low plinth (documentation scene); the cube
+    (child) turns about the vertical axis with `clip`, one turn in
+    `seconds`, at a constant speed. Clip names must be unique: actions are
+    global in Blender (the windmill already has "spin")."""
+    def build(materials, collection):
+        m = MeshBuilder()
+        m.box((0, 0, 0.05), (size * 0.8, size * 0.8, 0.1), "metal_dark", faces=NO_BOTTOM)
+        plinth = m.build(name, materials, collection)
+        cube = MeshBuilder()
+        cube.box((0, 0, 0), (size, size, size), material)
+        spinner = _child(cube, name + "_cube", materials, collection, plinth, (0, 0, 0.35 + size / 2))
+        _animate(spinner, clip, "rotation_euler", [(0, 0.0), (int(24 * seconds), 2.0 * math.pi)], index=2,
+                 interpolation="LINEAR")
+        return plinth
+    build.__name__ = "build_" + name
+    return build
+
+
+build_demo_cube_red = _demo_cube("demo_cube_red", 1.0, "cube_red", 6.0, "spin_red")
+build_demo_cube_teal = _demo_cube("demo_cube_teal", 0.7, "cube_teal", 4.0, "spin_teal")
+build_demo_cube_gold = _demo_cube("demo_cube_gold", 1.4, "cube_gold", 8.0, "spin_gold")
+
+
 def build_signpost(materials, collection):
     """A wooden field-path marker (static)."""
     m = MeshBuilder()
@@ -1149,6 +1178,9 @@ PIECES = [
     build_night_train,
     build_bus_stop,
     build_bus,
+    build_demo_cube_red,
+    build_demo_cube_teal,
+    build_demo_cube_gold,
 ]
 
 

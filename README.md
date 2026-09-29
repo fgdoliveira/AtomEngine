@@ -143,6 +143,25 @@ checks. Level builders in Blender can place spawns and entities with
 `ATOM_ASSET_ROOT=<repo>` to see edits to level files, markers, models and
 dialogue within a second, without restarting.
 
+## Documentation captures
+
+`first_render` rebuilds the scene the engine first drew, a grid plane
+with spinning cubes, for illustrating the first concepts (depth,
+transforms, lighting, shadows, fog, MSAA, post). One command renders
+before/after screenshots and frame sequences into `out/img/first_render/`
+(not committed) and turns the sequences into looping GIFs:
+
+```sh
+pwsh Tools/Docs/capture_first_render.ps1        # needs a Release build and Blender 5.2
+```
+
+The shots are directed by `Tools/Docs/first_render.atomtest`, a scenario
+script: `screenshot <stem>`, `capture <stem> <count> <every>`, `pan …
+[stem]` (a panning camera, optionally filmed) and `set <what> <value>`
+(msaa, scale, fog, shadows, post, sun, particles, fov, overlay, hud,
+world, fixed_dt). Each file is named after the manual section it
+illustrates.
+
 ## Layout
 
 ```text

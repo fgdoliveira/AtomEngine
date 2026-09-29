@@ -987,3 +987,19 @@ def screen_placeholder(size=16):
     a live render texture (the level's "screens")."""
     flat = np.ones((size, size, 3)) * np.array([0.1, 0.12, 0.3])
     return _rgba(flat), _rgba(flat)
+
+
+# --------------------------------------------------------------------------
+# Documentation scene (first_render)
+# --------------------------------------------------------------------------
+
+def grid(size=256):
+    """A measuring grid: light grey, a thin line every half tile and a
+    bold one at the tile's edge. Its regular lines make perspective,
+    depth and mipmap filtering easy to see."""
+    ys, xs = np.mgrid[0:size, 0:size]
+    half = size // 2
+    thin = ((xs % half) < 2) | ((ys % half) < 2)
+    bold = (xs < 4) | (ys < 4)
+    value = np.where(bold, 0.30, np.where(thin, 0.48, 0.72))
+    return _rgba(_tint(value, (1.0, 1.0, 1.0)))

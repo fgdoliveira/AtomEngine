@@ -56,6 +56,10 @@ class Street:
         markers look along their local +Y; entity markers turn the model
         like any kit piece."""
         obj = bpy.data.objects.new(f"{kind}:{name}", None)
+        # The real name, kept even if Blender renames the object because
+        # another level has a marker of the same name (build_assets reads it).
+        obj["atom_marker_kind"] = kind
+        obj["atom_marker_name"] = name
         obj.empty_display_type = "SINGLE_ARROW" if kind == "spawn" else "PLAIN_AXES"
         obj.location = (x, y, z)
         obj.rotation_euler = (0.0, 0.0, math.radians(yaw_degrees))

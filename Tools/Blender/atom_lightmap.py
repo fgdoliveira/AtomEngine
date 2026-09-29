@@ -242,7 +242,8 @@ def fingerprint(obj, context, lights, size, samples, sky, clamp):
     its lightmap UVs), what surrounds it, the lights, the settings, the
     device, Blender's version and this file's code."""
     h = hashlib.sha256()
-    h.update(open(__file__, "rb").read())
+    # Line endings normalised: a checkout that converts LF/CRLF isn't a change.
+    h.update(open(__file__, "rb").read().replace(b"\r\n", b"\n"))
     h.update(bpy.app.version_string.encode())
     h.update(b"gpu" if USE_GPU else b"cpu")
     h.update(repr((size, samples, sky, clamp, MARGIN_PX, EXPOSURE, list(lights))).encode())

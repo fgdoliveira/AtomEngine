@@ -134,12 +134,22 @@ def write_markers(collection, path):
     turns like a kit piece, yaw = rotation. Sorted and rounded, so the file
     is byte-identical across rebuilds. Returns the number of markers."""
     placements = {"spawns": {}, "entities": {}}
+    errors = []
     for obj in collection.all_objects:
-        if obj.type != "EMPTY" or ":" not in obj.name:
+        if obj.type != "EMPTY":
             continue
-        kind, name = obj.name.split(":", 1)
-        if kind not in ("spawn", "entity") or "." in name:
-            atom_kit.LINT_ERRORS.append(f"marker {obj.name}: expected spawn:<name> or entity:<name>, unique")
+        # Markers made by the level builders carry their real name: object
+        # names are global in Blender, so two levels' "spawn:start" can't
+        # both keep it. Empties placed by hand go by their object name.
+        if "atom_marker_kind" in obj:
+            kind, name = obj["atom_marker_kind"], obj["atom_marker_name"]
+        elif ":" in obj.name:
+            kind, name = obj.name.split(":", 1)
+        else:
+            continue
+        group = "spawns" if kind == "spawn" else "entities"
+        if kind not in ("spawn", "entity") or "." in name or name in placements[group]:
+            errors.append(f"marker {obj.name}: expected spawn:<name> or entity:<name>, unique in its level")
             continue
         x, y, z = obj.matrix_world.translation
         rotation = math.degrees(obj.matrix_world.to_euler("XYZ").z)
@@ -148,6 +158,12 @@ def write_markers(collection, path):
             "position": [round(x, 3), round(z, 3), round(-y, 3)],
             "yaw": round((yaw + 180.0) % 360.0 - 180.0, 2) + 0.0,
         }
+    if errors:
+        # Markers are written after the lint: a bad one stops the build here
+        # instead of silently losing a spawn.
+        for error in errors:
+            print("lint ERROR: " + error)
+        raise RuntimeError(f"{len(errors)} bad marker(s) in {os.path.basename(path)}")
     count = len(placements["spawns"]) + len(placements["entities"])
     if not count:
         if os.path.exists(path):
@@ -263,7 +279,9 @@ def main():
         atom_bake.bake(scene, [obj] + list(obj.children_recursive))
     atom_bake.bake(scene, street.visual)
     for folder, level in levels:
-        atom_bake.bake(scene, level.visual, atom_levels.BAKE_MODES.get(folder, "sky"))
+        mode = atom_levels.BAKE_MODES.get(folder, "sky")
+        if mode != "none":
+            atom_bake.bake(scene, level.visual, mode)
     # Lightmaps (M16) where vertex light isn't enough; written next to the
     # level's glb, whose second UV set (TEXCOORD_1) maps them.
     for folder, level in levels:

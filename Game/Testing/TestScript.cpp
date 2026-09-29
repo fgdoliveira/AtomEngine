@@ -1,6 +1,9 @@
 #include "Testing/TestScript.h"
 
+#include <algorithm>
 #include <charconv>
+#include <cstdio>
+#include <filesystem>
 #include <cmath>
 #include <sstream>
 #include <unordered_map>
@@ -46,6 +49,10 @@ namespace AtomGame
                 { "reload_level", { 0, 0 } },       // hot reload in place
                 { "goto_level", { 1, 2 } },         // level [spawn]: change as a door would
                 { "expect_near", { 3, 4 } },        // x y z [metres]: the player's feet
+                { "screenshot", { 1, 2 } },         // stem [ui]: out/img/<stem>.png
+                { "capture", { 3, 4 } },            // stem count every [ui]: stem_000.png ...
+                { "pan", { 9, 11 } },               // x0 y0 z0 yaw0 x1 y1 z1 yaw1 seconds [stem [ui]]
+                { "set", { 2, 2 } },                // what value (msaa, fog, fov, fixed_dt, ...)
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -111,6 +118,12 @@ namespace AtomGame
         return result;
     }
 
+    float EasePan(float t)
+    {
+        t = std::clamp(t, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    }
+
     void TestRunner::Fail(const TestCommand& command, const std::string& why)
     {
         m_failure = "line " + std::to_string(command.line) + " (" + command.name + "): " + why;
@@ -174,6 +187,9 @@ namespace AtomGame
         {
             ++m_next;
             m_elapsed = 0.0f;
+            m_frames = 0;
+            m_captured = 0;
+            m_requested = false;
             if (m_next >= m_commands.size())
             {
                 m_finished = true;
@@ -195,6 +211,71 @@ namespace AtomGame
             return value;
         };
 
+        if (name == "screenshot")
+        {
+            // Requested on one frame, written when that frame is presented;
+            // the command ends once the file exists.
+            if (!m_requested)
+            {
+                m_capturePath = game.Capture(args[0], args.size() > 1 && args[1] == "ui");
+                m_requested = true;
+                return false;
+            }
+            if (game.CapturePending())
+            {
+                return false;
+            }
+            if (!std::filesystem::exists(m_capturePath))
+            {
+                Fail(command, "no file at " + m_capturePath);
+            }
+            return true;
+        }
+        if (name == "capture")
+        {
+            // A numbered sequence: one frame every `every`, `count` in all.
+            const int count = static_cast<int>(number(1, 1.0f));
+            const int every = std::max(1, static_cast<int>(number(2, 1.0f)));
+            if (game.CapturePending())
+            {
+                return false;
+            }
+            if (m_captured >= count)
+            {
+                return true;
+            }
+            if (m_frames++ % every == 0)
+            {
+                char suffix[16];
+                std::snprintf(suffix, sizeof(suffix), "_%03d", m_captured++);
+                game.Capture(args[0] + suffix, args.size() > 3 && args[3] == "ui");
+            }
+            return false;
+        }
+        if (name == "pan")
+        {
+            const glm::vec3 from{ number(0, 0.0f), number(1, 0.0f), number(2, 0.0f) };
+            const glm::vec3 to{ number(4, 0.0f), number(5, 0.0f), number(6, 0.0f) };
+            const float seconds = std::max(number(8, 1.0f), 0.001f);
+            const float t = EasePan(m_elapsed / seconds);
+            game.Teleport(from + (to - from) * t, number(3, 0.0f) + (number(7, 0.0f) - number(3, 0.0f)) * t);
+            if (args.size() > 9)
+            {
+                // Filmed: one image per frame of the pan.
+                char suffix[16];
+                std::snprintf(suffix, sizeof(suffix), "_%03d", m_captured++);
+                game.Capture(args[9] + suffix, args.size() > 10 && args[10] == "ui");
+            }
+            return m_elapsed >= seconds;
+        }
+        if (name == "set")
+        {
+            if (!game.Set(args[0], args[1]))
+            {
+                Fail(command, "cannot set '" + args[0] + "' to '" + args[1] + "'");
+            }
+            return true;
+        }
         if (name == "wait")
         {
             return m_elapsed >= number(0, 0.0f);
