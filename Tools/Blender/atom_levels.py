@@ -228,20 +228,47 @@ def build_windmill_field(pieces, collision, materials, collection):
     return level
 
 
+# --------------------------------------------------------------------------
+# Documentation scene: the first render
+# --------------------------------------------------------------------------
+
+def build_first_render(pieces, collision, materials, collection):
+    """The scene the engine first drew, rebuilt for documentation: a grid
+    plane and spinning cubes (entities, placed by markers). Not part of
+    the game's world: reached with ATOM_START_LEVEL=first_render."""
+    level = Street(pieces, collision, materials, collection)
+    m = kit.MeshBuilder(grid=2.0)
+    _flat(m, "grid", -15, -15, 15, 15, 0.0)
+    level.add_visual("first", m)
+
+    level.add_marker("spawn", "start", 0.0, -9.0, 0.0)
+    for name, x, y in (("cube_1", -3.2, -2.0), ("cube_2", 0.0, 0.0), ("cube_3", 3.4, 1.5),
+                       ("cube_4", -1.2, 3.5), ("cube_5", 1.8, -3.2)):
+        level.add_marker("entity", name, x, y)
+
+    level.add_collider("floor", [((0, 0, -0.5), (32, 32, 1.0))])
+    level.add_collider("bounds", [((-15.5, 0, 2), (1, 32, 4)), ((15.5, 0, 2), (1, 32, 4)),
+                                  ((0, 15.5, 2), (32, 1, 4)), ((0, -15.5, 2), (32, 1, 4))])
+    return level
+
+
 LEVELS = [
     ("shrine", build_shrine_grounds),
     ("interior", build_machiya_interior),
     ("fields", build_windmill_field),
     ("pachinko", atom_pachinko.build_pachinko_hall),
+    ("first", build_first_render),
 ]
 
 # The level file each Blender level belongs to (markers are written next to it).
 LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
-               "pachinko": "pachinko_hall"}
+               "pachinko": "pachinko_hall", "first": "first_render"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.
-BAKE_MODES = {"interior": "ao", "pachinko": "ao"}
+# "none": no vertex bake - the documentation scene shows the unbaked,
+# v0.0.1 look (and a bare plane would bake to plain white anyway).
+BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none"}
 
 # Levels that also get a lightmap (atom_lightmap), with the bake-only lights
 # that make it: (location, rotation in degrees, (width, height), watts, rgb).

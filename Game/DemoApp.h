@@ -82,6 +82,9 @@ namespace AtomGame
         std::string SurfaceName() const override;
         float ZoneLevel(const std::string& cell) const override;
         std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override;
+        std::string Capture(const std::string& stem, bool includeUi) override;
+        bool CapturePending() const override;
+        bool Set(const std::string& what, const std::string& value) override;
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;
@@ -144,6 +147,13 @@ namespace AtomGame
         bool m_showDebugOverlay = false;
         float m_hintTime = 0.0f;
         float m_smoothedFrameMs = 0.0f;
+
+        // Documentation switches (harness "set"): a fixed time step for
+        // evenly spaced frame sequences, and parts of the frame to leave out.
+        float m_fixedDeltaSeconds = 0.0f; // 0 = real time
+        bool m_drawWorld = true;          // off: only the cleared frame
+        bool m_showHud = true;            // the controls hint
+        bool m_sunEnabled = true;
 
         float m_titleTimer = 0.0f;
         int m_titleFrames = 0;

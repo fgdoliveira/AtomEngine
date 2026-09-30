@@ -3,6 +3,7 @@
 #include "Renderer/Shader.h"
 
 #include <stb_image.h>
+#include <stb_image_write.h>
 
 #include <SDL3/SDL.h>
 
@@ -14,6 +15,7 @@
 #include <cstddef>
 #include <tuple>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -867,10 +869,23 @@ namespace Atom
                 commandBuffer,
                 swapchainTexture,
                 swapchainWidth,
-                swapchainHeight);
+                swapchainHeight)
+            && (m_capturePath.empty() || RenderCapture(commandBuffer, swapchainWidth, swapchainHeight));
 
         ++m_frameIndex;
 
+        // A screenshot needs the GPU to have finished before it can be read.
+        if (m_captureRecorded)
+        {
+            SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+            if (!fence)
+            {
+                std::cerr << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                return false;
+            }
+            FinishCapture(fence);
+            return ok;
+        }
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
             std::cerr
@@ -1369,6 +1384,113 @@ namespace Atom
         m_particles.insert(m_particles.end(), particles.begin(), particles.end());
     }
 
+    void Renderer::RequestCapture(const std::string& path, bool includeUi)
+    {
+        m_capturePath = path;
+        m_captureUi = includeUi;
+    }
+
+    bool Renderer::RenderCapture(SDL_GPUCommandBuffer* commandBuffer, std::uint32_t width, std::uint32_t height)
+    {
+        // The same passes that drew the swapchain image, drawn again into a
+        // texture of the swapchain's format that can be copied back.
+        if (!m_captureTexture || m_captureWidth != width || m_captureHeight != height)
+        {
+            if (m_captureTexture)
+            {
+                SDL_ReleaseGPUTexture(m_device, m_captureTexture);
+                SDL_ReleaseGPUTransferBuffer(m_device, m_captureTransfer);
+            }
+            SDL_GPUTextureCreateInfo info{};
+            info.type = SDL_GPU_TEXTURETYPE_2D;
+            info.format = SDL_GetGPUSwapchainTextureFormat(m_device, m_window);
+            info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+            info.width = width;
+            info.height = height;
+            info.layer_count_or_depth = 1;
+            info.num_levels = 1;
+            m_captureTexture = SDL_CreateGPUTexture(m_device, &info);
+            SDL_GPUTransferBufferCreateInfo transfer{};
+            transfer.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
+            transfer.size = width * height * 4;
+            m_captureTransfer = SDL_CreateGPUTransferBuffer(m_device, &transfer);
+            m_captureWidth = width;
+            m_captureHeight = height;
+            if (!m_captureTexture || !m_captureTransfer)
+            {
+                std::cerr << "Cannot capture: " << SDL_GetError() << '\n';
+                m_capturePath.clear();
+                return true; // the frame itself is fine
+            }
+        }
+        if (!RenderPostPass(commandBuffer, m_captureTexture, width, height)
+            || (m_captureUi && !m_ui.Render(commandBuffer, m_captureTexture, width, height)))
+        {
+            return false;
+        }
+        SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(commandBuffer);
+        SDL_GPUTextureRegion source{};
+        source.texture = m_captureTexture;
+        source.w = width;
+        source.h = height;
+        source.d = 1;
+        SDL_GPUTextureTransferInfo destination{};
+        destination.transfer_buffer = m_captureTransfer;
+        destination.pixels_per_row = width;
+        destination.rows_per_layer = height;
+        SDL_DownloadFromGPUTexture(copy, &source, &destination);
+        SDL_EndGPUCopyPass(copy);
+        m_captureRecorded = true;
+        return true;
+    }
+
+    void Renderer::FinishCapture(SDL_GPUFence* fence)
+    {
+        SDL_WaitForGPUFences(m_device, true, &fence, 1);
+        SDL_ReleaseGPUFence(m_device, fence);
+        m_captureRecorded = false;
+
+        const auto* mapped = static_cast<const std::uint8_t*>(
+            SDL_MapGPUTransferBuffer(m_device, m_captureTransfer, false));
+        if (!mapped)
+        {
+            std::cerr << "Cannot read the capture back: " << SDL_GetError() << '\n';
+            m_capturePath.clear();
+            return;
+        }
+        // Swapchains are usually BGRA; PNG wants RGBA, fully opaque.
+        const SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(m_device, m_window);
+        const bool bgra = format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM
+            || format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB;
+        std::vector<std::uint8_t> pixels(static_cast<std::size_t>(m_captureWidth) * m_captureHeight * 4);
+        for (std::size_t i = 0; i < pixels.size(); i += 4)
+        {
+            pixels[i + 0] = mapped[i + (bgra ? 2 : 0)];
+            pixels[i + 1] = mapped[i + 1];
+            pixels[i + 2] = mapped[i + (bgra ? 0 : 2)];
+            pixels[i + 3] = 255;
+        }
+        SDL_UnmapGPUTransferBuffer(m_device, m_captureTransfer);
+
+        const std::filesystem::path path(m_capturePath);
+        m_capturePath.clear();
+        if (path.has_parent_path())
+        {
+            std::error_code error;
+            std::filesystem::create_directories(path.parent_path(), error);
+        }
+        // Unfiltered rows (still compressed): simple for the GIF tool to read
+        // back quickly (Tools/Docs/make_gif.py).
+        stbi_write_force_png_filter = 0;
+        if (!stbi_write_png(path.string().c_str(), static_cast<int>(m_captureWidth), static_cast<int>(m_captureHeight),
+                            4, pixels.data(), static_cast<int>(m_captureWidth) * 4))
+        {
+            std::cerr << "Cannot write " << path.string() << '\n';
+            return;
+        }
+        std::cout << "Captured " << path.string() << '\n';
+    }
+
     std::unique_ptr<RenderTexture> Renderer::CreateRenderTexture(std::uint32_t width, std::uint32_t height)
     {
         std::unique_ptr<RenderTexture> target(new RenderTexture());
@@ -1832,6 +1954,13 @@ namespace Atom
             }
             m_whiteTexture.reset();
             m_targets.Release();
+            if (m_captureTexture)
+            {
+                SDL_ReleaseGPUTexture(m_device, m_captureTexture);
+                SDL_ReleaseGPUTransferBuffer(m_device, m_captureTransfer);
+                m_captureTexture = nullptr;
+                m_captureTransfer = nullptr;
+            }
 
             for (SDL_GPUSampler* sampler : { m_sampler, m_postSampler, m_lightmapSampler, m_pixelSampler })
             {

@@ -10,6 +10,8 @@
 #include <glm/mat4x4.hpp>
 
 #include <algorithm>
+#include <charconv>
+#include <iterator>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -238,6 +240,10 @@ namespace AtomGame
 
     void DemoApp::OnUpdate(float deltaSeconds)
     {
+        if (m_fixedDeltaSeconds > 0.0f)
+        {
+            deltaSeconds = m_fixedDeltaSeconds; // docs: every frame the same step
+        }
         UpdateMouseCapture();
         UpdateRenderSettings();
         UpdateTestScript(deltaSeconds);
@@ -305,9 +311,10 @@ namespace AtomGame
             m_camera.farPlane
         );
 
-        if (Level* level = m_levels->GetLevel())
+        Level* drawn = m_drawWorld ? m_levels->GetLevel() : nullptr;
+        if (drawn)
         {
-            level->Submit(renderer, m_player.GetFeetPosition());
+            drawn->Submit(renderer, m_player.GetFeetPosition());
         }
 
         // Fog banks stay faintly visible with fog off: morning haze.
@@ -318,13 +325,19 @@ namespace AtomGame
             lighting.fogColor,
             lighting.fogDensity > 0.0f ? 1.0f : 0.35f
         );
-        m_atmosphere.Submit(renderer);
+        if (m_drawWorld)
+        {
+            m_atmosphere.Submit(renderer);
+        }
         // Sway follows the gusts outdoors; indoors the air is still.
         const Level* current = m_levels->GetLevel();
         renderer.SetWind(current && current->GetData().outdoor ? m_atmosphere.GetWind() : glm::vec3{ 0.0f }, m_time);
 
         m_unease.Update(deltaSeconds, m_camera, m_player.GetFeetPosition(), m_audioScape);
-        m_unease.Submit(renderer);
+        if (m_drawWorld)
+        {
+            m_unease.Submit(renderer);
+        }
 
         DrawOverlay(deltaSeconds);
         UpdateWindowTitle(deltaSeconds);
@@ -394,7 +407,7 @@ namespace AtomGame
 
         // Controls hint: shown on arrival, then fades away.
         m_hintTime += deltaSeconds;
-        const float hintAlpha = std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f);
+        const float hintAlpha = m_showHud ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
             const char* hint = "WASD move   Shift jog   Mouse look   E interact   F1 debug";
@@ -760,7 +773,7 @@ namespace AtomGame
         {
             const LevelLighting& l = level->GetData().lighting;
             lighting.sunDirection = l.sunDirection;
-            lighting.sunColor = l.sunColor;
+            lighting.sunColor = m_sunEnabled ? l.sunColor : glm::vec3{ 0.0f };
             lighting.skyColor = l.skyColor;
             lighting.groundColor = l.groundColor;
             lighting.fogColor = l.fogColor;
@@ -1028,6 +1041,80 @@ namespace AtomGame
     {
         const Atom::FrameStats& stats = const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats();
         return { stats.renderTextures, stats.renderTextureDraws };
+    }
+
+    std::string DemoApp::Capture(const std::string& stem, bool includeUi)
+    {
+        const std::string path = m_assetRoot + "out/img/" + stem + ".png";
+        GetRenderer().RequestCapture(path, includeUi);
+        return path;
+    }
+
+    bool DemoApp::CapturePending() const
+    {
+        return const_cast<DemoApp*>(this)->GetRenderer().IsCapturePending();
+    }
+
+    bool DemoApp::Set(const std::string& what, const std::string& value)
+    {
+        Atom::Renderer& renderer = GetRenderer();
+        Atom::RenderSettings settings = renderer.GetSettings();
+        const bool on = value == "on";
+        const bool onOff = on || value == "off";
+        float number = 0.0f;
+        const bool isNumber = std::from_chars(value.data(), value.data() + value.size(), number).ec == std::errc{};
+
+        if (what == "msaa" && (value == "1" || value == "2" || value == "4"))
+        {
+            settings.msaaSamples = static_cast<std::uint32_t>(number);
+        }
+        else if (what == "scale" && isNumber && number >= 0.1f && number <= 1.0f)
+        {
+            settings.renderScale = number;
+        }
+        else if (what == "post" && (value == "full" || value == "grade" || value == "off"))
+        {
+            m_postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
+            settings.post = Atom::PostSettings{};
+            settings.post.enabled = m_postMode != 2;
+            if (m_postMode == 1)
+            {
+                settings.post.grain = 0.0f;
+                settings.post.vignette = 0.0f;
+            }
+        }
+        else if (what == "fog")
+        {
+            const auto found = std::find_if(std::begin(FogPresets), std::end(FogPresets),
+                [&](const FogPreset& preset) { return value == preset.name; });
+            if (found == std::end(FogPresets))
+            {
+                return false;
+            }
+            m_fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
+        }
+        else if (what == "shadows" && onOff) m_shadowsEnabled = on;
+        else if (what == "sun" && onOff) m_sunEnabled = on;
+        else if (what == "particles" && onOff) m_atmosphere.SetEnabled(on);
+        else if (what == "unease" && onOff) m_unease.SetEnabled(on);
+        else if (what == "world" && onOff) m_drawWorld = on;
+        else if (what == "hud" && onOff) m_showHud = on;
+        else if (what == "overlay" && onOff) m_showDebugOverlay = on;
+        else if (what == "fov" && isNumber && number >= 10.0f && number <= 150.0f)
+        {
+            m_camera.verticalFov = glm::radians(number);
+        }
+        else if (what == "fixed_dt" && isNumber && number >= 0.0f && number <= 0.25f)
+        {
+            m_fixedDeltaSeconds = number;
+        }
+        else
+        {
+            return false;
+        }
+        renderer.SetSettings(settings);
+        ApplyLighting();
+        return true;
     }
 
     float DemoApp::ZoneLevel(const std::string& cell) const

@@ -1,0 +1,36 @@
+{
+  "$schema": "../Schemas/level.schema.json",
+  "name": "first_render",
+  "model": "First/first.glb",
+  "collision": "First/first_col.glb",
+  "defaultSpawn": "start",
+  "spawns": {
+    "start": {}
+  },
+  "lighting": {
+    "sunDirection": [0.45, 0.7, -0.35],
+    "sunColor": [0.9, 0.86, 0.78],
+    "skyColor": [0.55, 0.60, 0.68],
+    "groundColor": [0.22, 0.20, 0.18],
+    "fogColor": [0.62, 0.66, 0.70],
+    "shadows": true,
+    "bakedLight": 0.0,
+    "glow": { "strength": 0.0, "threshold": 1.0 }
+  },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.2 }
+    ]
+  },
+  "surfaces": { "default": "concrete" },
+  "particles": { "leaves": false, "fogBanks": true },
+  "unease": { "figure": false },
+  "entities": [
+    { "name": "cube_1", "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red" } },
+    { "name": "cube_2", "model": "Kit/demo_cube_gold.glb", "animation": { "clip": "spin_gold" } },
+    { "name": "cube_3", "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal" } },
+    { "name": "cube_4", "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal", "speed": 1.5 } },
+    { "name": "cube_5", "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red", "speed": 0.7 } }
+  ]
+}

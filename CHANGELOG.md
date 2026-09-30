@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Documentation captures:** the `first_render` level (a grid plane and
+  spinning cubes, the scene the engine first drew) and a script that
+  renders screenshots and frame sequences of the first concepts into
+  `out/img/first_render/`, plus a GIF maker (`Tools/Docs/`). The renderer
+  can save a frame as PNG; the harness gains `screenshot`, `capture`,
+  `pan` and `set`, with a fixed time step for evenly spaced frames.
+
+### Fixed
+- Blender markers keep their real name when another level has a marker of
+  the same name (object names are global in Blender): the night street's
+  `start` spawn would otherwise have been dropped. A bad marker now fails
+  the asset build instead of disappearing.
+- The bake cache ignores line-ending conversions of the baker's source
+  (a checkout could make every lightmap re-bake).
+- Levels can skip the vertex bake (`BAKE_MODES` "none").
+
 ## 0.0.4 — The night city
 
 A night bus from the rural street leads to one street of a neon city built
