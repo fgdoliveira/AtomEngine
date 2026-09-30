@@ -36,12 +36,19 @@ namespace Atom
             return m_mouseCaptured;
         }
 
+        // Wheel notches this frame (M29): positive is away from the user.
+        float GetWheelDelta() const
+        {
+            return m_wheelDelta;
+        }
+
     private:
         std::array<bool, SDL_SCANCODE_COUNT> m_keysDown{};
         std::array<bool, SDL_SCANCODE_COUNT> m_keysPressed{};
 
         float m_mouseDeltaX = 0.0f;
         float m_mouseDeltaY = 0.0f;
+        float m_wheelDelta = 0.0f;
         bool m_mouseCaptured = false;
     };
 }

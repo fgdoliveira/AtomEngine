@@ -112,11 +112,13 @@ TEST_CASE("Shipped levels and dialogues declare their schema, which knows their 
     };
     const nlohmann::json level = properties("level.schema.json");
     const nlohmann::json dialogue = properties("dialogue.schema.json");
+    const nlohmann::json machine = properties("machine.schema.json");
 
     int files = 0;
     for (const auto& [folder, schema, keys] : {
              std::tuple{ "Levels", "../Schemas/level.schema.json", &level },
-             std::tuple{ "Dialogue", "../Schemas/dialogue.schema.json", &dialogue } })
+             std::tuple{ "Dialogue", "../Schemas/dialogue.schema.json", &dialogue },
+             std::tuple{ "Machines", "../Schemas/machine.schema.json", &machine } })
     {
         for (const auto& entry : std::filesystem::directory_iterator(Assets + folder))
         {
@@ -136,7 +138,7 @@ TEST_CASE("Shipped levels and dialogues declare their schema, which knows their 
             }
         }
     }
-    CHECK(files >= 5);
+    CHECK(files >= 7);
 }
 
 TEST_CASE("The file watcher reports each change once")

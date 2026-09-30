@@ -1,8 +1,94 @@
 # Changelog
 
-## Unreleased
+## 0.0.5 — The pachinko game
+
+One machine in the night city's pachinko hall is playable: sit down, the
+camera moves in and the game fills the window. Balls fly up the launch lane
+and fall through the nails of a 2D physics world; the start pocket spins a
+seeded lottery; a hit opens the gate for fever rounds; tokens buy balls, and
+balls buy a prize. The engine gained input contexts, a mode controller,
+2D physics, playfields and rules as data, and counters in the game state.
 
 ### Added
+- **Input contexts and the machine mode (M29):**
+  - Gameplay reads named actions (`launch`, `leave`, `move_forward`…);
+    each mode (exploring, dialogue, machine) maps keys to them, so Space
+    confirms in a dialogue and fires at the machine. The harness holds and
+    presses actions the same way (`hold_action`, `press_action`).
+  - One machine in the pachinko hall is playable (`playMachine` action):
+    sitting down eases the camera to its screen, then the game fills the
+    window at the largest whole-number scale of 320x240, with borders and
+    crisp pixels (`UIRenderer::DrawImage`, nearest sampling for pixel art);
+    Q leaves the same way back. That machine has its own screen material,
+    which the game takes over from the attract loop (`Level::TakeOverScreen`).
+  - The mouse wheel is read (for the launch strength, M31).
+- **2D physics (M30):** `World2D` for the pachinko field: balls (dynamic
+  circles) against nails (static circles) and segments (walls, rails),
+  and against each other as equal masses. Fixed 1/480 s substeps with a
+  speed cap, so a ball never moves more than a third of its radius per
+  substep (no tunnelling); restitution, friction, and a rest threshold so
+  balls settle on rails without jitter; a uniform-grid broad phase; impact
+  events for sounds; deterministic to the bit. A debug view draws a world
+  into a canvas. Unit tests: resting, bounce energy, tunnelling at top
+  speed, bit-identical reruns, momentum.
+- **The playable machine (M31):**
+  - Playfields as data: `Assets/Machines/night_fever.json` (+ schema):
+    walls, curved rails, nail rows, the launcher, pockets (start, side,
+    attacker, out, foul) and the attacker's gate; validated on load (all
+    shapes on the board, no touching nails, a start pocket and an out
+    hole). Laid out by `Tools/Machines/night_fever_layout.py`.
+  - `PachinkoGame`: hold Space to fire about 1.7 balls a second up the
+    launch lane; the knob (Up/Down, mouse wheel) sets their speed, with a
+    little seeded jitter. Weak shots fall back and return to the tray;
+    pockets pay balls into it; 250 balls to start with for now.
+  - Tuned by playing it headless: a pitched roof on the reel frame (a flat
+    top held balls), road nails a little wider apart than a ball (closer,
+    they cradled balls and fed every one to the start pocket), a clear
+    band around them; about 5-12 % of balls reach the start pocket.
+  - Drawn in the 320x240 canvas: board, rails, nails, pockets, balls, the
+    tray count and the knob; 7-segment digits shared with the attract loop.
+  - Rail friction lowered: a ball riding a rail touches it every substep.
+- **Rules, lottery and fever (M32):**
+  - `PachinkoRules`, a pure state machine: balls into the start pocket
+    hold up to 4 spins; each spin's outcome is drawn from a seeded
+    generator when it starts (1 in 99 hits); the reels roll and stop left
+    to right, hanging on a reach (two matching); a hit starts a fever of 8
+    rounds, each opening the attacker gate for 9 balls or 25 seconds.
+    Odds and timings are in the machine file (`rules`).
+  - Drawn: the reels in the centre window (pulsing on a reach, flashing in
+    a fever), held-spin lamps and the round counter in the right panel,
+    the attacker lit while open.
+  - Sounds, synthesised: ball clicks (the loudest few impacts per tick),
+    the start chime, the payout rattle, reel stops, the reach and the
+    fever fanfare; the hall's ambience ducks while you play.
+  - The hall's screens now run the real game playing itself (`screens`
+    with a `machine`), instead of the simple attract loop.
+  - Tests: every rule state in order, round time limits, reaches, held
+    spins, hit rate within tolerance over 100 000 draws, a whole session
+    replayed exactly from its seed, a forced fever that opens the gate.
+- **Tokens, balls and the prize counter (M33):**
+  - `GameState` counters next to the flags (`tokens`, `balls`): they read
+    0 when missing, never go negative, and survive level changes.
+  - Actions `addCounter` (optionally once, with a line for next time) and
+    `exchange` (spend a counter for a flag, or say what's missing).
+  - The hall's attendant gives 50 tokens on your first night; at the
+    machine B (or Enter) buys 50 balls for 10 tokens; balls stay in your
+    tray between sessions; 300 balls buy the ofuda from the prize shelf.
+  - Payouts retuned: outside a fever the machine pays back about what it
+    takes (side pockets 7, start 3); fevers (12 per attacker ball) are
+    where you win.
+  - Harness `expect_counter`, `set_counter`; a `pachinko_session`
+    scenario plays the whole loop.
+
+### Measured
+Release, uncapped (IMMEDIATE present mode), Iris Xe, 1280x720, averaged
+over 4500+ frames: the pachinko hall ≈ 2.8 ms walking around (0.0.4: 2.6,
+now its three screens simulate the real game instead of the attract loop),
+≈ 3.5 ms seated at the machine and playing (the 2D game fullscreen, the
+hall still drawn underneath); the night street ≈ 3.3 ms (0.0.4: 3.5,
+within noise). Other levels are unchanged.
+
+### Added before the game (documentation, #7)
 - **Documentation captures:** the `first_render` level (a grid plane and
   spinning cubes, the scene the engine first drew) and a script that
   renders screenshots and frame sequences of the first concepts into

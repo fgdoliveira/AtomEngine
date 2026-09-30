@@ -11,6 +11,7 @@ namespace Atom
         m_keysPressed.fill(false);
         m_mouseDeltaX = 0.0f;
         m_mouseDeltaY = 0.0f;
+        m_wheelDelta = 0.0f;
     }
 
     void Input::HandleEvent(const SDL_Event& event)
@@ -41,6 +42,10 @@ namespace Atom
                 m_mouseDeltaX += event.motion.xrel;
                 m_mouseDeltaY += event.motion.yrel;
             }
+            break;
+
+        case SDL_EVENT_MOUSE_WHEEL:
+            m_wheelDelta += event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -event.wheel.y : event.wheel.y;
             break;
 
         case SDL_EVENT_WINDOW_FOCUS_LOST:

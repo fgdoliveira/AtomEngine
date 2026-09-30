@@ -39,6 +39,14 @@ namespace AtomGame
         Atom::SoundHandle DoorHiss();                           // M26: air doors folding open
         Atom::SoundHandle PachinkoHall(float seconds = 12.0f);  // M27: inside, full blast
 
+        // The machine (M32).
+        Atom::SoundHandle BallClick();    // a steel ball on a brass nail
+        Atom::SoundHandle PocketChime();  // a ball into the start pocket
+        Atom::SoundHandle Payout();       // balls rattling into the tray
+        Atom::SoundHandle ReelStop();     // a reel locks
+        Atom::SoundHandle Reach();        // two match: the rising tease
+        Atom::SoundHandle Fanfare();      // a hit: the fever begins
+
         // One-shots.
         Atom::SoundHandle Higurashi(std::uint32_t seed);
         Atom::SoundHandle Creak(); // windmill axle

@@ -102,6 +102,7 @@ MATERIALS = {
     "ceiling_panel": (lambda: tex.ceiling_panel()[0], 1.0, 0.5, 0.0),
     "pachinko_screen": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
     "pachinko_screen_b": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
+    "pachinko_screen_play": (lambda: tex.screen_placeholder()[0], 1.0, 0.2, 0.0),
     # Documentation scene: a measuring grid and three flat cube colours.
     "grid": (lambda: tex.grid(), 2.0, 0.9, 0.0),
     "cube_red": (lambda: tex.flat((0.72, 0.16, 0.12)), 1.0, 0.6, 0.0),
@@ -130,6 +131,7 @@ EMISSIVE = {
     # Screens: the engine swaps the texture for a live one; the strength stays.
     "pachinko_screen": (lambda: tex.screen_placeholder()[1], 1.3, 0.8),
     "pachinko_screen_b": (lambda: tex.screen_placeholder()[1], 1.3, 0.8),
+    "pachinko_screen_play": (lambda: tex.screen_placeholder()[1], 1.3, 0.8),
 }
 
 # Wet surfaces (M25): material -> wetness 0..1 (glTF extras "atom_wet").

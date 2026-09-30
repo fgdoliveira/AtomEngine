@@ -120,6 +120,11 @@ namespace Atom
         samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
         samplerInfo.max_lod = 1000.0f;
         m_sampler = SDL_CreateGPUSampler(device, &samplerInfo);
+        SDL_GPUSamplerCreateInfo pixelInfo = samplerInfo;
+        pixelInfo.min_filter = SDL_GPU_FILTER_NEAREST;
+        pixelInfo.mag_filter = SDL_GPU_FILTER_NEAREST;
+        pixelInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+        m_pixelSampler = SDL_CreateGPUSampler(device, &pixelInfo);
 
         SDL_GPUBufferCreateInfo bufferInfo{};
         bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
@@ -135,7 +140,7 @@ namespace Atom
         constexpr std::uint8_t white[4] = { 255, 255, 255, 255 };
         m_white = Texture::Create(device, 1, 1, white, false);
 
-        if (!m_pipeline || !m_sampler || !m_vertexBuffer || !m_transferBuffer || !m_white)
+        if (!m_pipeline || !m_sampler || !m_pixelSampler || !m_vertexBuffer || !m_transferBuffer || !m_white)
         {
             std::cerr << "Failed to create UI renderer: " << SDL_GetError() << '\n';
             return false;
@@ -150,11 +155,13 @@ namespace Atom
             m_white.reset();
             if (m_pipeline) { SDL_ReleaseGPUGraphicsPipeline(m_device, m_pipeline); }
             if (m_sampler) { SDL_ReleaseGPUSampler(m_device, m_sampler); }
+            if (m_pixelSampler) { SDL_ReleaseGPUSampler(m_device, m_pixelSampler); }
             if (m_vertexBuffer) { SDL_ReleaseGPUBuffer(m_device, m_vertexBuffer); }
             if (m_transferBuffer) { SDL_ReleaseGPUTransferBuffer(m_device, m_transferBuffer); }
         }
         m_pipeline = nullptr;
         m_sampler = nullptr;
+        m_pixelSampler = nullptr;
         m_vertexBuffer = nullptr;
         m_transferBuffer = nullptr;
         m_device = nullptr;
@@ -195,6 +202,11 @@ namespace Atom
     {
         PushQuad(m_white.get(), position, position + size,
             glm::vec2{ 0.5f }, glm::vec2{ 0.5f }, ToLinear(color));
+    }
+
+    void UIRenderer::DrawImage(const Texture& texture, glm::vec2 position, glm::vec2 size, glm::vec4 color)
+    {
+        PushQuad(&texture, position, position + size, glm::vec2{ 0.0f }, glm::vec2{ 1.0f }, ToLinear(color));
     }
 
     void UIRenderer::DrawText(
@@ -390,7 +402,7 @@ namespace Atom
                 break;
             }
             const SDL_GPUTextureSamplerBinding binding{
-                batch.texture->GetGPUTexture(), m_sampler };
+                batch.texture->GetGPUTexture(), batch.texture->IsPixelArt() ? m_pixelSampler : m_sampler };
             SDL_BindGPUFragmentSamplers(renderPass, 0, &binding, 1);
             SDL_DrawGPUPrimitives(renderPass, batch.vertexCount, 1, batch.firstVertex, 0);
         }

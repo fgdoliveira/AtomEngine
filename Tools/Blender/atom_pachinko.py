@@ -20,6 +20,7 @@ ROWS = (-6.0, -2.0, 2.0, 6.0)        # row centres (x); each row is back to back
 ROW_Y = (2.6, 15.4)                 # row ends
 ROW_HALF = 0.6                       # cabinet depth from the row's centre
 PITCH = 0.85                         # machine spacing along a row
+PLAYABLE = (-2.0, 7)                 # row centre and index: at the "machine" marker
 PANELS = [(x, y) for x in (-8.0, -4.0, 0.0, 4.0, 8.0) for y in (3.0, 7.0, 11.0, 15.0)]
 
 
@@ -33,7 +34,7 @@ def _flat(m, material, x0, y0, x1, y1, z, down=False):
     m.quad(corners, material, uvs=uvs)
 
 
-def _machine(m, x_face, y, facing, index):
+def _machine(m, x_face, y, facing, index, playable=False):
     """One machine on a row side whose face is the plane x = x_face,
     facing +X (facing=1) or -X (-1)."""
     out = x_face + facing * 0.01
@@ -48,7 +49,7 @@ def _machine(m, x_face, y, facing, index):
 
     panel(out, y0, y1, 0.95, 1.9, "pachinko_face")
     panel(out + facing * 0.01, y - 0.16, y + 0.16, 1.28, 1.52,
-          "pachinko_screen" if index % 2 == 0 else "pachinko_screen_b")
+          "pachinko_screen_play" if playable else "pachinko_screen" if index % 2 == 0 else "pachinko_screen_b")
     m.box((x_face + facing * 0.07, y, 0.82), (0.14, 0.72, 0.16), "metal_white",
           faces=[f for f in kit.SIDES + [(0, 0, 1), (0, 0, -1)] if f != (-facing, 0, 0)])
     m.box((x_face + facing * 0.04, y, 2.03), (0.08, 0.76, 0.2), "machine_top",
@@ -89,7 +90,9 @@ def build_pachinko_hall(pieces, collision, materials, collection):
         for i in range(count):
             y = ROW_Y[0] + PITCH * (i + 0.5) + ((ROW_Y[1] - ROW_Y[0]) - count * PITCH) / 2
             _machine(m, cx - ROW_HALF, y, -1, i)
-            _machine(m, cx + ROW_HALF, y, 1, i + 1)
+            # The one playable machine (v0.0.5) has its own screen material,
+            # so the game can take over that screen alone.
+            _machine(m, cx + ROW_HALF, y, 1, i + 1, playable=(cx, i) == PLAYABLE)
         m.box((cx, sum(ROW_Y) / 2, 2.35), (2 * ROW_HALF + 0.1, ROW_Y[1] - ROW_Y[0] + 0.1, 0.3), "machine_top",
               faces=kit.SIDES + [(0, 0, 1), (0, 0, -1)])
 
