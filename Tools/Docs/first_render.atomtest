@@ -1,0 +1,147 @@
+# Documentation captures: the first-render scene.
+# Run through Tools/Docs/capture_first_render.ps1 (it sets the level, the
+# asset root and builds the GIFs). Images go to out/img/first_render/.
+# Each topic is named after the manual section it illustrates.
+#
+# Every frame advances exactly 1/30 s, so sequences are evenly spaced and
+# a rerun gives the same frames. The baseline is the plain look: no fog,
+# no particles, and post without grain or vignette (grain changes every
+# frame, which also bloats the GIFs). Topics switch on only what they show.
+
+set fixed_dt 0.0333333
+set hud off
+set unease off
+set fog off
+set particles off
+set msaa 4
+set post grade
+wait 1
+
+# 01 - Clear and present (§2, §4): nothing drawn, just the cleared frame.
+set world off
+wait 0.2
+screenshot first_render/01_clear
+set world on
+
+# 02 - A mesh through the pipeline (§5-§7): one cube, close.
+teleport 3.4 0 1.4 0
+set fov 45
+wait 0.2
+screenshot first_render/02_mesh
+set fov 60
+
+# 03 - The depth buffer (§9): cubes in front of cubes, all on the plane.
+teleport -8 0 5.5 55
+wait 0.2
+screenshot first_render/03_depth
+
+# 04 - Model transform (§8): the cubes turn, the camera stays.
+teleport 0 0 9 0
+wait 0.2
+capture first_render/seq/04_model_rotation 90 1
+
+# 05 - View transform (§8, §10): the panning camera.
+pan -9 0 8 35 9 0 8 -35 4 first_render/seq/05_view_pan
+
+# 06 - Projection: field of view (§8), from one spot.
+teleport 0 0 9 0
+set fov 40
+wait 0.2
+screenshot first_render/06_fov_40
+set fov 70
+wait 0.2
+screenshot first_render/06_fov_70
+set fov 100
+wait 0.2
+screenshot first_render/06_fov_100
+set fov 60
+
+# 07 - Lighting: hemisphere ambient + Lambert sun (§13).
+# Shadows off for the pair: they also dim part of the ambient light.
+teleport 0 0 9 0
+set shadows off
+set sun off
+wait 0.2
+screenshot first_render/07_lighting_ambient_only
+set sun on
+wait 0.2
+screenshot first_render/07_lighting_sun
+set shadows on
+teleport 0 0 3.2 0
+wait 0.2
+capture first_render/seq/07_lighting_turn 90 1
+
+# 08 - Shadow mapping (§23).
+teleport 0 0 9 0
+set shadows off
+wait 0.2
+screenshot first_render/08_shadows_off
+set shadows on
+wait 0.2
+screenshot first_render/08_shadows_on
+
+# 09 - Fog (§22): a wide view, off / light / dense.
+teleport -12 0 12 45
+set fog off
+wait 0.2
+screenshot first_render/09_fog_off
+set fog light
+wait 0.2
+screenshot first_render/09_fog_light
+set fog dense
+wait 0.2
+screenshot first_render/09_fog_dense
+set fog off
+
+# 10 - MSAA and render scale (§19, §20): cube edges against the grid.
+teleport 3.4 0 1.4 0
+set fov 45
+set msaa 1
+wait 0.2
+screenshot first_render/10_msaa_1x
+set msaa 4
+wait 0.2
+screenshot first_render/10_msaa_4x
+set scale 0.5
+wait 0.2
+screenshot first_render/10_scale_50
+set scale 1
+wait 0.2
+screenshot first_render/10_scale_100
+set fov 60
+
+# 11 - Tonemap, grade, grain, vignette (§24).
+teleport 0 0 9 0
+set post off
+wait 0.2
+screenshot first_render/11_post_off
+set post grade
+wait 0.2
+screenshot first_render/11_post_grade
+set post full
+wait 0.2
+screenshot first_render/11_post_full
+set post grade
+
+# 12 - Textures and mipmaps (§11): the grid running into the distance.
+teleport 0 0 14.5 0
+wait 0.2
+screenshot first_render/12_mipmaps
+
+# 13 - Particles (§25): drifting fog banks off / on, in light fog.
+teleport -12 0 12 45
+set fog light
+wait 0.2
+screenshot first_render/13_particles_off
+set particles on
+wait 0.5
+screenshot first_render/13_particles_on
+set particles off
+set fog off
+
+# 14 - Frustum culling and the frame stats (§16, §21): the F1 overlay
+# while panning past the cubes.
+set overlay on
+pan -9 0 8 35 9 0 8 -35 4 first_render/seq/14_culling_stats ui
+set overlay off
+log first render captures done

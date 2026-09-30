@@ -176,6 +176,12 @@ namespace Atom
         void SetSettings(const RenderSettings& settings);
         const RenderSettings& GetSettings() const { return m_settings; }
 
+        // Screenshots (docs): the next frame, as presented (post pass, and
+        // the UI overlay if `includeUi`), is written to `path` as a PNG.
+        // Nothing extra happens on frames without a request.
+        void RequestCapture(const std::string& path, bool includeUi = false);
+        bool IsCapturePending() const { return !m_capturePath.empty(); }
+
         // Lighting and fog for the next Render(). The sky clears to the fog
         // colour so distant geometry dissolves into it.
         void SetLighting(const SceneLighting& lighting) { m_lighting = lighting; }
@@ -281,6 +287,8 @@ namespace Atom
         std::array<SDL_GPUGraphicsPipeline*, 3> m_skyPipelines{};
         SDL_GPUGraphicsPipeline* GetSkyPipeline(std::uint32_t samples);
         bool RenderTextures(SDL_GPUCommandBuffer* commandBuffer);
+        bool RenderCapture(SDL_GPUCommandBuffer* commandBuffer, std::uint32_t width, std::uint32_t height);
+        void FinishCapture(SDL_GPUFence* fence);
         void DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
                      const glm::mat4& projection);
         Glow m_glow;
@@ -299,6 +307,15 @@ namespace Atom
         SDL_GPUSampler* m_lightmapSampler = nullptr; // clamped, few mips
         SDL_GPUSampler* m_pixelSampler = nullptr;    // nearest, clamped (render textures)
         std::vector<RenderTexture*> m_renderTextures;
+
+        // Screenshots: an offscreen copy of the presented frame, read back.
+        std::string m_capturePath;
+        bool m_captureUi = false;
+        SDL_GPUTexture* m_captureTexture = nullptr;
+        SDL_GPUTransferBuffer* m_captureTransfer = nullptr;
+        std::uint32_t m_captureWidth = 0;
+        std::uint32_t m_captureHeight = 0;
+        bool m_captureRecorded = false; // this frame's command buffer holds a copy
         std::unique_ptr<Texture> m_whiteTexture;
 
         RenderSettings m_settings;

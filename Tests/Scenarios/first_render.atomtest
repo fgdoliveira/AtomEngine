@@ -1,0 +1,16 @@
+# The documentation scene (Tools/Docs): it loads, its cubes turn, the
+# panning camera ends where it should, and a screenshot is written
+# (to out/img/tests/ next to the game when run from the build).
+expect_level street
+goto_level first_render
+wait_for_level first_render
+expect_animating cube_2
+set hud off
+set fov 50
+pan 0 0 9 0 2 0 7 -20 1
+expect_near 2 0 7 0.2
+screenshot tests/first_render
+set fov 60
+goto_level street
+wait_for_level street
+log first render done
