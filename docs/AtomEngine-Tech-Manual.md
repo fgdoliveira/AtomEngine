@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.4 / M28**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46).
+A study guide to every concept the engine uses, as of **v0.0.5 / M34**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -55,9 +55,15 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 44. [Action sequences: the night bus (M26)](#44-action-sequences-the-night-bus-m26)
 45. [Render-to-texture and the pachinko hall (M27)](#45-render-to-texture-and-the-pachinko-hall-m27)
 46. [The asset build at scale: bake cache and GPU baking](#46-the-asset-build-at-scale-bake-cache-and-gpu-baking)
-47. [Anatomy of a frame and what it costs](#47-anatomy-of-a-frame-and-what-it-costs)
-48. [Build system and project layout](#48-build-system-and-project-layout)
-49. [Glossary](#49-glossary)
+47. [Documentation captures: the engine photographs itself](#47-documentation-captures-the-engine-photographs-itself)
+48. [Input contexts and the machine mode (M29)](#48-input-contexts-and-the-machine-mode-m29)
+49. [2D physics (M30)](#49-2d-physics-m30)
+50. [Playfields as data, and tuning by simulation (M31)](#50-playfields-as-data-and-tuning-by-simulation-m31)
+51. [Rules as a state machine: the lottery and the fever (M32)](#51-rules-as-a-state-machine-the-lottery-and-the-fever-m32)
+52. [Counters and the economy (M33)](#52-counters-and-the-economy-m33)
+53. [Anatomy of a frame and what it costs](#53-anatomy-of-a-frame-and-what-it-costs)
+54. [Build system and project layout](#54-build-system-and-project-layout)
+55. [Glossary](#55-glossary)
 
 ---
 
@@ -1208,7 +1214,162 @@ Behind the city's pachinko doors:
 
 ---
 
-## 47. Anatomy of a frame and what it costs
+## 47. Documentation captures: the engine photographs itself
+
+**Concept.** Grabbing the desktop to illustrate a program is fragile: another window gets in the way, the picture is cropped wrong, or a frame is caught half-drawn. It's better for the program to save its own frames. Scripting those shots also makes them repeatable, and so useful as tests.
+
+**AtomEngine.**
+- **`Renderer::RequestCapture(path, includeUi)`:** on the next frame, the post pass (and the UI, if asked) is drawn a second time into an offscreen texture of the swapchain's format.
+  - A copy pass downloads it into a transfer buffer (`SDL_DownloadFromGPUTexture`).
+  - After the frame's GPU fence, the pixels are swizzled from BGRA to RGBA and written with `stb_image_write`.
+  - Frames without a request cost nothing extra.
+- **Harness commands:**
+  - `screenshot <stem>`, and `capture <stem> <count> <every>` for numbered sequences;
+  - `pan`: an eased camera move (smoothstep, so it starts and stops without a jolt) that can film itself frame by frame;
+  - `set <what> <value>`: every render switch (MSAA, fog, shadows, post, the field of view, the HUD…).
+- **`fixed_dt`:** every frame advances exactly the same step, so sequences are evenly spaced and a rerun gives the same frames.
+- **GIFs:** `Tools/Docs/make_gif.py` turns sequences into GIFs with no extra dependencies.
+  - It reads the PNGs back itself; the engine writes unfiltered rows so that's fast.
+  - It builds one 256-colour palette per GIF by **median cut**: split the colour box with the widest range until there are 256.
+  - It maps pixels through a 32³ lookup cube and encodes with **LZW**.
+- **The first-render scene** (`first_render`: a grid plane and spinning cubes) is the subject. `Tools/Docs/first_render.atomtest` shoots one topic per manual section, each as before/after pairs.
+
+**Found on the way.**
+- Object and action names are *global* in Blender. Markers now keep their real name in custom properties, and a bad marker fails the build.
+- The bake fingerprint normalises line endings, so a checkout that converts them no longer forces a full re-bake.
+
+**Code.** `Renderer::RequestCapture/RenderCapture/FinishCapture`, `Game/Testing/TestScript.cpp` (`screenshot`, `capture`, `pan`, `set`), `DemoApp::Set/Capture`, `Tools/Docs/`.
+
+---
+
+## 48. Input contexts and the machine mode (M29)
+
+### Input contexts
+**Concept.** Reading keys directly ("is W down?") ties gameplay to a keyboard layout and to one meaning per key. Games read **actions** ("move forward", "launch") instead. An **input context** says which keys give which actions in the current mode: Space confirms a line in a dialogue and fires a ball at a pachinko machine. One table holds every binding, so rebinding, gamepads or on-screen prompts would change only that table.
+
+**AtomEngine.**
+- `InputAction` names the actions; `InputContextId` names the modes (exploring, dialogue, machine); `InputMap::Default()` binds keys per mode.
+- Each frame, `ActionInput::Update` computes *held* and *pressed* for the active context. Gameplay (the player controller, interaction, dialogue, the machine) reads only that.
+- **Injection:** the harness holds and presses actions (`hold_action`, `press_action`) through the same path as keys, so scripts exercise the real input code.
+- The mapping is a template over "is this key down?", so it's unit-tested without SDL.
+
+### The machine mode
+**Concept.** Moving from walking about in 3D to a 2D game in front of you is a **mode change**. It works best as an explicit state machine with timed transitions:
+
+`Inactive → Entering → Playing → Leaving → Inactive`
+
+**AtomEngine** (`MachineMode`):
+- **Entering:** eases the camera (smoothstep) from the player's eye to a pose in front of the machine's screen. Yaw turns the *short way round*, since a turn from −170° to 170° is 20°, not 340°. Then it fades the 2D view in.
+- **Leaving:** fades out first, then moves back.
+- **Pure:** no rendering or input inside; `DemoApp` reads the camera pose and the fade, and unit tests check the timings.
+
+**Integer scaling.** Pixel art stays crisp only at whole-number scales: every source pixel becomes an equal square. `FitIntegerScale` picks the largest scale that fits (320×240 is 3× in 1280×720) and centres it; the rest is border. `UIRenderer::DrawImage` draws the machine's render texture, sampled with *nearest* filtering for pixel-art textures.
+
+**The screen.** The playable machine has its own screen material. `Level::TakeOverScreen` pauses that screen's attract loop and hands its render texture to the game. The in-world screen and the fullscreen view are the same texture, so zooming in and out is seamless.
+
+**Code.** `Game/Input/InputContext.*`, `Game/Pachinko/MachineMode.*`, `DemoApp::BeginMachine/UpdateMachine/DrawMachineView`, `Level::TakeOverScreen`, `UIRenderer::DrawImage`, `Tests/MachineModeTests.cpp`.
+
+---
+
+## 49. 2D physics (M30)
+
+**Concept.** A pachinko field is rigid-body physics in two dimensions.
+- **Shapes:** dynamic circles (balls) against static circles (nails) and segments (walls, rails).
+- **Each step:** integrate velocity and position, then detect overlaps and resolve them. Push the ball out along the contact **normal**, remove the velocity going into the surface, and give back a share of it: the **restitution**, 1 for a perfect bounce, 0 for none. **Friction** takes away a share of the sliding speed.
+- **Balls against balls:** equal masses exchange the part of their velocities along the line between their centres, so momentum is kept.
+
+**Pitfalls, and how they're handled.**
+- **Tunnelling:** a fast ball can jump over a thin nail between two steps. Speeds are capped (480 px/s), and each substep is 1/480 s, so a ball never moves more than a third of its radius per substep.
+- **Jitter at rest:** gravity makes a resting ball approach its rail slightly every substep, and bouncing that back makes it shiver. Below a **rest threshold** (about 3 substeps of gravity) there's no bounce.
+- **Friction per contact, not per second:** a ball riding a rail touches it every substep, 480 times a second. The first friction value (2 % per contact) stopped balls dead halfway up the launch lane; it's now 0.05 % per contact, about 20 % per second.
+- **Many shapes:** a **uniform grid** broad phase, as for the level's collision (§40). Each shape is listed in every cell it overlaps, and a per-query mark tests each shape once.
+
+**Determinism.** The same inputs give the same bits, because of:
+- a fixed iteration order;
+- fixed substeps;
+- no dependence on frame time (the game steps it from `FixedStep`, §45);
+- `float` maths in one build.
+
+A unit test runs 30 balls through 96 nails for 10 seconds twice and compares memory byte for byte.
+
+**Impacts** faster than a threshold are reported with their speed and position, for the sounds (§51).
+
+**Code.** `Game/Pachinko/Physics2D.*`, `PhysicsDebugDraw.*`, `Tests/Physics2DTests.cpp`.
+
+---
+
+## 50. Playfields as data, and tuning by simulation (M31)
+
+**Concept.** A machine's layout is content, not code. `Assets/Machines/<name>.json`, with a schema, lists:
+- walls, curved rails and nail rows;
+- the launcher: position, direction, speed range, rate and jitter;
+- pockets (start, side, attacker, out, foul);
+- the attacker's gate;
+- the rules (§51).
+
+The loader validates it: every shape on the board, no touching nails, a start pocket and an out hole, and errors given as JSON Pointers as for levels. `Tools/Machines/night_fever_layout.py` computes the shipped layout, for example nail rows as chords of the board's circle with gaps for the reels and the pockets.
+
+**The machine** (`PachinkoGame`, one 1/60 s tick at a time):
+- **Launching:** holding the launcher fires about 1.7 balls a second. The knob (0..1) sets the speed between the minimum and maximum, with a little seeded jitter.
+- **Pockets:** they catch balls and pay into the tray. A ball too weak to clear the lane falls back into the **foul** pocket and is returned, as on real machines.
+- **The gate** is a wall that can be switched off (`World2D::SetSegmentEnabled`).
+
+**Tuning by simulation.** Watching is slow and anecdotal. A unit test instead fires 200 balls at five knob settings and counts where each ends up; that it *ends up somewhere* is itself the assertion. The numbers drove the design:
+- **No ball may come to rest.** The reel frame got a pitched roof, since its flat top held balls.
+- **Road nails,** a slanted row that steers balls toward the start pocket, must be a little *wider* apart than a ball. Closer, they cradled balls between them, and every ball that landed on them reached the pocket.
+- **The start pocket** catches roughly 5–12 % of balls, and outside a fever the machine pays back about what it takes.
+
+**Code.** `Game/Pachinko/Playfield.*`, `PachinkoGame.*`, `PixelDraw.h`, `Assets/Machines/`, `Assets/Schemas/machine.schema.json`, `Tools/Machines/`, `Tests/PlayfieldTests.cpp`.
+
+---
+
+## 51. Rules as a state machine: the lottery and the fever (M32)
+
+**Concept.** A classic pachinko machine's rules are a small state machine:
+
+`Idle → Spinning (maybe a reach) → Result → Idle`, or on a hit, `→ Fever: Round (gate open) → Interval → Round … → Idle`
+
+- Balls into the start pocket **hold** spins, up to 4; past that the ball still pays, but its spin is lost.
+- **A round** ends after N balls into the attacker, or after T seconds.
+
+**Randomness you can replay.** Each spin's outcome is drawn from a **seeded** generator (xorshift) *when the spin starts*; the reels only show what was drawn.
+- A **hit** shows three of a kind, always through a **reach**: the first two match and the last reel hangs.
+- Some misses tease a reach too, stopping one short.
+- **Replays:** with the same seed and the same inputs, a whole session replays exactly, which is how its unit test works. Games use the same idea for replays, networked lockstep and bug reports.
+
+**Checked statistically.** Over 100,000 draws at 1 in 99, the hit count must lie within about four standard deviations of 1010. An exact number would be wrong, and so would no check at all.
+
+**Pure and event-driven.** `PachinkoRules` takes pocket events in and gives back the gate state and its own events (spin, reel stop, reach, hit, round start and end). The game drives the gate from it, `DemoApp` turns its events into sounds, and its tests need no physics.
+
+**Around it.**
+- **Sounds, synthesised:** ball clicks (only the loudest few impacts per tick), the start chime, the payout rattle, reel stops, the reach and the fanfare. The hall's ambience **ducks** while you play (a gain on the level's `bed` voices).
+- **Attract screens:** the hall's other screens run the *real* game with a demo input, a player who never tires.
+
+**Code.** `Game/Pachinko/PachinkoRules.*`, `PachinkoGame::Step/DrawReels`, `DemoApp::PlayMachineSounds`, `SoundSynth.cpp` (the machine's sounds), `Tests/PachinkoRulesTests.cpp`.
+
+---
+
+## 52. Counters and the economy (M33)
+
+**Concept.** Flags answer yes or no ("was the letter read?"). An economy needs **counters**: how many tokens, how many balls. Both are **game state** that outlives any level, owned by the game rather than by a level (§31).
+
+**AtomEngine.**
+- **`GameState` counters:** missing ones read 0; they never go negative; `Spend` takes an amount only if all of it is there.
+- **Two data-driven actions:**
+  - `addCounter`, optionally only once: a flag remembers, and a second line is shown next time;
+  - `exchange`: spend a counter for a flag, or say what's missing.
+- **The loop:**
+  - the attendant's welcome tokens;
+  - at the machine, 10 tokens buy 50 balls;
+  - balls stay in your tray between sessions;
+  - 300 balls buy the ofuda from the prize shelf, a flag tied to the city's thread.
+- **Harness:** `expect_counter` and `set_counter`. The `pachinko_session` scenario plays the whole loop: tokens, buying, playing, standing up, the exchange refused, then made.
+
+**Code.** `Game/World/GameState.h`, `Interaction/Actions.h` (`AddCounter`, `Exchange`), `ActionExecutor.cpp`, `Assets/Levels/pachinko_hall.json`, `Tests/Scenarios/pachinko_session.atomtest`.
+
+---
+
+## 53. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -1241,11 +1402,12 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 - **Per layer**: on the night street, without the mid and far layers the frame is ≈ 2.8 ms, so shells, skyline and seven impostors cost ≈ 0.65 ms for 8 draws, none in the shadow pass.
 - **The older levels** are 0.3–0.5 ms slower than in v0.0.3. The likeliest cause is the glow pass (§41), which now runs in every level; it wasn't measured separately.
+- **v0.0.5**: the pachinko hall ≈ 2.8 ms walking around (its three screens now simulate the real game), ≈ 3.5 ms seated and playing (the 2D game fullscreen with the hall still drawn underneath); the night street ≈ 3.3 ms, within noise of v0.0.4.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 48. Build system and project layout
+## 54. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3.
@@ -1253,6 +1415,9 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
+- **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
+- **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47).
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
@@ -1263,8 +1428,10 @@ Engine/  Assets/ Audio/ Core/ Physics/ Platform/ Renderer/ Scene/ UI/
 Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Atmosphere, UneaseDirector, Main
          World/ Interaction/ Dialogue/ Level/ Testing/
+         Input/ (contexts) Pachinko/ (physics, playfield, rules, game, machine mode)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur (.hlsl) + Common.hlsli, Sway.hlsli
+Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Blender/  kit + street + levels + city + night + pachinko + lint
                 + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
@@ -1281,7 +1448,7 @@ external/ SDL glm cgltf stb json doctest
 
 ---
 
-## 49. Glossary
+## 55. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -1297,6 +1464,7 @@ external/ SDL glm cgltf stb json doctest
 - **Bandwidth** — bytes moved between GPU and memory per second; the usual bottleneck on integrated GPUs.
 - **Bloom / glow** — bright parts of the image blurred and added back, imitating light scattering in the eye and lens.
 - **Broad phase** — a cheap first test that narrows down which objects or triangles could collide, before the exact test.
+- **Broad phase / narrow phase** — first cheaply list what *might* touch (a grid), then test those exactly.
 - **Beer–Lambert law** — light through a medium decays as e^(−density·distance); the basis of exponential fog.
 - **Billboard** — a quad that always faces the camera.
 - **Biquad** — a standard 2nd-order digital filter (low/high/band-pass).
@@ -1304,6 +1472,8 @@ external/ SDL glm cgltf stb json doctest
 - **Cell** — a connected area of a level (a stretch of street, an alley); only the player's cell and its neighbours are drawn.
 - **Chunk** — a piece of a level drawn and culled as a whole, with a distance layer and a shadow flag.
 - **Comb filter** — a delay fed back into itself: an echo that repeats and decays; the building block of classic reverbs.
+- **Contact normal** — the direction a colliding body is pushed out along; the approaching velocity along it is removed and partly returned.
+- **Counter (game state)** — a named number that outlives levels (tokens, balls), next to the yes/no flags.
 - **Clip (animation)** — a named set of keyframed channels that move a model's nodes.
 - **Clip space / NDC** — coordinates after projection / after dividing by w.
 - **Command buffer** — recorded GPU work, submitted as a unit.
@@ -1322,16 +1492,20 @@ external/ SDL glm cgltf stb json doctest
 - **DXIL / HLSL / dxc** — D3D12 shader bytecode / shader language / compiler.
 - **Emissive mask** — a texture saying which pixels of a surface emit light, and in what colour.
 - **Equirectangular** — a 2:1 panorama mapping longitude to x and latitude to y; covers every direction.
+- **Ease (smoothstep)** — 3t² − 2t³: a 0..1 ramp that starts and ends gently, for camera moves.
 - **Double-sided** — rendered from both sides (no back-face culling), with the normal flipped on the back.
 - **Entity** — a thing in the world: a name, a position and a set of capabilities.
 - **Fingerprint** — a hash of everything a result depends on; unchanged fingerprint, unchanged result, so the work can be skipped.
 - **Fireflies** — isolated, far too bright texels from a path tracer finding a rare, very bright light path.
 - **Fixed timestep** — advancing a simulation in constant steps paid for by accumulated frame time, so it behaves the same at any frame rate.
+- **Fever (pachinko)** — the payout mode after a lottery hit: the attacker gate opens for several rounds.
 - **Frustum** — the camera's visible volume.
 - **Film grain** — animated noise imitating film, applied in post.
 - **Generational handle** — (slot, generation) reference that fails safely once its object is removed.
 - **Glyph atlas** — a texture holding every rasterised character of a font.
 - **Hysteresis** — keeping a state until the input has clearly moved past the switching point, so it doesn't flicker at the boundary.
+- **Input context / action map** — named actions mapped to keys per mode, so gameplay never reads keys directly.
+- **Integer scaling** — enlarging pixel art by a whole number, so every pixel stays an equal square.
 - **Hot reload** — replacing content in a running program when its files change, without restarting.
 - **JSON Pointer** — a path to one value inside a JSON document, e.g. `/entities/3/interactable/action/type`.
 - **JSON Schema** — a description of a JSON file's shape that editors use for completion and validation.
@@ -1351,6 +1525,8 @@ external/ SDL glm cgltf stb json doctest
 - **Lightmap** — a texture of baked light mapped by its own non-overlapping UV set.
 - **Lint** — an automatic check that rejects suspicious input (here: z-fighting geometry at export).
 - **Mover** — an entity capability shuttling it between two points (the train).
+- **Median cut** — building a palette by repeatedly splitting the colour box with the widest range.
+- **LZW** — the dictionary compression GIFs use: repeated runs become short codes.
 - **Marker** — an empty in Blender named `spawn:`/`entity:` that places something the level file describes.
 - **Mipmap** — pre-filtered smaller copies of a texture.
 - **MSAA / resolve** — multisample AA / averaging samples into a normal image.
@@ -1366,6 +1542,10 @@ external/ SDL glm cgltf stb json doctest
 - **Render target / render-to-texture** — a texture the GPU draws into and later samples like any other.
 - **Representation layer** — near, middle or far: how detailed (and how expensive) a piece of the world is drawn.
 - **Reverb** — the dense tail of reflections a room adds to a sound; here imitated with comb and all-pass filters.
+- **Reach (pachinko)** — two reels matching while the third still turns: the tease before a hit or a near miss.
+- **Replay determinism** — the same seed and inputs reproduce a whole session exactly.
+- **Rest threshold** — a speed below which a contact doesn't bounce, so resting bodies don't jitter.
+- **Restitution** — the share of the approach speed a bounce gives back (1 elastic, 0 dead).
 - **Render pass** — scope of drawing into a set of attachments, with load/store ops.
 - **Rigid animation** — whole parts moving by node transforms, without deforming (no skinning).
 - **Render scale** — scene resolution as a fraction of the window.
@@ -1376,6 +1556,7 @@ external/ SDL glm cgltf stb json doctest
 - **Shadow acne** — speckled false self-shadowing from depth-comparison errors.
 - **Shadow map** — a depth image rendered from a light, used to test visibility from that light.
 - **Skyline card** — a flat, alpha-tested cut-out of distant buildings; rings of them give parallax in front of the sky.
+- **Substep** — one of several short physics steps inside a frame's step, for stability and to avoid tunnelling.
 - **Skinning** — deforming a mesh by weighted joints (a skeleton); not used in AtomEngine.
 - **Slerp** — spherical linear interpolation between rotations (quaternions), at constant angular speed.
 - **Slot map** — a container of reusable slots addressed by generational handles.
@@ -1387,6 +1568,7 @@ external/ SDL glm cgltf stb json doctest
 - **Swapchain** — the window's ring of presentable images.
 - **Sway (vertex)** — moving vertices in the vertex shader by a weighted wind offset, for foliage and cloth.
 - **Soft knee** — a threshold that eases in over a band instead of switching on (the glow's bright pass).
+- **Tunnelling** — a fast body passing through a thin one between two physics steps.
 - **Tessellation (here)** — splitting large faces into a grid so vertex-stored data (baked light) has vertices to live on.
 - **Texel snapping** — moving a shadow box only in whole-texel steps to stop shimmering.
 - **Tonemapping** — compressing HDR values into the display range with a smooth curve.
