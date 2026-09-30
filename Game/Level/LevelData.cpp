@@ -142,10 +142,11 @@ namespace AtomGame
             {
                 PlayMachine play;
                 play.screen = String(json, "screen", path);
+                play.machine = String(json, "machine", path);
                 const auto view = json.find("view");
-                if (play.screen.empty() || view == json.end())
+                if (play.screen.empty() || play.machine.empty() || view == json.end())
                 {
-                    throw LevelError(path, "playMachine needs \"screen\" and \"view\"");
+                    throw LevelError(path, "playMachine needs \"screen\", \"machine\" and \"view\"");
                 }
                 const std::string at = JsonPath(path, "view");
                 if (!view->contains("position"))

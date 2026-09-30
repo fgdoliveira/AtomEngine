@@ -24,6 +24,23 @@
   events for sounds; deterministic to the bit. A debug view draws a world
   into a canvas. Unit tests: resting, bounce energy, tunnelling at top
   speed, bit-identical reruns, momentum.
+- **The playable machine (M31):**
+  - Playfields as data: `Assets/Machines/night_fever.json` (+ schema):
+    walls, curved rails, nail rows, the launcher, pockets (start, side,
+    attacker, out, foul) and the attacker's gate; validated on load (all
+    shapes on the board, no touching nails, a start pocket and an out
+    hole). Laid out by `Tools/Machines/night_fever_layout.py`.
+  - `PachinkoGame`: hold Space to fire about 1.7 balls a second up the
+    launch lane; the knob (Up/Down, mouse wheel) sets their speed, with a
+    little seeded jitter. Weak shots fall back and return to the tray;
+    pockets pay balls into it; 250 balls to start with for now.
+  - Tuned by playing it headless: a pitched roof on the reel frame (a flat
+    top held balls), road nails a little wider apart than a ball (closer,
+    they cradled balls and fed every one to the start pocket), a clear
+    band around them; about 5-12 % of balls reach the start pocket.
+  - Drawn in the 320x240 canvas: board, rails, nails, pockets, balls, the
+    tray count and the knob; 7-segment digits shared with the attract loop.
+  - Rail friction lowered: a ball riding a rail touches it every substep.
 
 ## Unreleased (joined 0.0.5)
 

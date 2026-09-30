@@ -45,7 +45,7 @@
       "name": "machine",
       "interactable": {
         "prompt": "Play", "focus": [-0.55, 1.4, 0.0], "radius": 2.2,
-        "action": { "type": "playMachine", "screen": "atom_pachinko_screen_play",
+        "action": { "type": "playMachine", "screen": "atom_pachinko_screen_play", "machine": "Machines/night_fever.json",
                     "view": { "position": [-0.83, 1.4, -9.0], "yaw": -90, "pitch": 0 } }
       }
     },

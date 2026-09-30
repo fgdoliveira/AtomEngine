@@ -50,6 +50,7 @@ namespace AtomGame
     struct PlayMachine
     {
         std::string screen;
+        std::string machine; // the playfield, relative to Assets/ (M31)
         glm::vec3 viewPosition{ 0.0f };
         float viewYawDegrees = 0.0f;
         float viewPitchDegrees = 0.0f;

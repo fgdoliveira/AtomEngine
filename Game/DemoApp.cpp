@@ -1068,9 +1068,18 @@ namespace AtomGame
         {
             return false;
         }
+        const PlayfieldParseResult field = LoadPlayfieldFile(m_assetRoot + "Assets/" + play.machine);
+        if (!field.playfield)
+        {
+            std::cerr << field.error << '\n';
+            level->ReleaseScreen(play.screen);
+            return false;
+        }
         m_machinePlay = play;
         m_machineScreen = screen;
         m_machineClock = FixedStep{};
+        m_machineGame.emplace(*field.playfield, ++m_machineSessions);
+        m_machineGame->AddToTray(m_machineTray);
         const CameraPose from{ m_camera.GetPosition(), m_camera.GetYaw(), m_camera.GetPitch() };
         const CameraPose to{ play.viewPosition, glm::radians(play.viewYawDegrees), glm::radians(play.viewPitchDegrees) };
         m_machine.Enter(from, to);
@@ -1090,14 +1099,20 @@ namespace AtomGame
         m_camera.SetPosition(pose.position);
         m_camera.SetRotation(pose.yaw, pose.pitch);
 
-        // The game runs on its own fixed clock and draws into the screen.
-        for (int steps = m_machineClock.Advance(deltaSeconds); steps > 0; --steps)
+        // The game runs on its own fixed clock and draws into the screen. The
+        // handle and the knob only work while seated, not during the move.
+        const bool playing = m_machine.GetPhase() == MachineMode::Phase::Playing;
+        float wheel = playing ? GetInput().GetWheelDelta() * 0.05f : 0.0f;
+        const float knob = playing ? (m_actions.Held(InputAction::StrengthUp) ? 0.5f : 0.0f)
+                                   - (m_actions.Held(InputAction::StrengthDown) ? 0.5f : 0.0f) : 0.0f;
+        for (int steps = m_machineClock.Advance(deltaSeconds); steps > 0 && m_machineGame; --steps)
         {
-            m_machineGame.Step();
+            m_machineGame->Step({ playing && m_actions.Held(InputAction::Launch), knob * PachinkoGame::Tick + wheel });
+            wheel = 0.0f; // a wheel notch turns the knob once
         }
-        if (m_machineScreen)
+        if (m_machineScreen && m_machineGame)
         {
-            m_machineGame.Draw(m_machineScreen->GetCanvas());
+            m_machineGame->Draw(m_machineScreen->GetCanvas());
         }
         if (!m_machine.IsActive())
         {
@@ -1112,6 +1127,11 @@ namespace AtomGame
             level->ReleaseScreen(m_machinePlay.screen);
         }
         m_machineScreen = nullptr;
+        if (m_machineGame)
+        {
+            m_machineTray = m_machineGame->GetTray(); // balls on the board are lost
+            m_machineGame.reset();
+        }
         m_mode = Mode::Exploring; // the player's eye and look are where they were
         std::cout << "Stood up from the machine\n";
     }

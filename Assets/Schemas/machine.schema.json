@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AtomEngine pachinko machine",
+  "description": "A playable machine's playfield (M31). Pixels on the 320x240 screen, y down. Laid out by Tools/Machines/*_layout.py.",
+  "type": "object",
+  "required": ["field", "launch", "pockets"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string" },
+    "field": {
+      "type": "object",
+      "description": "The board's bounds; every shape must lie inside.",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": { "min": { "$ref": "#/definitions/vec2" }, "max": { "$ref": "#/definitions/vec2" } }
+    },
+    "walls": { "type": "array", "items": { "$ref": "#/definitions/segment" } },
+    "arcs": {
+      "type": "array",
+      "description": "Curved rails, split into segments. Angles in degrees, 0 = right, 90 = up.",
+      "items": {
+        "type": "object",
+        "required": ["center", "radius", "from", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "center": { "$ref": "#/definitions/vec2" },
+          "radius": { "type": "number", "exclusiveMinimum": 0 },
+          "from": { "type": "number" },
+          "to": { "type": "number" },
+          "segments": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "nails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "radius": { "type": "number", "exclusiveMinimum": 0 },
+        "points": { "type": "array", "items": { "$ref": "#/definitions/vec2" } },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["y", "x0", "x1", "spacing"],
+            "additionalProperties": false,
+            "properties": {
+              "y": { "type": "number" },
+              "x0": { "type": "number" },
+              "x1": { "type": "number" },
+              "spacing": { "type": "number", "exclusiveMinimum": 0 },
+              "skip": { "type": "array", "items": { "$ref": "#/definitions/vec2" }, "description": "x ranges left without nails." }
+            }
+          }
+        }
+      }
+    },
+    "launch": {
+      "type": "object",
+      "required": ["position", "direction"],
+      "additionalProperties": false,
+      "properties": {
+        "position": { "$ref": "#/definitions/vec2" },
+        "direction": { "$ref": "#/definitions/vec2" },
+        "minSpeed": { "type": "number", "exclusiveMinimum": 0 },
+        "maxSpeed": { "type": "number", "exclusiveMinimum": 0 },
+        "perSecond": { "type": "number", "exclusiveMinimum": 0 },
+        "jitter": { "type": "number", "minimum": 0 }
+      }
+    },
+    "pockets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "min", "max"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["start", "attacker", "side", "out", "foul"] },
+          "min": { "$ref": "#/definitions/vec2" },
+          "max": { "$ref": "#/definitions/vec2" },
+          "payout": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "gate": { "$ref": "#/definitions/segment", "description": "The attacker's lid: a wall while closed." },
+    "reels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "min": { "$ref": "#/definitions/vec2" }, "max": { "$ref": "#/definitions/vec2" } }
+    }
+  },
+  "definitions": {
+    "vec2": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+    "segment": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4, "description": "[x0, y0, x1, y1]" }
+  }
+}

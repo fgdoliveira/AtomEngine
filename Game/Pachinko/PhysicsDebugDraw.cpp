@@ -12,8 +12,13 @@ namespace AtomGame
 {
     void DrawPhysicsDebug(Atom::UIRenderer& canvas, const World2D& world, glm::vec4 color)
     {
-        for (const Segment& segment : world.GetSegments())
+        for (std::size_t index = 0; index < world.GetSegments().size(); ++index)
         {
+            const Segment& segment = world.GetSegments()[index];
+            if (!world.IsSegmentEnabled(index))
+            {
+                continue;
+            }
             // One pixel per unit of length: a line made of squares.
             const glm::vec2 delta = segment.b - segment.a;
             const int steps = std::max(1, static_cast<int>(std::ceil(glm::length(delta))));

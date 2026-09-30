@@ -25,10 +25,12 @@ namespace AtomGame
         m_gridDirty = true;
     }
 
-    void World2D::AddSegment(const Segment& segment)
+    std::size_t World2D::AddSegment(const Segment& segment)
     {
         m_segments.push_back(segment);
+        m_segmentEnabled.push_back(1);
         m_gridDirty = true;
+        return m_segments.size() - 1;
     }
 
     std::uint32_t World2D::AddBall(glm::vec2 position, glm::vec2 velocity)
@@ -135,6 +137,10 @@ namespace AtomGame
                     }
                     else
                     {
+                        if (!m_segmentEnabled[static_cast<std::size_t>(-1 - shape)])
+                        {
+                            continue;
+                        }
                         const Segment& segment = m_segments[static_cast<std::size_t>(-1 - shape)];
                         closest = ClosestOnSegment(ball.position, segment.a, segment.b);
                         reach = r;

@@ -18,6 +18,7 @@ add_executable(
     PachinkoTests.cpp
     MachineModeTests.cpp
     Physics2DTests.cpp
+    PlayfieldTests.cpp
 )
 
 target_link_libraries(

@@ -34,7 +34,8 @@ namespace AtomGame
         float nailRestitution = 0.45f;
         float wallRestitution = 0.35f;
         float ballRestitution = 0.6f;
-        float friction = 0.02f;     // per contact substep
+        float friction = 0.0005f;   // per contact substep: a ball riding a rail touches it
+                                    // 480 times a second, so this is ~20 % of its speed per second
         float gridCell = 16.0f;     // broad phase
     };
 
@@ -73,7 +74,10 @@ namespace AtomGame
         explicit World2D(PhysicsSettings settings = {}) : m_settings(settings) {}
 
         void AddNail(const Nail& nail);
-        void AddSegment(const Segment& segment);
+        std::size_t AddSegment(const Segment& segment); // returns its index
+        // A segment switched off is ignored (a gate that opens, M31).
+        void SetSegmentEnabled(std::size_t index, bool enabled) { m_segmentEnabled[index] = enabled ? 1 : 0; }
+        bool IsSegmentEnabled(std::size_t index) const { return m_segmentEnabled[index] != 0; }
 
         std::uint32_t AddBall(glm::vec2 position, glm::vec2 velocity);
         void RemoveBall(std::uint32_t id);
@@ -101,6 +105,7 @@ namespace AtomGame
         PhysicsSettings m_settings;
         std::vector<Nail> m_nails;
         std::vector<Segment> m_segments;
+        std::vector<char> m_segmentEnabled;
         std::vector<Ball> m_balls;
         std::vector<Impact> m_impacts;
         std::uint32_t m_nextId = 1;

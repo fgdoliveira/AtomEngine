@@ -11,6 +11,7 @@
 #include "Input/InputContext.h"
 #include "Level/LevelManager.h"
 #include "Pachinko/MachineMode.h"
+#include "Pachinko/PachinkoGame.h"
 #include "World/FixedStep.h"
 #include "World/PachinkoAttract.h"
 #include "PlayerController.h"
@@ -23,6 +24,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace AtomGame
@@ -140,8 +142,10 @@ namespace AtomGame
         MachineMode m_machine;
         PlayMachine m_machinePlay;
         Atom::RenderTexture* m_machineScreen = nullptr;
-        PachinkoAttract m_machineGame{ 11 };
+        std::optional<PachinkoGame> m_machineGame;
         FixedStep m_machineClock;
+        int m_machineTray = 250;          // balls kept between sessions (tokens: M33)
+        std::uint32_t m_machineSessions = 0; // seeds each session differently, reproducibly
         bool BeginMachine(const PlayMachine& play);
         void UpdateMachine(float deltaSeconds);
         void DrawMachineView();

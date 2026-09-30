@@ -396,6 +396,7 @@
           "properties": {
             "type": { "const": "playMachine" },
             "screen": { "type": "string", "description": "The machine's screen material; the game takes it over (M29)." },
+            "machine": { "type": "string", "description": "The playfield file, relative to Assets/ (M31)." },
             "view": {
               "type": "object",
               "description": "Where the camera goes: in front of the screen.",
@@ -404,7 +405,7 @@
               "properties": { "position": { "$ref": "#/definitions/vec3" }, "yaw": { "type": "number" }, "pitch": { "type": "number" } }
             }
           },
-          "required": ["screen", "view"], "additionalProperties": false
+          "required": ["screen", "machine", "view"], "additionalProperties": false
         }
       ]
     },
