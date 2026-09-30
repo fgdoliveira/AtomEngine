@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.0.5 — in progress
+## 0.0.5 — The pachinko game
+
+One machine in the night city's pachinko hall is playable: sit down, the
+camera moves in and the game fills the window. Balls fly up the launch lane
+and fall through the nails of a 2D physics world; the start pocket spins a
+seeded lottery; a hit opens the gate for fever rounds; tokens buy balls, and
+balls buy a prize. The engine gained input contexts, a mode controller,
+2D physics, playfields and rules as data, and counters in the game state.
 
 ### Added
 - **Input contexts and the machine mode (M29):**
@@ -73,9 +80,15 @@
   - Harness `expect_counter`, `set_counter`; a `pachinko_session`
     scenario plays the whole loop.
 
-## Unreleased (joined 0.0.5)
+### Measured
+Release, uncapped (IMMEDIATE present mode), Iris Xe, 1280x720, averaged
+over 4500+ frames: the pachinko hall ≈ 2.8 ms walking around (0.0.4: 2.6,
+now its three screens simulate the real game instead of the attract loop),
+≈ 3.5 ms seated at the machine and playing (the 2D game fullscreen, the
+hall still drawn underneath); the night street ≈ 3.3 ms (0.0.4: 3.5,
+within noise). Other levels are unchanged.
 
-### Added
+### Added before the game (documentation, #7)
 - **Documentation captures:** the `first_render` level (a grid plane and
   spinning cubes, the scene the engine first drew) and a script that
   renders screenshots and frame sequences of the first concepts into

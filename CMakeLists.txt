@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 project(
     AtomEngine
-    VERSION 0.0.4
+    VERSION 0.0.5
     LANGUAGES CXX
 )
 
