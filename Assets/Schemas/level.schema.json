@@ -362,7 +362,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence"] }
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine"] }
       },
       "oneOf": [
         {
@@ -391,6 +391,20 @@
         {
           "properties": { "type": { "const": "sequence" }, "id": { "type": "string", "description": "One of the level's sequences (M26)." } },
           "required": ["id"], "additionalProperties": false
+        },
+        {
+          "properties": {
+            "type": { "const": "playMachine" },
+            "screen": { "type": "string", "description": "The machine's screen material; the game takes it over (M29)." },
+            "view": {
+              "type": "object",
+              "description": "Where the camera goes: in front of the screen.",
+              "required": ["position"],
+              "additionalProperties": false,
+              "properties": { "position": { "$ref": "#/definitions/vec3" }, "yaw": { "type": "number" }, "pitch": { "type": "number" } }
+            }
+          },
+          "required": ["screen", "view"], "additionalProperties": false
         }
       ]
     },

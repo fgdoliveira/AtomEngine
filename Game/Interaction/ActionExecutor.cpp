@@ -50,6 +50,12 @@ namespace AtomGame
                     context.messages.Show(play.message);
                 }
             },
+            [&](const PlayMachine& machine) {
+                if (!context.playMachine || !context.playMachine(machine))
+                {
+                    context.messages.Show("The machine doesn't respond.");
+                }
+            },
             [&](const RunSequence& run) {
                 if (!context.runSequence || !context.runSequence(run.id))
                 {

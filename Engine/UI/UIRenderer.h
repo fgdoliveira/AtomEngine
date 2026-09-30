@@ -31,6 +31,12 @@ namespace Atom
 
         void DrawRect(glm::vec2 position, glm::vec2 size, glm::vec4 color);
 
+        // A whole texture stretched over a rectangle (M29), tinted by `color`
+        // (its alpha fades it). Pixel-art textures (render targets) are
+        // sampled with nearest filtering, so integer scales stay crisp.
+        void DrawImage(const Texture& texture, glm::vec2 position, glm::vec2 size,
+                       glm::vec4 color = glm::vec4{ 1.0f });
+
         // `position` is the top-left of the first line. '\n' starts a line.
         void DrawText(
             const Font& font,
@@ -90,6 +96,7 @@ namespace Atom
         SDL_GPUDevice* m_device = nullptr;
         SDL_GPUGraphicsPipeline* m_pipeline = nullptr;
         SDL_GPUSampler* m_sampler = nullptr;
+        SDL_GPUSampler* m_pixelSampler = nullptr; // nearest, for pixel art
         SDL_GPUBuffer* m_vertexBuffer = nullptr;
         SDL_GPUTransferBuffer* m_transferBuffer = nullptr;
         std::unique_ptr<Texture> m_white;

@@ -65,6 +65,10 @@ namespace AtomGame
         // A render or scene switch (msaa, fog, fov, ...); false if unknown
         // or the value is invalid.
         virtual bool Set(const std::string& what, const std::string& value) = 0;
+        // Input actions (M29), as a player's keys would give them: held until
+        // released, or pressed for one frame. False for an unknown action.
+        virtual bool HoldAction(const std::string& action, bool held) = 0;
+        virtual bool PressAction(const std::string& action) = 0;
     };
 
     // The panning camera's easing (smoothstep): 0 -> 0, 1 -> 1, gentle at

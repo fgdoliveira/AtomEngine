@@ -117,6 +117,12 @@ namespace AtomGame
         m_target = {};
         m_speaker = {};
         m_sequence.Stop(); // its steps name the old level's entities
+        if (m_machine.IsActive())
+        {
+            m_machine = MachineMode{}; // the machine's screen dies with the level
+            m_machineScreen = nullptr;
+            m_mode = Mode::Exploring;
+        }
         if (m_dialogue.IsActive())
         {
             m_dialogue.Close();
@@ -248,6 +254,12 @@ namespace AtomGame
         UpdateRenderSettings();
         UpdateTestScript(deltaSeconds);
 
+        // The mode decides what the keys mean (M29).
+        const InputContextId context = m_mode == Mode::InDialogue ? InputContextId::Dialogue
+            : m_mode == Mode::AtMachine ? InputContextId::Machine
+            : InputContextId::Exploring;
+        m_actions.Update(m_inputMap, context, GetInput());
+
         m_time += deltaSeconds;
         m_messages.Update(deltaSeconds);
 
@@ -274,7 +286,7 @@ namespace AtomGame
         switch (m_mode)
         {
         case Mode::Exploring:
-            m_player.Update(GetInput(), m_camera, CurrentCollision(), deltaSeconds);
+            m_player.Update(GetInput(), m_actions, m_camera, CurrentCollision(), deltaSeconds);
             UpdateInteraction();
             break;
         case Mode::InDialogue:
@@ -283,6 +295,10 @@ namespace AtomGame
         case Mode::InSequence:
             m_target = {};
             UpdateSequence(deltaSeconds);
+            break;
+        case Mode::AtMachine:
+            m_target = {};
+            UpdateMachine(deltaSeconds);
             break;
         case Mode::Transitioning:
             m_target = {};
@@ -340,6 +356,7 @@ namespace AtomGame
         }
 
         DrawOverlay(deltaSeconds);
+        DrawMachineView(); // over everything: the machine fills the window
         UpdateWindowTitle(deltaSeconds);
     }
 
@@ -516,11 +533,11 @@ namespace AtomGame
         const Atom::Input& input = GetInput();
         m_dialogue.Update(deltaSeconds);
 
-        if (input.WasKeyPressed(SDL_SCANCODE_W) || input.WasKeyPressed(SDL_SCANCODE_UP))
+        if (m_actions.Pressed(InputAction::ChoiceUp))
         {
             m_dialogue.MoveSelection(-1);
         }
-        if (input.WasKeyPressed(SDL_SCANCODE_S) || input.WasKeyPressed(SDL_SCANCODE_DOWN))
+        if (m_actions.Pressed(InputAction::ChoiceDown))
         {
             m_dialogue.MoveSelection(1);
         }
@@ -533,9 +550,7 @@ namespace AtomGame
                 m_dialogue.Confirm();
             }
         }
-        if (input.WasKeyPressed(SDL_SCANCODE_E)
-            || input.WasKeyPressed(SDL_SCANCODE_SPACE)
-            || input.WasKeyPressed(SDL_SCANCODE_RETURN))
+        if (m_actions.Pressed(InputAction::Confirm))
         {
             m_dialogue.Confirm();
         }
@@ -585,7 +600,7 @@ namespace AtomGame
             *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
 
         const Entity* target = world->Find(m_target);
-        if (target && input.WasKeyPressed(SDL_SCANCODE_E))
+        if (target && m_actions.Pressed(InputAction::Interact))
         {
             InteractWith(*target);
         }
@@ -605,6 +620,7 @@ namespace AtomGame
                 return level && level->PlayAnimation(entity, clip);
             },
             [this](const std::string& id) { return RunSequence(id); },
+            [this](const PlayMachine& play) { return BeginMachine(play); },
         };
         std::cout << "Interacted with " << target.name << '\n';
         ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
@@ -1008,6 +1024,7 @@ namespace AtomGame
         case Mode::InDialogue: return "dialogue";
         case Mode::Transitioning: return "transitioning";
         case Mode::InSequence: return "sequence";
+        case Mode::AtMachine: return "machine";
         default: return "exploring";
         }
     }
@@ -1041,6 +1058,103 @@ namespace AtomGame
     {
         const Atom::FrameStats& stats = const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats();
         return { stats.renderTextures, stats.renderTextureDraws };
+    }
+
+    bool DemoApp::BeginMachine(const PlayMachine& play)
+    {
+        Level* level = m_levels->GetLevel();
+        Atom::RenderTexture* screen = level && m_mode == Mode::Exploring ? level->TakeOverScreen(play.screen) : nullptr;
+        if (!screen)
+        {
+            return false;
+        }
+        m_machinePlay = play;
+        m_machineScreen = screen;
+        m_machineClock = FixedStep{};
+        const CameraPose from{ m_camera.GetPosition(), m_camera.GetYaw(), m_camera.GetPitch() };
+        const CameraPose to{ play.viewPosition, glm::radians(play.viewYawDegrees), glm::radians(play.viewPitchDegrees) };
+        m_machine.Enter(from, to);
+        m_mode = Mode::AtMachine;
+        std::cout << "Sat down at the machine\n";
+        return true;
+    }
+
+    void DemoApp::UpdateMachine(float deltaSeconds)
+    {
+        m_machine.Update(deltaSeconds);
+        if (m_machine.GetPhase() == MachineMode::Phase::Playing && m_actions.Pressed(InputAction::Leave))
+        {
+            m_machine.Leave();
+        }
+        const CameraPose pose = m_machine.GetCamera();
+        m_camera.SetPosition(pose.position);
+        m_camera.SetRotation(pose.yaw, pose.pitch);
+
+        // The game runs on its own fixed clock and draws into the screen.
+        for (int steps = m_machineClock.Advance(deltaSeconds); steps > 0; --steps)
+        {
+            m_machineGame.Step();
+        }
+        if (m_machineScreen)
+        {
+            m_machineGame.Draw(m_machineScreen->GetCanvas());
+        }
+        if (!m_machine.IsActive())
+        {
+            EndMachine();
+        }
+    }
+
+    void DemoApp::EndMachine()
+    {
+        if (Level* level = m_levels->GetLevel())
+        {
+            level->ReleaseScreen(m_machinePlay.screen);
+        }
+        m_machineScreen = nullptr;
+        m_mode = Mode::Exploring; // the player's eye and look are where they were
+        std::cout << "Stood up from the machine\n";
+    }
+
+    void DemoApp::DrawMachineView()
+    {
+        const float fade = m_machine.GetFade();
+        if (!m_machine.IsActive() || fade <= 0.0f || !m_machineScreen)
+        {
+            return;
+        }
+        Atom::UIRenderer& ui = GetRenderer().GetUI();
+        const glm::vec2 window = ui.GetScreenSize();
+        const PixelLayout layout = FitIntegerScale(window, static_cast<int>(m_machineScreen->GetWidth()),
+                                                   static_cast<int>(m_machineScreen->GetHeight()));
+        ui.DrawRect({ 0.0f, 0.0f }, window, { 0.02f, 0.02f, 0.03f, fade });
+        ui.DrawImage(m_machineScreen->GetTexture(), layout.position, layout.size, { 1.0f, 1.0f, 1.0f, fade });
+        if (m_font && m_machine.GetPhase() == MachineMode::Phase::Playing)
+        {
+            const float scale = std::max(1.0f, window.y / 1080.0f);
+            ui.DrawText(*m_smallFont, "Space  launch\nUp/Down  strength\nQ  leave",
+                        { 24.0f * scale, window.y - 90.0f * scale }, { 0.8f, 0.78f, 0.72f, 0.8f * fade }, scale);
+        }
+    }
+
+    bool DemoApp::HoldAction(const std::string& name, bool held)
+    {
+        const std::optional<InputAction> action = ActionFromName(name);
+        if (action)
+        {
+            m_actions.Inject(*action, held);
+        }
+        return action.has_value();
+    }
+
+    bool DemoApp::PressAction(const std::string& name)
+    {
+        const std::optional<InputAction> action = ActionFromName(name);
+        if (action)
+        {
+            m_actions.InjectPress(*action);
+        }
+        return action.has_value();
     }
 
     std::string DemoApp::Capture(const std::string& stem, bool includeUi)

@@ -41,6 +41,7 @@ namespace AtomGame
 
     void PlayerController::Update(
         const Atom::Input& input,
+        const ActionInput& actions,
         Atom::Camera& camera,
         const Atom::CollisionWorld* world,
         float deltaSeconds
@@ -52,17 +53,17 @@ namespace AtomGame
         );
 
         glm::vec2 move{ 0.0f };
-        if (input.IsKeyDown(SDL_SCANCODE_W)) { move.y += 1.0f; }
-        if (input.IsKeyDown(SDL_SCANCODE_S)) { move.y -= 1.0f; }
-        if (input.IsKeyDown(SDL_SCANCODE_D)) { move.x += 1.0f; }
-        if (input.IsKeyDown(SDL_SCANCODE_A)) { move.x -= 1.0f; }
+        if (actions.Held(InputAction::MoveForward)) { move.y += 1.0f; }
+        if (actions.Held(InputAction::MoveBack)) { move.y -= 1.0f; }
+        if (actions.Held(InputAction::MoveRight)) { move.x += 1.0f; }
+        if (actions.Held(InputAction::MoveLeft)) { move.x -= 1.0f; }
 
         if (glm::dot(move, move) > 1.0f)
         {
             move = glm::normalize(move);
         }
 
-        const bool jogging = input.IsKeyDown(SDL_SCANCODE_LSHIFT);
+        const bool jogging = actions.Held(InputAction::Jog);
         const float speed = jogging ? jogSpeed : walkSpeed;
         const glm::vec3 targetVelocity =
             (camera.GetFlatForward() * move.y + camera.GetFlatRight() * move.x)

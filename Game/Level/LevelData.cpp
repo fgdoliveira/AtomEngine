@@ -138,6 +138,25 @@ namespace AtomGame
                 }
                 return play;
             }
+            if (type == "playMachine")
+            {
+                PlayMachine play;
+                play.screen = String(json, "screen", path);
+                const auto view = json.find("view");
+                if (play.screen.empty() || view == json.end())
+                {
+                    throw LevelError(path, "playMachine needs \"screen\" and \"view\"");
+                }
+                const std::string at = JsonPath(path, "view");
+                if (!view->contains("position"))
+                {
+                    throw LevelError(at, "view needs a \"position\"");
+                }
+                play.viewPosition = Vec3(*view, "position", play.viewPosition, at);
+                play.viewYawDegrees = Number(*view, "yaw", at, 0.0f);
+                play.viewPitchDegrees = Number(*view, "pitch", at, 0.0f);
+                return play;
+            }
             if (type == "sequence")
             {
                 const std::string id = String(json, "id", path);

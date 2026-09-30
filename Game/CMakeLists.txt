@@ -45,6 +45,10 @@ add_library(
     World/Impostors.cpp
     World/Impostors.h
     World/LiveEffects.cpp
+    Input/InputContext.cpp
+    Input/InputContext.h
+    Pachinko/MachineMode.cpp
+    Pachinko/MachineMode.h
     World/FixedStep.h
     World/PachinkoAttract.cpp
     World/PachinkoAttract.h

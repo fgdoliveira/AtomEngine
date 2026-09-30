@@ -20,7 +20,8 @@
   "outdoor": false,
   "screens": [
     { "material": "atom_pachinko_screen", "seed": 1 },
-    { "material": "atom_pachinko_screen_b", "seed": 7 }
+    { "material": "atom_pachinko_screen_b", "seed": 7 },
+    { "material": "atom_pachinko_screen_play", "seed": 3 }
   ],
   "audio": {
     "beds": [
@@ -44,7 +45,8 @@
       "name": "machine",
       "interactable": {
         "prompt": "Play", "focus": [-0.55, 1.4, 0.0], "radius": 2.2,
-        "action": { "type": "message", "text": "You feed in a note. The screen keeps playing to itself, as if you weren't there. Another night, maybe." }
+        "action": { "type": "playMachine", "screen": "atom_pachinko_screen_play",
+                    "view": { "position": [-0.83, 1.4, -9.0], "yaw": -90, "pitch": 0 } }
       }
     },
     {

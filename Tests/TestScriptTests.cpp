@@ -56,6 +56,8 @@ namespace
         }
         std::vector<std::string> captures;
         std::vector<std::string> settings;
+        bool HoldAction(const std::string& action, bool) override { return action != "nonsense"; }
+        bool PressAction(const std::string& action) override { return action != "nonsense"; }
         ArrivalError Arrival() const override { return arrival; }
         std::optional<float> animationTime;
         bool animationPlaying = false;

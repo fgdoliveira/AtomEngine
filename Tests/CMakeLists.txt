@@ -16,6 +16,7 @@ add_executable(
     NightStreetTests.cpp
     SequenceTests.cpp
     PachinkoTests.cpp
+    MachineModeTests.cpp
 )
 
 target_link_libraries(

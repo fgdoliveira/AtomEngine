@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/vec3.hpp>
+
 #include <string>
 #include <variant>
 
@@ -43,5 +45,15 @@ namespace AtomGame
         std::string id; // M26: one of the level's "sequences"
     };
 
-    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence>;
+    // Sit down at a pachinko machine (M29): the camera moves to `view`, then
+    // the game takes over the machine's screen (`screen`, a scene material).
+    struct PlayMachine
+    {
+        std::string screen;
+        glm::vec3 viewPosition{ 0.0f };
+        float viewYawDegrees = 0.0f;
+        float viewPitchDegrees = 0.0f;
+    };
+
+    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence, PlayMachine>;
 }

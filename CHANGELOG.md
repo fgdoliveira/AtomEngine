@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.0.5 — in progress
+
+### Added
+- **Input contexts and the machine mode (M29):**
+  - Gameplay reads named actions (`launch`, `leave`, `move_forward`…);
+    each mode (exploring, dialogue, machine) maps keys to them, so Space
+    confirms in a dialogue and fires at the machine. The harness holds and
+    presses actions the same way (`hold_action`, `press_action`).
+  - One machine in the pachinko hall is playable (`playMachine` action):
+    sitting down eases the camera to its screen, then the game fills the
+    window at the largest whole-number scale of 320x240, with borders and
+    crisp pixels (`UIRenderer::DrawImage`, nearest sampling for pixel art);
+    Q leaves the same way back. That machine has its own screen material,
+    which the game takes over from the attract loop (`Level::TakeOverScreen`).
+  - The mouse wheel is read (for the launch strength, M31).
+
+## Unreleased (joined 0.0.5)
 
 ### Added
 - **Documentation captures:** the `first_render` level (a grid plane and

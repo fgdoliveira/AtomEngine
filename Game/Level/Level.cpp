@@ -251,7 +251,7 @@ namespace AtomGame
         for (const ScreenData& data : d.screens)
         {
             Screen screen{ services.renderer.CreateRenderTexture(PachinkoAttract::Width, PachinkoAttract::Height),
-                           PachinkoAttract(data.seed), FixedStep{} };
+                           PachinkoAttract(data.seed), FixedStep{}, data.material };
             const std::vector<Atom::Material*> materials = level->FindSceneMaterials(data.material);
             if (!screen.target || materials.empty())
             {
@@ -516,6 +516,10 @@ namespace AtomGame
         // this frame's picture into their render texture.
         for (Screen& screen : m_screens)
         {
+            if (screen.takenOver)
+            {
+                continue; // the game draws it
+            }
             for (int steps = screen.clock.Advance(deltaSeconds); steps > 0; --steps)
             {
                 screen.attract.Step();
@@ -720,6 +724,30 @@ namespace AtomGame
         }
         const Entity* anchor = m_world.Find(*entity);
         return anchor ? anchor->position + offset : offset;
+    }
+
+    Atom::RenderTexture* Level::TakeOverScreen(std::string_view material)
+    {
+        for (Screen& screen : m_screens)
+        {
+            if (screen.material == material)
+            {
+                screen.takenOver = true;
+                return screen.target.get();
+            }
+        }
+        return nullptr;
+    }
+
+    void Level::ReleaseScreen(std::string_view material)
+    {
+        for (Screen& screen : m_screens)
+        {
+            if (screen.material == material)
+            {
+                screen.takenOver = false;
+            }
+        }
     }
 
     float Level::GetZoneLevel(std::string_view cellName) const
