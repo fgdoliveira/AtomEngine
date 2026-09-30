@@ -231,7 +231,7 @@ namespace AtomGame
             params.loop = true;
             params.gain = bed.gain;
             const Atom::VoiceId id = services.audio.Play(services.sounds.GetSound(bed.sound), params);
-            level->m_voices.push_back({ id, {}, bed.gain });
+            level->m_voices.push_back({ id, "bed", bed.gain });
         }
         for (const AudioEmitter& emitter : d.emitters)
         {
@@ -262,6 +262,16 @@ namespace AtomGame
             {
                 material->baseColorTexture = &screen.target->GetTexture();
                 material->emissiveTexture = &screen.target->GetTexture();
+            }
+            if (!data.machine.empty())
+            {
+                const PlayfieldParseResult field = LoadPlayfieldFile(assets + data.machine);
+                if (!field.playfield)
+                {
+                    std::cerr << "Level '" << d.name << "': " << field.error << '\n';
+                    return nullptr;
+                }
+                screen.demo.emplace(*field.playfield, data.seed);
             }
             level->m_screens.push_back(std::move(screen));
         }
@@ -522,9 +532,29 @@ namespace AtomGame
             }
             for (int steps = screen.clock.Advance(deltaSeconds); steps > 0; --steps)
             {
-                screen.attract.Step();
+                if (screen.demo)
+                {
+                    // A player who never tires: the handle held, the knob
+                    // in the sweet spot, the tray topped up.
+                    if (screen.demo->GetTray() < 20)
+                    {
+                        screen.demo->AddToTray(200);
+                    }
+                    screen.demo->Step({ true, 0.0f });
+                }
+                else
+                {
+                    screen.attract.Step();
+                }
             }
-            screen.attract.Draw(screen.target->GetCanvas());
+            if (screen.demo)
+            {
+                screen.demo->Draw(screen.target->GetCanvas());
+            }
+            else
+            {
+                screen.attract.Draw(screen.target->GetCanvas());
+            }
         }
 
         // Sequence sounds follow their entity.

@@ -489,5 +489,17 @@
       190,
       96
     ]
+  },
+  "rules": {
+    "odds": 99,
+    "maxHeld": 4,
+    "reachChance": 0.12,
+    "spinSeconds": 2.4,
+    "reachSeconds": 2.0,
+    "resultSeconds": 1.2,
+    "feverRounds": 8,
+    "ballsPerRound": 9,
+    "roundSeconds": 25,
+    "intervalSeconds": 1.5
   }
 }

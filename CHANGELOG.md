@@ -41,6 +41,24 @@
   - Drawn in the 320x240 canvas: board, rails, nails, pockets, balls, the
     tray count and the knob; 7-segment digits shared with the attract loop.
   - Rail friction lowered: a ball riding a rail touches it every substep.
+- **Rules, lottery and fever (M32):**
+  - `PachinkoRules`, a pure state machine: balls into the start pocket
+    hold up to 4 spins; each spin's outcome is drawn from a seeded
+    generator when it starts (1 in 99 hits); the reels roll and stop left
+    to right, hanging on a reach (two matching); a hit starts a fever of 8
+    rounds, each opening the attacker gate for 9 balls or 25 seconds.
+    Odds and timings are in the machine file (`rules`).
+  - Drawn: the reels in the centre window (pulsing on a reach, flashing in
+    a fever), held-spin lamps and the round counter in the right panel,
+    the attacker lit while open.
+  - Sounds, synthesised: ball clicks (the loudest few impacts per tick),
+    the start chime, the payout rattle, reel stops, the reach and the
+    fever fanfare; the hall's ambience ducks while you play.
+  - The hall's screens now run the real game playing itself (`screens`
+    with a `machine`), instead of the simple attract loop.
+  - Tests: every rule state in order, round time limits, reaches, held
+    spins, hit rate within tolerance over 100 000 draws, a whole session
+    replayed exactly from its seed, a forced fever that opens the gate.
 
 ## Unreleased (joined 0.0.5)
 

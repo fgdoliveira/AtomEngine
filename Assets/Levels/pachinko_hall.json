@@ -19,9 +19,9 @@
   },
   "outdoor": false,
   "screens": [
-    { "material": "atom_pachinko_screen", "seed": 1 },
-    { "material": "atom_pachinko_screen_b", "seed": 7 },
-    { "material": "atom_pachinko_screen_play", "seed": 3 }
+    { "material": "atom_pachinko_screen", "seed": 1, "machine": "Machines/night_fever.json" },
+    { "material": "atom_pachinko_screen_b", "seed": 7, "machine": "Machines/night_fever.json" },
+    { "material": "atom_pachinko_screen_play", "seed": 3, "machine": "Machines/night_fever.json" }
   ],
   "audio": {
     "beds": [

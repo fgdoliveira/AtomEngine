@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Pachinko/PachinkoRules.h"
 #include "Pachinko/Physics2D.h"
 
 #include <glm/vec2.hpp>
@@ -63,6 +64,7 @@ namespace AtomGame
         std::optional<Segment> gate;
         glm::vec2 reelsMin{ 0.0f };
         glm::vec2 reelsMax{ 0.0f };
+        RulesSettings rules;     // M32: odds, fever
     };
 
     struct PlayfieldParseResult

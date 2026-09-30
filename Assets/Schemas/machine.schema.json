@@ -84,6 +84,23 @@
       }
     },
     "gate": { "$ref": "#/definitions/segment", "description": "The attacker's lid: a wall while closed." },
+    "rules": {
+      "type": "object",
+      "description": "The lottery and the fever (M32).",
+      "additionalProperties": false,
+      "properties": {
+        "odds": { "type": "integer", "minimum": 1, "description": "A spin hits 1 time in this many." },
+        "maxHeld": { "type": "integer", "minimum": 1 },
+        "reachChance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "spinSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "reachSeconds": { "type": "number", "minimum": 0 },
+        "resultSeconds": { "type": "number", "minimum": 0 },
+        "feverRounds": { "type": "integer", "minimum": 1 },
+        "ballsPerRound": { "type": "integer", "minimum": 1 },
+        "roundSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "intervalSeconds": { "type": "number", "minimum": 0 }
+      }
+    },
     "reels": {
       "type": "object",
       "additionalProperties": false,

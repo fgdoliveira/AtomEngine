@@ -563,7 +563,8 @@ namespace AtomGame
             {
                 const std::string at = JsonPath("/screens", screenIndex++);
                 ScreenData s{ String(screen, "material", at),
-                              static_cast<std::uint32_t>(Number(screen, "seed", at, 1.0f)) };
+                              static_cast<std::uint32_t>(Number(screen, "seed", at, 1.0f)),
+                              String(screen, "machine", at) };
                 if (s.material.empty())
                 {
                     throw LevelError(at, "a screen needs a \"material\"");

@@ -34,6 +34,7 @@ namespace AtomGame
 
     PachinkoGame::PachinkoGame(const Playfield& field, std::uint32_t seed)
         : m_field(field)
+        , m_rules(field.rules, seed ^ 0x9E3779B9u)
         , m_state(seed * 2654435761u + 7u)
     {
         for (const Segment& wall : m_field.walls)
@@ -135,6 +136,24 @@ namespace AtomGame
         {
             m_world.RemoveBall(id);
         }
+
+        // The rules read the pockets and decide the gate (M32).
+        for (const PocketEvent& event : m_events)
+        {
+            if (event.kind == Pocket::Kind::Start)
+            {
+                m_rules.OnStartPocket();
+            }
+            else if (event.kind == Pocket::Kind::Attacker)
+            {
+                m_rules.OnAttacker();
+            }
+        }
+        m_rules.Update(Tick);
+        if (m_rules.IsGateOpen() != m_gateOpen)
+        {
+            SetGateOpen(m_rules.IsGateOpen());
+        }
     }
 
     void PachinkoGame::Draw(Atom::UIRenderer& canvas) const
@@ -178,7 +197,7 @@ namespace AtomGame
         {
             canvas.DrawRect(glm::floor(nail.position) - glm::vec2{ 1.0f, 1.0f }, { 2.0f, 2.0f }, { 0.82f, 0.82f, 0.78f, 1.0f });
         }
-        canvas.DrawRect(m_field.reelsMin, m_field.reelsMax - m_field.reelsMin, { 0.02f, 0.02f, 0.03f, 1.0f });
+        DrawReels(canvas);
 
         const float r = m_world.GetSettings().ballRadius;
         for (const Ball& ball : m_world.GetBalls())
@@ -202,5 +221,53 @@ namespace AtomGame
             canvas.DrawRect(glm::floor(p), { 2.0f, 2.0f }, { 0.95f, 0.9f, 0.8f, 1.0f });
         }
         canvas.DrawRect({ 6.0f, 212.0f }, { 38.0f * m_strength, 3.0f }, amber);
+
+        // Right panel: held spins as four lamps, the fever round.
+        for (int i = 0; i < m_field.rules.maxHeld; ++i)
+        {
+            const bool lit = i < m_rules.GetHeld();
+            canvas.DrawRect({ 280.0f + (i % 2) * 14.0f, 16.0f + (i / 2) * 14.0f }, { 10.0f, 10.0f },
+                            lit ? glm::vec4{ 1.0f, 0.3f, 0.3f, 1.0f } : glm::vec4{ 0.25f, 0.08f, 0.08f, 1.0f });
+        }
+        if (m_rules.InFever())
+        {
+            const bool blink = (m_ticks / 15) % 2 == 0;
+            canvas.DrawRect({ 274.0f, 60.0f }, { 42.0f, 3.0f }, blink ? amber : glm::vec4{ 1.0f, 0.2f, 0.5f, 1.0f });
+            DrawNumber(canvas, static_cast<std::uint32_t>(m_rules.GetRound()), 2, { 278.0f, 70.0f }, { 7.0f, 14.0f }, 2.0f, 3.0f,
+                       { 1.0f, 0.3f, 0.6f, 1.0f });
+            DrawNumber(canvas, static_cast<std::uint32_t>(m_field.rules.feverRounds), 2, { 278.0f, 92.0f }, { 7.0f, 14.0f }, 2.0f, 3.0f,
+                       { 0.6f, 0.2f, 0.4f, 1.0f });
+            // Balls into the attacker this round, as a bar.
+            const float share = static_cast<float>(m_rules.GetBallsThisRound()) / static_cast<float>(m_field.rules.ballsPerRound);
+            canvas.DrawRect({ 278.0f, 114.0f }, { 34.0f * std::min(share, 1.0f), 4.0f }, amber);
+        }
+    }
+
+    void PachinkoGame::DrawReels(Atom::UIRenderer& canvas) const
+    {
+        const glm::vec2 min = m_field.reelsMin, max = m_field.reelsMax;
+        const bool fever = m_rules.InFever();
+        const bool flash = (m_ticks / 6) % 2 == 0;
+        glm::vec4 back{ 0.02f, 0.02f, 0.03f, 1.0f };
+        if (m_rules.IsReach() && flash)
+        {
+            back = { 0.25f, 0.02f, 0.06f, 1.0f }; // the reach: the window pulses red
+        }
+        if (fever)
+        {
+            back = flash ? glm::vec4{ 0.35f, 0.18f, 0.02f, 1.0f } : glm::vec4{ 0.2f, 0.02f, 0.2f, 1.0f };
+        }
+        canvas.DrawRect(min, max - min, back);
+        const float width = (max.x - min.x - 8.0f) / 3.0f;
+        const glm::vec4 colors[3] = { { 1.0f, 0.8f, 0.2f, 1.0f }, { 1.0f, 0.35f, 0.7f, 1.0f }, { 0.4f, 0.85f, 1.0f, 1.0f } };
+        for (int i = 0; i < 3; ++i)
+        {
+            const glm::vec2 at{ min.x + 2.0f + i * (width + 2.0f), min.y + 2.0f };
+            const glm::vec2 size{ width, max.y - min.y - 4.0f };
+            canvas.DrawRect(at, size, { 0.08f, 0.07f, 0.1f, 1.0f });
+            const glm::vec4 color = m_rules.IsReelStopped(i) ? colors[i] : colors[i] * glm::vec4{ 0.6f, 0.6f, 0.6f, 1.0f };
+            DrawDigit(canvas, m_rules.GetReels()[static_cast<std::size_t>(i)], at + glm::vec2{ 4.0f, 3.0f },
+                      size - glm::vec2{ 8.0f, 6.0f }, 3.0f, color);
+        }
     }
 }

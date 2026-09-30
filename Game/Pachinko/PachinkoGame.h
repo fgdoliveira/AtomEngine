@@ -57,13 +57,16 @@ namespace AtomGame
         std::uint32_t GetCaught(Pocket::Kind kind) const { return m_caught[static_cast<std::size_t>(kind)]; }
         const Playfield& GetPlayfield() const { return m_field; }
         const World2D& GetWorld() const { return m_world; }
+        const PachinkoRules& GetRules() const { return m_rules; }
         std::uint64_t GetTicks() const { return m_ticks; }
 
     private:
         float Random(); // 0..1, seeded xorshift
+        void DrawReels(Atom::UIRenderer& canvas) const;
 
         Playfield m_field;
         World2D m_world;
+        PachinkoRules m_rules;
         std::optional<std::size_t> m_gateSegment;
         bool m_gateOpen = false;
         std::uint32_t m_state;

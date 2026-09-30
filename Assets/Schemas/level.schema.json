@@ -140,7 +140,8 @@
         "additionalProperties": false,
         "properties": {
           "material": { "type": "string" },
-          "seed": { "type": "integer", "minimum": 0, "description": "Different seeds play differently." }
+          "seed": { "type": "integer", "minimum": 0, "description": "Different seeds play differently." },
+          "machine": { "type": "string", "description": "A playfield (Assets/Machines) that plays itself on the screen (M32); without it, the simple attract loop." }
         }
       }
     },

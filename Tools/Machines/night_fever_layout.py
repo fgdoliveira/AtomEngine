@@ -97,6 +97,12 @@ def machine():
         ],
         "gate": [142, 194, 178, 194],
         "reels": {"min": [130, 66], "max": [190, 96]},
+        # About 1 start in 12 balls and a hit 1 spin in 99: a fever every
+        # ~1200 balls, like a generous real machine. A fever: 8 rounds of
+        # up to 9 balls into the attacker, 15 each.
+        "rules": {"odds": 99, "maxHeld": 4, "reachChance": 0.12, "spinSeconds": 2.4, "reachSeconds": 2.0,
+                  "resultSeconds": 1.2, "feverRounds": 8, "ballsPerRound": 9, "roundSeconds": 25,
+                  "intervalSeconds": 1.5},
     }
 
 

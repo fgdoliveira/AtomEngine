@@ -229,6 +229,27 @@ namespace AtomGame
                 field.reelsMax = Vec2(reels->value("max", Json()), "/reels/max");
             }
 
+            if (const auto rules = root.find("rules"); rules != root.end())
+            {
+                RulesSettings& r = field.rules;
+                const std::string at = "/rules";
+                r.odds = static_cast<int>(Number(*rules, "odds", at, static_cast<float>(r.odds)));
+                r.maxHeld = static_cast<int>(Number(*rules, "maxHeld", at, static_cast<float>(r.maxHeld)));
+                r.reachChance = Number(*rules, "reachChance", at, r.reachChance);
+                r.spinSeconds = Number(*rules, "spinSeconds", at, r.spinSeconds);
+                r.reachSeconds = Number(*rules, "reachSeconds", at, r.reachSeconds);
+                r.resultSeconds = Number(*rules, "resultSeconds", at, r.resultSeconds);
+                r.feverRounds = static_cast<int>(Number(*rules, "feverRounds", at, static_cast<float>(r.feverRounds)));
+                r.ballsPerRound = static_cast<int>(Number(*rules, "ballsPerRound", at, static_cast<float>(r.ballsPerRound)));
+                r.roundSeconds = Number(*rules, "roundSeconds", at, r.roundSeconds);
+                r.intervalSeconds = Number(*rules, "intervalSeconds", at, r.intervalSeconds);
+                if (r.odds < 1 || r.maxHeld < 1 || r.feverRounds < 1 || r.ballsPerRound < 1
+                    || r.spinSeconds <= 0.0f || r.roundSeconds <= 0.0f || r.reachChance < 0.0f || r.reachChance > 1.0f)
+                {
+                    throw FieldError(at, "odds, maxHeld, feverRounds, ballsPerRound >= 1; positive times; reachChance 0..1");
+                }
+            }
+
             // Everything on the board, and no two nails touching.
             const auto inside = [&](glm::vec2 p) {
                 return p.x >= field.fieldMin.x && p.x <= field.fieldMax.x && p.y >= field.fieldMin.y && p.y <= field.fieldMax.y;

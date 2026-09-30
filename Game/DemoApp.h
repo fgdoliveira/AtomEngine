@@ -149,6 +149,7 @@ namespace AtomGame
         bool BeginMachine(const PlayMachine& play);
         void UpdateMachine(float deltaSeconds);
         void DrawMachineView();
+        void PlayMachineSounds(const PachinkoGame& game);
         void EndMachine();
         SequenceRunner m_sequence;
         bool RunSequence(const std::string& id);

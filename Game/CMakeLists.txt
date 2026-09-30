@@ -55,6 +55,8 @@ add_library(
     Pachinko/PhysicsDebugDraw.h
     Pachinko/PachinkoGame.cpp
     Pachinko/PachinkoGame.h
+    Pachinko/PachinkoRules.cpp
+    Pachinko/PachinkoRules.h
     Pachinko/Playfield.cpp
     Pachinko/Playfield.h
     Pachinko/PixelDraw.h

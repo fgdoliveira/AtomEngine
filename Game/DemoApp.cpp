@@ -1080,6 +1080,7 @@ namespace AtomGame
         m_machineClock = FixedStep{};
         m_machineGame.emplace(*field.playfield, ++m_machineSessions);
         m_machineGame->AddToTray(m_machineTray);
+        level->SetGroupGain("bed", 0.35f); // the hall goes quieter as you lean in
         const CameraPose from{ m_camera.GetPosition(), m_camera.GetYaw(), m_camera.GetPitch() };
         const CameraPose to{ play.viewPosition, glm::radians(play.viewYawDegrees), glm::radians(play.viewPitchDegrees) };
         m_machine.Enter(from, to);
@@ -1109,6 +1110,7 @@ namespace AtomGame
         {
             m_machineGame->Step({ playing && m_actions.Held(InputAction::Launch), knob * PachinkoGame::Tick + wheel });
             wheel = 0.0f; // a wheel notch turns the knob once
+            PlayMachineSounds(*m_machineGame);
         }
         if (m_machineScreen && m_machineGame)
         {
@@ -1125,6 +1127,7 @@ namespace AtomGame
         if (Level* level = m_levels->GetLevel())
         {
             level->ReleaseScreen(m_machinePlay.screen);
+            level->SetGroupGain("bed", 1.0f);
         }
         m_machineScreen = nullptr;
         if (m_machineGame)
@@ -1134,6 +1137,50 @@ namespace AtomGame
         }
         m_mode = Mode::Exploring; // the player's eye and look are where they were
         std::cout << "Stood up from the machine\n";
+    }
+
+    void DemoApp::PlayMachineSounds(const PachinkoGame& game)
+    {
+        Atom::AudioSystem& audio = GetAudio();
+        const auto play = [&](std::string_view name, float gain, float pitch = 1.0f) {
+            Atom::PlayParams params{};
+            params.gain = gain;
+            params.pitch = pitch;
+            audio.Play(m_audioScape.GetSound(name), params);
+        };
+        // Balls on nails: the loudest few per tick, pitched by what they hit.
+        int clicks = 0;
+        for (const Impact& impact : game.GetImpacts())
+        {
+            if (++clicks > 3)
+            {
+                break;
+            }
+            const float pitch = impact.kind == Impact::Kind::Nail ? 1.0f : impact.kind == Impact::Kind::Ball ? 1.3f : 0.7f;
+            play("ball_click", std::min(0.25f, impact.speed / 1600.0f), pitch * (0.95f + 0.1f * (impact.ball % 7) / 7.0f));
+        }
+        for (const PocketEvent& event : game.GetEvents())
+        {
+            if (event.kind == Pocket::Kind::Start)
+            {
+                play("pocket_chime", 0.4f);
+            }
+            if (event.paid > 1)
+            {
+                play("payout", std::min(0.5f, 0.15f + event.paid * 0.02f));
+            }
+        }
+        for (const PachinkoRules::Event event : game.GetRules().GetEvents())
+        {
+            switch (event)
+            {
+            case PachinkoRules::Event::ReelStop: play("reel_stop", 0.35f); break;
+            case PachinkoRules::Event::Reach: play("reach", 0.45f); break;
+            case PachinkoRules::Event::Hit: play("fanfare", 0.6f); break;
+            case PachinkoRules::Event::RoundStart: play("pocket_chime", 0.5f, 0.75f); break;
+            default: break;
+            }
+        }
     }
 
     void DemoApp::DrawMachineView()

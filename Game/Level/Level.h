@@ -8,6 +8,7 @@
 #include "World/GameWorld.h"
 #include "World/FixedStep.h"
 #include "World/Impostors.h"
+#include "Pachinko/PachinkoGame.h"
 #include "World/PachinkoAttract.h"
 
 #include <memory>
@@ -134,6 +135,7 @@ namespace AtomGame
             FixedStep clock;
             std::string material;
             bool takenOver = false;
+            std::optional<PachinkoGame> demo; // M32: the real game, playing itself
         };
         std::vector<Screen> m_screens;
         float m_time = 0.0f; // for halo flicker
