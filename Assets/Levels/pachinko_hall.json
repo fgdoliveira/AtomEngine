@@ -50,12 +50,23 @@
       }
     },
     {
-      "name": "prize_counter",
+      "name": "attendant",
+      "position": [-3.6, 0.0, -16.3],
       "interactable": {
-        "prompt": "Ask at the counter", "focus": [0.0, 1.1, -0.5], "radius": 2.6,
-        "requires": "saw_city_ofuda",
-        "action": { "type": "setFlag", "flag": "prize_ofuda", "message": "Behind the prizes, pinned to the shelf, the same ofuda. The attendant follows your eyes and says nothing." },
-        "locked": { "type": "message", "text": "The attendant slides a tray of tokens toward you without looking up." }
+        "prompt": "Talk to the attendant", "focus": [0.0, 1.25, 0.0], "radius": 2.6,
+        "action": { "type": "addCounter", "counter": "tokens", "amount": 50, "once": "hall_welcome_tokens",
+                    "message": "The attendant slides fifty tokens across the counter without looking up. \"First night. On the house.\"",
+                    "again": "The attendant is counting balls. Whatever you had coming, you've had." }
+      }
+    },
+    {
+      "name": "prize_counter",
+      "position": [3.6, 0.0, -16.3],
+      "interactable": {
+        "prompt": "Exchange 300 balls for a prize", "focus": [0.0, 1.25, 0.0], "radius": 2.6,
+        "action": { "type": "exchange", "counter": "balls", "cost": 300, "flag": "prize_ofuda",
+                    "message": "Behind the prizes, pinned to the shelf, the same ofuda as the alley's. The attendant takes it down and hands it to you.",
+                    "short": "Three hundred balls for the one on the shelf. You haven't got them." }
       }
     }
   ]

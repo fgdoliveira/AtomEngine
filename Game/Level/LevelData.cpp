@@ -138,6 +138,26 @@ namespace AtomGame
                 }
                 return play;
             }
+            if (type == "addCounter")
+            {
+                AddCounter add{ String(json, "counter", path), static_cast<int>(Number(json, "amount", path, 0.0f)),
+                                String(json, "message", path), String(json, "once", path), String(json, "again", path) };
+                if (add.counter.empty())
+                {
+                    throw LevelError(path, "addCounter needs \"counter\"");
+                }
+                return add;
+            }
+            if (type == "exchange")
+            {
+                Exchange exchange{ String(json, "counter", path), static_cast<int>(Number(json, "cost", path, 0.0f)),
+                                   String(json, "flag", path), String(json, "message", path), String(json, "short", path) };
+                if (exchange.counter.empty() || exchange.flag.empty() || exchange.cost <= 0)
+                {
+                    throw LevelError(path, "exchange needs \"counter\", a positive \"cost\" and \"flag\"");
+                }
+                return exchange;
+            }
             if (type == "playMachine")
             {
                 PlayMachine play;

@@ -89,17 +89,18 @@ def machine():
                    "minSpeed": 400, "maxSpeed": 470, "perSecond": 1.7, "jitter": 0.015},
         "pockets": [
             {"name": "start", "kind": "start", "min": [153, 123], "max": [167, 130], "payout": 3},
-            {"name": "left", "kind": "side", "min": [96, 145], "max": [104, 152], "payout": 10},
-            {"name": "right", "kind": "side", "min": [216, 145], "max": [224, 152], "payout": 10},
-            {"name": "attacker", "kind": "attacker", "min": [143, 195], "max": [177, 203], "payout": 15},
+            {"name": "left", "kind": "side", "min": [96, 145], "max": [104, 152], "payout": 7},
+            {"name": "right", "kind": "side", "min": [216, 145], "max": [224, 152], "payout": 7},
+            {"name": "attacker", "kind": "attacker", "min": [143, 195], "max": [177, 203], "payout": 12},
             {"name": "out", "kind": "out", "min": [148, 226], "max": [172, 238]},
             {"name": "foul", "kind": "foul", "min": [66, 180], "max": [84, 192]},
         ],
         "gate": [142, 194, 178, 194],
         "reels": {"min": [130, 66], "max": [190, 96]},
         # About 1 start in 12 balls and a hit 1 spin in 99: a fever every
-        # ~1200 balls, like a generous real machine. A fever: 8 rounds of
-        # up to 9 balls into the attacker, 15 each.
+        # ~1100 balls. Outside a fever the machine pays back about what it
+        # takes (side pockets 7, start 3); a fever is 8 rounds of
+        # up to 9 balls into the attacker, 12 each.
         "rules": {"odds": 99, "maxHeld": 4, "reachChance": 0.12, "spinSeconds": 2.4, "reachSeconds": 2.0,
                   "resultSeconds": 1.2, "feverRounds": 8, "ballsPerRound": 9, "roundSeconds": 25,
                   "intervalSeconds": 1.5},

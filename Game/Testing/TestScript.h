@@ -69,6 +69,9 @@ namespace AtomGame
         // released, or pressed for one frame. False for an unknown action.
         virtual bool HoldAction(const std::string& action, bool held) = 0;
         virtual bool PressAction(const std::string& action) = 0;
+        // Counters (M33).
+        virtual int GetCounter(const std::string& name) const = 0;
+        virtual void SetCounter(const std::string& name, int value) = 0;
     };
 
     // The panning camera's easing (smoothstep): 0 -> 0, 1 -> 1, gentle at

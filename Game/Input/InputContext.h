@@ -36,6 +36,7 @@ namespace AtomGame
         StrengthUp,   // machine: turn the launch knob
         StrengthDown,
         Leave,        // machine: stand up
+        Buy,          // machine: tokens for balls (M33)
         Count,
     };
 

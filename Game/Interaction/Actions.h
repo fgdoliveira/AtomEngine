@@ -56,5 +56,26 @@ namespace AtomGame
         float viewPitchDegrees = 0.0f;
     };
 
-    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence, PlayMachine>;
+    // Counters (M33): add to one (only once, if `onceFlag` is given), or
+    // spend one for a flag - balls for a prize.
+    struct AddCounter
+    {
+        std::string counter;
+        int amount = 0;
+        std::string message;
+        std::string onceFlag;     // optional: set after the first time
+        std::string againMessage; // shown instead once it's been given
+    };
+
+    struct Exchange
+    {
+        std::string counter;
+        int cost = 0;
+        std::string flag;          // what you get
+        std::string message;
+        std::string shortMessage;  // not enough
+    };
+
+    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence, PlayMachine,
+                                AddCounter, Exchange>;
 }

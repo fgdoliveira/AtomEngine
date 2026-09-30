@@ -50,6 +50,36 @@ namespace AtomGame
                     context.messages.Show(play.message);
                 }
             },
+            [&](const AddCounter& add) {
+                if (!add.onceFlag.empty() && context.state.HasFlag(add.onceFlag))
+                {
+                    context.messages.Show(add.againMessage.empty() ? "..." : add.againMessage);
+                    return;
+                }
+                context.state.AddToCounter(add.counter, add.amount);
+                if (!add.onceFlag.empty())
+                {
+                    context.state.SetFlag(add.onceFlag);
+                }
+                if (!add.message.empty())
+                {
+                    context.messages.Show(add.message);
+                }
+                std::cout << "Counter " << add.counter << " += " << add.amount << '\n';
+            },
+            [&](const Exchange& exchange) {
+                if (!context.state.Spend(exchange.counter, exchange.cost))
+                {
+                    context.messages.Show(exchange.shortMessage.empty() ? "Not enough." : exchange.shortMessage);
+                    return;
+                }
+                context.state.SetFlag(exchange.flag);
+                if (!exchange.message.empty())
+                {
+                    context.messages.Show(exchange.message);
+                }
+                std::cout << "Exchanged " << exchange.cost << " " << exchange.counter << " for " << exchange.flag << '\n';
+            },
             [&](const PlayMachine& machine) {
                 if (!context.playMachine || !context.playMachine(machine))
                 {

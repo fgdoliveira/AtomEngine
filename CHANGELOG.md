@@ -59,6 +59,19 @@
   - Tests: every rule state in order, round time limits, reaches, held
     spins, hit rate within tolerance over 100 000 draws, a whole session
     replayed exactly from its seed, a forced fever that opens the gate.
+- **Tokens, balls and the prize counter (M33):**
+  - `GameState` counters next to the flags (`tokens`, `balls`): they read
+    0 when missing, never go negative, and survive level changes.
+  - Actions `addCounter` (optionally once, with a line for next time) and
+    `exchange` (spend a counter for a flag, or say what's missing).
+  - The hall's attendant gives 50 tokens on your first night; at the
+    machine B (or Enter) buys 50 balls for 10 tokens; balls stay in your
+    tray between sessions; 300 balls buy the ofuda from the prize shelf.
+  - Payouts retuned: outside a fever the machine pays back about what it
+    takes (side pockets 7, start 3); fevers (12 per attacker ball) are
+    where you win.
+  - Harness `expect_counter`, `set_counter`; a `pachinko_session`
+    scenario plays the whole loop.
 
 ## Unreleased (joined 0.0.5)
 

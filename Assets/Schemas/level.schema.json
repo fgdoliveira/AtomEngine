@@ -363,7 +363,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine"] }
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine", "addCounter", "exchange"] }
       },
       "oneOf": [
         {
@@ -407,6 +407,28 @@
             }
           },
           "required": ["screen", "machine", "view"], "additionalProperties": false
+        },
+        {
+          "properties": {
+            "type": { "const": "addCounter" },
+            "counter": { "type": "string", "description": "A GameState counter, e.g. tokens (M33)." },
+            "amount": { "type": "integer" },
+            "message": { "type": "string" },
+            "once": { "type": "string", "description": "A flag set the first time; after that, \"again\" is shown instead." },
+            "again": { "type": "string" }
+          },
+          "required": ["counter", "amount"], "additionalProperties": false
+        },
+        {
+          "properties": {
+            "type": { "const": "exchange" },
+            "counter": { "type": "string", "description": "What is spent, e.g. balls (M33)." },
+            "cost": { "type": "integer", "minimum": 1 },
+            "flag": { "type": "string", "description": "What you get." },
+            "message": { "type": "string" },
+            "short": { "type": "string", "description": "Shown when there isn't enough." }
+          },
+          "required": ["counter", "cost", "flag"], "additionalProperties": false
         }
       ]
     },

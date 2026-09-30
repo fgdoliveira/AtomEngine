@@ -8,7 +8,7 @@ namespace AtomGame
     {
         constexpr std::string_view Names[] = {
             "move_forward", "move_back", "move_left", "move_right", "jog", "interact",
-            "confirm", "choice_up", "choice_down", "launch", "strength_up", "strength_down", "leave",
+            "confirm", "choice_up", "choice_down", "launch", "strength_up", "strength_down", "leave", "buy",
         };
         static_assert(std::size(Names) == static_cast<std::size_t>(InputAction::Count));
     }
@@ -56,6 +56,8 @@ namespace AtomGame
         map.Bind(C::Machine, InputAction::StrengthDown, SDL_SCANCODE_A);
         map.Bind(C::Machine, InputAction::Leave, SDL_SCANCODE_Q);
         map.Bind(C::Machine, InputAction::Leave, SDL_SCANCODE_BACKSPACE);
+        map.Bind(C::Machine, InputAction::Buy, SDL_SCANCODE_B);
+        map.Bind(C::Machine, InputAction::Buy, SDL_SCANCODE_RETURN);
         return map;
     }
 

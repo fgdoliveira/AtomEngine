@@ -1,5 +1,7 @@
 #include "DemoApp.h"
 
+#include "Pachinko/PixelDraw.h"
+
 #include "Interaction/ActionExecutor.h"
 #include "Interaction/InteractionSystem.h"
 
@@ -1079,7 +1081,7 @@ namespace AtomGame
         m_machineScreen = screen;
         m_machineClock = FixedStep{};
         m_machineGame.emplace(*field.playfield, ++m_machineSessions);
-        m_machineGame->AddToTray(m_machineTray);
+        m_machineGame->AddToTray(m_gameState.GetCounter("balls"));
         level->SetGroupGain("bed", 0.35f); // the hall goes quieter as you lean in
         const CameraPose from{ m_camera.GetPosition(), m_camera.GetYaw(), m_camera.GetPitch() };
         const CameraPose to{ play.viewPosition, glm::radians(play.viewYawDegrees), glm::radians(play.viewPitchDegrees) };
@@ -1103,6 +1105,17 @@ namespace AtomGame
         // The game runs on its own fixed clock and draws into the screen. The
         // handle and the knob only work while seated, not during the move.
         const bool playing = m_machine.GetPhase() == MachineMode::Phase::Playing;
+        // Buying: tokens for balls, straight into the tray.
+        if (playing && m_machineGame && m_actions.Pressed(InputAction::Buy))
+        {
+            if (m_gameState.Spend("tokens", TokensPerBuy))
+            {
+                m_machineGame->AddToTray(BallsPerBuy);
+                Atom::PlayParams params{};
+                params.gain = 0.5f;
+                GetAudio().Play(m_audioScape.GetSound("payout"), params);
+            }
+        }
         float wheel = playing ? GetInput().GetWheelDelta() * 0.05f : 0.0f;
         const float knob = playing ? (m_actions.Held(InputAction::StrengthUp) ? 0.5f : 0.0f)
                                    - (m_actions.Held(InputAction::StrengthDown) ? 0.5f : 0.0f) : 0.0f;
@@ -1114,7 +1127,12 @@ namespace AtomGame
         }
         if (m_machineScreen && m_machineGame)
         {
-            m_machineGame->Draw(m_machineScreen->GetCanvas());
+            Atom::UIRenderer& canvas = m_machineScreen->GetCanvas();
+            m_machineGame->Draw(canvas);
+            // Tokens under the tray count, in green.
+            canvas.DrawRect({ 4.0f, 40.0f }, { 42.0f, 2.0f }, { 0.2f, 0.5f, 0.3f, 1.0f });
+            DrawNumber(canvas, static_cast<std::uint32_t>(m_gameState.GetCounter("tokens")), 4, { 6.0f, 46.0f },
+                       { 7.0f, 14.0f }, 2.0f, 3.0f, { 0.45f, 1.0f, 0.55f, 1.0f });
         }
         if (!m_machine.IsActive())
         {
@@ -1132,7 +1150,7 @@ namespace AtomGame
         m_machineScreen = nullptr;
         if (m_machineGame)
         {
-            m_machineTray = m_machineGame->GetTray(); // balls on the board are lost
+            m_gameState.SetCounter("balls", m_machineGame->GetTray()); // balls on the board are lost
             m_machineGame.reset();
         }
         m_mode = Mode::Exploring; // the player's eye and look are where they were
@@ -1199,8 +1217,8 @@ namespace AtomGame
         if (m_font && m_machine.GetPhase() == MachineMode::Phase::Playing)
         {
             const float scale = std::max(1.0f, window.y / 1080.0f);
-            ui.DrawText(*m_smallFont, "Space  launch\nUp/Down  strength\nQ  leave",
-                        { 24.0f * scale, window.y - 90.0f * scale }, { 0.8f, 0.78f, 0.72f, 0.8f * fade }, scale);
+            ui.DrawText(*m_smallFont, "Space  launch\nUp/Down  strength\nB  buy 50 balls (10 tokens)\nQ  leave",
+                        { 24.0f * scale, window.y - 112.0f * scale }, { 0.8f, 0.78f, 0.72f, 0.8f * fade }, scale);
         }
     }
 

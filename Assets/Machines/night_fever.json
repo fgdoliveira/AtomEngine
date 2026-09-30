@@ -421,7 +421,7 @@
         104,
         152
       ],
-      "payout": 10
+      "payout": 7
     },
     {
       "name": "right",
@@ -434,7 +434,7 @@
         224,
         152
       ],
-      "payout": 10
+      "payout": 7
     },
     {
       "name": "attacker",
@@ -447,7 +447,7 @@
         177,
         203
       ],
-      "payout": 15
+      "payout": 12
     },
     {
       "name": "out",

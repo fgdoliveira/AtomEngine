@@ -94,6 +94,8 @@ namespace AtomGame
         bool Set(const std::string& what, const std::string& value) override;
         bool HoldAction(const std::string& action, bool held) override;
         bool PressAction(const std::string& action) override;
+        int GetCounter(const std::string& name) const override { return m_gameState.GetCounter(name); }
+        void SetCounter(const std::string& name, int value) override { m_gameState.SetCounter(name, value); }
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;
@@ -144,7 +146,9 @@ namespace AtomGame
         Atom::RenderTexture* m_machineScreen = nullptr;
         std::optional<PachinkoGame> m_machineGame;
         FixedStep m_machineClock;
-        int m_machineTray = 250;          // balls kept between sessions (tokens: M33)
+        // M33: balls and tokens are GameState counters ("balls", "tokens").
+        static constexpr int TokensPerBuy = 10;
+        static constexpr int BallsPerBuy = 50;
         std::uint32_t m_machineSessions = 0; // seeds each session differently, reproducibly
         bool BeginMachine(const PlayMachine& play);
         void UpdateMachine(float deltaSeconds);

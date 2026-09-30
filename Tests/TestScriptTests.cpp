@@ -2,6 +2,7 @@
 
 #include <doctest/doctest.h>
 
+#include <map>
 #include <set>
 
 using namespace AtomGame;
@@ -58,6 +59,9 @@ namespace
         std::vector<std::string> settings;
         bool HoldAction(const std::string& action, bool) override { return action != "nonsense"; }
         bool PressAction(const std::string& action) override { return action != "nonsense"; }
+        std::map<std::string, int> counters;
+        int GetCounter(const std::string& name) const override { return counters.contains(name) ? counters.at(name) : 0; }
+        void SetCounter(const std::string& name, int value) override { counters[name] = value; }
         ArrivalError Arrival() const override { return arrival; }
         std::optional<float> animationTime;
         bool animationPlaying = false;
