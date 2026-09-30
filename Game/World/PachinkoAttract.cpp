@@ -1,5 +1,6 @@
 #include "World/PachinkoAttract.h"
 
+#include "Pachinko/PixelDraw.h"
 #include "UI/UIRenderer.h"
 
 #include <glm/geometric.hpp>
@@ -23,11 +24,6 @@ namespace AtomGame
         constexpr int LaunchEvery = 18;    // ticks
         constexpr std::size_t MaxBalls = 16;
 
-        // 7-segment digits: bits a b c d e f g.
-        constexpr std::uint8_t Segments[10] = {
-            0b1111110, 0b0110000, 0b1101101, 0b1111001, 0b0110011,
-            0b1011011, 0b1011111, 0b1110000, 0b1111111, 0b1111011,
-        };
 
         const glm::vec4 ReelColors[10] = {
             { 1.0f, 0.2f, 0.3f, 1.0f }, { 1.0f, 0.8f, 0.1f, 1.0f }, { 0.3f, 0.9f, 1.0f, 1.0f },
@@ -36,20 +32,6 @@ namespace AtomGame
             { 1.0f, 0.3f, 0.1f, 1.0f },
         };
 
-        void DrawDigit(Atom::UIRenderer& canvas, int digit, glm::vec2 at, glm::vec2 size, float thick, glm::vec4 color)
-        {
-            const std::uint8_t bits = Segments[digit % 10];
-            const float w = size.x, h = size.y, half = h * 0.5f;
-            const glm::vec2 horizontal{ w, thick }, vertical{ thick, half };
-            const auto on = [&](int bit) { return (bits >> (6 - bit)) & 1; };
-            if (on(0)) canvas.DrawRect(at, horizontal, color);                                        // a
-            if (on(1)) canvas.DrawRect(at + glm::vec2{ w - thick, 0.0f }, vertical, color);           // b
-            if (on(2)) canvas.DrawRect(at + glm::vec2{ w - thick, half }, vertical, color);           // c
-            if (on(3)) canvas.DrawRect(at + glm::vec2{ 0.0f, h - thick }, horizontal, color);         // d
-            if (on(4)) canvas.DrawRect(at + glm::vec2{ 0.0f, half }, vertical, color);                // e
-            if (on(5)) canvas.DrawRect(at, vertical, color);                                          // f
-            if (on(6)) canvas.DrawRect(at + glm::vec2{ 0.0f, half - thick * 0.5f }, horizontal, color); // g
-        }
     }
 
     PachinkoAttract::PachinkoAttract(std::uint32_t seed)

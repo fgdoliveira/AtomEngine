@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Input/InputContext.h"
+
 #include <glm/vec3.hpp>
 
 namespace Atom
@@ -35,6 +37,7 @@ namespace AtomGame
         // height including head-bob. With no world, walks on y = 0.
         void Update(
             const Atom::Input& input,
+            const ActionInput& actions,
             Atom::Camera& camera,
             const Atom::CollisionWorld* world,
             float deltaSeconds

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/vec3.hpp>
+
 #include <string>
 #include <variant>
 
@@ -43,5 +45,37 @@ namespace AtomGame
         std::string id; // M26: one of the level's "sequences"
     };
 
-    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence>;
+    // Sit down at a pachinko machine (M29): the camera moves to `view`, then
+    // the game takes over the machine's screen (`screen`, a scene material).
+    struct PlayMachine
+    {
+        std::string screen;
+        std::string machine; // the playfield, relative to Assets/ (M31)
+        glm::vec3 viewPosition{ 0.0f };
+        float viewYawDegrees = 0.0f;
+        float viewPitchDegrees = 0.0f;
+    };
+
+    // Counters (M33): add to one (only once, if `onceFlag` is given), or
+    // spend one for a flag - balls for a prize.
+    struct AddCounter
+    {
+        std::string counter;
+        int amount = 0;
+        std::string message;
+        std::string onceFlag;     // optional: set after the first time
+        std::string againMessage; // shown instead once it's been given
+    };
+
+    struct Exchange
+    {
+        std::string counter;
+        int cost = 0;
+        std::string flag;          // what you get
+        std::string message;
+        std::string shortMessage;  // not enough
+    };
+
+    using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence, PlayMachine,
+                                AddCounter, Exchange>;
 }

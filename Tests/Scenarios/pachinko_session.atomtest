@@ -1,0 +1,45 @@
+# A night at the pachinko hall (M33): the attendant's welcome tokens (once),
+# tokens for balls at the machine, a session played, the balls kept after
+# standing up, and the prize exchange - short, then paid.
+goto_level pachinko_hall
+wait_for_level pachinko_hall
+expect_counter tokens == 0
+teleport_to attendant 1.6
+face attendant
+interact attendant
+expect_counter tokens == 50
+interact attendant                   # only once
+expect_counter tokens == 50
+expect_message counting balls
+
+teleport 0 0 -9 -90                  # the aisle, facing the machine's side of the row
+teleport_to machine 1.2
+face machine
+interact machine
+wait 1.6
+press_action buy
+wait 0.1
+expect_counter tokens == 40
+hold_action launch on
+wait 8
+hold_action launch off
+wait 3
+press_action leave
+wait 1.6
+expect_mode exploring
+expect_counter balls >= 5            # a short session: some lost, some won
+expect_counter balls <= 120
+expect_counter tokens == 40
+
+teleport_to prize_counter 1.6
+face prize_counter
+interact prize_counter
+expect_message haven't got them
+expect_no_flag prize_ofuda
+set_counter balls 320                # as if after a good fever
+interact prize_counter
+expect_flag prize_ofuda
+expect_counter balls == 20
+goto_level street
+wait_for_level street
+log pachinko session done

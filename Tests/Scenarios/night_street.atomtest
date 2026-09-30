@@ -40,7 +40,15 @@ expect_screens 2                     # both screen materials sample a live textu
 teleport_to machine 1.2
 face machine
 interact machine
-expect_message keeps playing
+expect_mode machine                  # M29: sat down; the camera moves in
+wait 1.6
+screenshot tests/machine_view ui     # the game fills the window (drawn as UI)
+hold_action launch on                # M31: play for a few seconds
+wait 4
+hold_action launch off
+press_action leave
+wait 1.6
+expect_mode exploring
 teleport_to exit_doors 1.8
 face exit_doors
 interact exit_doors

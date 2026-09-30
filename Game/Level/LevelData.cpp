@@ -138,6 +138,46 @@ namespace AtomGame
                 }
                 return play;
             }
+            if (type == "addCounter")
+            {
+                AddCounter add{ String(json, "counter", path), static_cast<int>(Number(json, "amount", path, 0.0f)),
+                                String(json, "message", path), String(json, "once", path), String(json, "again", path) };
+                if (add.counter.empty())
+                {
+                    throw LevelError(path, "addCounter needs \"counter\"");
+                }
+                return add;
+            }
+            if (type == "exchange")
+            {
+                Exchange exchange{ String(json, "counter", path), static_cast<int>(Number(json, "cost", path, 0.0f)),
+                                   String(json, "flag", path), String(json, "message", path), String(json, "short", path) };
+                if (exchange.counter.empty() || exchange.flag.empty() || exchange.cost <= 0)
+                {
+                    throw LevelError(path, "exchange needs \"counter\", a positive \"cost\" and \"flag\"");
+                }
+                return exchange;
+            }
+            if (type == "playMachine")
+            {
+                PlayMachine play;
+                play.screen = String(json, "screen", path);
+                play.machine = String(json, "machine", path);
+                const auto view = json.find("view");
+                if (play.screen.empty() || play.machine.empty() || view == json.end())
+                {
+                    throw LevelError(path, "playMachine needs \"screen\", \"machine\" and \"view\"");
+                }
+                const std::string at = JsonPath(path, "view");
+                if (!view->contains("position"))
+                {
+                    throw LevelError(at, "view needs a \"position\"");
+                }
+                play.viewPosition = Vec3(*view, "position", play.viewPosition, at);
+                play.viewYawDegrees = Number(*view, "yaw", at, 0.0f);
+                play.viewPitchDegrees = Number(*view, "pitch", at, 0.0f);
+                return play;
+            }
             if (type == "sequence")
             {
                 const std::string id = String(json, "id", path);
@@ -543,7 +583,8 @@ namespace AtomGame
             {
                 const std::string at = JsonPath("/screens", screenIndex++);
                 ScreenData s{ String(screen, "material", at),
-                              static_cast<std::uint32_t>(Number(screen, "seed", at, 1.0f)) };
+                              static_cast<std::uint32_t>(Number(screen, "seed", at, 1.0f)),
+                              String(screen, "machine", at) };
                 if (s.material.empty())
                 {
                     throw LevelError(at, "a screen needs a \"material\"");

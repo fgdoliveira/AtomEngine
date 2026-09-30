@@ -8,6 +8,7 @@
 #include "World/GameWorld.h"
 #include "World/FixedStep.h"
 #include "World/Impostors.h"
+#include "Pachinko/PachinkoGame.h"
 #include "World/PachinkoAttract.h"
 
 #include <memory>
@@ -97,6 +98,11 @@ namespace AtomGame
         void SetGroupGain(std::string_view group, float scale);
         std::size_t GetVoiceCount() const { return m_voices.size(); }
 
+        // A live screen the game takes over (M29): its attract loop pauses and
+        // the caller draws into the returned target until it hands it back.
+        Atom::RenderTexture* TakeOverScreen(std::string_view material);
+        void ReleaseScreen(std::string_view material);
+
         // Cell ambience (M25): how far each zone bed has faded in (0..1).
         float GetZoneLevel(std::string_view cell) const;
 
@@ -127,6 +133,9 @@ namespace AtomGame
             std::unique_ptr<Atom::RenderTexture> target;
             PachinkoAttract attract;
             FixedStep clock;
+            std::string material;
+            bool takenOver = false;
+            std::optional<PachinkoGame> demo; // M32: the real game, playing itself
         };
         std::vector<Screen> m_screens;
         float m_time = 0.0f; // for halo flicker

@@ -53,6 +53,10 @@ namespace AtomGame
                 { "capture", { 3, 4 } },            // stem count every [ui]: stem_000.png ...
                 { "pan", { 9, 11 } },               // x0 y0 z0 yaw0 x1 y1 z1 yaw1 seconds [stem [ui]]
                 { "set", { 2, 2 } },                // what value (msaa, fog, fov, fixed_dt, ...)
+                { "hold_action", { 2, 2 } },        // action on|off (launch, leave, ...)
+                { "press_action", { 1, 1 } },       // action: one frame
+                { "expect_counter", { 3, 3 } },     // name op value (op: == >= <= > <)
+                { "set_counter", { 2, 2 } },        // name value
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -267,6 +271,35 @@ namespace AtomGame
                 game.Capture(args[9] + suffix, args.size() > 10 && args[10] == "ui");
             }
             return m_elapsed >= seconds;
+        }
+        if (name == "hold_action" || name == "press_action")
+        {
+            const bool ok = name == "press_action" ? game.PressAction(args[0])
+                                                   : game.HoldAction(args[0], args[1] == "on");
+            if (!ok)
+            {
+                Fail(command, "unknown action '" + args[0] + "'");
+            }
+            return true;
+        }
+        if (name == "expect_counter")
+        {
+            const int actual = game.GetCounter(args[0]);
+            const int expected = static_cast<int>(number(2, 0.0f));
+            const std::string& op = args[1];
+            const bool ok = op == "==" ? actual == expected : op == ">=" ? actual >= expected
+                          : op == "<=" ? actual <= expected : op == ">" ? actual > expected
+                          : op == "<" ? actual < expected : false;
+            if (!ok)
+            {
+                Fail(command, args[0] + " is " + std::to_string(actual));
+            }
+            return true;
+        }
+        if (name == "set_counter")
+        {
+            game.SetCounter(args[0], static_cast<int>(number(1, 0.0f)));
+            return true;
         }
         if (name == "set")
         {

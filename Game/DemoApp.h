@@ -8,7 +8,12 @@
 #include "Dialogue/DialogueView.h"
 #include "Interaction/MessageFeed.h"
 #include "Level/FileWatcher.h"
+#include "Input/InputContext.h"
 #include "Level/LevelManager.h"
+#include "Pachinko/MachineMode.h"
+#include "Pachinko/PachinkoGame.h"
+#include "World/FixedStep.h"
+#include "World/PachinkoAttract.h"
 #include "PlayerController.h"
 #include "Testing/TestScript.h"
 #include "Scene/Camera.h"
@@ -19,6 +24,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace AtomGame
@@ -41,6 +47,7 @@ namespace AtomGame
             InDialogue,    // movement frozen; input drives the conversation
             Transitioning, // fading between levels; input ignored
             InSequence,    // M26: a sequence runs; the player is frozen
+            AtMachine,     // M29: sitting at a pachinko machine
         };
 
         void OnLevelUnloading(Level& outgoing);
@@ -85,6 +92,10 @@ namespace AtomGame
         std::string Capture(const std::string& stem, bool includeUi) override;
         bool CapturePending() const override;
         bool Set(const std::string& what, const std::string& value) override;
+        bool HoldAction(const std::string& action, bool held) override;
+        bool PressAction(const std::string& action) override;
+        int GetCounter(const std::string& name) const override { return m_gameState.GetCounter(name); }
+        void SetCounter(const std::string& name, int value) override { m_gameState.SetCounter(name, value); }
         ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         std::string ReloadLevel() override;
@@ -122,6 +133,28 @@ namespace AtomGame
         EntityId m_target{};
 
         Mode m_mode = Mode::Exploring;
+
+        // Input contexts (M29): gameplay reads actions, the map says which
+        // keys give them in the current mode.
+        InputMap m_inputMap = InputMap::Default();
+        ActionInput m_actions;
+
+        // The pachinko machine (M29): the camera move and fullscreen view,
+        // and the game drawn into the machine's screen.
+        MachineMode m_machine;
+        PlayMachine m_machinePlay;
+        Atom::RenderTexture* m_machineScreen = nullptr;
+        std::optional<PachinkoGame> m_machineGame;
+        FixedStep m_machineClock;
+        // M33: balls and tokens are GameState counters ("balls", "tokens").
+        static constexpr int TokensPerBuy = 10;
+        static constexpr int BallsPerBuy = 50;
+        std::uint32_t m_machineSessions = 0; // seeds each session differently, reproducibly
+        bool BeginMachine(const PlayMachine& play);
+        void UpdateMachine(float deltaSeconds);
+        void DrawMachineView();
+        void PlayMachineSounds(const PachinkoGame& game);
+        void EndMachine();
         SequenceRunner m_sequence;
         bool RunSequence(const std::string& id);
         void UpdateSequence(float deltaSeconds);

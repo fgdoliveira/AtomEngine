@@ -559,6 +559,107 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle BallClick()
+    {
+        // Steel on brass: two short, bright, inharmonic partials.
+        std::vector<float> out(Frames(0.05f));
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float envelope = std::exp(-t / 0.006f);
+            out[i] = (std::sin(TwoPi * 4200.0f * t) + 0.6f * std::sin(TwoPi * 6900.0f * t)) * envelope;
+        }
+        Normalize(out, 0.7f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle PocketChime()
+    {
+        // Two quick bell notes, a fifth apart.
+        std::vector<float> out(Frames(0.5f), 0.0f);
+        for (const auto& [start, pitch] : { std::pair{ 0.0f, 1318.5f }, std::pair{ 0.08f, 1975.5f } })
+        {
+            for (std::size_t i = Frames(start); i < out.size(); ++i)
+            {
+                const float t = static_cast<float>(i) / Rate - start;
+                out[i] += (std::sin(TwoPi * pitch * t) + 0.3f * std::sin(TwoPi * pitch * 2.76f * t)) * std::exp(-t / 0.12f);
+            }
+        }
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle Payout()
+    {
+        // A cascade of balls into a tin tray: many clicks, thinning out.
+        std::vector<float> out(Frames(0.7f), 0.0f);
+        Noise noise(981);
+        Biquad tin = Biquad::Bandpass(3100.0f, 2.5f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float density = 0.02f * std::exp(-t / 0.3f);
+            const float click = noise.Uniform() < density ? noise() * 3.0f : 0.0f;
+            out[i] = tin.Process(click);
+        }
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle ReelStop()
+    {
+        // A mechanical clunk with an electronic blip on top.
+        std::vector<float> out(Frames(0.15f));
+        Noise noise(991);
+        Biquad body = Biquad::Bandpass(220.0f, 2.0f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            out[i] = body.Process(noise() * std::exp(-t / 0.01f)) * 4.0f
+                + std::sin(TwoPi * 880.0f * t) * std::exp(-t / 0.04f) * 0.5f;
+        }
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle Reach()
+    {
+        // A rising, wobbling square-ish tone: the tease.
+        std::vector<float> out(Frames(1.6f));
+        float phase = 0.0f;
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float pitch = 440.0f * std::pow(2.0f, t / 1.6f) * (1.0f + 0.02f * std::sin(TwoPi * 7.0f * t));
+            phase += TwoPi * pitch / Rate;
+            const float square = std::sin(phase) + std::sin(3.0f * phase) / 3.0f + std::sin(5.0f * phase) / 5.0f;
+            out[i] = square * std::min(1.0f, t / 0.05f) * (1.0f - 0.3f * t / 1.6f);
+        }
+        Normalize(out, 0.45f);
+        return Finish(std::move(out));
+    }
+
+    Atom::SoundHandle Fanfare()
+    {
+        // A short major arpeggio and a held chord: the fever.
+        std::vector<float> out(Frames(2.0f), 0.0f);
+        const float notes[] = { 523.3f, 659.3f, 784.0f, 1046.5f };
+        for (int n = 0; n < 4; ++n)
+        {
+            const float start = 0.12f * n;
+            const float length = 2.0f - start;
+            for (std::size_t i = Frames(start); i < out.size(); ++i)
+            {
+                const float t = static_cast<float>(i) / Rate - start;
+                const float envelope = std::min(1.0f, t / 0.01f) * std::exp(-t / (n == 3 ? 0.9f : 0.5f));
+                const float wave = std::sin(TwoPi * notes[n] * t) + 0.4f * std::sin(TwoPi * notes[n] * 2.0f * t);
+                out[i] += wave * envelope * (t < length ? 1.0f : 0.0f);
+            }
+        }
+        Normalize(out, 0.6f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle Higurashi(std::uint32_t seed)
     {
         // The evening cicada's falling "kana-kana-kana": a train of short

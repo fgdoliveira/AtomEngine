@@ -37,6 +37,12 @@ namespace AtomGame
         m_library["bus_engine"] = SoundSynth::BusEngine();
         m_library["door_hiss"] = SoundSynth::DoorHiss();
         m_library["pachinko_hall"] = SoundSynth::PachinkoHall();
+        m_library["ball_click"] = SoundSynth::BallClick();
+        m_library["pocket_chime"] = SoundSynth::PocketChime();
+        m_library["payout"] = SoundSynth::Payout();
+        m_library["reel_stop"] = SoundSynth::ReelStop();
+        m_library["reach"] = SoundSynth::Reach();
+        m_library["fanfare"] = SoundSynth::Fanfare();
 
         for (int surface = 0; surface < SurfaceCount; ++surface)
         {

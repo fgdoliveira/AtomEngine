@@ -111,3 +111,40 @@ TEST_CASE("Executing actions changes state and shows feedback")
     CHECK(messages.GetText() == "Nothing happens.");
     CHECK(messages.IsVisible());
 }
+
+TEST_CASE("Counters: read 0 when missing, never go negative, spend only what's there")
+{
+    GameState state;
+    CHECK(state.GetCounter("tokens") == 0);
+    state.AddToCounter("tokens", 50);
+    CHECK(state.Spend("tokens", 10));
+    CHECK(state.GetCounter("tokens") == 40);
+    CHECK_FALSE(state.Spend("tokens", 41));
+    CHECK(state.GetCounter("tokens") == 40); // nothing taken
+    state.AddToCounter("tokens", -100);
+    CHECK(state.GetCounter("tokens") == 0);
+}
+
+TEST_CASE("addCounter gives once; exchange pays for a flag or explains why not")
+{
+    GameState state;
+    MessageFeed messages;
+    ActionContext context{ state, messages };
+
+    const AddCounter welcome{ "tokens", 50, "Welcome.", "welcomed", "Already given." };
+    ExecuteAction(welcome, context);
+    ExecuteAction(welcome, context);
+    CHECK(state.GetCounter("tokens") == 50);
+    CHECK(state.HasFlag("welcomed"));
+    CHECK(messages.GetText() == "Already given.");
+
+    const Exchange prize{ "balls", 300, "prize", "Here.", "Not enough." };
+    state.SetCounter("balls", 299);
+    ExecuteAction(prize, context);
+    CHECK_FALSE(state.HasFlag("prize"));
+    CHECK(messages.GetText() == "Not enough.");
+    state.SetCounter("balls", 320);
+    ExecuteAction(prize, context);
+    CHECK(state.HasFlag("prize"));
+    CHECK(state.GetCounter("balls") == 20);
+}

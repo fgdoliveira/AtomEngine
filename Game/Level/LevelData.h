@@ -86,6 +86,7 @@ namespace AtomGame
     {
         std::string material;
         std::uint32_t seed = 1;
+        std::string machine; // M32: a playfield plays itself; else the simple attract loop
     };
 
     // Room reverb on the whole mix while in the level (M27).
