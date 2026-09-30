@@ -15,6 +15,15 @@
     Q leaves the same way back. That machine has its own screen material,
     which the game takes over from the attract loop (`Level::TakeOverScreen`).
   - The mouse wheel is read (for the launch strength, M31).
+- **2D physics (M30):** `World2D` for the pachinko field: balls (dynamic
+  circles) against nails (static circles) and segments (walls, rails),
+  and against each other as equal masses. Fixed 1/480 s substeps with a
+  speed cap, so a ball never moves more than a third of its radius per
+  substep (no tunnelling); restitution, friction, and a rest threshold so
+  balls settle on rails without jitter; a uniform-grid broad phase; impact
+  events for sounds; deterministic to the bit. A debug view draws a world
+  into a canvas. Unit tests: resting, bounce energy, tunnelling at top
+  speed, bit-identical reruns, momentum.
 
 ## Unreleased (joined 0.0.5)
 

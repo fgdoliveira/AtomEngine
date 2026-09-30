@@ -49,6 +49,10 @@ add_library(
     Input/InputContext.h
     Pachinko/MachineMode.cpp
     Pachinko/MachineMode.h
+    Pachinko/Physics2D.cpp
+    Pachinko/Physics2D.h
+    Pachinko/PhysicsDebugDraw.cpp
+    Pachinko/PhysicsDebugDraw.h
     World/FixedStep.h
     World/PachinkoAttract.cpp
     World/PachinkoAttract.h
