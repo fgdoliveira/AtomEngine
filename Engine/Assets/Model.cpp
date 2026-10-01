@@ -785,6 +785,32 @@ namespace Atom
         }
     }
 
+    void Model::SamplePose(std::span<const ClipSample> samples, Pose& pose) const
+    {
+        // A running weighted average: each new pose is blended in by its
+        // share of the weight seen so far, so n poses need n - 1 blends.
+        pose = m_skeleton.rest;
+        Pose sampled;
+        float total = 0.0f;
+        for (const ClipSample& sample : samples)
+        {
+            if (sample.weight <= 0.0f)
+            {
+                continue;
+            }
+            SamplePose(sample.clip, sample.time, sampled);
+            total += sample.weight;
+            if (total == sample.weight)
+            {
+                pose = sampled;
+            }
+            else
+            {
+                BlendPoses(pose, sampled, sample.weight / total, pose);
+            }
+        }
+    }
+
     void Model::Submit(Renderer& renderer, const glm::mat4& transform, int clip, float time) const
     {
         if (!m_animated || (!IsSkinned() && !GetClip(clip)))

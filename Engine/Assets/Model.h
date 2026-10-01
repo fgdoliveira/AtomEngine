@@ -100,6 +100,9 @@ namespace Atom
 
         // The rest pose with `clip` (if any) applied at `time`.
         void SamplePose(int clip, float time, Pose& pose) const;
+        // Several clips blended by weight (weights needn't sum to 1); the
+        // rest pose if there are none (M37).
+        void SamplePose(std::span<const ClipSample> samples, Pose& pose) const;
         const Pose& GetRestPose() const { return m_skeleton.rest; }
         const Skeleton& GetSkeleton() const { return m_skeleton; }
         bool IsSkinned() const { return !m_skeleton.skins.empty(); }

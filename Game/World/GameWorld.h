@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Audio/AudioSystem.h"
+#include "Character/Animator.h"
 #include "Core/SlotMap.h"
 #include "Interaction/Actions.h"
 
@@ -8,6 +9,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace Atom
 {
@@ -67,6 +69,10 @@ namespace AtomGame
         std::optional<Renderable> renderable;
         std::optional<Interactable> interactable;
         std::optional<Animated> animated;
+        // M37: a state machine, and the blended clips it (or the lab's
+        // viewer) asks for; when set they win over `animated`.
+        std::optional<Animator> animator;
+        std::vector<Atom::ClipSample> poseSamples;
         bool hidden = false; // M26: not drawn (a bus before it arrives)
     };
 

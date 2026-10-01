@@ -13,6 +13,8 @@ add_library(
     DemoApp.cpp
     DemoApp.h
     DemoAppLab.cpp
+    Character/Animator.cpp
+    Character/Animator.h
     Character/LabViewer.cpp
     Character/LabViewer.h
     PlayerController.cpp

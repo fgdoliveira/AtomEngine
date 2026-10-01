@@ -55,6 +55,10 @@ namespace AtomGame
         ToggleBindPose,
         ToggleSkeleton,
         ToggleWeights,
+        ModeBlend,    // M37: walk/run blend
+        ModeAnimator, // M37: the state machine demo
+        BlendDown,
+        BlendUp,
         Count,
     };
 

@@ -70,6 +70,19 @@ namespace Atom
     void ComputePalette(const Skin& skin, std::span<const glm::mat4> world,
                         std::vector<glm::mat4>& palette);
 
+    // Pose blending (M37): per node, translation and scale lerped, rotation
+    // slerped the short way round (q and -q are the same rotation; picking
+    // the nearer keeps a blend from spinning the long way). t = 0 gives a.
+    void BlendPoses(const Pose& a, const Pose& b, float t, Pose& out);
+
+    // One clip's contribution to a blended pose.
+    struct ClipSample
+    {
+        int clip = -1;
+        float time = 0.0f;
+        float weight = 1.0f;
+    };
+
     // The shader's sum, on the CPU: reference for tests and bounds.
     glm::vec3 SkinPoint(const glm::vec3& position, const SkinVertex& skin,
                         std::span<const glm::mat4> palette);

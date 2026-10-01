@@ -21,6 +21,7 @@ namespace AtomGame
         constexpr float OrbitKeyDegreesPerSecond = 90.0f;
         constexpr float MouseDegreesPerPixel = 0.25f;
         constexpr float ZoomKeyStepsPerSecond = 5.0f;
+        constexpr float BlendSliderPerSecond = 0.5f;
 
         // 2000s tool look: a navy panel, a lighter title strip, pale text.
         constexpr glm::vec4 PanelColor{ 0.06f, 0.09f, 0.18f, 0.82f };
@@ -71,6 +72,12 @@ namespace AtomGame
         orbit.yawDegrees = m_lab->yawDegrees;
         orbit.pitchDegrees = m_lab->pitchDegrees;
         m_viewer.Reset(orbit, std::move(clips));
+        m_labScriptedParams = false;
+        if (subject->animator)
+        {
+            // The viewer owns the clock: the level mustn't advance it too.
+            subject->animator->SetEnabled(false);
+        }
         ApplyLabPose();
 
         // The fade-in shows the orbit view, so that is where we "arrive".
@@ -110,6 +117,15 @@ namespace AtomGame
                 in.selectClip = i;
             }
         }
+        if (m_actions.Pressed(InputAction::ModeBlend))
+        {
+            in.selectMode = static_cast<int>(ViewerMode::Blend);
+        }
+        if (m_actions.Pressed(InputAction::ModeAnimator))
+        {
+            in.selectMode = static_cast<int>(ViewerMode::StateMachine);
+        }
+        in.blendDelta = axis(InputAction::BlendUp, InputAction::BlendDown) * BlendSliderPerSecond * deltaSeconds;
         in.speedStep = (m_actions.Pressed(InputAction::Faster) ? 1 : 0) - (m_actions.Pressed(InputAction::Slower) ? 1 : 0);
         in.togglePause = m_actions.Pressed(InputAction::Pause);
         in.step = m_actions.Pressed(InputAction::StepFrame);
@@ -120,6 +136,20 @@ namespace AtomGame
         m_viewer.Update(in, deltaSeconds);
         m_camera.SetPosition(m_viewer.GetEye());
         m_camera.SetRotation(m_viewer.GetCameraYaw(), m_viewer.GetCameraPitch());
+
+        // The state machine demo: the script plays the gameplay that would
+        // set the parameters (unless a test sets them itself).
+        Entity* subject = FindLabSubject();
+        if (subject && subject->animator && m_viewer.GetMode() == ViewerMode::StateMachine)
+        {
+            if (!m_labScriptedParams)
+            {
+                const LabViewer::DemoParams demo = LabViewer::Demo(m_viewer.GetDemoTime());
+                subject->animator->SetParam("speed", demo.speed);
+                subject->animator->SetParam("grounded", demo.grounded ? 1.0f : 0.0f);
+            }
+            subject->animator->Update(m_viewer.GetAnimatorSeconds());
+        }
         ApplyLabPose();
     }
 
@@ -131,12 +161,22 @@ namespace AtomGame
             return;
         }
         // The viewer owns the clock: the level only draws what it's told.
+        // Bind pose: no samples and no clip, so the rest pose is drawn.
         Animated& animated = subject->animated ? *subject->animated : subject->animated.emplace();
-        animated.clip = m_viewer.GetPoseClip();
-        animated.time = m_viewer.GetTime();
-        animated.duration = m_viewer.GetClipDuration();
+        animated.clip = -1;
         animated.playing = false;
-        animated.loop = true;
+        if (m_viewer.ShowsBindPose())
+        {
+            subject->poseSamples.clear();
+        }
+        else if (m_viewer.GetMode() == ViewerMode::StateMachine && subject->animator)
+        {
+            subject->poseSamples = subject->animator->GetSamples();
+        }
+        else
+        {
+            subject->poseSamples = m_viewer.GetSamples();
+        }
         GetRenderer().SetSkinWeightsView(m_viewer.ShowsWeights());
     }
 
@@ -145,6 +185,11 @@ namespace AtomGame
         if (m_lab && entityName == m_lab->subject)
         {
             const bool found = m_viewer.SelectClip(clipName);
+            if (found)
+            {
+                // Show it now, not after a crossfade (tests check the pose).
+                m_viewer.FinishCrossfade();
+            }
             ApplyLabPose();
             return found;
         }
@@ -177,12 +222,50 @@ namespace AtomGame
     std::string DemoApp::ClipName(const std::string& entityName) const
     {
         const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(entityName);
-        if (!entity || !entity->animated || !entity->renderable || !entity->renderable->model)
+        if (!entity || !entity->renderable || !entity->renderable->model)
         {
             return {};
         }
-        const Atom::AnimationClip* clip = entity->renderable->model->GetClip(entity->animated->clip);
+        // Blended: the clip with the most weight.
+        int shown = entity->animated ? entity->animated->clip : -1;
+        float heaviest = 0.0f;
+        for (const Atom::ClipSample& sample : entity->poseSamples)
+        {
+            if (sample.weight > heaviest)
+            {
+                heaviest = sample.weight;
+                shown = sample.clip;
+            }
+        }
+        const Atom::AnimationClip* clip = entity->renderable->model->GetClip(shown);
         return clip ? clip->name : std::string{};
+    }
+
+    bool DemoApp::SetAnimatorParam(const std::string& entityName, const std::string& param, float value)
+    {
+        GameWorld* world = CurrentWorld();
+        bool found = false;
+        if (world)
+        {
+            world->ForEach([&](EntityId, Entity& entity) {
+                if (!found && entity.name == entityName && entity.animator)
+                {
+                    entity.animator->SetParam(param, value);
+                    found = true;
+                }
+            });
+        }
+        if (found && m_lab && entityName == m_lab->subject)
+        {
+            m_labScriptedParams = true;
+        }
+        return found;
+    }
+
+    std::string DemoApp::AnimatorState(const std::string& entityName) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(entityName);
+        return entity && entity->animator ? entity->animator->GetStateName() : std::string{};
     }
 
     void DemoApp::DrawSkeleton(const Entity& subject)
@@ -196,7 +279,7 @@ namespace AtomGame
         const Atom::Skin& skin = skeleton.skins.front();
 
         Atom::Pose pose;
-        model->SamplePose(m_viewer.GetPoseClip(), m_viewer.GetTime(), pose);
+        model->SamplePose(subject.poseSamples, pose); // the rest pose if none
         const std::vector<glm::mat4> world = Atom::ComputeWorldMatrices(skeleton.parents, pose);
         const glm::mat4 transform = EntityModelTransform(subject);
 
@@ -275,17 +358,33 @@ namespace AtomGame
         const glm::vec2 origin{ 16.0f * scale };
 
         // The panel: what is shown, and how.
-        char clipLine[160];
+        char clipLine[200];
+        const char* paused = m_viewer.IsPaused() ? "   PAUSED" : "";
+        const Entity* subject = FindLabSubject();
+        const Animator* animator = subject && subject->animator ? &*subject->animator : nullptr;
         if (m_viewer.ShowsBindPose())
         {
             std::snprintf(clipLine, sizeof(clipLine), "Bind pose");
         }
+        else if (m_viewer.GetMode() == ViewerMode::Blend)
+        {
+            std::snprintf(clipLine, sizeof(clipLine), "Blend  Walk %3.0f%% / Run %3.0f%%   cycle %.2f s   phase %.2f   %.2gx%s",
+                (1.0f - m_viewer.GetBlendWeight()) * 100.0f, m_viewer.GetBlendWeight() * 100.0f,
+                m_viewer.GetBlendCycle(), m_viewer.GetPhase(), m_viewer.GetSpeed(), paused);
+        }
+        else if (m_viewer.GetMode() == ViewerMode::StateMachine && animator)
+        {
+            std::snprintf(clipLine, sizeof(clipLine), "State machine  [%s]%s   speed %.1f m/s   grounded %s   %.2gx%s",
+                animator->GetStateName().c_str(), animator->IsBlending() ? " (fading)" : "",
+                animator->GetParam("speed"), animator->GetParam("grounded") != 0.0f ? "yes" : "no",
+                m_viewer.GetSpeed(), paused);
+        }
         else
         {
-            std::snprintf(clipLine, sizeof(clipLine), "Clip %d  %-6s  %5.2f / %.2f s   %.2gx%s",
+            std::snprintf(clipLine, sizeof(clipLine), "Clip %d  %-6s  %5.2f / %.2f s   %.2gx%s%s",
                 m_viewer.GetClip() + 1, m_viewer.GetClipName().c_str(),
                 m_viewer.GetTime(), m_viewer.GetClipDuration(), m_viewer.GetSpeed(),
-                m_viewer.IsPaused() ? "   PAUSED" : "");
+                m_viewer.IsCrossfading() ? "   (crossfade)" : "", paused);
         }
         char toggles[160];
         std::snprintf(toggles, sizeof(toggles), "[B] bind %s   [K] skeleton %s   [W] weights %s",
@@ -299,7 +398,9 @@ namespace AtomGame
         const glm::vec2 toggleSize = ui.MeasureText(*m_smallFont, toggles, scale);
         const float width = std::max({ titleSize.x, lineSize.x, toggleSize.x, 300.0f * scale }) + 2.0f * padding;
         const float titleHeight = titleSize.y + padding;
-        const float bodyHeight = lineSize.y + toggleSize.y + 2.5f * padding;
+        const bool slider = m_viewer.GetMode() == ViewerMode::Blend && !m_viewer.ShowsBindPose();
+        const float sliderHeight = slider ? 10.0f * scale + padding : 0.0f;
+        const float bodyHeight = lineSize.y + toggleSize.y + 2.5f * padding + sliderHeight;
 
         ui.DrawRect(origin, { width, titleHeight }, TitleColor);
         ui.DrawRect(origin + glm::vec2{ 0.0f, titleHeight }, { width, bodyHeight }, PanelColor);
@@ -307,10 +408,21 @@ namespace AtomGame
         glm::vec2 at = origin + glm::vec2{ padding, titleHeight + padding };
         ui.DrawText(*m_smallFont, clipLine, at, TextColor, scale);
         at.y += lineSize.y + padding * 0.5f;
+        if (slider)
+        {
+            // The walk/run slider: a track and a knob.
+            const float track = width - 2.0f * padding;
+            ui.DrawRect(at + glm::vec2{ 0.0f, 4.0f * scale }, { track, 2.0f * scale }, DimTextColor);
+            const float knob = 8.0f * scale;
+            ui.DrawRect(at + glm::vec2{ (track - knob) * m_viewer.GetBlendWeight(), 0.0f }, { knob, 10.0f * scale },
+                BoneColor);
+            at.y += sliderHeight;
+        }
         ui.DrawText(*m_smallFont, toggles, at, DimTextColor, scale);
 
         // The help line along the bottom.
-        const char* help = "1-4 clip   -/+ speed   Space pause   . step   arrows / mouse orbit   wheel zoom";
+        const char* help = "1-4 clip   5 blend  [ ] slider   6 state machine   -/+ speed   Space pause   . step"
+                           "   arrows / mouse orbit   wheel zoom";
         const glm::vec2 helpSize = ui.MeasureText(*m_smallFont, help, scale);
         const glm::vec2 helpAt{ (screen.x - helpSize.x) * 0.5f, screen.y - helpSize.y - 24.0f * scale };
         ui.DrawRect(helpAt - glm::vec2{ padding, padding * 0.5f }, helpSize + glm::vec2{ 2.0f * padding, padding },

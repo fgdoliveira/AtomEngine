@@ -64,6 +64,19 @@ namespace Atom
         }
     }
 
+    void BlendPoses(const Pose& a, const Pose& b, float t, Pose& out)
+    {
+        out.resize(a.size());
+        for (std::size_t n = 0; n < a.size(); ++n)
+        {
+            out[n].translation = glm::mix(a[n].translation, b[n].translation, t);
+            out[n].scale = glm::mix(a[n].scale, b[n].scale, t);
+            // glm::slerp already takes the short way (it flips b when the
+            // dot product is negative).
+            out[n].rotation = glm::normalize(glm::slerp(a[n].rotation, b[n].rotation, t));
+        }
+    }
+
     glm::vec3 SkinPoint(const glm::vec3& position, const SkinVertex& skin,
                         std::span<const glm::mat4> palette)
     {

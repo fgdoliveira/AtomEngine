@@ -22,6 +22,7 @@ add_executable(
     PachinkoRulesTests.cpp
     SkinningTests.cpp
     LabViewerTests.cpp
+    AnimatorTests.cpp
 )
 
 target_link_libraries(

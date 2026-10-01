@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Character/Animator.h"
 #include "Interaction/Actions.h"
 #include "Interaction/Sequence.h"
 #include "World/GameWorld.h"
@@ -167,6 +168,7 @@ namespace AtomGame
         std::optional<ColliderBox> collider;
         std::optional<Interactable> interactable;
         std::optional<EntityAnimation> animation; // needs a model with the clip
+        std::optional<AnimatorData> animator;     // M37: a state machine instead
         std::optional<EntityMover> mover;
         bool hidden = false; // M26: until a sequence shows it
     };

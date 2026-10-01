@@ -32,6 +32,23 @@
     "pitch": 10.0
   },
   "entities": [
-    { "name": "rudy", "model": "ThirdParty/rudy.glb", "scale": 0.8 }
+    {
+      "name": "rudy",
+      "model": "ThirdParty/rudy.glb",
+      "scale": 0.8,
+      "animator": {
+        "initial": "idle",
+        "states": {
+          "idle": { "clip": "Idle" },
+          "move": { "blend": ["Walk", "Run"], "param": "speed", "range": [1.4, 4.0] },
+          "jump": { "clip": "Jump", "loop": false, "next": "idle", "nextBlend": 0.2 }
+        },
+        "transitions": [
+          { "from": "*", "to": "jump", "when": ["grounded == 0"], "blend": 0.1 },
+          { "from": "idle", "to": "move", "when": ["speed > 0.2"], "blend": 0.25 },
+          { "from": "move", "to": "idle", "when": ["speed <= 0.2"], "blend": 0.3 }
+        ]
+      }
+    }
   ]
 }

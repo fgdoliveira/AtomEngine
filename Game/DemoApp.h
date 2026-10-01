@@ -113,6 +113,8 @@ namespace AtomGame
         bool AnimationPlaying(const std::string& entity) const override;
         bool SetClip(const std::string& entity, const std::string& clip) override;
         std::string ClipName(const std::string& entity) const override;
+        bool SetAnimatorParam(const std::string& entity, const std::string& param, float value) override;
+        std::string AnimatorState(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
@@ -172,6 +174,7 @@ namespace AtomGame
         void ApplyLabPose(); // the viewer's clip and time onto the subject
         void DrawLabOverlay(float scale);
         void DrawSkeleton(const Entity& subject);
+        bool m_labScriptedParams = false; // the harness sets them: no demo
         SequenceRunner m_sequence;
         bool RunSequence(const std::string& id);
         void UpdateSequence(float deltaSeconds);

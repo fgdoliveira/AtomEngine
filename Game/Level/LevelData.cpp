@@ -259,6 +259,72 @@ namespace AtomGame
                 entity.animation = a;
             }
 
+            if (const auto animator = json.find("animator"); animator != json.end())
+            {
+                const std::string at = JsonPath(path, "animator");
+                if (entity.model.empty() || entity.animation)
+                {
+                    throw LevelError(at, "an animator needs a \"model\" and no \"animation\"");
+                }
+                AnimatorData data;
+                data.initial = String(*animator, "initial", at);
+                const auto states = animator->find("states");
+                if (states == animator->end() || !states->is_object() || states->empty())
+                {
+                    throw LevelError(at, "animator needs \"states\"");
+                }
+                for (const auto& [name, value] : states->items())
+                {
+                    const std::string stateAt = JsonPath(JsonPath(at, "states"), name);
+                    AnimStateData state;
+                    state.clip = String(value, "clip", stateAt);
+                    if (const auto blend = value.find("blend"); blend != value.end())
+                    {
+                        if (!blend->is_array() || blend->size() != 2 || !(*blend)[0].is_string() || !(*blend)[1].is_string())
+                        {
+                            throw LevelError(JsonPath(stateAt, "blend"), "must be two clip names");
+                        }
+                        state.blendFrom = (*blend)[0].get<std::string>();
+                        state.blendTo = (*blend)[1].get<std::string>();
+                        state.param = String(value, "param", stateAt);
+                        const auto range = value.find("range");
+                        if (range == value.end() || !range->is_array() || range->size() != 2
+                            || !(*range)[0].is_number() || !(*range)[1].is_number())
+                        {
+                            throw LevelError(JsonPath(stateAt, "range"), "a blend needs a [low, high] range");
+                        }
+                        state.rangeLow = (*range)[0].get<float>();
+                        state.rangeHigh = (*range)[1].get<float>();
+                    }
+                    state.loop = Bool(value, "loop", stateAt, true);
+                    state.next = String(value, "next", stateAt);
+                    state.nextBlend = Number(value, "nextBlend", stateAt, state.nextBlend);
+                    data.states[name] = std::move(state);
+                }
+                std::size_t index = 0;
+                for (const Json& value : Array(*animator, "transitions", at))
+                {
+                    const std::string transitionAt = JsonPath(JsonPath(at, "transitions"), index++);
+                    AnimTransitionData transition;
+                    transition.from = String(value, "from", transitionAt);
+                    transition.to = String(value, "to", transitionAt);
+                    transition.blend = Number(value, "blend", transitionAt, transition.blend);
+                    std::size_t c = 0;
+                    for (const Json& text : Array(value, "when", transitionAt))
+                    {
+                        const std::string conditionAt = JsonPath(JsonPath(transitionAt, "when"), c++);
+                        const auto condition = text.is_string() ? ParseCondition(text.get<std::string>()) : std::nullopt;
+                        if (!condition)
+                        {
+                            throw LevelError(conditionAt, "must read \"param op value\" (op: < <= > >= == !=)");
+                        }
+                        transition.when.push_back(*condition);
+                    }
+                    data.transitions.push_back(std::move(transition));
+                }
+                entity.animator = std::move(data);
+            }
+
             if (const auto mover = json.find("mover"); mover != json.end())
             {
                 const std::string at = JsonPath(path, "mover");

@@ -341,6 +341,45 @@
             "locked": { "$ref": "#/definitions/action" }
           }
         },
+        "animator": {
+          "type": "object",
+          "description": "Animation state machine (M37): states (a clip, or two clips blended by a parameter) and transitions on parameter conditions.",
+          "required": ["initial", "states"],
+          "additionalProperties": false,
+          "properties": {
+            "initial": { "type": "string" },
+            "states": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "clip": { "type": "string" },
+                  "blend": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 },
+                  "param": { "type": "string" },
+                  "range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+                  "loop": { "type": "boolean" },
+                  "next": { "type": "string", "description": "One-shot: the state it returns to." },
+                  "nextBlend": { "type": "number" }
+                }
+              }
+            },
+            "transitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from", "to"],
+                "additionalProperties": false,
+                "properties": {
+                  "from": { "type": "string", "description": "A state, or * for any." },
+                  "to": { "type": "string" },
+                  "when": { "type": "array", "items": { "type": "string", "pattern": "^\\s*\\w+\\s+(<|<=|>|>=|==|!=)\\s+-?[0-9.]+\\s*$" } },
+                  "blend": { "type": "number", "minimum": 0 }
+                }
+              }
+            }
+          }
+        },
         "animation": {
           "type": "object",
           "required": ["clip"],

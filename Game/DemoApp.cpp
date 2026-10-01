@@ -1319,6 +1319,17 @@ namespace AtomGame
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) m_showDebugOverlay = on;
+        else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
+        {
+            m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips
+                : value == "blend" ? ViewerMode::Blend : ViewerMode::StateMachine);
+            ApplyLabPose();
+        }
+        else if (what == "blend" && m_lab && isNumber && number >= 0.0f && number <= 1.0f)
+        {
+            m_viewer.SetBlendWeight(number);
+            ApplyLabPose();
+        }
         else if ((what == "skeleton" || what == "weights" || what == "bind" || what == "pause") && onOff && m_lab)
         {
             if (what == "skeleton") m_viewer.SetSkeleton(on);

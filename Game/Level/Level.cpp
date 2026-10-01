@@ -212,6 +212,28 @@ namespace AtomGame
                 }
                 entity.animated = animated;
             }
+            if (data.animator)
+            {
+                const Atom::Model* model = entity.renderable ? entity.renderable->model : nullptr;
+                Animator animator;
+                const auto error = animator.Bind(*data.animator, [model](std::string_view name)
+                    -> std::optional<Animator::ClipInfo> {
+                    const int clip = model ? model->FindClip(name) : -1;
+                    if (clip < 0)
+                    {
+                        return std::nullopt;
+                    }
+                    return Animator::ClipInfo{ clip, model->GetClip(clip)->duration };
+                });
+                if (error)
+                {
+                    std::cerr << "Level '" << d.name << "': entity '" << data.name
+                              << "' animator: " << *error << '\n';
+                    return nullptr;
+                }
+                entity.animator = std::move(animator);
+                entity.poseSamples = entity.animator->GetSamples();
+            }
             level->m_world.Spawn(std::move(entity));
         }
 
@@ -486,7 +508,13 @@ namespace AtomGame
                 return;
             }
             const glm::mat4 transform = EntityModelTransform(entity);
-            if (entity.animated)
+            if (!entity.poseSamples.empty())
+            {
+                Atom::Pose pose;
+                entity.renderable->model->SamplePose(entity.poseSamples, pose);
+                entity.renderable->model->Submit(renderer, transform, pose);
+            }
+            else if (entity.animated)
             {
                 entity.renderable->model->Submit(
                     renderer, transform, entity.animated->clip, entity.animated->time);
@@ -586,6 +614,13 @@ namespace AtomGame
             m_audio.SetVoiceGain(voice.id, voice.gain * voice.level);
         }
 
+        m_world.ForEach([&](EntityId, Entity& entity) {
+            if (entity.animator && entity.animator->IsEnabled())
+            {
+                entity.animator->Update(deltaSeconds);
+                entity.poseSamples = entity.animator->GetSamples();
+            }
+        });
         m_world.ForEach([&](EntityId, Entity& entity) {
             if (!entity.animated || !entity.animated->playing)
             {
