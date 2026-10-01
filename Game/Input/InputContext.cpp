@@ -88,6 +88,11 @@ namespace AtomGame
         map.Bind(C::Viewer, InputAction::ModeAnimator, SDL_SCANCODE_6);
         map.Bind(C::Viewer, InputAction::BlendDown, SDL_SCANCODE_LEFTBRACKET);
         map.Bind(C::Viewer, InputAction::BlendUp, SDL_SCANCODE_RIGHTBRACKET);
+        // Bindings are physical key positions (scancodes): [ ] sit right of
+        // P on a US keyboard but carry other symbols elsewhere (` + on a
+        // Spanish one). Z and X are in the same place on every layout.
+        map.Bind(C::Viewer, InputAction::BlendDown, SDL_SCANCODE_Z);
+        map.Bind(C::Viewer, InputAction::BlendUp, SDL_SCANCODE_X);
         return map;
     }
 

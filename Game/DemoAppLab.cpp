@@ -421,7 +421,7 @@ namespace AtomGame
         ui.DrawText(*m_smallFont, toggles, at, DimTextColor, scale);
 
         // The help line along the bottom.
-        const char* help = "1-4 clip   5 blend  [ ] slider   6 state machine   -/+ speed   Space pause   . step"
+        const char* help = "1-4 clip   5 blend  Z/X slider   6 state machine   -/+ speed   Space pause   . step"
                            "   arrows / mouse orbit   wheel zoom";
         const glm::vec2 helpSize = ui.MeasureText(*m_smallFont, help, scale);
         const glm::vec2 helpAt{ (screen.x - helpSize.x) * 0.5f, screen.y - helpSize.y - 24.0f * scale };
