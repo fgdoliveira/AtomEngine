@@ -202,6 +202,11 @@ namespace AtomGame
             entity.hasYaw = json.contains("yaw");
             entity.position = Vec3(json, "position", glm::vec3{ 0.0f }, path);
             entity.yawDegrees = Number(json, "yaw", path, 0.0f);
+            entity.scale = Number(json, "scale", path, 1.0f);
+            if (entity.scale <= 0.0f)
+            {
+                throw LevelError(JsonPath(path, "scale"), "must be positive");
+            }
             entity.model = String(json, "model", path);
             entity.hidden = Bool(json, "hidden", path, false);
 

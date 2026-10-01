@@ -160,6 +160,7 @@ namespace AtomGame
         std::string name;
         glm::vec3 position{ 0.0f };
         float yawDegrees = 0.0f;
+        float scale = 1.0f; // uniform, applied to the model only (M35)
         bool hasPosition = false; // written in the file (or set from a marker)
         bool hasYaw = false;
         std::string model; // optional, relative to Assets/

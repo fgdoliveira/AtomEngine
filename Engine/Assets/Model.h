@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Assets/Animation.h"
+#include "Assets/Skin.h"
 #include "Renderer/Material.h"
 #include "Renderer/Mesh.h"
 #include "Renderer/Texture.h"
@@ -26,6 +27,9 @@ namespace Atom
         std::vector<std::uint32_t> indices;
         bool hasBakedLight = false; // had COLOR_0
         bool hasLightmapUv = false; // had TEXCOORD_1
+        // JOINTS_0 / WEIGHTS_0 (M35): one per vertex when skinned, weights
+        // renormalised to sum to 1; empty otherwise.
+        std::vector<SkinVertex> skin;
     };
 
     // How a material is drawn, without its GPU textures (tools and tests).
@@ -50,6 +54,18 @@ namespace Atom
     // tests; empty if the file can't be loaded.
     std::vector<PrimitiveGeometry> LoadModelGeometry(const std::string& path);
 
+    // The node hierarchy, rest pose and skins of a glTF file (tools and
+    // tests); empty on failure.
+    Skeleton LoadModelSkeleton(const std::string& path);
+
+    // Box around the skinned `geometry` in every pose of `clips` (sampled
+    // `samplesPerClip` times each) and the rest pose, grown by `margin` of
+    // its size for the motion between samples.
+    void ComputeSkinnedBounds(const PrimitiveGeometry& geometry, const Skeleton& skeleton,
+                              int skin, std::span<const AnimationClip> clips,
+                              int samplesPerClip, float margin,
+                              glm::vec3& low, glm::vec3& high);
+
     // A glTF scene flattened into drawable parts. Owns its GPU resources.
     class Model
     {
@@ -60,20 +76,12 @@ namespace Atom
             std::size_t materialIndex = 0;
             glm::mat4 transform{ 1.0f }; // node world transform (rest pose)
             int node = -1; // set when an animation can move it
-        };
-
-        // A glTF node's rest transform and parent, for posing.
-        struct Node
-        {
-            int parent = -1;
-            glm::vec3 translation{ 0.0f };
-            glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
-            glm::vec3 scale{ 1.0f };
+            int skin = -1; // skinned (M35): drawn by its skin's joints
         };
 
         // Loads a .glb/.gltf (triangles with POSITION, NORMAL, TEXCOORD_0,
         // optional COLOR_0 as baked light; base color textures and factors;
-        // emissive factor).
+        // emissive factor; skins of up to 64 joints).
         static std::unique_ptr<Model> Load(
             Renderer& renderer,
             const std::string& path
@@ -84,6 +92,17 @@ namespace Atom
         // their baked transforms.
         void Submit(Renderer& renderer, const glm::mat4& transform,
                     int clip = -1, float time = 0.0f) const;
+
+        // Queues every part in an explicit pose (one local transform per
+        // node, e.g. from SamplePose or a blend of two). Skinned parts
+        // follow their joints; the rest follow their node.
+        void Submit(Renderer& renderer, const glm::mat4& transform, const Pose& pose) const;
+
+        // The rest pose with `clip` (if any) applied at `time`.
+        void SamplePose(int clip, float time, Pose& pose) const;
+        const Pose& GetRestPose() const { return m_skeleton.rest; }
+        const Skeleton& GetSkeleton() const { return m_skeleton; }
+        bool IsSkinned() const { return !m_skeleton.skins.empty(); }
 
         // World-space box around every part in its rest pose.
         const glm::vec3& GetBoundsMin() const { return m_boundsMin; }
@@ -109,7 +128,8 @@ namespace Atom
         std::vector<Material> m_materials; // last entry is the fallback
         std::vector<std::string> m_materialNames; // parallel to m_materials
         std::vector<Part> m_parts;
-        std::vector<Node> m_nodes;
+        Skeleton m_skeleton;
+        bool m_animated = false; // some part moves with a clip or a skin
         std::vector<AnimationClip> m_clips;
         glm::vec3 m_boundsMin{ 0.0f };
         glm::vec3 m_boundsMax{ 0.0f };

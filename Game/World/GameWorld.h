@@ -24,6 +24,7 @@ namespace AtomGame
     {
         const Atom::Model* model = nullptr;
         float yaw = 0.0f; // radians around +Y
+        float scale = 1.0f; // uniform (M35)
     };
 
     // A capability: "the player can use this". Any entity can have it; the

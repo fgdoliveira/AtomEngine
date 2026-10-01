@@ -304,6 +304,7 @@
         "name": { "type": "string", "description": "Unique in the level; scripts and markers use it." },
         "position": { "$ref": "#/definitions/vec3", "description": "Omit to take it from an entity:<name> marker." },
         "yaw": { "type": "number" },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "description": "Uniform scale of the model (M35)." },
         "model": { "type": "string", "description": "glb relative to Assets/." },
         "hidden": { "type": "boolean", "description": "Not drawn until a sequence shows it (M26)." },
         "collider": {

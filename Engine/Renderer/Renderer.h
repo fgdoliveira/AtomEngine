@@ -108,7 +108,8 @@ namespace Atom
         std::unique_ptr<Mesh> CreateMesh(
             std::span<const Vertex> vertices,
             std::span<const std::uint32_t> indices,
-            bool hasBakedLight = false
+            bool hasBakedLight = false,
+            std::span<const SkinVertex> skin = {}
         );
 
         // pixels: RGBA8, top row first.
@@ -149,6 +150,18 @@ namespace Atom
             const Mesh& mesh,
             const Material& material,
             const glm::mat4& model
+        );
+
+        // Skinned meshes (M35): the joint palette for this frame, stored
+        // once and shared by every part of a model; returns its handle for
+        // SubmitSkinned. At most MaxPaletteJoints matrices.
+        static constexpr std::size_t MaxPaletteJoints = 64;
+        std::uint32_t AddPalette(std::span<const glm::mat4> palette);
+        void SubmitSkinned(
+            const Mesh& mesh,
+            const Material& material,
+            const glm::mat4& model,
+            std::uint32_t palette
         );
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
@@ -194,6 +207,7 @@ namespace Atom
             const Material* material = nullptr;
             glm::mat4 model{1.0f};
             int chunk = -1; // index into m_chunks, -1 = none
+            int palette = -1; // index into m_paletteRanges when skinned
         };
 
         // Order draws so state changes are rare: decals last (they need the
@@ -226,16 +240,27 @@ namespace Atom
 
         // Decals: alpha blending, no depth writes, a depth bias toward the
         // camera so they win against the surface they lie on.
-        SDL_GPUGraphicsPipeline* GetDecalPipeline(std::uint32_t samples);
+        SDL_GPUGraphicsPipeline* GetDecalPipeline(std::uint32_t samples, bool skinned = false);
         SDL_GPUGraphicsPipeline* CreateScenePipeline(
-            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal);
+            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned);
+        SDL_GPUGraphicsPipeline* CreateShadowPipeline(bool skinned);
+        SDL_GPUGraphicsPipeline* GetShadowPipeline(bool skinned)
+        {
+            SDL_GPUGraphicsPipeline*& pipeline = m_shadowPipelines[skinned ? 1 : 0];
+            if (!pipeline)
+            {
+                pipeline = CreateShadowPipeline(skinned);
+            }
+            return pipeline;
+        }
 
         // Scene pipelines depend on the MSAA sample count, face culling
         // and alpha-to-coverage (masked materials with MSAA); built lazily.
         SDL_GPUGraphicsPipeline* GetScenePipeline(
             std::uint32_t samples,
             bool doubleSided = false,
-            bool alphaToCoverage = false
+            bool alphaToCoverage = false,
+            bool skinned = false
         );
 
         // Light view-projection for the sun, fitted around the camera and
@@ -273,12 +298,12 @@ namespace Atom
         bool m_windowClaimed = false;
 
         // Indexed by log2(samples): 1x, 2x, 4x.
-        // [samples slot][double-sided][alpha-to-coverage]
-        std::array<SDL_GPUGraphicsPipeline*, 12> m_scenePipelines{};
-        std::array<SDL_GPUGraphicsPipeline*, 3> m_decalPipelines{}; // per samples slot
+        // [skinned][samples slot][double-sided][alpha-to-coverage]
+        std::array<SDL_GPUGraphicsPipeline*, 24> m_scenePipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 6> m_decalPipelines{}; // [skinned][samples slot]
         glm::vec4 m_wind{ 0.0f };
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
-        SDL_GPUGraphicsPipeline* m_shadowPipeline = nullptr;
+        std::array<SDL_GPUGraphicsPipeline*, 2> m_shadowPipelines{}; // [skinned]
         SDL_GPUTexture* m_shadowMap = nullptr;
         SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
 
@@ -325,6 +350,13 @@ namespace Atom
 
         Camera m_camera;
         std::vector<DrawCommand> m_drawCommands;
+        struct PaletteRange
+        {
+            std::uint32_t first = 0;
+            std::uint32_t count = 0;
+        };
+        std::vector<glm::mat4> m_palettes; // this frame's joint matrices
+        std::vector<PaletteRange> m_paletteRanges;
         std::vector<ChunkInfo> m_chunks; // this frame's
         int m_currentChunk = -1;
         FrameStats m_stats;

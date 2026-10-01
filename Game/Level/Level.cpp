@@ -182,7 +182,7 @@ namespace AtomGame
                 {
                     return nullptr;
                 }
-                entity.renderable = Renderable{ model, yaw };
+                entity.renderable = Renderable{ model, yaw, data.scale };
             }
             if (data.collider)
             {
@@ -487,6 +487,7 @@ namespace AtomGame
             }
             glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
             transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
+            transform = glm::scale(transform, glm::vec3{ entity.renderable->scale });
             if (entity.animated)
             {
                 entity.renderable->model->Submit(
