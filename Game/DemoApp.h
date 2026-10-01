@@ -155,6 +155,8 @@ namespace AtomGame
         float m_reloadTimer = 0.0f;
         FileWatcher m_levelFiles;
         FileWatcher m_dialogueFiles;
+        FileWatcher m_dataFiles; // M46: Assets/Data (the flashlight)
+        void LoadFlashlightSettings();
         std::unique_ptr<TestRunner> m_testRunner;
         ModelCache m_modelCache; // declared before the levels: outlives them
         std::unique_ptr<LevelManager> m_levels;

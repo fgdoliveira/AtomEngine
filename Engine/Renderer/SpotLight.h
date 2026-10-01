@@ -97,6 +97,17 @@ namespace Atom
             return projection * view;
         }
 
+        // Light culling (M46): does a light's sphere of reach touch a box
+        // (centre, half-extents)? The distance from the sphere's centre to
+        // the nearest point of the box, against the radius.
+        inline bool SphereTouchesBox(const glm::vec3& sphere, float radius, const glm::vec3& center,
+                                     const glm::vec3& extent)
+        {
+            const glm::vec3 nearest = glm::clamp(sphere, center - extent, center + extent);
+            const glm::vec3 gap = sphere - nearest;
+            return glm::dot(gap, gap) <= radius * radius;
+        }
+
         struct Response
         {
             float diffuse = 0.0f;  // times base colour and light colour

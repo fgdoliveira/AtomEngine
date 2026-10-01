@@ -1,11 +1,13 @@
 #include "Flashlight.h"
 
+#include "Level/JsonText.h"
 #include "Physics/CollisionWorld.h"
 
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
 
 #include <cmath>
+#include <cstdio>
 
 namespace AtomGame
 {
@@ -73,6 +75,93 @@ namespace AtomGame
 
         m_light.position = eye + right * HandRight - up * HandDown + forward * HandForward;
         m_light.direction = glm::normalize(m_aim + wobble);
+    }
+
+    std::string Flashlight::LoadSettings(std::string_view json)
+    {
+        nlohmann::json root;
+        if (std::string error = ParseJsonText(json, root); !error.empty())
+        {
+            return error;
+        }
+        if (!root.is_object())
+        {
+            return "the flashlight's settings must be an object";
+        }
+        // Read into a copy: a bad value anywhere leaves the light as it was.
+        Atom::SpotLight light = m_light;
+        const auto number = [&](const char* key, float& value, float low, float high) -> std::string {
+            const auto found = root.find(key);
+            if (found == root.end())
+            {
+                return {};
+            }
+            if (!found->is_number() || found->get<float>() < low || found->get<float>() > high)
+            {
+                return std::string("\"") + key + "\" must be a number from " + std::to_string(low) + " to "
+                    + std::to_string(high);
+            }
+            value = found->get<float>();
+            return {};
+        };
+        for (const std::string& error : {
+                 number("range", light.range, 0.5f, 100.0f),
+                 number("inner", light.innerAngleDegrees, 0.5f, 80.0f),
+                 number("outer", light.outerAngleDegrees, 0.5f, 85.0f),
+                 number("intensity", light.intensity, 0.0f, 500.0f),
+                 number("specular", light.specular, 0.0f, 10.0f),
+                 number("shadowNormalOffset", light.shadowNormalOffset, 0.0f, 0.1f) })
+        {
+            if (!error.empty())
+            {
+                return error;
+            }
+        }
+        if (light.outerAngleDegrees < light.innerAngleDegrees)
+        {
+            return "\"outer\" must be at least \"inner\"";
+        }
+        if (const auto color = root.find("color"); color != root.end())
+        {
+            if (!color->is_array() || color->size() != 3 || !(*color)[0].is_number()
+                || !(*color)[1].is_number() || !(*color)[2].is_number())
+            {
+                return "\"color\" must be [r, g, b]";
+            }
+            light.color = glm::vec3{ (*color)[0].get<float>(), (*color)[1].get<float>(), (*color)[2].get<float>() };
+        }
+        if (const auto shadows = root.find("shadows"); shadows != root.end())
+        {
+            if (!shadows->is_boolean())
+            {
+                return "\"shadows\" must be true or false";
+            }
+            light.castsShadows = shadows->get<bool>();
+        }
+        light.beam = m_light.beam; // the level's
+        m_light = light;
+        return {};
+    }
+
+    std::string Flashlight::SaveSettings() const
+    {
+        char json[512];
+        std::snprintf(json, sizeof(json),
+            "{\n"
+            "  \"$schema\": \"../Schemas/flashlight.schema.json\",\n"
+            "  \"range\": %.3g,\n"
+            "  \"inner\": %.3g,\n"
+            "  \"outer\": %.3g,\n"
+            "  \"intensity\": %.3g,\n"
+            "  \"color\": [%.3g, %.3g, %.3g],\n"
+            "  \"specular\": %.3g,\n"
+            "  \"shadows\": %s,\n"
+            "  \"shadowNormalOffset\": %.3g\n"
+            "}\n",
+            m_light.range, m_light.innerAngleDegrees, m_light.outerAngleDegrees, m_light.intensity,
+            m_light.color.r, m_light.color.g, m_light.color.b, m_light.specular,
+            m_light.castsShadows ? "true" : "false", m_light.shadowNormalOffset);
+        return json;
     }
 
     bool Flashlight::Lights(const glm::vec3& point, const Atom::CollisionWorld* world) const

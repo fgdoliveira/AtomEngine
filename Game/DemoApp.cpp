@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -75,6 +76,7 @@ namespace AtomGame
         }
 
         m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+        LoadFlashlightSettings();
 
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
@@ -196,6 +198,25 @@ namespace AtomGame
             }
         }
         m_dialogueFiles.Watch(std::move(dialogues));
+        m_dataFiles.Watch({ m_assetRoot + "Assets/Data/flashlight.json" });
+    }
+
+    void DemoApp::LoadFlashlightSettings()
+    {
+        // The flashlight's settings (M46); without the file it keeps the
+        // values it was built with.
+        const std::string path = m_assetRoot + "Assets/Data/flashlight.json";
+        std::ifstream file(path, std::ios::binary);
+        if (!file)
+        {
+            return;
+        }
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        if (const std::string error = m_flashlight.LoadSettings(text); !error.empty())
+        {
+            std::cerr << path << ": " << error << '\n';
+            m_messages.Show("flashlight.json: " + error);
+        }
     }
 
     void DemoApp::UpdateHotReload(float deltaSeconds)
@@ -213,6 +234,11 @@ namespace AtomGame
         {
             m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
             m_messages.Show("Dialogue reloaded");
+        }
+        if (!m_dataFiles.Poll().empty())
+        {
+            LoadFlashlightSettings();
+            m_messages.Show("Flashlight reloaded");
         }
         const std::vector<std::string> changed = m_levelFiles.Poll();
         if (changed.empty())

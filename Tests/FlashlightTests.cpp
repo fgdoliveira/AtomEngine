@@ -6,6 +6,10 @@
 
 #include <glm/geometric.hpp>
 
+#include <fstream>
+#include <iterator>
+#include <string>
+
 using namespace AtomGame;
 
 namespace
@@ -102,4 +106,37 @@ TEST_CASE("Things that need light are found only while the beam is on them")
 
     light.Toggle(); // switched off in front of it
     CHECK(InteractionSystem::FindTarget(world, nullptr, Eye, North, settings).IsNull());
+}
+
+TEST_CASE("The flashlight's settings load from data and save back the same")
+{
+    // The shipped file is valid and is what the flashlight uses.
+    std::ifstream file(ATOM_SOURCE_DIR "/Assets/Data/flashlight.json", std::ios::binary);
+    REQUIRE(file);
+    const std::string shipped{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+    Flashlight light;
+    CHECK(light.LoadSettings(shipped).empty());
+
+    // Copy as JSON round-trips: what the panel copies loads back unchanged.
+    light.EditLight().range = 9.5f;
+    light.EditLight().color = glm::vec3{ 0.8f, 0.85f, 1.0f };
+    light.EditLight().castsShadows = false;
+    Flashlight other;
+    CHECK(other.LoadSettings(light.SaveSettings()).empty());
+    CHECK(other.GetLight().range == doctest::Approx(9.5f));
+    CHECK(other.GetLight().color.b == doctest::Approx(1.0f));
+    CHECK_FALSE(other.GetLight().castsShadows);
+
+    // A bad value is reported, and nothing changes.
+    const float before = other.GetLight().range;
+    const std::string error = other.LoadSettings(R"({ "range": 10, "outer": 5, "inner": 20 })");
+    CHECK(error.find("outer") != std::string::npos);
+    CHECK(other.GetLight().range == before);
+    CHECK_FALSE(other.LoadSettings(R"({ "color": [1, 2] })").empty());
+    CHECK_FALSE(other.LoadSettings("{ broken").empty());
+
+    // The beam in the air stays the level's.
+    other.EditLight().beam = 0.06f;
+    CHECK(other.LoadSettings(shipped).empty());
+    CHECK(other.GetLight().beam == doctest::Approx(0.06f));
 }

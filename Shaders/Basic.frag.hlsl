@@ -31,6 +31,8 @@ cbuffer MaterialUniforms : register(b0, space3)
                              // z: has emissive texture, w: fog amount
     float4 u_surface;        // M42: x shininess (Blinn-Phong), y specular strength,
                              // z revealed by the spot (M44)
+    float4 u_lights;         // M46: which lights reach this draw - x: live lights
+                             // (bit i = light i), y: the spot (0 or 1)
 };
 
 struct PSInput
@@ -99,8 +101,13 @@ float3 LiveLights(float3 worldPosition, float3 normal)
 {
     float3 light = 0.0;
     const int count = (int)u_time.y;
+    const uint reaching = (uint)u_lights.x; // culled per draw on the CPU (M46)
     [loop] for (int i = 0; i < count; ++i)
     {
+        if (((reaching >> i) & 1u) == 0u)
+        {
+            continue; // the same for the whole draw: no divergence
+        }
         const float3 toLight = u_liveLightPosition[i].xyz - worldPosition;
         const float distance = length(toLight);
         const float reach = saturate(1.0 - distance / u_liveLightPosition[i].w);
@@ -223,7 +230,14 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
         : saturate(facing);
     const float3 sun = sunLight * u_sunColor.rgb * shadow;
 
-    const float2 spot = SpotLighting(input.worldPosition, normal);
+    // The spot only for draws its cone reaches (M46: tested per draw on the
+    // CPU against its frustum). The branch is the same for every pixel of
+    // the draw, so it skips the work outright.
+    float2 spot = 0.0;
+    [branch] if (u_lights.y > 0.5)
+    {
+        spot = SpotLighting(input.worldPosition, normal);
+    }
     const float3 lit = baseColor.rgb * (ambient + sun + LiveLights(input.worldPosition, normal)
                                         + u_spotColor.rgb * spot.x)
                      + u_spotColor.rgb * spot.y;

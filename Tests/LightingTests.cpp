@@ -159,3 +159,15 @@ TEST_CASE("The spot's shadow matrix holds its cone and orders depth along each r
     CHECK(std::abs(clip.x / clip.w) < 1e-4f);
     CHECK(std::abs(clip.y / clip.w) < 1e-4f);
 }
+
+TEST_CASE("Light culling: a light's reach touches a box or it doesn't")
+{
+    const glm::vec3 center{ 0.0f, 0.0f, 0.0f };
+    const glm::vec3 extent{ 1.0f, 1.0f, 1.0f };
+    CHECK(SpotMath::SphereTouchesBox({ 0.0f, 0.0f, 0.0f }, 0.1f, center, extent));   // inside
+    CHECK(SpotMath::SphereTouchesBox({ 2.5f, 0.0f, 0.0f }, 1.6f, center, extent));   // reaches a face
+    CHECK_FALSE(SpotMath::SphereTouchesBox({ 2.5f, 0.0f, 0.0f }, 1.4f, center, extent));
+    // Near a corner the nearest point is the corner itself, not a face.
+    CHECK_FALSE(SpotMath::SphereTouchesBox({ 2.0f, 2.0f, 2.0f }, 1.6f, center, extent)); // sqrt(3) away
+    CHECK(SpotMath::SphereTouchesBox({ 2.0f, 2.0f, 2.0f }, 1.8f, center, extent));
+}

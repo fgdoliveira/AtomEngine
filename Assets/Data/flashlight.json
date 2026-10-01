@@ -1,0 +1,11 @@
+{
+  "$schema": "../Schemas/flashlight.schema.json",
+  "range": 14,
+  "inner": 10,
+  "outer": 24,
+  "intensity": 22,
+  "color": [1, 0.9, 0.74],
+  "specular": 1,
+  "shadows": true,
+  "shadowNormalOffset": 0.004
+}

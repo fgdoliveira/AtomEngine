@@ -4,6 +4,9 @@
 
 #include <glm/vec3.hpp>
 
+#include <string>
+#include <string_view>
+
 namespace Atom
 {
     class CollisionWorld;
@@ -44,6 +47,15 @@ namespace AtomGame
         // Is `point` lit by the beam: on, inside the cone, within reach,
         // and no wall in between (`world` may be null: no occlusion test).
         bool Lights(const glm::vec3& point, const Atom::CollisionWorld* world) const;
+
+        // Its settings as data (M46): Assets/Data/flashlight.json. Applies
+        // the fields given (range, inner, outer, intensity, color, specular,
+        // shadows, shadowNormalOffset) over the current ones; returns an
+        // error message ("" on success) and changes nothing on error. The
+        // beam in the air is the level's, not the flashlight's.
+        std::string LoadSettings(std::string_view json);
+        // The same fields as JSON, ready to paste into that file.
+        std::string SaveSettings() const;
 
         // How hard it chases the view (1/s), and how far it sways (degrees).
         float followRate = 14.0f;

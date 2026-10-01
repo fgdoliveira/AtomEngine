@@ -88,6 +88,9 @@ namespace AtomGame
             ImGui::Text("Draws %u / %u   shadow %u   spot shadow %u", stats.drawn, stats.submitted,
                 stats.shadowDrawn, stats.spotShadowDrawn);
             ImGui::Text("Binds: pipelines %u, materials %u", stats.pipelineBinds, stats.materialBinds);
+            // Light culling (M46): the draws each kind of light still shades.
+            ImGui::Text("Lit draws: spot %u, live %u (of %u lights)", stats.spotLitDraws, stats.liveLitDraws,
+                stats.liveLights);
             ImGui::Text("Particles %u   render textures %u", stats.particles, stats.renderTextures);
             if (ImGui::BeginTable("layers", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame))
             {
@@ -243,7 +246,17 @@ namespace AtomGame
                 ImGui::DragFloat3("Position", &spot.position.x, 0.05f);
                 ImGui::DragFloat3("Direction", &spot.direction.x, 0.01f, -1.0f, 1.0f);
             }
-            if (ImGui::Button("Copy as JSON"))
+            if (flashlight && ImGui::Button("Copy as JSON"))
+            {
+                // Exactly Assets/Data/flashlight.json (M46).
+                SDL_SetClipboardText(m_flashlight.SaveSettings().c_str());
+            }
+            if (flashlight)
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("(paste into Assets/Data/flashlight.json)");
+            }
+            else if (ImGui::Button("Copy as JSON"))
             {
                 char json[400];
                 std::snprintf(json, sizeof(json),

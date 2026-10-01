@@ -80,6 +80,9 @@ namespace Atom
         std::uint32_t drawn = 0; // after frustum culling
         std::uint32_t shadowDrawn = 0;
         std::uint32_t spotShadowDrawn = 0; // M43: the spot's shadow pass
+        std::uint32_t spotLitDraws = 0;    // M46: scene draws the spot reaches
+        std::uint32_t liveLitDraws = 0;    // M46: scene draws a live light reaches
+        std::uint32_t liveLights = 0;      // M46: live lights this frame
         std::array<LayerStats, RenderLayerCount> layers{};
         std::uint32_t pipelineBinds = 0;
         std::uint32_t materialBinds = 0;

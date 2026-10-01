@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 namespace Atom
 {
@@ -70,6 +71,19 @@ namespace Atom
             return true;
         }
 
+        // A mesh's world-space box (Arvo): centre and half-extents.
+        void WorldBox(const Mesh& mesh, const glm::mat4& model, glm::vec3& center, glm::vec3& extent)
+        {
+            const glm::vec3 localCenter = (mesh.GetBoundsMin() + mesh.GetBoundsMax()) * 0.5f;
+            const glm::vec3 localExtent = (mesh.GetBoundsMax() - mesh.GetBoundsMin()) * 0.5f;
+            center = glm::vec3(model * glm::vec4(localCenter, 1.0f));
+            extent = glm::vec3{ 0.0f };
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                extent += glm::abs(glm::vec3(model[axis])) * localExtent[axis];
+            }
+        }
+
         bool IsVisible(
             const Frustum& frustum,
             const Mesh& mesh,
@@ -111,6 +125,7 @@ namespace Atom
             glm::vec4 alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                                       // z: has emissive texture, w: fog amount
             glm::vec4 surface;        // M42: x shininess, y specular strength
+            glm::vec4 lights;         // M46: x live-light bits, y spot reaches (0/1)
         };
 
         // Mirrors the cbuffer in Shaders/Shadow.frag.hlsl.
@@ -383,9 +398,15 @@ namespace Atom
         SDL_GPUPresentMode presentMode = SDL_GPU_PRESENTMODE_VSYNC;
         if (!config.vsync)
         {
+            // ATOM_PRESENT=immediate (M46): tearing allowed, never waits.
+            // MAILBOX is tear-free, but a composited display (an external
+            // monitor, here) can still hold it to its refresh rate, which
+            // makes frame times unmeasurable.
+            const char* present = SDL_getenv("ATOM_PRESENT");
+            const bool immediateFirst = present && std::string_view(present) == "immediate";
             for (const SDL_GPUPresentMode mode : {
-                SDL_GPU_PRESENTMODE_MAILBOX,
-                SDL_GPU_PRESENTMODE_IMMEDIATE })
+                immediateFirst ? SDL_GPU_PRESENTMODE_IMMEDIATE : SDL_GPU_PRESENTMODE_MAILBOX,
+                immediateFirst ? SDL_GPU_PRESENTMODE_MAILBOX : SDL_GPU_PRESENTMODE_IMMEDIATE })
             {
                 if (SDL_WindowSupportsGPUPresentMode(m_device, m_window, mode))
                 {
@@ -1200,6 +1221,11 @@ namespace Atom
         ObjectUniforms uniforms{};
         uniforms.viewProjection = viewProjection;
 
+        // Light culling (M46), scene pass only: which lights can reach each
+        // draw. The spot's shadow frustum is exactly its volume of light.
+        const bool spotOn = bindMaterials && m_spotActive;
+        const Frustum spotFrustum = ExtractFrustum(spotOn ? SpotMath::ViewProjection(m_spot) : glm::mat4{ 1.0f });
+
         std::uint32_t drawn = 0;
         // Phase 0: opaque and alpha-tested. Phase 1 (scene only): decals,
         // over the finished surfaces; they cast no shadows.
@@ -1279,6 +1305,22 @@ namespace Atom
                 // the hemisphere ambient (weight 0).
                 const float bakedWeight =
                     command.mesh->HasBakedLight() ? m_lighting.bakedLight : 0.0f;
+                // Which lights reach this draw.
+                glm::vec3 boxCenter{ 0.0f };
+                glm::vec3 boxExtent{ 0.0f };
+                WorldBox(*command.mesh, command.model, boxCenter, boxExtent);
+                std::uint32_t liveBits = 0;
+                for (std::size_t i = 0; i < m_liveLightCount; ++i)
+                {
+                    if (SpotMath::SphereTouchesBox(m_liveLights[i].position, m_liveLights[i].radius, boxCenter, boxExtent))
+                    {
+                        liveBits |= 1u << i;
+                    }
+                }
+                const bool spotReaches = spotOn && IsVisible(spotFrustum, *command.mesh, command.model);
+                m_stats.spotLitDraws += spotReaches ? 1 : 0;
+                m_stats.liveLitDraws += liveBits != 0 ? 1 : 0;
+
                 const MaterialUniforms materialUniforms{
                     material.baseColorFactor,
                     glm::vec4{ material.emissiveFactor, bakedWeight },
@@ -1291,7 +1333,8 @@ namespace Atom
                                material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount },
                     glm::vec4{ SpotMath::Shininess(material.roughness),
                                SpotMath::SpecularStrength(material.roughness, material.specular),
-                               material.reveal, 0.0f }
+                               material.reveal, 0.0f },
+                    glm::vec4{ static_cast<float>(liveBits), spotReaches ? 1.0f : 0.0f, 0.0f, 0.0f }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,
@@ -1522,7 +1565,7 @@ namespace Atom
             m_lighting, m_camera.view, lightViewProjection, m_wind.w,
             std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount),
             m_spotActive ? &m_spot : nullptr, spotViewProjection);
-        m_liveLightCount = 0;
+        m_stats.liveLights = static_cast<std::uint32_t>(m_liveLightCount);
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
             1,
@@ -1554,6 +1597,7 @@ namespace Atom
         DrawParticles(renderPass, commandBuffer, projection * m_camera.view);
         DrawBeam(renderPass, commandBuffer, projection * m_camera.view);
         m_spotActive = false; // submitted per frame
+        m_liveLightCount = 0;
 
         SDL_EndGPURenderPass(renderPass);
         return true;
