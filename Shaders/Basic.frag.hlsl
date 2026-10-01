@@ -110,10 +110,10 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     const float3 normal = normalize(input.worldNormal) * (frontFace ? 1.0 : -1.0);
     float4 baseColor =
         BaseColorTexture.Sample(BaseColorSampler, input.uv) * u_baseColorFactor;
-    if (u_lightmap.w > 0.5)
-    {
-        baseColor = float4(input.color.rgb, 1.0);
-    }
+    // Debug views (M36): the vertex colour as the base colour (skin
+    // weights). Blended, not branched: a branch here cost ~10% of the frame
+    // on Iris Xe in lightmapped scenes.
+    baseColor = lerp(baseColor, float4(input.color.rgb, 1.0), u_lightmap.w);
 
     // Alpha testing (M17). With MSAA, alpha-to-coverage: the alpha is
     // sharpened to a ~1-pixel ramp around the cutoff, and the hardware turns
