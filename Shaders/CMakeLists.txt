@@ -29,6 +29,8 @@ set(ATOM_SHADER_SOURCES
     Halo.frag.hlsl
     Shadow.vert.hlsl
     Shadow.frag.hlsl
+    Skinned.vert.hlsl
+    ShadowSkinned.vert.hlsl
     Particle.vert.hlsl
     Particle.frag.hlsl
     UI.vert.hlsl
@@ -39,6 +41,7 @@ set(ATOM_SHADER_SOURCES
 set(ATOM_SHADER_INCLUDES
     Common.hlsli
     Sway.hlsli
+    Skinning.hlsli
 )
 list(TRANSFORM ATOM_SHADER_INCLUDES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/" OUTPUT_VARIABLE ATOM_SHADER_INCLUDE_PATHS)
 

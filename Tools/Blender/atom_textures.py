@@ -1003,3 +1003,30 @@ def grid(size=256):
     bold = (xs < 4) | (ys < 4)
     value = np.where(bold, 0.30, np.where(thin, 0.48, 0.72))
     return _rgba(_tint(value, (1.0, 1.0, 1.0)))
+
+
+# --------------------------------------------------------------------------
+# Character lab (M36): a 2000s model-viewer studio
+# --------------------------------------------------------------------------
+
+def lab_floor(size=256):
+    """The studio floor: pale blue-grey with a faint measuring grid (a line
+    every half metre, a stronger one each metre), like a viewer's ground
+    plane."""
+    ys, xs = np.mgrid[0:size, 0:size]
+    half = size // 2
+    thin = ((xs % half) < 2) | ((ys % half) < 2)
+    bold = (xs < 3) | (ys < 3)
+    value = np.where(bold, 0.62, np.where(thin, 0.70, 0.78))
+    return _rgba(_tint(value, (0.94, 0.97, 1.0)))
+
+
+def lab_checker(size=256, squares=8):
+    """The turntable's top: the classic checker, navy and pale grey."""
+    ys, xs = np.mgrid[0:size, 0:size]
+    cell = size // squares
+    odd = ((xs // cell) + (ys // cell)) % 2 == 1
+    light = np.array((0.82, 0.84, 0.88))
+    dark = np.array((0.16, 0.22, 0.38))
+    rgb = np.where(odd[..., None], dark, light)
+    return _rgba(rgb)

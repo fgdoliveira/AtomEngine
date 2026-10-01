@@ -182,7 +182,7 @@ namespace AtomGame
                 {
                     return nullptr;
                 }
-                entity.renderable = Renderable{ model, yaw };
+                entity.renderable = Renderable{ model, yaw, data.scale };
             }
             if (data.collider)
             {
@@ -211,6 +211,28 @@ namespace AtomGame
                     animated.sound = services.sounds.GetSound(data.animation->sound);
                 }
                 entity.animated = animated;
+            }
+            if (data.animator)
+            {
+                const Atom::Model* model = entity.renderable ? entity.renderable->model : nullptr;
+                Animator animator;
+                const auto error = animator.Bind(*data.animator, [model](std::string_view name)
+                    -> std::optional<Animator::ClipInfo> {
+                    const int clip = model ? model->FindClip(name) : -1;
+                    if (clip < 0)
+                    {
+                        return std::nullopt;
+                    }
+                    return Animator::ClipInfo{ clip, model->GetClip(clip)->duration };
+                }, [model](std::string_view name) { return model ? model->FindNode(name) : -1; });
+                if (error)
+                {
+                    std::cerr << "Level '" << d.name << "': entity '" << data.name
+                              << "' animator: " << *error << '\n';
+                    return nullptr;
+                }
+                entity.animator = std::move(animator);
+                entity.poseSamples = entity.animator->GetSamples();
             }
             level->m_world.Spawn(std::move(entity));
         }
@@ -485,9 +507,14 @@ namespace AtomGame
             {
                 return;
             }
-            glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
-            transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
-            if (entity.animated)
+            const glm::mat4 transform = EntityModelTransform(entity);
+            if (!entity.poseSamples.empty())
+            {
+                Atom::Pose pose;
+                entity.renderable->model->SamplePose(entity.poseSamples, pose);
+                entity.renderable->model->Submit(renderer, transform, pose);
+            }
+            else if (entity.animated)
             {
                 entity.renderable->model->Submit(
                     renderer, transform, entity.animated->clip, entity.animated->time);
@@ -588,6 +615,13 @@ namespace AtomGame
         }
 
         m_world.ForEach([&](EntityId, Entity& entity) {
+            if (entity.animator && entity.animator->IsEnabled())
+            {
+                entity.animator->Update(deltaSeconds);
+                entity.poseSamples = entity.animator->GetSamples();
+            }
+        });
+        m_world.ForEach([&](EntityId, Entity& entity) {
             if (!entity.animated || !entity.animated->playing)
             {
                 return;
@@ -626,6 +660,17 @@ namespace AtomGame
                 a.time = std::fmod(a.time, a.duration);
             }
         });
+    }
+
+    glm::mat4 EntityModelTransform(const Entity& entity)
+    {
+        glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
+        if (entity.renderable)
+        {
+            transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
+            transform = glm::scale(transform, glm::vec3{ entity.renderable->scale });
+        }
+        return transform;
     }
 
     bool Level::PlayAnimation(const std::string& name, const std::string& clipName)

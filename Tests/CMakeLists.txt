@@ -20,6 +20,10 @@ add_executable(
     Physics2DTests.cpp
     PlayfieldTests.cpp
     PachinkoRulesTests.cpp
+    SkinningTests.cpp
+    LabViewerTests.cpp
+    AnimatorTests.cpp
+    DriveTests.cpp
 )
 
 target_link_libraries(

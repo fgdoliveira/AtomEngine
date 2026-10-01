@@ -38,7 +38,8 @@ namespace Atom
         SDL_GPUDevice* device,
         std::span<const Vertex> vertices,
         std::span<const std::uint32_t> indices,
-        bool hasBakedLight
+        bool hasBakedLight,
+        std::span<const SkinVertex> skin
     )
     {
         if (!device || vertices.empty() || indices.empty())
@@ -46,11 +47,18 @@ namespace Atom
             std::cerr << "Cannot create a mesh without a device and data.\n";
             return nullptr;
         }
+        if (!skin.empty() && skin.size() != vertices.size())
+        {
+            std::cerr << "Skin data must match the vertex count.\n";
+            return nullptr;
+        }
 
         const Uint32 vertexBytes =
             static_cast<Uint32>(vertices.size_bytes());
         const Uint32 indexBytes =
             static_cast<Uint32>(indices.size_bytes());
+        const Uint32 skinBytes =
+            static_cast<Uint32>(skin.size_bytes());
 
         std::unique_ptr<Mesh> mesh(new Mesh(device));
         mesh->m_indexCount = static_cast<std::uint32_t>(indices.size());
@@ -66,14 +74,20 @@ namespace Atom
             CreateBuffer(device, SDL_GPU_BUFFERUSAGE_VERTEX, vertexBytes);
         mesh->m_indexBuffer =
             CreateBuffer(device, SDL_GPU_BUFFERUSAGE_INDEX, indexBytes);
-        if (!mesh->m_vertexBuffer || !mesh->m_indexBuffer)
+        if (!skin.empty())
+        {
+            mesh->m_skinBuffer =
+                CreateBuffer(device, SDL_GPU_BUFFERUSAGE_VERTEX, skinBytes);
+        }
+        if (!mesh->m_vertexBuffer || !mesh->m_indexBuffer
+            || (!skin.empty() && !mesh->m_skinBuffer))
         {
             return nullptr;
         }
 
         SDL_GPUTransferBufferCreateInfo transferInfo{};
         transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-        transferInfo.size = vertexBytes + indexBytes;
+        transferInfo.size = vertexBytes + indexBytes + skinBytes;
 
         SDL_GPUTransferBuffer* transfer =
             SDL_CreateGPUTransferBuffer(device, &transferInfo);
@@ -100,6 +114,10 @@ namespace Atom
 
         std::memcpy(mapped, vertices.data(), vertexBytes);
         std::memcpy(mapped + vertexBytes, indices.data(), indexBytes);
+        if (skinBytes > 0)
+        {
+            std::memcpy(mapped + vertexBytes + indexBytes, skin.data(), skinBytes);
+        }
         SDL_UnmapGPUTransferBuffer(device, transfer);
 
         SDL_GPUCommandBuffer* commandBuffer =
@@ -128,6 +146,14 @@ namespace Atom
         destination.buffer = mesh->m_indexBuffer;
         destination.size = indexBytes;
         SDL_UploadToGPUBuffer(copyPass, &source, &destination, false);
+
+        if (skinBytes > 0)
+        {
+            source.offset = vertexBytes + indexBytes;
+            destination.buffer = mesh->m_skinBuffer;
+            destination.size = skinBytes;
+            SDL_UploadToGPUBuffer(copyPass, &source, &destination, false);
+        }
 
         SDL_EndGPUCopyPass(copyPass);
 
@@ -160,6 +186,10 @@ namespace Atom
         if (m_indexBuffer)
         {
             SDL_ReleaseGPUBuffer(m_device, m_indexBuffer);
+        }
+        if (m_skinBuffer)
+        {
+            SDL_ReleaseGPUBuffer(m_device, m_skinBuffer);
         }
     }
 }

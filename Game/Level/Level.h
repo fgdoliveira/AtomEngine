@@ -42,6 +42,9 @@ namespace AtomGame
     // Destruction is RAII: ~Level stops its voices, then members die in
     // reverse declaration order - entities (which point at models) go
     // before the models themselves.
+    // Where an entity's model is drawn: its position, yaw and scale.
+    glm::mat4 EntityModelTransform(const Entity& entity);
+
     class Level
     {
     public:

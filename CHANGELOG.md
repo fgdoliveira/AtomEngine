@@ -1,5 +1,76 @@
 # Changelog
 
+## 0.0.6 — The character lab
+
+The engine animates characters. A rigged model is skinned on the GPU, its
+clips are blended and driven by a state machine written as data, and a new
+level, the character lab, shows it all in a 2000s model-viewer studio: an
+orbit camera, clip controls and debug views, then Tab to take the
+character for a walk in third person. The direction moves from horror to
+the engine itself.
+
+### Added
+- **Skeletal skinning (M35):**
+  - glTF skins load: joints, inverse bind matrices, `JOINTS_0` and
+    `WEIGHTS_0` (weights renormalised); skins over 64 joints are refused.
+  - Each joint's palette matrix (joint world × inverse bind) is computed on
+    the CPU once per model per frame; skinned variants of the scene, decal
+    and shadow pipelines blend up to four of them per vertex (linear blend
+    skinning), from a second vertex stream.
+  - Poses are explicit (`Model::Submit` with a pose), the base for
+    blending. Skinned meshes' boxes cover every clip, so culling holds.
+  - Entities get a uniform `scale`.
+- **The character lab and its viewer (M36):**
+  - `character_lab` (built by `Tools/Blender/atom_lab.py`): a grid floor,
+    a cyclorama fading into same-coloured fog, a checkered turntable.
+  - A level with a `lab` section opens in the viewer: an orbit camera
+    (arrows, mouse, wheel), clips on 1–4, speed, pause and frame step.
+  - Debug views: the skeleton drawn over the body (K), the skin weights
+    with a colour per joint blended by weight (W), the bind pose (B).
+  - Harness: `clip`, `expect_clip`; `set skeleton|weights|bind|pause`.
+- **Pose blending and the animation state machine (M37):**
+  - Poses blend per joint (translation and scale lerped, rotation slerped
+    the short way); any number of weighted clips.
+  - `animator` on entities, as data: states (a clip, or two clips blended
+    by a parameter), transitions on conditions such as `"speed > 0.2"`
+    with crossfade times, one-shots that return by themselves.
+  - Walk and run blended in phase: both cycles at the same fraction of a
+    stride, the blended stride in between, so the feet agree.
+  - Viewer: clip switches crossfade; 5 = walk/run blend on a slider (Z/X);
+    6 = the state machine driven by a 14 s demo script.
+  - Harness: `set_param`, `expect_state`; `set mode|blend`.
+- **Drive mode (M38):**
+  - Tab hands the character to the keys: WASD relative to the camera,
+    Shift runs, Space jumps; it turns smoothly to face its way.
+  - It walks on the player's own body code (`PlayerController::Move`:
+    walls, steps, gravity), now with a jump. The animator reads what the
+    body does, not the keys; the jump clip plays in place (`inPlace` pins
+    the hips) while physics makes the arc.
+  - A spring-arm camera: pulled in at once in front of walls (a raycast),
+    easing back out.
+  - Animation events per clip (`events`): foot-down times, measured from
+    the clips, play the footsteps.
+  - The lab gets steps, a ramp, crates and a wall (colliders may now be
+    rotated); a `character_lab` scenario drives all of it.
+- **Documentation captures of the lab (M39):** `Tools/Docs/character_lab.atomtest`
+  and `capture_character_lab.ps1`: stills and GIFs of skinning, the
+  skeleton, weights, every clip, a crossfade, the blend, the state
+  machine, driving and the spring arm, into `out/img/character_lab/`.
+- Added new Third Party credits assets on `Assets/ThirdParty/README.md`.
+
+### Fixed
+- A per-pixel branch added for the weights view cost about 10 % of the
+  frame on Iris Xe in lightmapped scenes (found measuring this release
+  against 0.0.5); it is now a blend, and the cost is gone.
+
+### Measured
+Release, uncapped (IMMEDIATE present mode), Iris Xe, 1280x720, averaged
+over 6000+ frames: the character lab ≈ 2.35 ms in the viewer, ≈ 2.4 ms
+with the skeleton, weights and state machine on, ≈ 2.2 ms driving; the
+night street ≈ 3.1 ms, first_render ≈ 1.7 ms. Measured side by side with a
+0.0.5 build, the other levels are unchanged (the interior 2.07 against
+2.06 ms; the pachinko hall 2.85 against 2.99).
+
 ## 0.0.5 — The pachinko game
 
 One machine in the night city's pachinko hall is playable: sit down, the

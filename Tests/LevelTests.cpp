@@ -138,6 +138,30 @@ TEST_CASE("A lightmap is optional, and needs a texture when given")
     CHECK(noTexture.error.find("lightmap") != std::string::npos);
 }
 
+TEST_CASE("A lab names its subject, and entities may be scaled")
+{
+    const auto lab = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "lab": { "subject": "rudy", "distance": 4, "yaw": 30 },
+        "entities": [ { "name": "rudy", "position": [0,0,0], "model": "r.glb", "scale": 0.8 } ] })");
+    REQUIRE(lab.level.has_value());
+    REQUIRE(lab.level->lab.has_value());
+    CHECK(lab.level->lab->subject == "rudy");
+    CHECK(lab.level->lab->distance == doctest::Approx(4.0f));
+    CHECK(lab.level->lab->yawDegrees == doctest::Approx(30.0f));
+    CHECK(lab.level->entities.front().scale == doctest::Approx(0.8f));
+
+    const auto noSubject = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } }, "lab": { "subject": "nobody" } })");
+    CHECK_FALSE(noSubject.level.has_value());
+    CHECK(noSubject.error.find("/lab/subject") != std::string::npos);
+
+    const auto badScale = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "e", "position": [0,0,0], "scale": 0 } ] })");
+    CHECK_FALSE(badScale.level.has_value());
+}
+
 TEST_CASE("Every shipped level file is valid")
 {
     const std::filesystem::path folder = ATOM_SOURCE_DIR "/Assets/Levels";
