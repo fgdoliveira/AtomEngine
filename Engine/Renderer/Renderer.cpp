@@ -1245,7 +1245,7 @@ namespace Atom
                         material.lightmapIntensity,
                         material.lightmap ? m_lighting.bakedLight : 0.0f,
                         material.wet,
-                        0.0f },
+                        skinned && m_skinWeightsView ? 1.0f : 0.0f },
                     glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f,
                                material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount }
                 };

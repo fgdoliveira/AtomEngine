@@ -50,6 +50,9 @@ namespace AtomGame
         // it has none; and whether it is still playing.
         virtual std::optional<float> AnimationTime(const std::string& entity) const = 0;
         virtual bool AnimationPlaying(const std::string& entity) const = 0;
+        // M36: the clip an entity plays (by name; "" if none / bind pose).
+        virtual bool SetClip(const std::string& /*entity*/, const std::string& /*clip*/) { return false; }
+        virtual std::string ClipName(const std::string& /*entity*/) const { return {}; }
         // Hot reload (M20): reloads the current level in place; empty string
         // on success, else the error.
         virtual std::string ReloadLevel() = 0;

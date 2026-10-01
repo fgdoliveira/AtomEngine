@@ -556,6 +556,21 @@ namespace AtomGame
                 }
             }
 
+            if (const auto lab = root.find("lab"); lab != root.end())
+            {
+                LevelLab l;
+                l.subject = String(*lab, "subject", "/lab");
+                if (l.subject.empty())
+                {
+                    throw LevelError("/lab", "lab needs a \"subject\" entity");
+                }
+                l.target = Vec3(*lab, "target", l.target, "/lab");
+                l.distance = Number(*lab, "distance", "/lab", l.distance);
+                l.yawDegrees = Number(*lab, "yaw", "/lab", l.yawDegrees);
+                l.pitchDegrees = Number(*lab, "pitch", "/lab", l.pitchDegrees);
+                level.lab = l;
+            }
+
             if (const auto sky = root.find("sky"); sky != root.end())
             {
                 LevelSky s{ String(*sky, "panorama", "/sky"), Number(*sky, "intensity", "/sky", 1.0f) };
@@ -833,6 +848,11 @@ namespace AtomGame
                     throw LevelError(JsonPath(JsonPath("/lights", i), "entity"),
                         "no entity named \"" + level.lights[i].entity + "\"");
                 }
+            }
+
+            if (level.lab && !entityExists(level.lab->subject))
+            {
+                throw LevelError("/lab/subject", "no entity named \"" + level.lab->subject + "\"");
             }
 
             // Sequences name entities and are named by actions (M26).

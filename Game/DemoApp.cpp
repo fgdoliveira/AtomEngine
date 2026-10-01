@@ -131,6 +131,8 @@ namespace AtomGame
         }
         m_unease.Configure({}, nullptr);
         m_audioScape.SetSurfaceProvider(nullptr);
+        m_lab.reset();
+        GetRenderer().SetSkinWeightsView(false);
     }
 
     void DemoApp::OnLevelLoaded(Level& incoming, const SpawnPoint& spawn)
@@ -145,7 +147,8 @@ namespace AtomGame
         m_arriving = true;
 
         ConfigureForLevel(incoming);
-        m_mode = Mode::Exploring;
+        BeginLab(incoming);
+        m_mode = RestingMode();
         std::cout << "Entered level '" << data.name << "'\n";
     }
 
@@ -153,7 +156,13 @@ namespace AtomGame
     {
         // Same place, same view: only the level's content changed.
         ConfigureForLevel(incoming);
-        m_mode = Mode::Exploring;
+        const LabViewer kept = m_viewer;
+        BeginLab(incoming);
+        if (m_lab)
+        {
+            m_viewer = kept; // keep the orbit and the clip across a hot reload
+        }
+        m_mode = RestingMode();
     }
 
     void DemoApp::ConfigureForLevel(Level& incoming)
@@ -259,6 +268,7 @@ namespace AtomGame
         // The mode decides what the keys mean (M29).
         const InputContextId context = m_mode == Mode::InDialogue ? InputContextId::Dialogue
             : m_mode == Mode::AtMachine ? InputContextId::Machine
+            : m_mode == Mode::Viewing ? InputContextId::Viewer
             : InputContextId::Exploring;
         m_actions.Update(m_inputMap, context, GetInput());
 
@@ -278,7 +288,7 @@ namespace AtomGame
         }
         else if (m_mode == Mode::Transitioning)
         {
-            m_mode = Mode::Exploring;
+            m_mode = RestingMode();
         }
         if (m_mode != Mode::Transitioning)
         {
@@ -301,6 +311,10 @@ namespace AtomGame
         case Mode::AtMachine:
             m_target = {};
             UpdateMachine(deltaSeconds);
+            break;
+        case Mode::Viewing:
+            m_target = {};
+            UpdateLab(deltaSeconds);
             break;
         case Mode::Transitioning:
             m_target = {};
@@ -426,7 +440,8 @@ namespace AtomGame
 
         // Controls hint: shown on arrival, then fades away.
         m_hintTime += deltaSeconds;
-        const float hintAlpha = m_showHud ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
+        // The lab has its own help line (DrawLabOverlay).
+        const float hintAlpha = m_showHud && !m_lab ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
             const char* hint = "WASD move   Shift jog   Mouse look   E interact   F1 debug";
@@ -442,6 +457,10 @@ namespace AtomGame
         if (m_mode == Mode::InDialogue)
         {
             m_dialogueView.Draw(ui, *m_font, *m_smallFont, m_dialogue, scale, m_time);
+        }
+        else if (m_mode == Mode::Viewing)
+        {
+            DrawLabOverlay(scale);
         }
         else if (m_mode == Mode::Exploring)
         {
@@ -569,7 +588,7 @@ namespace AtomGame
         if (!m_dialogue.IsActive())
         {
             m_dialogue.Close();
-            m_mode = Mode::Exploring;
+            m_mode = RestingMode();
             m_speaker = {};
         }
     }
@@ -1027,6 +1046,7 @@ namespace AtomGame
         case Mode::Transitioning: return "transitioning";
         case Mode::InSequence: return "sequence";
         case Mode::AtMachine: return "machine";
+        case Mode::Viewing: return "viewer";
         default: return "exploring";
         }
     }
@@ -1299,6 +1319,14 @@ namespace AtomGame
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) m_showDebugOverlay = on;
+        else if ((what == "skeleton" || what == "weights" || what == "bind" || what == "pause") && onOff && m_lab)
+        {
+            if (what == "skeleton") m_viewer.SetSkeleton(on);
+            else if (what == "weights") m_viewer.SetWeights(on);
+            else if (what == "bind") m_viewer.SetBindPose(on);
+            else m_viewer.SetPaused(on);
+            ApplyLabPose();
+        }
         else if (what == "fov" && isNumber && number >= 10.0f && number <= 150.0f)
         {
             m_camera.verticalFov = glm::radians(number);

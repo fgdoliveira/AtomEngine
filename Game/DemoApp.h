@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Atmosphere.h"
+#include "Character/LabViewer.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
 #include "Dialogue/Dialogue.h"
@@ -48,7 +49,12 @@ namespace AtomGame
             Transitioning, // fading between levels; input ignored
             InSequence,    // M26: a sequence runs; the player is frozen
             AtMachine,     // M29: sitting at a pachinko machine
+            Viewing,       // M36: the character lab's model viewer
         };
+
+        // Where play rests between dialogues and transitions: the viewer in
+        // the character lab, exploring everywhere else.
+        Mode RestingMode() const { return m_lab ? Mode::Viewing : Mode::Exploring; }
 
         void OnLevelUnloading(Level& outgoing);
         void OnLevelLoaded(Level& incoming, const SpawnPoint& spawn);
@@ -105,6 +111,8 @@ namespace AtomGame
         }
         glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
+        bool SetClip(const std::string& entity, const std::string& clip) override;
+        std::string ClipName(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
@@ -155,6 +163,15 @@ namespace AtomGame
         void DrawMachineView();
         void PlayMachineSounds(const PachinkoGame& game);
         void EndMachine();
+        // The character lab (M36): set while the level has a "lab".
+        std::optional<LevelLab> m_lab;
+        LabViewer m_viewer;
+        void BeginLab(Level& level);
+        void UpdateLab(float deltaSeconds);
+        Entity* FindLabSubject();
+        void ApplyLabPose(); // the viewer's clip and time onto the subject
+        void DrawLabOverlay(float scale);
+        void DrawSkeleton(const Entity& subject);
         SequenceRunner m_sequence;
         bool RunSequence(const std::string& id);
         void UpdateSequence(float deltaSeconds);

@@ -171,6 +171,17 @@ namespace AtomGame
         bool hidden = false; // M26: until a sequence shows it
     };
 
+    // The character lab (M36): the level opens in the model viewer,
+    // orbiting `subject` (an entity with a skinned model).
+    struct LevelLab
+    {
+        std::string subject;
+        glm::vec3 target{ 0.0f, 0.9f, 0.0f }; // orbit centre, relative to the subject
+        float distance = 3.6f;
+        float yawDegrees = 0.0f;
+        float pitchDegrees = 12.0f;
+    };
+
     struct LevelUnease
     {
         bool figure = false;
@@ -253,6 +264,7 @@ namespace AtomGame
         bool leaves = true;
         bool fogBanks = true;
         LevelUnease unease;
+        std::optional<LevelLab> lab; // M36: opens in the model viewer
         std::vector<EntityData> entities;
         std::optional<LevelSky> sky;
         std::vector<HaloData> halos;

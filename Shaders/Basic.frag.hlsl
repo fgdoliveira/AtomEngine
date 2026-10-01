@@ -21,7 +21,8 @@ cbuffer MaterialUniforms : register(b0, space3)
     float4 u_baseColorFactor;
     float4 u_emissiveFactor; // w: baked-light weight (0 = none)
     float4 u_lightmap;       // x: intensity, y: weight (0 = no lightmap),
-                             // z: wet (M25)
+                             // z: wet (M25), w: debug - show the vertex
+                             // colour as the base colour (skin weights, M36)
     float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                              // z: has emissive texture, w: fog amount
 };
@@ -109,6 +110,10 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     const float3 normal = normalize(input.worldNormal) * (frontFace ? 1.0 : -1.0);
     float4 baseColor =
         BaseColorTexture.Sample(BaseColorSampler, input.uv) * u_baseColorFactor;
+    if (u_lightmap.w > 0.5)
+    {
+        baseColor = float4(input.color.rgb, 1.0);
+    }
 
     // Alpha testing (M17). With MSAA, alpha-to-coverage: the alpha is
     // sharpened to a ~1-pixel ramp around the cutoff, and the hardware turns

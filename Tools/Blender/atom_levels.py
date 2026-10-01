@@ -8,6 +8,7 @@ and exported to its own pair of files.
 import math
 
 import atom_kit as kit
+import atom_lab
 import atom_pachinko
 from atom_street import Street
 
@@ -258,11 +259,13 @@ LEVELS = [
     ("fields", build_windmill_field),
     ("pachinko", atom_pachinko.build_pachinko_hall),
     ("first", build_first_render),
+    ("lab", atom_lab.build_character_lab),
 ]
 
 # The level file each Blender level belongs to (markers are written next to it).
 LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
-               "pachinko": "pachinko_hall", "first": "first_render"}
+               "pachinko": "pachinko_hall", "first": "first_render",
+               "lab": "character_lab"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.

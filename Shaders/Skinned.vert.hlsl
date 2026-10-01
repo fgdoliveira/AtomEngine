@@ -44,7 +44,9 @@ VSOutput main(VSInput input)
     output.worldNormal = mul((float3x3)u_model, skinnedNormal);
     output.uv = input.uv;
     output.worldPosition = worldPosition.xyz;
-    output.color = input.color;
+    // Skinned meshes carry no baked light, so the colour channel holds the
+    // weights view instead (M36): each joint's colour, blended by weight.
+    output.color = float4(WeightColor(input.joints, input.weights), 1.0);
     output.lightmapUv = input.lightmapUv;
     return output;
 }

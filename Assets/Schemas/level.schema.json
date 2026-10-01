@@ -262,6 +262,19 @@
         "fogBanks": { "type": "boolean" }
       }
     },
+    "lab": {
+      "type": "object",
+      "description": "Character lab (M36): the level opens in the model viewer, orbiting the subject entity.",
+      "additionalProperties": false,
+      "required": ["subject"],
+      "properties": {
+        "subject": { "type": "string", "description": "Entity with a skinned model." },
+        "target": { "$ref": "#/definitions/vec3", "description": "Orbit centre, relative to the subject." },
+        "distance": { "type": "number", "exclusiveMinimum": 0 },
+        "yaw": { "type": "number" },
+        "pitch": { "type": "number" }
+      }
+    },
     "unease": {
       "type": "object",
       "additionalProperties": false,

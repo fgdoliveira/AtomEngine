@@ -485,9 +485,7 @@ namespace AtomGame
             {
                 return;
             }
-            glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
-            transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
-            transform = glm::scale(transform, glm::vec3{ entity.renderable->scale });
+            const glm::mat4 transform = EntityModelTransform(entity);
             if (entity.animated)
             {
                 entity.renderable->model->Submit(
@@ -627,6 +625,17 @@ namespace AtomGame
                 a.time = std::fmod(a.time, a.duration);
             }
         });
+    }
+
+    glm::mat4 EntityModelTransform(const Entity& entity)
+    {
+        glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
+        if (entity.renderable)
+        {
+            transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
+            transform = glm::scale(transform, glm::vec3{ entity.renderable->scale });
+        }
+        return transform;
     }
 
     bool Level::PlayAnimation(const std::string& name, const std::string& clipName)

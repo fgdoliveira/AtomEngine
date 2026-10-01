@@ -37,6 +37,24 @@ namespace AtomGame
         StrengthDown,
         Leave,        // machine: stand up
         Buy,          // machine: tokens for balls (M33)
+        // Character lab viewer (M36).
+        OrbitLeft,
+        OrbitRight,
+        OrbitUp,
+        OrbitDown,
+        ZoomIn,
+        ZoomOut,
+        Clip1,
+        Clip2,
+        Clip3,
+        Clip4,
+        Slower,
+        Faster,
+        Pause,
+        StepFrame,
+        ToggleBindPose,
+        ToggleSkeleton,
+        ToggleWeights,
         Count,
     };
 
@@ -45,6 +63,7 @@ namespace AtomGame
         Exploring,
         Dialogue,
         Machine,
+        Viewer, // M36: the character lab's model viewer
     };
 
     // "launch" <-> InputAction::Launch, for scripts and error messages.

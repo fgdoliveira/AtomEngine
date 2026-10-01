@@ -17,4 +17,19 @@ float4x4 SkinMatrix(uint4 joints, float4 weights)
          + u_joints[joints.w] * weights.w;
 }
 
+// A distinct colour per joint (golden-ratio hues), blended like the
+// positions are: smooth gradients where joints share vertices.
+float3 JointColor(uint joint)
+{
+    const float hue = frac(joint * 0.618034 + 0.12);
+    const float3 rgb = saturate(abs(frac(hue + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0);
+    return lerp(float3(0.9, 0.9, 0.9), rgb, 0.85);
+}
+
+float3 WeightColor(uint4 joints, float4 weights)
+{
+    return JointColor(joints.x) * weights.x + JointColor(joints.y) * weights.y
+         + JointColor(joints.z) * weights.z + JointColor(joints.w) * weights.w;
+}
+
 #endif

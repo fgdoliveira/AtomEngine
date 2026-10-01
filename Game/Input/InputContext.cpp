@@ -9,6 +9,9 @@ namespace AtomGame
         constexpr std::string_view Names[] = {
             "move_forward", "move_back", "move_left", "move_right", "jog", "interact",
             "confirm", "choice_up", "choice_down", "launch", "strength_up", "strength_down", "leave", "buy",
+            "orbit_left", "orbit_right", "orbit_up", "orbit_down", "zoom_in", "zoom_out",
+            "clip_1", "clip_2", "clip_3", "clip_4", "slower", "faster", "pause", "step",
+            "toggle_bind", "toggle_skeleton", "toggle_weights",
         };
         static_assert(std::size(Names) == static_cast<std::size_t>(InputAction::Count));
     }
@@ -58,6 +61,28 @@ namespace AtomGame
         map.Bind(C::Machine, InputAction::Leave, SDL_SCANCODE_BACKSPACE);
         map.Bind(C::Machine, InputAction::Buy, SDL_SCANCODE_B);
         map.Bind(C::Machine, InputAction::Buy, SDL_SCANCODE_RETURN);
+
+        // The viewer: arrows orbit (the mouse too, while captured), the
+        // number row picks a clip, keys named after what they show.
+        map.Bind(C::Viewer, InputAction::OrbitLeft, SDL_SCANCODE_LEFT);
+        map.Bind(C::Viewer, InputAction::OrbitRight, SDL_SCANCODE_RIGHT);
+        map.Bind(C::Viewer, InputAction::OrbitUp, SDL_SCANCODE_UP);
+        map.Bind(C::Viewer, InputAction::OrbitDown, SDL_SCANCODE_DOWN);
+        map.Bind(C::Viewer, InputAction::ZoomIn, SDL_SCANCODE_PAGEUP);
+        map.Bind(C::Viewer, InputAction::ZoomOut, SDL_SCANCODE_PAGEDOWN);
+        map.Bind(C::Viewer, InputAction::Clip1, SDL_SCANCODE_1);
+        map.Bind(C::Viewer, InputAction::Clip2, SDL_SCANCODE_2);
+        map.Bind(C::Viewer, InputAction::Clip3, SDL_SCANCODE_3);
+        map.Bind(C::Viewer, InputAction::Clip4, SDL_SCANCODE_4);
+        map.Bind(C::Viewer, InputAction::Slower, SDL_SCANCODE_MINUS);
+        map.Bind(C::Viewer, InputAction::Slower, SDL_SCANCODE_KP_MINUS);
+        map.Bind(C::Viewer, InputAction::Faster, SDL_SCANCODE_EQUALS);
+        map.Bind(C::Viewer, InputAction::Faster, SDL_SCANCODE_KP_PLUS);
+        map.Bind(C::Viewer, InputAction::Pause, SDL_SCANCODE_SPACE);
+        map.Bind(C::Viewer, InputAction::StepFrame, SDL_SCANCODE_PERIOD);
+        map.Bind(C::Viewer, InputAction::ToggleBindPose, SDL_SCANCODE_B);
+        map.Bind(C::Viewer, InputAction::ToggleSkeleton, SDL_SCANCODE_K);
+        map.Bind(C::Viewer, InputAction::ToggleWeights, SDL_SCANCODE_W);
         return map;
     }
 

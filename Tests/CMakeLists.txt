@@ -21,6 +21,7 @@ add_executable(
     PlayfieldTests.cpp
     PachinkoRulesTests.cpp
     SkinningTests.cpp
+    LabViewerTests.cpp
 )
 
 target_link_libraries(

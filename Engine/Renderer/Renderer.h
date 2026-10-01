@@ -166,6 +166,10 @@ namespace Atom
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
 
+        // Debug (M36): skinned meshes coloured by their joint weights.
+        void SetSkinWeightsView(bool on) { m_skinWeightsView = on; }
+        bool GetSkinWeightsView() const { return m_skinWeightsView; }
+
         // 0 = normal, 1 = black. Applied in the post pass, before the UI.
         void SetFade(float fade) { m_fade = fade; }
 
@@ -362,5 +366,6 @@ namespace Atom
         FrameStats m_stats;
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;
+        bool m_skinWeightsView = false;
     };
 }

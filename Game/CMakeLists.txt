@@ -12,6 +12,9 @@ add_library(
     UneaseDirector.h
     DemoApp.cpp
     DemoApp.h
+    DemoAppLab.cpp
+    Character/LabViewer.cpp
+    Character/LabViewer.h
     PlayerController.cpp
     PlayerController.h
     Testing/TestScript.cpp

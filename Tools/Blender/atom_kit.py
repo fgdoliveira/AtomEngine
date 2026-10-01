@@ -108,6 +108,10 @@ MATERIALS = {
     "cube_red": (lambda: tex.flat((0.72, 0.16, 0.12)), 1.0, 0.6, 0.0),
     "cube_teal": (lambda: tex.flat((0.10, 0.52, 0.55)), 1.0, 0.6, 0.0),
     "cube_gold": (lambda: tex.flat((0.80, 0.62, 0.18)), 1.0, 0.6, 0.0),
+    # Character lab (M36): studio floor, cyclorama, turntable.
+    "lab_floor": (lambda: tex.lab_floor(), 1.0, 0.7, 0.0),
+    "lab_cyc": (lambda: tex.flat((0.80, 0.83, 0.88), size=16, seed=96, variation=0.015), 4.0, 0.9, 0.0),
+    "lab_checker": (lambda: tex.lab_checker(), 1.0, 0.5, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
