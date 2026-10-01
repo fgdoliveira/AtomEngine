@@ -24,6 +24,7 @@
 #include "World/GameState.h"
 #include "World/GameWorld.h"
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -69,6 +70,10 @@ namespace AtomGame
         void UpdateRenderSettings();
         void ApplyLighting();
         void UpdateWindowTitle(float deltaSeconds);
+        // Developer tools (M41): the ImGui panels, when F10 shows them.
+        void DrawDevTools(float deltaSeconds);
+        std::array<float, 240> m_frameHistory{}; // ms, a ring
+        std::size_t m_frameHistoryNext = 0;
         void DrawOverlay(float deltaSeconds);
         void UpdateInteraction();
         void DrawInteractionPrompt(float scale);

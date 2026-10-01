@@ -23,6 +23,23 @@ add_subdirectory(external/SDL)
 add_subdirectory(external/glm)
 add_subdirectory(external/json)
 
+# Dear ImGui (M41): developer panels, with its SDL3 platform backend and its
+# SDL_GPU renderer backend. A plain source library: ImGui ships no CMake.
+set(ATOM_IMGUI_DIR "${CMAKE_SOURCE_DIR}/external/imgui")
+add_library(
+    imgui
+    STATIC
+    ${ATOM_IMGUI_DIR}/imgui.cpp
+    ${ATOM_IMGUI_DIR}/imgui_demo.cpp
+    ${ATOM_IMGUI_DIR}/imgui_draw.cpp
+    ${ATOM_IMGUI_DIR}/imgui_tables.cpp
+    ${ATOM_IMGUI_DIR}/imgui_widgets.cpp
+    ${ATOM_IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
+    ${ATOM_IMGUI_DIR}/backends/imgui_impl_sdlgpu3.cpp
+)
+target_include_directories(imgui PUBLIC ${ATOM_IMGUI_DIR} ${ATOM_IMGUI_DIR}/backends)
+target_link_libraries(imgui PUBLIC SDL3::SDL3)
+
 add_subdirectory(Shaders)
 add_subdirectory(Engine)
 add_subdirectory(Game)

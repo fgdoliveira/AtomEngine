@@ -50,6 +50,14 @@ namespace Atom
         // Audio is optional: without a device the game runs silently.
         m_audio.Initialize();
 
+        // Developer tools (M41): F10. Without them the game still runs.
+        if (m_devTools.Initialize(m_window.GetSDLWindow(), m_renderer.GetDevice()))
+        {
+            m_renderer.SetOverlayPass([this](SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target) {
+                m_devTools.Render(commandBuffer, target);
+            });
+        }
+
         m_initialized = true;
         m_running = true;
 
@@ -99,6 +107,7 @@ namespace Atom
         while (m_running)
         {
             ProcessEvents();
+            m_devTools.BeginFrame();
 
             OnUpdate(m_time.Tick());
 
@@ -129,7 +138,16 @@ namespace Atom
 
         while (SDL_PollEvent(&event))
         {
-            m_input.HandleEvent(event);
+            const bool wasVisible = m_devTools.IsVisible();
+            // The tools see events first; what they use, the game doesn't.
+            if (!m_devTools.HandleEvent(event))
+            {
+                m_input.HandleEvent(event);
+            }
+            if (m_devTools.IsVisible() && !wasVisible)
+            {
+                m_input.SetMouseCaptured(m_window.GetSDLWindow(), false); // the panels need a pointer
+            }
 
             if (event.type == SDL_EVENT_QUIT)
             {
@@ -148,6 +166,9 @@ namespace Atom
         m_initialized = false;
 
         OnShutdown();
+
+        m_renderer.SetOverlayPass({});
+        m_devTools.Shutdown();
 
         std::cout << "Shutting down AtomEngine...\n";
 

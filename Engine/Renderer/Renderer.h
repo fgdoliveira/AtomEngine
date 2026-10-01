@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string>
@@ -165,6 +166,13 @@ namespace Atom
         );
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
+
+        // Developer overlay (M41): called each frame after the game's UI,
+        // with the window's image to draw on. Screenshots and captures are
+        // drawn separately, so nothing drawn here ends up in them.
+        using OverlayPass = std::function<void(SDL_GPUCommandBuffer*, SDL_GPUTexture*)>;
+        void SetOverlayPass(OverlayPass pass) { m_overlayPass = std::move(pass); }
+        SDL_GPUDevice* GetDevice() const { return m_device; }
 
         // Debug (M36): skinned meshes coloured by their joint weights.
         void SetSkinWeightsView(bool on) { m_skinWeightsView = on; }
@@ -367,5 +375,6 @@ namespace Atom
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;
         bool m_skinWeightsView = false;
+        OverlayPass m_overlayPass;
     };
 }

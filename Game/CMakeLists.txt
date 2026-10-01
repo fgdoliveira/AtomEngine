@@ -13,6 +13,7 @@ add_library(
     DemoApp.cpp
     DemoApp.h
     DemoAppLab.cpp
+    DemoAppDevTools.cpp
     Character/Animator.cpp
     Character/Animator.h
     Character/LabViewer.cpp

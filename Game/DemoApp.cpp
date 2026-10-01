@@ -398,6 +398,7 @@ namespace AtomGame
         DrawOverlay(deltaSeconds);
         DrawMachineView(); // over everything: the machine fills the window
         UpdateWindowTitle(deltaSeconds);
+        DrawDevTools(deltaSeconds);
     }
 
     void DemoApp::OnShutdown()
@@ -866,7 +867,7 @@ namespace AtomGame
                 RequestQuit();
             }
         }
-        else if (!input.IsMouseCaptured()
+        else if (!input.IsMouseCaptured() && !GetDevTools().IsVisible()
             && (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK))
         {
             input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
@@ -1352,6 +1353,7 @@ namespace AtomGame
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) m_showDebugOverlay = on;
+        else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
         else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
         {
             m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips

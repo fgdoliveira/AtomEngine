@@ -10,6 +10,7 @@ target_sources(
         Assets/ThirdParty.cpp
         Core/Application.cpp
         Core/Time.cpp
+        Debug/DevTools.cpp
         Physics/CollisionWorld.cpp
         Platform/Input.cpp
         Platform/Window.cpp
@@ -31,6 +32,7 @@ target_sources(
         Audio/AudioSystem.h
         Core/Application.h
         Core/Time.h
+        Debug/DevTools.h
         Physics/CollisionWorld.h
         Platform/Input.h
         Platform/Window.h
@@ -65,6 +67,7 @@ target_link_libraries(
     PUBLIC
         SDL3::SDL3
         glm::glm
+        imgui
 )
 
 target_compile_definitions(

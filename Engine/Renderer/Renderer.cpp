@@ -920,6 +920,7 @@ namespace Atom
                 swapchainTexture,
                 swapchainWidth,
                 swapchainHeight)
+            && (m_overlayPass ? (m_overlayPass(commandBuffer, swapchainTexture), true) : true)
             && (m_capturePath.empty() || RenderCapture(commandBuffer, swapchainWidth, swapchainHeight));
 
         ++m_frameIndex;
