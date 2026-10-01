@@ -114,3 +114,48 @@ TEST_CASE("Roughness sets the highlight: tight and strong when smooth, broad and
     CHECK(smoothOff / smoothPeak < roughOff / roughPeak);
     CHECK(smoothPeak > roughPeak);
 }
+
+TEST_CASE("The spot's shadow matrix holds its cone and orders depth along each ray")
+{
+    const SpotLight light = Torch();
+    const glm::mat4 viewProjection = SpotMath::ViewProjection(light);
+    const auto project = [&](const glm::vec3& point) {
+        const glm::vec4 clip = viewProjection * glm::vec4{ point, 1.0f };
+        return glm::vec3{ clip } / clip.w;
+    };
+
+    // Everything the spot lights lands inside the map, at a depth in [0, 1].
+    for (const float degrees : { 0.0f, 10.0f, 19.0f })
+    {
+        for (const float metres : { 0.5f, 5.0f, 9.5f })
+        {
+            const glm::vec3 ndc = project(OffAxis(metres, degrees));
+            CHECK(std::abs(ndc.x) <= 1.0f);
+            CHECK(std::abs(ndc.y) <= 1.0f);
+            CHECK(ndc.z >= 0.0f);
+            CHECK(ndc.z <= 1.0f);
+        }
+    }
+    // Beyond the range: past the far plane, so unshadowed (and unlit).
+    CHECK(project(OffAxis(12.0f, 0.0f)).z > 1.0f);
+
+    // A wall at 3 m in front of a floor at 6 m along the same ray: the wall
+    // is nearer, so the map keeps the wall's depth and the floor behind it
+    // compares as further - in shadow. Same for any angle in the cone.
+    for (const float degrees : { 0.0f, 7.0f, 15.0f })
+    {
+        const glm::vec3 wall = project(OffAxis(3.0f, degrees));
+        const glm::vec3 floor = project(OffAxis(6.0f, degrees));
+        CHECK(wall.x == doctest::Approx(floor.x).epsilon(1e-4));
+        CHECK(wall.y == doctest::Approx(floor.y).epsilon(1e-4));
+        CHECK(wall.z < floor.z);
+    }
+
+    // Pointing straight down still gives a valid matrix (no NaNs).
+    SpotLight down = light;
+    down.direction = glm::vec3{ 0.0f, -1.0f, 0.0f };
+    const glm::mat4 vp = SpotMath::ViewProjection(down);
+    const glm::vec4 clip = vp * glm::vec4{ 0.0f, -3.0f, 0.0f, 1.0f };
+    CHECK(std::abs(clip.x / clip.w) < 1e-4f);
+    CHECK(std::abs(clip.y / clip.w) < 1e-4f);
+}

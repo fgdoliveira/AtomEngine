@@ -3,6 +3,8 @@
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/mat4x4.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
 
@@ -24,6 +26,13 @@ namespace Atom
         glm::vec3 color{ 1.0f, 0.95f, 0.85f };     // linear
         float intensity = 20.0f;                   // at 1 m, on axis (a torch reaches ~8 m)
         float specular = 1.0f;                     // scales every highlight it makes
+
+        // Its own shadow map (M43): a depth image seen from the lamp.
+        bool castsShadows = true;
+        // Pushes each lookup off its surface along the normal, against
+        // shadow acne. Per metre from the lamp: a shadow-map texel covers
+        // more of the world the further away it is (perspective).
+        float shadowNormalOffset = 0.004f;
     };
 
     // The same maths as Shaders/Basic.frag.hlsl (SpotLighting), on the CPU,
@@ -66,6 +75,23 @@ namespace Atom
         inline float SpecularStrength(float roughness, float authored)
         {
             return authored >= 0.0f ? authored : 0.5f * (1.0f - std::clamp(roughness, 0.0f, 1.0f));
+        }
+
+        // The spot's view and projection for its shadow map: from the lamp,
+        // along its axis, a square frustum wide enough for the outer cone
+        // (plus a little, so PCF taps at the edge stay inside) and as deep
+        // as its range. Points it lights land in clip space x,y in [-1, 1]
+        // and depth in [0, 1].
+        inline glm::mat4 ViewProjection(const SpotLight& light)
+        {
+            const glm::vec3 forward = glm::normalize(light.direction);
+            // Any up that isn't parallel to where it points.
+            const glm::vec3 up = std::abs(forward.y) > 0.99f ? glm::vec3{ 0.0f, 0.0f, 1.0f }
+                                                             : glm::vec3{ 0.0f, 1.0f, 0.0f };
+            const glm::mat4 view = glm::lookAt(light.position, light.position + forward, up);
+            const float fov = glm::radians(std::min(2.0f * light.outerAngleDegrees + 4.0f, 170.0f));
+            const glm::mat4 projection = glm::perspective(fov, 1.0f, 0.05f, std::max(light.range, 0.1f));
+            return projection * view;
         }
 
         struct Response

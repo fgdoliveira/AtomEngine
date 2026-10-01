@@ -79,6 +79,7 @@ namespace Atom
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
         std::uint32_t shadowDrawn = 0;
+        std::uint32_t spotShadowDrawn = 0; // M43: the spot's shadow pass
         std::array<LayerStats, RenderLayerCount> layers{};
         std::uint32_t pipelineBinds = 0;
         std::uint32_t materialBinds = 0;
@@ -293,16 +294,23 @@ namespace Atom
             SDL_GPURenderPass* renderPass,
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection,
-            std::uint32_t sceneSamples
+            std::uint32_t sceneSamples,
+            bool spotPass = false
         );
 
         bool RenderShadowPass(
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& lightViewProjection
         );
+        // M43: the spot's depth from the lamp, into its own shadow map.
+        bool RenderSpotShadowPass(
+            SDL_GPUCommandBuffer* commandBuffer,
+            const glm::mat4& spotViewProjection
+        );
         bool RenderScenePass(
             SDL_GPUCommandBuffer* commandBuffer,
-            const glm::mat4& lightViewProjection
+            const glm::mat4& lightViewProjection,
+            const glm::mat4& spotViewProjection
         );
         bool RenderPostPass(
             SDL_GPUCommandBuffer* commandBuffer,
@@ -323,6 +331,7 @@ namespace Atom
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         std::array<SDL_GPUGraphicsPipeline*, 2> m_shadowPipelines{}; // [skinned]
         SDL_GPUTexture* m_shadowMap = nullptr;
+        SDL_GPUTexture* m_spotShadowMap = nullptr; // M43
         SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
 
         std::array<SDL_GPUGraphicsPipeline*, 3> m_particlePipelines{};

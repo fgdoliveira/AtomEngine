@@ -151,6 +151,9 @@ namespace Atom
         }
 
         constexpr std::uint32_t ShadowMapSize = 2048;
+        // The spot's (M43): it covers a cone a few metres long, not 60 m of
+        // street, so a quarter of the texels is plenty.
+        constexpr std::uint32_t SpotShadowMapSize = 1024;
         constexpr SDL_GPUTextureFormat ShadowMapFormat =
             SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 
@@ -172,6 +175,8 @@ namespace Atom
             glm::vec4 spotDirection; // xyz, w: 1 on, 0 off
             glm::vec4 spotColor;     // rgb times intensity, w: specular scale
             glm::vec4 spotCone;      // x: cos outer, y: cos inner
+            glm::mat4 spotViewProjection; // M43: its shadow map
+            glm::vec4 spotShadow;    // x: on, y: texel size (uv), z: normal offset per metre
         };
 
         SceneUniforms MakeSceneUniforms(
@@ -180,7 +185,8 @@ namespace Atom
             const glm::mat4& lightViewProjection,
             float time,
             std::span<const LiveLight> liveLights,
-            const SpotLight* spot
+            const SpotLight* spot,
+            const glm::mat4& spotViewProjection
         )
         {
             // The camera sits at the translation of the inverse view.
@@ -221,6 +227,11 @@ namespace Atom
                 const float outer = std::max(spot->outerAngleDegrees, spot->innerAngleDegrees + 0.01f);
                 uniforms.spotCone = glm::vec4{
                     std::cos(glm::radians(outer)), std::cos(glm::radians(spot->innerAngleDegrees)), 0.0f, 0.0f };
+                uniforms.spotViewProjection = spotViewProjection;
+                uniforms.spotShadow = glm::vec4{
+                    spot->castsShadows ? 1.0f : 0.0f,
+                    1.0f / static_cast<float>(SpotShadowMapSize),
+                    spot->shadowNormalOffset, 0.0f };
             }
             else
             {
@@ -522,7 +533,7 @@ namespace Atom
             m_device,
             "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 4, .uniformBuffers = 2 }
+            ShaderResources{ .samplers = 5, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -918,6 +929,7 @@ namespace Atom
         } clearParticles{ m_particles };
 
         const glm::mat4 lightViewProjection = ComputeLightViewProjection();
+        const glm::mat4 spotViewProjection = m_spotActive ? SpotMath::ViewProjection(m_spot) : glm::mat4{ 1.0f };
 
         const bool ok =
             m_targets.Ensure(
@@ -928,7 +940,8 @@ namespace Atom
             && m_ui.Upload(commandBuffer)
             && RenderTextures(commandBuffer)
             && RenderShadowPass(commandBuffer, lightViewProjection)
-            && RenderScenePass(commandBuffer, lightViewProjection)
+            && RenderSpotShadowPass(commandBuffer, spotViewProjection)
+            && RenderScenePass(commandBuffer, lightViewProjection, spotViewProjection)
             && (!GlowActive()
                 || m_glow.Render(commandBuffer, m_targets.GetSceneTexture(),
                                  m_targets.GetWidth(), m_targets.GetHeight(), m_lighting.glowThreshold))
@@ -993,6 +1006,9 @@ namespace Atom
         textureInfo.num_levels = 1;
         textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
         m_shadowMap = SDL_CreateGPUTexture(m_device, &textureInfo);
+        textureInfo.width = SpotShadowMapSize;
+        textureInfo.height = SpotShadowMapSize;
+        m_spotShadowMap = SDL_CreateGPUTexture(m_device, &textureInfo);
 
         // Hardware PCF: each tap compares and bilinearly blends 2x2 texels.
         SDL_GPUSamplerCreateInfo samplerInfo{};
@@ -1006,7 +1022,7 @@ namespace Atom
         samplerInfo.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
         m_shadowSampler = SDL_CreateGPUSampler(m_device, &samplerInfo);
 
-        if (!m_shadowMap || !m_shadowSampler)
+        if (!m_shadowMap || !m_spotShadowMap || !m_shadowSampler)
         {
             std::cerr
                 << "Failed to create shadow map resources: "
@@ -1157,7 +1173,8 @@ namespace Atom
         SDL_GPURenderPass* renderPass,
         SDL_GPUCommandBuffer* commandBuffer,
         const glm::mat4& viewProjection,
-        std::uint32_t sceneSamples
+        std::uint32_t sceneSamples,
+        bool spotPass
     )
     {
         const Frustum frustum = ExtractFrustum(viewProjection);
@@ -1211,7 +1228,7 @@ namespace Atom
             }
             else
             {
-                ++layer.shadowDrawn;
+                layer.shadowDrawn += spotPass ? 0 : 1; // the spot's are counted apart
             }
 
             uniforms.model = command.model;
@@ -1408,9 +1425,48 @@ namespace Atom
         return true;
     }
 
+    bool Renderer::RenderSpotShadowPass(
+        SDL_GPUCommandBuffer* commandBuffer,
+        const glm::mat4& spotViewProjection
+    )
+    {
+        if (!m_spotActive || !m_spot.castsShadows)
+        {
+            return true;
+        }
+
+        SDL_GPUDepthStencilTargetInfo depthTarget{};
+        depthTarget.texture = m_spotShadowMap;
+        depthTarget.clear_depth = 1.0f;
+        depthTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        depthTarget.store_op = SDL_GPU_STOREOP_STORE; // sampled by the scene
+        depthTarget.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+        depthTarget.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+        depthTarget.cycle = true;
+
+        SDL_GPURenderPass* renderPass =
+            SDL_BeginGPURenderPass(commandBuffer, nullptr, 0, &depthTarget);
+        if (!renderPass)
+        {
+            std::cerr << "Failed to begin spot shadow pass: " << SDL_GetError() << '\n';
+            return false;
+        }
+
+        // The same depth-only pipelines as the sun's: only the light's
+        // matrix differs. DrawQueue culls to that matrix's frustum, so the
+        // pass draws only what is inside the cone and within its range.
+        SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipelines[0]);
+        SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
+        m_stats.spotShadowDrawn = DrawQueue(renderPass, commandBuffer, spotViewProjection, 0, true);
+
+        SDL_EndGPURenderPass(renderPass);
+        return true;
+    }
+
     bool Renderer::RenderScenePass(
         SDL_GPUCommandBuffer* commandBuffer,
-        const glm::mat4& lightViewProjection
+        const glm::mat4& lightViewProjection,
+        const glm::mat4& spotViewProjection
     )
     {
         SDL_GPUGraphicsPipeline* pipeline =
@@ -1463,7 +1519,7 @@ namespace Atom
         const SceneUniforms sceneUniforms = MakeSceneUniforms(
             m_lighting, m_camera.view, lightViewProjection, m_wind.w,
             std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount),
-            m_spotActive ? &m_spot : nullptr);
+            m_spotActive ? &m_spot : nullptr, spotViewProjection);
         m_liveLightCount = 0;
         m_spotActive = false;
         SDL_PushGPUFragmentUniformData(
@@ -1478,6 +1534,13 @@ namespace Atom
             m_shadowSampler
         };
         SDL_BindGPUFragmentSamplers(renderPass, 1, &shadowBinding, 1);
+        // The spot's shadow map (M43), same comparison sampler; bound even
+        // with no spot (its colour is zero then, so what it holds is unused).
+        const SDL_GPUTextureSamplerBinding spotShadowBinding{
+            m_spotShadowMap,
+            m_shadowSampler
+        };
+        SDL_BindGPUFragmentSamplers(renderPass, 4, &spotShadowBinding, 1);
 
         DrawSky(renderPass, commandBuffer, projection);
 
@@ -2131,6 +2194,10 @@ namespace Atom
             {
                 SDL_ReleaseGPUTexture(m_device, m_shadowMap);
             }
+            if (m_spotShadowMap)
+            {
+                SDL_ReleaseGPUTexture(m_device, m_spotShadowMap);
+            }
 
             if (m_windowClaimed && m_window)
             {
@@ -2151,6 +2218,7 @@ namespace Atom
         m_particleAtlas = nullptr;
         m_shadowSampler = nullptr;
         m_shadowMap = nullptr;
+        m_spotShadowMap = nullptr;
         m_sampler = nullptr;
         m_postSampler = nullptr;
         m_lightmapSampler = nullptr;

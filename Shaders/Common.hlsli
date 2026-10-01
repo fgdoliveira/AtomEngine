@@ -20,6 +20,8 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_spotDirection;        // xyz, w: 1 on, 0 off
     float4 u_spotColor;            // rgb times intensity, w: specular scale
     float4 u_spotCone;             // x: cos outer, y: cos inner
+    float4x4 u_spotViewProjection; // M43: its shadow map
+    float4 u_spotShadow;           // x: on, y: texel size (uv), z: normal offset per metre
 };
 
 // Exponential height fog, integrated along the view ray: density falls off

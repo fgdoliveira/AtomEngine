@@ -70,7 +70,8 @@ namespace AtomGame
                 static_cast<int>(m_frameHistoryNext), "frame time (ms)", 0.0f, std::max(20.0f, worst),
                 { -1.0f, 60.0f });
             ImGui::Text("Scene %ux%u  MSAA %ux", stats.sceneWidth, stats.sceneHeight, stats.msaaSamples);
-            ImGui::Text("Draws %u / %u   shadow %u", stats.drawn, stats.submitted, stats.shadowDrawn);
+            ImGui::Text("Draws %u / %u   shadow %u   spot shadow %u", stats.drawn, stats.submitted,
+                stats.shadowDrawn, stats.spotShadowDrawn);
             ImGui::Text("Binds: pipelines %u, materials %u", stats.pipelineBinds, stats.materialBinds);
             ImGui::Text("Particles %u   render textures %u", stats.particles, stats.renderTextures);
             if (ImGui::BeginTable("layers", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame))
@@ -205,6 +206,12 @@ namespace AtomGame
             ImGui::SliderFloat("Intensity", &spot.intensity, 0.0f, 40.0f);
             EditColor("Colour", spot.color);
             ImGui::SliderFloat("Specular", &spot.specular, 0.0f, 4.0f);
+            // Shadow bias (M43): too little and surfaces shadow themselves in
+            // stripes (acne); too much and shadows float off their casters
+            // (peter-panning). Per metre from the lamp.
+            ImGui::Checkbox("Casts shadows", &spot.castsShadows);
+            ImGui::SliderFloat("Normal offset /m", &spot.shadowNormalOffset, 0.0f, 0.03f, "%.4f");
+            ImGui::Text("Spot shadow draws %u", stats.spotShadowDrawn);
             if (!m_devSpotFollows)
             {
                 ImGui::DragFloat3("Position", &spot.position.x, 0.05f);
@@ -212,12 +219,13 @@ namespace AtomGame
             }
             if (ImGui::Button("Copy as JSON"))
             {
-                char json[320];
+                char json[400];
                 std::snprintf(json, sizeof(json),
                     "\"spot\": { \"range\": %.3g, \"inner\": %.3g, \"outer\": %.3g, \"intensity\": %.3g, "
-                    "\"color\": %s, \"specular\": %.3g }",
+                    "\"color\": %s, \"specular\": %.3g, \"shadows\": %s, \"shadowNormalOffset\": %.3g }",
                     spot.range, spot.innerAngleDegrees, spot.outerAngleDegrees, spot.intensity,
-                    Vec3Json(spot.color).c_str(), spot.specular);
+                    Vec3Json(spot.color).c_str(), spot.specular, spot.castsShadows ? "true" : "false",
+                    spot.shadowNormalOffset);
                 SDL_SetClipboardText(json);
             }
         }

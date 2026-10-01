@@ -11,6 +11,10 @@ SamplerComparisonState ShadowSampler : register(s1, space2);
 Texture2D<float4> Lightmap : register(t2, space2);
 SamplerState LightmapSampler : register(s2, space2);
 
+// The spot's shadow map (M43), compared like the sun's.
+Texture2D<float> SpotShadowMap : register(t4, space2);
+SamplerComparisonState SpotShadowSampler : register(s4, space2);
+
 // Which pixels glow (M23); used when u_alpha.z says the material has one.
 Texture2D<float4> EmissiveTexture : register(t3, space2);
 SamplerState EmissiveSampler : register(s3, space2);
@@ -105,6 +109,31 @@ float3 LiveLights(float3 worldPosition, float3 normal)
     return light;
 }
 
+// 1 = lit by the spot, 0 = something stands between it and the lamp. The
+// same idea as the sun's, from a perspective view: a texel covers more of
+// the world further from the lamp, so the normal offset grows with the
+// distance. Points outside its frustum are lit (the cone already decides).
+float ComputeSpotShadow(float3 worldPosition, float3 normal, float distance)
+{
+    const float3 offsetPosition = worldPosition + normal * (u_spotShadow.z * max(distance, 0.5));
+    const float4 lightPosition = mul(u_spotViewProjection, float4(offsetPosition, 1.0));
+    const float3 ndc = lightPosition.xyz / max(lightPosition.w, 1e-4);
+    const float2 uv = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+
+    const float texel = u_spotShadow.y;
+    float visibility = 0.0;
+    [unroll] for (int y = -1; y <= 1; ++y)
+    {
+        [unroll] for (int x = -1; x <= 1; ++x)
+        {
+            visibility += SpotShadowMap.SampleCmpLevelZero(SpotShadowSampler, uv + float2(x, y) * texel, ndc.z);
+        }
+    }
+    // Outside the map (behind the lamp, beyond the range): lit.
+    const bool inside = all(uv >= 0.0) && all(uv <= 1.0) && ndc.z <= 1.0 && lightPosition.w > 0.0;
+    return inside ? visibility / 9.0 : 1.0;
+}
+
 // The spot light (M42). Mirrors SpotMath::Evaluate (Engine/Renderer/SpotLight.h).
 // x: diffuse (times base colour), y: specular (times light colour). All
 // arithmetic, no branches: when the spot is off its colour is zero.
@@ -119,7 +148,15 @@ float2 SpotLighting(float3 worldPosition, float3 normal)
     // Inverse-square, +1 at the lamp, windowed to exactly 0 at the range.
     const float ratio = distance / u_spotPosition.w;
     const float window = saturate(1.0 - ratio * ratio * ratio * ratio);
-    const float reach = cone * window * window / (distance * distance + 1.0) * u_spotDirection.w;
+    float reach = cone * window * window / (distance * distance + 1.0) * u_spotDirection.w;
+    // The 9 shadow taps only where the spot reaches at all: with the spot
+    // off (or outside its cone - most of the screen) they cost nothing.
+    // Like the sun's early return, the branch follows whole regions of the
+    // screen, not a coin-flip per pixel.
+    [branch] if (u_spotShadow.x > 0.0 && reach > 0.0)
+    {
+        reach *= ComputeSpotShadow(worldPosition, normal, distance);
+    }
 
     const float lambert = saturate(dot(normal, l));
     // Blinn-Phong: the normal against the half vector of light and eye.

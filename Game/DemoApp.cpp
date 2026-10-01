@@ -1367,6 +1367,8 @@ namespace AtomGame
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
         else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
+        else if (what == "spot_shadows" && onOff) m_devSpot.castsShadows = on; // M43
+        else if (what == "spot_offset" && isNumber && number >= 0.0f && number <= 0.1f) m_devSpot.shadowNormalOffset = number;
         else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
         {
             m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips
