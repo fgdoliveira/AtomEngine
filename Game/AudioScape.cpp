@@ -41,6 +41,7 @@ namespace AtomGame
         m_library["pocket_chime"] = SoundSynth::PocketChime();
         m_library["payout"] = SoundSynth::Payout();
         m_library["reel_stop"] = SoundSynth::ReelStop();
+        m_library["switch_click"] = SoundSynth::SwitchClick();
         m_library["reach"] = SoundSynth::Reach();
         m_library["fanfare"] = SoundSynth::Fanfare();
 

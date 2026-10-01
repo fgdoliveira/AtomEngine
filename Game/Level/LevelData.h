@@ -171,6 +171,7 @@ namespace AtomGame
         std::optional<AnimatorData> animator;     // M37: a state machine instead
         std::optional<EntityMover> mover;
         bool hidden = false; // M26: until a sequence shows it
+        std::string goneWithFlag; // M44: hidden and unusable once set
     };
 
     // The character lab (M36): the level opens in the model viewer,

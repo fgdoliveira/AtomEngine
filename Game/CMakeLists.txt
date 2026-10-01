@@ -12,6 +12,8 @@ add_library(
     UneaseDirector.h
     DemoApp.cpp
     DemoApp.h
+    Flashlight.cpp
+    Flashlight.h
     DemoAppLab.cpp
     DemoAppDevTools.cpp
     Character/Animator.cpp

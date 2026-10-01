@@ -67,10 +67,33 @@
     },
     {
       "name": "dark_corridor",
-      "position": [3.1, 0.0, -11.0],
+      "position": [3.1, 0.0, -13.3],
       "interactable": {
         "prompt": "Go further", "focus": [0.0, 1.3, 0.15],
-        "action": { "type": "message", "text": "It's too dark to go further. The air coming from it is cold." }
+        "requires": "has_flashlight",
+        "action": { "type": "message", "text": "In the beam: stairs going down, and the cold coming up them." },
+        "locked": { "type": "message", "text": "It's too dark to go further. The air coming from it is cold." }
+      }
+    },
+    {
+      "name": "flashlight",
+      "model": "Kit/flashlight.glb",
+      "position": [0.9, 0.15, -2.8],
+      "yaw": 35,
+      "goneWithFlag": "has_flashlight",
+      "interactable": {
+        "prompt": "Take the flashlight", "focus": [0.0, 0.05, 0.0], "radius": 2.4,
+        "action": { "type": "setFlag", "flag": "has_flashlight",
+                    "message": "A heavy old flashlight. It still works. [F] switches it." }
+      }
+    },
+    {
+      "name": "chalk_marks",
+      "position": [2.6, 0.0, -11.8],
+      "interactable": {
+        "prompt": "Look at the marks", "focus": [0.05, 1.5, 0.0], "radius": 3.0,
+        "requiresLight": true,
+        "action": { "type": "message", "text": "Chalk, in a child's hand: an arrow pointing down, and four strokes counted off." }
       }
     }
   ]

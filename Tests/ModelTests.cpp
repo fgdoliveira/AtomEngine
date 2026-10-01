@@ -105,7 +105,8 @@ TEST_CASE("Masks ship double-sided, decals as blend, everything else opaque")
     // Tools/Blender/atom_kit.py: MASKED and DECALS.
     const std::vector<std::string> masked{ "atom_leaves", "atom_grass", "atom_noren", "atom_chain_link" };
     const std::vector<std::string> decals{
-        "atom_water_stain", "atom_grime", "atom_shop_sign", "atom_ofuda", "atom_road_diamond", "atom_road_paint" };
+        "atom_water_stain", "atom_grime", "atom_shop_sign", "atom_ofuda", "atom_road_diamond", "atom_road_paint",
+        "atom_reveal_marks" };
     int maskedSeen = 0;
     int decalsSeen = 0;
     for (const char* file : { "Street/street.glb", "Street/street_west.glb", "Street/street_centre.glb",

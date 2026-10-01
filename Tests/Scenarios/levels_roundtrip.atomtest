@@ -61,9 +61,10 @@ interact fusuma
 expect_message won't slide
 teleport_to scroll
 interact scroll
-# Stand in front of the opening: from beside it the wall blocks the view,
-# for a player as much as for the targeting check.
-teleport 3.1 0.3 -9.4 0
+# Step into the corridor (M44: you can, as far as the stairs): from
+# beside the opening the wall blocks the view, for a player as much as
+# for the targeting check.
+teleport 3.1 0.3 -11.8 0
 face dark_corridor
 interact dark_corridor
 expect_message too dark

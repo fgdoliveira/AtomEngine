@@ -51,6 +51,9 @@ namespace Atom
         // (glTF extras) how strong, -1 = from the roughness.
         float roughness = 1.0f;
         float specular = -1.0f;
+        // Revealed by light (M44, "atom_reveal"): a decal whose alpha follows
+        // the spot's reach - chalk only the flashlight shows.
+        float reveal = 0.0f;
 
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;

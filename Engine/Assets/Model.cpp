@@ -142,6 +142,7 @@ namespace Atom
                 read("\"atom_fog\"", material.fogAmount);
                 read("\"atom_wet\"", material.wet);
                 read("\"atom_specular\"", material.specular);
+                read("\"atom_reveal\"", material.reveal);
             }
             material.doubleSided = source.double_sided != 0;
             if (source.alpha_mode == cgltf_alpha_mode_mask)

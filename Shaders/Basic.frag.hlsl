@@ -29,7 +29,8 @@ cbuffer MaterialUniforms : register(b0, space3)
                              // colour as the base colour (skin weights, M36)
     float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                              // z: has emissive texture, w: fog amount
-    float4 u_surface;        // M42: x shininess (Blinn-Phong), y specular strength
+    float4 u_surface;        // M42: x shininess (Blinn-Phong), y specular strength,
+                             // z revealed by the spot (M44)
 };
 
 struct PSInput
@@ -251,5 +252,9 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     const float fog = ComputeFog(input.worldPosition) * u_alpha.w;
     const float3 color = lerp(lit + emitted + sheen, u_fogColor.rgb, fog);
 
-    return float4(color, baseColor.a);
+    // Revealed by light (M44): the decal's alpha follows the beam, so it's
+    // there only where the flashlight shines (diffuse reach, saturating
+    // well inside the beam).
+    const float revealed = lerp(1.0, saturate(spot.x * u_spotColor.g * 0.5), u_surface.z);
+    return float4(color, baseColor.a * revealed);
 }

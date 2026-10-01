@@ -27,6 +27,10 @@ namespace AtomGame
             }
             const Interactable& interactable = *entity.interactable;
             const glm::vec3 focus = entity.position + interactable.focusOffset;
+            if (interactable.requiresLight && !(settings.isLit && settings.isLit(focus)))
+            {
+                return; // in the dark: there's nothing to see
+            }
             const glm::vec3 toFocus = focus - eye;
             const float distance = glm::length(toFocus);
             if (distance > interactable.radius || distance < 1e-3f)

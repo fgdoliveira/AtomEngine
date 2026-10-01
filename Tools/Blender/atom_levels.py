@@ -146,6 +146,12 @@ def build_machiya_interior(pieces, collision, materials, collection):
     m.quad([(wx, 5.0, 2.1), (wx, 6.3, 2.1), (wx, 6.3, 2.9), (wx, 5.0, 2.9)], "water_stain")
     ny = room_y1 - off
     m.quad([(2.55, ny, 0.45), (1.3, ny, 0.45), (1.3, ny, 1.6), (2.55, ny, 1.6)], "grime")
+    # Chalk on the corridor's west wall (M44), only seen in the flashlight's
+    # beam: an arrow pointing down, the way the passage goes.
+    cx = 2.6 + off
+    # Counter-clockwise seen from inside the corridor (+X), or it's culled.
+    m.quad([(cx, 11.4, 0.9), (cx, 12.2, 0.9), (cx, 12.2, 2.1), (cx, 11.4, 2.1)], "reveal_marks",
+           uvs=[(0, 1), (1, 1), (1, 0), (0, 0)])  # image rows run downwards
 
     # Low table with a folded letter.
     m.box((0, 6.5, floor + 0.3), (1.2, 0.9, 0.06), "wood_dark")
@@ -168,7 +174,10 @@ def build_machiya_interior(pieces, collision, materials, collection):
         ((3.8, 10.6, 1.5), (0.4, 0.2, 3.0)),
         ((0, 11.45, 1.5), (2.6, 0.2, 3.0)),
         ((-1.3, 10.95, 1.5), (0.1, 0.9, 3.0)), ((1.3, 10.95, 1.5), (0.1, 0.9, 3.0)),
-        ((3.1, 11.1, 1.5), (1.0, 0.3, 3.0)),               # the corridor: you don't go in
+        # The corridor (M44): you can step in, as far as the stairs (the
+        # passage, M45); the chalk on its west wall is on the way.
+        ((3.1, 13.6, 1.5), (1.0, 0.3, 3.0)),
+        ((3.1, 12.1, floor / 2), (1.0, 3.2, floor)),       # its floor, level with the tatami
     ])
     return level
 

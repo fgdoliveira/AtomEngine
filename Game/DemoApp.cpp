@@ -372,6 +372,11 @@ namespace AtomGame
         {
             drawn->Submit(renderer, m_player.GetFeetPosition());
         }
+        UpdateFlashlight(deltaSeconds);
+        if (m_flashlight.IsOn() && !m_devSpotOn)
+        {
+            renderer.SubmitSpotLight(m_flashlight.GetLight());
+        }
         if (m_devSpotOn)
         {
             if (m_devSpotFollows)
@@ -410,6 +415,57 @@ namespace AtomGame
         DrawMachineView(); // over everything: the machine fills the window
         UpdateWindowTitle(deltaSeconds);
         DrawDevTools(deltaSeconds);
+    }
+
+    void DemoApp::UpdateFlashlight(float deltaSeconds)
+    {
+        m_flashlight.SetOwned(m_gameState.HasFlag(FlashlightFlag));
+        ApplyGoneEntities();
+        // F works wherever you walk (not in dialogue or at the machine).
+        if (m_mode == Mode::Exploring && m_actions.Pressed(InputAction::ToggleLight) && m_flashlight.Toggle())
+        {
+            Atom::PlayParams click{};
+            click.gain = 0.6f;
+            GetAudio().Play(m_audioScape.GetSound("switch_click"), click);
+        }
+        // Arriving somewhere, the beam is already where you look.
+        m_flashlight.Update(m_camera.GetPosition(), m_camera.GetForward(), m_camera.GetFlatRight(),
+                            deltaSeconds, m_arriving);
+    }
+
+    InteractionSystem::Settings DemoApp::TargetSettings() const
+    {
+        InteractionSystem::Settings settings;
+        const Atom::CollisionWorld* collision = const_cast<DemoApp*>(this)->CurrentCollision();
+        settings.isLit = [this, collision](const glm::vec3& point) { return m_flashlight.Lights(point, collision); };
+        return settings;
+    }
+
+    void DemoApp::ApplyGoneEntities()
+    {
+        GameWorld* world = CurrentWorld();
+        if (!world)
+        {
+            return;
+        }
+        world->ForEach([&](EntityId, Entity& entity) {
+            if (!entity.goneWithFlag.empty() && m_gameState.HasFlag(entity.goneWithFlag))
+            {
+                entity.hidden = true;
+                entity.interactable.reset();
+            }
+        });
+    }
+
+    bool DemoApp::IsLit(const std::string& name) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(name);
+        if (!entity)
+        {
+            return false;
+        }
+        const glm::vec3 focus = entity->position + (entity->interactable ? entity->interactable->focusOffset : glm::vec3{ 0.0f });
+        return m_flashlight.Lights(focus, const_cast<DemoApp*>(this)->CurrentCollision());
     }
 
     void DemoApp::OnShutdown()
@@ -480,7 +536,9 @@ namespace AtomGame
         const float hintAlpha = m_showHud && !m_lab ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
-            const char* hint = "WASD move   Shift jog   Mouse look   E interact   F1 debug";
+            const char* hint = m_flashlight.IsOwned()
+                ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
+                : "WASD move   Shift jog   Mouse look   E interact   F1 debug";
             const glm::vec2 size = ui.MeasureText(*m_font, hint, scale * 0.8f);
             const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y - size.y - 40.0f * scale };
             // A soft shadow keeps light text legible over the pale fog.
@@ -654,7 +712,7 @@ namespace AtomGame
         }
 
         m_target = InteractionSystem::FindTarget(
-            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward(), TargetSettings());
 
         const Entity* target = world->Find(m_target);
         if (target && m_actions.Pressed(InputAction::Interact))
@@ -1021,7 +1079,7 @@ namespace AtomGame
             return {};
         }
         const EntityId id = InteractionSystem::FindTarget(
-            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward(), TargetSettings());
         const Entity* entity = world->Find(id);
         return entity ? entity->name : std::string{};
     }
@@ -1034,7 +1092,7 @@ namespace AtomGame
             return false;
         }
         m_target = InteractionSystem::FindTarget(
-            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward(), TargetSettings());
         const Entity* entity = world->Find(m_target);
         if (!entity)
         {
@@ -1368,6 +1426,15 @@ namespace AtomGame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
         else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
         else if (what == "spot_shadows" && onOff) m_devSpot.castsShadows = on; // M43
+        else if (what == "flashlight" && onOff) // M44: found and switched on (or off)
+        {
+            if (on)
+            {
+                m_gameState.SetFlag(FlashlightFlag);
+                m_flashlight.SetOwned(true);
+            }
+            m_flashlight.SetOn(on);
+        }
         else if (what == "spot_offset" && isNumber && number >= 0.0f && number <= 0.1f) m_devSpot.shadowNormalOffset = number;
         else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
         {

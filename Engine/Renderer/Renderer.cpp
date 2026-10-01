@@ -1289,7 +1289,8 @@ namespace Atom
                     glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f,
                                material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount },
                     glm::vec4{ SpotMath::Shininess(material.roughness),
-                               SpotMath::SpecularStrength(material.roughness, material.specular), 0.0f, 0.0f }
+                               SpotMath::SpecularStrength(material.roughness, material.specular),
+                               material.reveal, 0.0f }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,

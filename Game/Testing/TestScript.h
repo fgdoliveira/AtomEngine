@@ -59,6 +59,8 @@ namespace AtomGame
             return false;
         }
         virtual std::string AnimatorState(const std::string& /*entity*/) const { return {}; }
+        // M44: is the entity's focus point lit by the flashlight?
+        virtual bool IsLit(const std::string& /*entity*/) const { return false; }
         // Hot reload (M20): reloads the current level in place; empty string
         // on success, else the error.
         virtual std::string ReloadLevel() = 0;

@@ -50,6 +50,7 @@ namespace AtomGame
                 { "expect_clip", { 2, 2 } },        // entity clip | none
                 { "set_param", { 3, 3 } },          // entity param value: its animator's
                 { "expect_state", { 2, 2 } },       // entity state: its animator's
+                { "expect_lit", { 1, 2 } },         // entity [no]: in the flashlight's beam (or not)
                 { "reload_level", { 0, 0 } },       // hot reload in place
                 { "goto_level", { 1, 2 } },         // level [spawn]: change as a door would
                 { "expect_near", { 3, 4 } },        // x y z [metres]: the player's feet
@@ -546,6 +547,15 @@ namespace AtomGame
             if (actual != args[1])
             {
                 Fail(command, "'" + args[0] + "' is in " + (actual.empty() ? "no state" : "'" + actual + "'"));
+            }
+            return true;
+        }
+        if (name == "expect_lit")
+        {
+            const bool want = args.size() < 2 || args[1] != "no";
+            if (game.IsLit(args[0]) != want)
+            {
+                Fail(command, "'" + args[0] + (want ? "' is not lit" : "' is lit"));
             }
             return true;
         }

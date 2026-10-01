@@ -209,6 +209,7 @@ namespace AtomGame
             }
             entity.model = String(json, "model", path);
             entity.hidden = Bool(json, "hidden", path, false);
+            entity.goneWithFlag = String(json, "goneWithFlag", path);
 
             if (const auto collider = json.find("collider"); collider != json.end())
             {
@@ -234,6 +235,7 @@ namespace AtomGame
                 interactable.focusOffset = Vec3(*use, "focus", glm::vec3{ 0.0f, 1.2f, 0.0f }, at);
                 interactable.radius = Number(*use, "radius", at, 2.2f);
                 interactable.requiresFlag = String(*use, "requires", at);
+                interactable.requiresLight = Bool(*use, "requiresLight", at, false);
                 if (const auto locked = use->find("locked"); locked != use->end())
                 {
                     interactable.lockedAction = ParseAction(*locked, JsonPath(at, "locked"));

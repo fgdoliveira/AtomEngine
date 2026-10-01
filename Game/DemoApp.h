@@ -8,6 +8,8 @@
 #include "Dialogue/Dialogue.h"
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
+#include "Flashlight.h"
+#include "Interaction/InteractionSystem.h"
 #include "Interaction/MessageFeed.h"
 #include "Level/FileWatcher.h"
 #include "Input/InputContext.h"
@@ -78,6 +80,13 @@ namespace AtomGame
         // A spot light to try the renderer's (M42) before the flashlight
         // exists: from the Spot light panel or "set spot on". Held at the
         // camera like a torch, or left where it is.
+        // The flashlight (M44): owned once "has_flashlight" is set.
+        Flashlight m_flashlight;
+        static constexpr const char* FlashlightFlag = "has_flashlight";
+        void UpdateFlashlight(float deltaSeconds);
+        InteractionSystem::Settings TargetSettings() const;
+        void ApplyGoneEntities(); // goneWithFlag
+
         Atom::SpotLight m_devSpot;
         bool m_devSpotOn = false;
         bool m_devSpotFollows = true;
@@ -132,6 +141,7 @@ namespace AtomGame
         std::string ClipName(const std::string& entity) const override;
         bool SetAnimatorParam(const std::string& entity, const std::string& param, float value) override;
         std::string AnimatorState(const std::string& entity) const override;
+        bool IsLit(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
