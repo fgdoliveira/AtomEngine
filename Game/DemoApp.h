@@ -92,6 +92,8 @@ namespace AtomGame
         } m_perf;
         void InitializePerfLog();
         void RecordFrameTime(float realSeconds);
+        double m_lastRealFrameMs = 0.0;
+        double RealFrameMs() const override { return m_lastRealFrameMs; }
 
         std::array<float, 240> m_frameHistory{}; // ms, a ring
         std::size_t m_frameHistoryNext = 0;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Testing/PairedBench.h"
 #include <glm/vec3.hpp>
 
 #include <cstddef>
@@ -59,6 +60,8 @@ namespace AtomGame
             return false;
         }
         virtual std::string AnimatorState(const std::string& /*entity*/) const { return {}; }
+        // M46: the last frame's real duration (ms), for "bench".
+        virtual double RealFrameMs() const { return 0.0; }
         // M44: is the entity's focus point lit by the flashlight?
         virtual bool IsLit(const std::string& /*entity*/) const { return false; }
         // Hot reload (M20): reloads the current level in place; empty string
@@ -141,5 +144,7 @@ namespace AtomGame
         int m_captured = 0;            // capture: images written so far
         bool m_requested = false;      // screenshot/capture: a request is in flight
         std::string m_capturePath;     // screenshot: where it goes
+        std::optional<PairedBench> m_bench;   // bench: running
+        std::optional<double> m_benchDelta;   // bench: the last result (B - A, ms)
     };
 }

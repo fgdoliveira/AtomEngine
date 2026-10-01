@@ -515,6 +515,7 @@ namespace AtomGame
 
     void DemoApp::RecordFrameTime(float realSeconds)
     {
+        m_lastRealFrameMs = static_cast<double>(realSeconds) * 1000.0;
         if (!m_perf.enabled)
         {
             return;

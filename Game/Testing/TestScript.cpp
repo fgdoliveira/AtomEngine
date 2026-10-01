@@ -62,6 +62,8 @@ namespace AtomGame
                 { "press_action", { 1, 1 } },       // action: one frame
                 { "expect_counter", { 3, 3 } },     // name op value (op: == >= <= > <)
                 { "set_counter", { 2, 2 } },        // name value
+                { "bench", { 5, 6 } },              // setting a b rounds seconds [settle]: A/B in-process
+                { "expect_bench_under", { 1, 1 } }, // ms: the last bench's median B - A is below it
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -556,6 +558,62 @@ namespace AtomGame
             if (game.IsLit(args[0]) != want)
             {
                 Fail(command, "'" + args[0] + (want ? "' is not lit" : "' is lit"));
+            }
+            return true;
+        }
+        if (name == "bench")
+        {
+            // In-process A/B (M46): AB BA AB... close together in time, so
+            // the machine's drift lands on both sides; each round's paired
+            // difference is the sample.
+            if (!m_bench)
+            {
+                m_bench.emplace(static_cast<int>(number(3, 8.0f)), number(4, 2.0f), number(5, 0.5f));
+            }
+            const PairedBench::Action action = m_bench->Advance(game.RealFrameMs());
+            if (action == PairedBench::Action::SetA || action == PairedBench::Action::SetB)
+            {
+                const std::string& value = action == PairedBench::Action::SetA ? args[1] : args[2];
+                if (!game.Set(args[0], value))
+                {
+                    Fail(command, "cannot set '" + args[0] + "' to '" + value + "'");
+                    m_bench.reset();
+                    return true;
+                }
+                return false;
+            }
+            if (action != PairedBench::Action::Done)
+            {
+                return false;
+            }
+            char line[160];
+            int index = 1;
+            for (const PairedBench::Round& round : m_bench->GetRounds())
+            {
+                std::snprintf(line, sizeof(line), "bench %s %s/%s round %d: %s %.3f  %s %.3f  delta %+.3f",
+                    args[0].c_str(), args[1].c_str(), args[2].c_str(), index++,
+                    round.aFirst ? "A" : "B", round.aFirst ? round.a : round.b,
+                    round.aFirst ? "B" : "A", round.aFirst ? round.b : round.a, round.Delta());
+                game.Log(line);
+            }
+            std::snprintf(line, sizeof(line), "bench %s %s/%s: median paired delta (B - A) %+.3f ms (%zu rounds, range %+.3f..%+.3f)",
+                args[0].c_str(), args[1].c_str(), args[2].c_str(), m_bench->MedianDelta(),
+                m_bench->GetRounds().size(), m_bench->MinDelta(), m_bench->MaxDelta());
+            game.Log(line);
+            m_benchDelta = m_bench->MedianDelta();
+            m_bench.reset();
+            return true;
+        }
+        if (name == "expect_bench_under")
+        {
+            // Local use on known hardware only: timing is never a ctest gate.
+            if (!m_benchDelta)
+            {
+                Fail(command, "no bench has run");
+            }
+            else if (*m_benchDelta >= number(0, 0.0f))
+            {
+                Fail(command, "the cost was " + std::to_string(*m_benchDelta) + " ms");
             }
             return true;
         }
