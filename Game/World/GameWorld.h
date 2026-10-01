@@ -41,6 +41,7 @@ namespace AtomGame
         // Optional gate: without this flag, `lockedAction` runs instead.
         std::string requiresFlag;
         std::optional<Action> lockedAction;
+        std::string lockedPrompt; // M45: shown instead while locked (empty: the same prompt)
 
         // M44: only usable while the flashlight lights its focus point -
         // something you find by looking with the beam.

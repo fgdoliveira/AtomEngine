@@ -9,6 +9,7 @@ import math
 
 import atom_kit as kit
 import atom_lab
+import atom_passage
 import atom_pachinko
 from atom_street import Street
 
@@ -269,18 +270,19 @@ LEVELS = [
     ("pachinko", atom_pachinko.build_pachinko_hall),
     ("first", build_first_render),
     ("lab", atom_lab.build_character_lab),
+    ("passage", atom_passage.build_passage),
 ]
 
 # The level file each Blender level belongs to (markers are written next to it).
 LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
                "pachinko": "pachinko_hall", "first": "first_render",
-               "lab": "character_lab"}
+               "lab": "character_lab", "passage": "passage"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.
 # "none": no vertex bake - the documentation scene shows the unbaked,
 # v0.0.1 look (and a bare plane would bake to plain white anyway).
-BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none"}
+BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none", "passage": "ao"}
 
 # Levels that also get a lightmap (atom_lightmap), with the bake-only lights
 # that make it: (location, rotation in degrees, (width, height), watts, rgb).
@@ -295,8 +297,10 @@ LIGHTMAPS = {
         ((0.0, 0.05, 1.0), (90, 0, 0), (1.4, 2.0), 25.0, (0.85, 0.9, 1.0)),
     ],
     "pachinko": atom_pachinko.LIGHTS,
+    "passage": atom_passage.LIGHTS,
 }
 
 # Lightmap settings other than the defaults (M27): the hall is dense and
 # full of small bright emitters (clamped, so they don't leave speckles).
-LIGHTMAP_OPTIONS = {"pachinko": {"size": 1024, "samples": 192, "clamp": 2.0}}
+LIGHTMAP_OPTIONS = {"pachinko": {"size": 1024, "samples": 192, "clamp": 2.0},
+                    "passage": {"size": 1024, "samples": 192, "clamp": 2.0}}

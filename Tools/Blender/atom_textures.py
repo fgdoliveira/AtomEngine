@@ -1032,6 +1032,19 @@ def lab_checker(size=256, squares=8):
     return _rgba(rgb)
 
 
+def exit_sign(width=64, height=32):
+    """An old green emergency-exit lamp: a white running figure on green,
+    glowing through grime (M45)."""
+    ys, xs = np.mgrid[0:height, 0:width] / np.array([height - 1.0, width - 1.0])[:, None, None]
+    green = np.array([0.08, 0.55, 0.22])
+    figure = ((np.abs(xs - 0.3) < 0.06) & (ys > 0.25) & (ys < 0.7)) \
+        | (np.hypot(xs - 0.3, ys - 0.18) < 0.07) \
+        | ((np.abs(xs - 0.38 - (ys - 0.45) * 0.4) < 0.04) & (ys > 0.45) & (ys < 0.85)) \
+        | ((np.abs(xs - 0.72) < 0.14) & (np.abs(ys - 0.5) < 0.3) & ~((np.abs(xs - 0.72) < 0.1) & (np.abs(ys - 0.5) < 0.24)))
+    rgb = np.where(figure[:, :, None], np.array([0.9, 0.95, 0.9]), green)
+    return _rgba(rgb)
+
+
 def reveal_marks(width=128, height=192, seed=99):
     """Chalk on the corridor wall (M44), seen only in the flashlight's beam:
     a child's arrow pointing down and a few tally strokes, smudged."""

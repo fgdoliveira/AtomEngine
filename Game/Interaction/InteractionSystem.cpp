@@ -77,6 +77,15 @@ namespace AtomGame
         return best;
     }
 
+    const std::string& InteractionSystem::ResolvePrompt(
+        const Interactable& interactable,
+        const GameState& state
+    )
+    {
+        const bool locked = !interactable.requiresFlag.empty() && !state.HasFlag(interactable.requiresFlag);
+        return locked && !interactable.lockedPrompt.empty() ? interactable.lockedPrompt : interactable.prompt;
+    }
+
     const Action& InteractionSystem::ResolveAction(
         const Interactable& interactable,
         const GameState& state

@@ -23,6 +23,12 @@ namespace AtomGame
         constexpr float FlakeCeiling = 9.0f;
 
         constexpr int BankCount = 36;
+
+        // Dust (M45): a small box of motes around the player, wrapping like
+        // the leaves; only the beam shows them, so they needn't reach far.
+        constexpr int MoteCount = 280;
+        constexpr float MoteHalfExtent = 4.0f;
+        constexpr float MoteHeight = 2.6f;
         constexpr float BankRadius = 32.0f;
 
         float Hash(int x, int y)
@@ -163,6 +169,16 @@ namespace AtomGame
             {
                 RespawnBank(bank, center, true);
             }
+            m_motes.resize(MoteCount);
+            for (Mote& mote : m_motes)
+            {
+                mote.position = center + glm::vec3{
+                    (unit(m_random) * 2 - 1) * MoteHalfExtent,
+                    unit(m_random) * MoteHeight,
+                    (unit(m_random) * 2 - 1) * MoteHalfExtent };
+                mote.size = 0.02f + 0.025f * unit(m_random);
+                mote.phase = glm::two_pi<float>() * unit(m_random);
+            }
             m_seeded = true;
         }
 
@@ -214,6 +230,37 @@ namespace AtomGame
             particle.color = glm::vec4{ color, 0.9f };
             particle.rotation = flake.rotation;
             particle.atlasCell = LeafCell;
+            m_particles.push_back(particle);
+        }
+
+        for (Mote& mote : m_motes)
+        {
+            if (!m_dust)
+            {
+                break;
+            }
+            // Still air: each mote wanders on slow sines of its own and
+            // settles a little, then wraps round the box like the leaves.
+            const float t = m_time * 0.25f + mote.phase;
+            mote.position += glm::vec3{ std::sin(t * 1.3f) * 0.05f, std::sin(t * 0.7f) * 0.03f - 0.01f,
+                                        std::cos(t * 1.1f) * 0.05f } * deltaSeconds;
+            glm::vec3 offset = mote.position - center;
+            for (int axis : { 0, 2 })
+            {
+                if (offset[axis] > MoteHalfExtent) { offset[axis] -= 2 * MoteHalfExtent; }
+                if (offset[axis] < -MoteHalfExtent) { offset[axis] += 2 * MoteHalfExtent; }
+            }
+            if (offset.y < 0.0f) { offset.y += MoteHeight; }
+            if (offset.y > MoteHeight) { offset.y -= MoteHeight; }
+            mote.position = center + offset;
+
+            Atom::Particle particle{};
+            particle.position = mote.position;
+            particle.size = mote.size;
+            particle.color = glm::vec4{ 0.9f, 0.86f, 0.78f, 0.6f };
+            particle.rotation = mote.phase;
+            particle.atlasCell = FogCell; // a soft round puff, tiny
+            particle.beamLit = 1.0f;      // seen only in the flashlight's beam
             m_particles.push_back(particle);
         }
 

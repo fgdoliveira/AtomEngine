@@ -259,7 +259,9 @@
       "additionalProperties": false,
       "properties": {
         "leaves": { "type": "boolean" },
-        "fogBanks": { "type": "boolean" }
+        "fogBanks": { "type": "boolean" },
+        "dust": { "type": "boolean", "description": "Motes in still air, seen only in the flashlight's beam (M45)." },
+        "beam": { "type": "number", "minimum": 0, "description": "How much the flashlight's beam shows in the air here (M45); ~0.1 a dusty cellar." }
       }
     },
     "lab": {
@@ -338,6 +340,7 @@
             "focus": { "$ref": "#/definitions/vec3" },
             "radius": { "type": "number" },
             "requires": { "type": "string", "description": "Flag needed; otherwise \"locked\" runs." },
+            "lockedPrompt": { "type": "string", "description": "Prompt while \"requires\" isn't met (M45); default: the same prompt." },
             "requiresLight": { "type": "boolean", "description": "Only found while the flashlight lights its focus point (M44)." },
             "action": { "$ref": "#/definitions/action" },
             "locked": { "$ref": "#/definitions/action" }

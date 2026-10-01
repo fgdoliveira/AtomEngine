@@ -216,10 +216,14 @@ namespace AtomGame
         collapse();
         if (ImGui::Begin("Spot light"))
         {
-            ImGui::Checkbox("On", &m_devSpotOn);
+            // The flashlight once found (M45); before that, or with the test
+            // spot switched on, the test spot.
+            const bool flashlight = m_flashlight.IsOwned() && !m_devSpotOn;
+            ImGui::TextDisabled(flashlight ? "Editing: the flashlight (F)" : "Editing: the test spot");
+            ImGui::Checkbox("Test spot", &m_devSpotOn);
             ImGui::SameLine();
             ImGui::Checkbox("Follow the camera", &m_devSpotFollows);
-            Atom::SpotLight& spot = m_devSpot;
+            Atom::SpotLight& spot = flashlight ? m_flashlight.EditLight() : m_devSpot;
             ImGui::SliderFloat("Range (m)", &spot.range, 1.0f, 40.0f);
             ImGui::SliderFloat("Inner angle", &spot.innerAngleDegrees, 1.0f, 60.0f, "%.1f deg");
             ImGui::SliderFloat("Outer angle", &spot.outerAngleDegrees, 1.0f, 75.0f, "%.1f deg");
@@ -227,13 +231,14 @@ namespace AtomGame
             ImGui::SliderFloat("Intensity", &spot.intensity, 0.0f, 40.0f);
             EditColor("Colour", spot.color);
             ImGui::SliderFloat("Specular", &spot.specular, 0.0f, 4.0f);
+            ImGui::SliderFloat("Beam in the air", &spot.beam, 0.0f, 0.5f); // M45
             // Shadow bias (M43): too little and surfaces shadow themselves in
             // stripes (acne); too much and shadows float off their casters
             // (peter-panning). Per metre from the lamp.
             ImGui::Checkbox("Casts shadows", &spot.castsShadows);
             ImGui::SliderFloat("Normal offset /m", &spot.shadowNormalOffset, 0.0f, 0.03f, "%.4f");
             ImGui::Text("Spot shadow draws %u", stats.spotShadowDrawn);
-            if (!m_devSpotFollows)
+            if (!flashlight && !m_devSpotFollows)
             {
                 ImGui::DragFloat3("Position", &spot.position.x, 0.05f);
                 ImGui::DragFloat3("Direction", &spot.direction.x, 0.01f, -1.0f, 1.0f);

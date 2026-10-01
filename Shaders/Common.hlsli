@@ -24,6 +24,20 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_spotShadow;           // x: on, y: texel size (uv), z: normal offset per metre
 };
 
+// How much of the spot light (M42) reaches a point, before the surface's
+// angle: the cone times the windowed inverse-square falloff, 0 when off.
+// Used by what the spot lights without a surface: dust, the beam (M45).
+float SpotReach(float3 worldPosition)
+{
+    const float3 fromLamp = worldPosition - u_spotPosition.xyz;
+    const float distance = length(fromLamp);
+    const float cone = smoothstep(u_spotCone.x, u_spotCone.y,
+                                  dot(fromLamp / max(distance, 1e-4), u_spotDirection.xyz));
+    const float ratio = distance / u_spotPosition.w;
+    const float window = saturate(1.0 - ratio * ratio * ratio * ratio);
+    return cone * window * window / (distance * distance + 1.0) * u_spotDirection.w;
+}
+
 // Exponential height fog, integrated along the view ray: density falls off
 // exponentially with height, so looking up clears faster than looking along
 // the ground. Returns the fraction of fog colour to apply.

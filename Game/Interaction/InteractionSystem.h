@@ -54,6 +54,13 @@ namespace AtomGame
             return FindTarget(world, collision, eye, forward, Settings{});
         }
 
+        // The prompt to show for it given the flags (M45: a door that
+        // becomes a way down says so).
+        static const std::string& ResolvePrompt(
+            const Interactable& interactable,
+            const GameState& state
+        );
+
         // The action to perform for this interactable given the flags.
         static const Action& ResolveAction(
             const Interactable& interactable,

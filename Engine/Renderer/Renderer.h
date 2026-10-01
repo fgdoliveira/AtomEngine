@@ -246,6 +246,12 @@ namespace Atom
         bool CreatePostPipeline();
         bool CreateShadowResources();
         bool CreateParticleResources();
+        // The flashlight's fake beam (M45): three planes crossing along the
+        // spot's axis, added onto the scene where the spot reaches.
+        bool CreateBeamResources();
+        SDL_GPUGraphicsPipeline* GetBeamPipeline(std::uint32_t samples);
+        void DrawBeam(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
+                      const glm::mat4& viewProjection);
         SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples, bool additive = false);
         // Sorts back to front and copies this frame's particles to the GPU.
         bool UploadParticles(SDL_GPUCommandBuffer* commandBuffer);
@@ -336,6 +342,8 @@ namespace Atom
 
         std::array<SDL_GPUGraphicsPipeline*, 3> m_particlePipelines{};
         std::array<SDL_GPUGraphicsPipeline*, 3> m_haloPipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_beamPipelines{};
+        std::unique_ptr<Mesh> m_beamMesh;
         std::array<SDL_GPUGraphicsPipeline*, 3> m_skyPipelines{};
         SDL_GPUGraphicsPipeline* GetSkyPipeline(std::uint32_t samples);
         bool RenderTextures(SDL_GPUCommandBuffer* commandBuffer);

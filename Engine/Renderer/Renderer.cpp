@@ -410,6 +410,7 @@ namespace Atom
             && CreatePostPipeline()
             && CreateShadowResources()
             && CreateParticleResources()
+            && CreateBeamResources()
             && m_glow.Initialize(m_device, m_targets.GetColorFormat())
             && m_ui.Initialize(
                 m_device, SDL_GetGPUSwapchainTextureFormat(m_device, m_window))
@@ -1522,7 +1523,6 @@ namespace Atom
             std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount),
             m_spotActive ? &m_spot : nullptr, spotViewProjection);
         m_liveLightCount = 0;
-        m_spotActive = false;
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
             1,
@@ -1552,6 +1552,8 @@ namespace Atom
             renderPass, commandBuffer, projection * m_camera.view, m_targets.GetSamples());
 
         DrawParticles(renderPass, commandBuffer, projection * m_camera.view);
+        DrawBeam(renderPass, commandBuffer, projection * m_camera.view);
+        m_spotActive = false; // submitted per frame
 
         SDL_EndGPURenderPass(renderPass);
         return true;
@@ -1993,6 +1995,151 @@ namespace Atom
         return true;
     }
 
+    bool Renderer::CreateBeamResources()
+    {
+        // Three triangles, each in a plane containing the axis (local +Z),
+        // turned 60 degrees apart: apex at the lamp, the far edge at z = 1,
+        // half as wide as it is long (scaled to the cone each frame).
+        std::vector<Vertex> vertices;
+        std::vector<std::uint32_t> indices;
+        for (int i = 0; i < 3; ++i)
+        {
+            const float angle = glm::radians(60.0f * static_cast<float>(i));
+            const glm::vec3 across{ std::cos(angle), std::sin(angle), 0.0f };
+            const glm::vec3 normal{ -std::sin(angle), std::cos(angle), 0.0f };
+            const auto base = static_cast<std::uint32_t>(vertices.size());
+            for (const glm::vec3& position : { glm::vec3{ 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f } - across,
+                                               glm::vec3{ 0.0f, 0.0f, 1.0f } + across })
+            {
+                Vertex vertex{};
+                vertex.position = position;
+                vertex.normal = normal;
+                vertices.push_back(vertex);
+            }
+            indices.insert(indices.end(), { base, base + 1, base + 2 });
+        }
+        m_beamMesh = Mesh::Create(m_device, vertices, indices);
+        return m_beamMesh != nullptr;
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetBeamPipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = SampleSlot(samples);
+        if (m_beamPipelines[slot])
+        {
+            return m_beamPipelines[slot];
+        }
+        SDL_GPUShader* vertexShader = LoadShader(
+            m_device, "Beam.vert", SDL_GPU_SHADERSTAGE_VERTEX, ShaderResources{ .uniformBuffers = 1 });
+        // Slot 1 carries SceneUniforms: the spot itself, the camera, fog.
+        SDL_GPUShader* fragmentShader = LoadShader(
+            m_device, "Beam.frag", SDL_GPU_SHADERSTAGE_FRAGMENT, ShaderResources{ .uniformBuffers = 2 });
+        if (!vertexShader || !fragmentShader)
+        {
+            if (vertexShader)
+            {
+                SDL_ReleaseGPUShader(m_device, vertexShader);
+            }
+            if (fragmentShader)
+            {
+                SDL_ReleaseGPUShader(m_device, fragmentShader);
+            }
+            return nullptr;
+        }
+
+        SDL_GPUVertexBufferDescription vertexBuffer{};
+        vertexBuffer.slot = 0;
+        vertexBuffer.pitch = sizeof(Vertex);
+        vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+        SDL_GPUVertexAttribute attributes[2]{};
+        attributes[0].location = 0;
+        attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        attributes[0].offset = offsetof(Vertex, position);
+        attributes[1].location = 1;
+        attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        attributes[1].offset = offsetof(Vertex, normal);
+
+        // Light adds: colour + what's there.
+        SDL_GPUColorTargetDescription colorTarget{};
+        colorTarget.format = m_targets.GetColorFormat();
+        colorTarget.blend_state.enable_blend = true;
+        colorTarget.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+        colorTarget.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+        colorTarget.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+        colorTarget.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ZERO;
+        colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+        colorTarget.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+
+        SDL_GPUGraphicsPipelineCreateInfo createInfo{};
+        createInfo.vertex_shader = vertexShader;
+        createInfo.fragment_shader = fragmentShader;
+        createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
+        createInfo.vertex_input_state.num_vertex_buffers = 1;
+        createInfo.vertex_input_state.vertex_attributes = attributes;
+        createInfo.vertex_input_state.num_vertex_attributes = 2;
+        createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+        createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE; // seen from either side
+        createInfo.rasterizer_state.enable_depth_clip = true;
+        createInfo.multisample_state.sample_count = SampleCountFor(slot);
+        // Behind a wall it's hidden; it never hides anything itself.
+        createInfo.depth_stencil_state.enable_depth_test = true;
+        createInfo.depth_stencil_state.enable_depth_write = false;
+        createInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        createInfo.target_info.color_target_descriptions = &colorTarget;
+        createInfo.target_info.num_color_targets = 1;
+        createInfo.target_info.depth_stencil_format = RenderTargets::GetDepthFormat();
+        createInfo.target_info.has_depth_stencil_target = true;
+
+        m_beamPipelines[slot] = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+        SDL_ReleaseGPUShader(m_device, vertexShader);
+        SDL_ReleaseGPUShader(m_device, fragmentShader);
+        if (!m_beamPipelines[slot])
+        {
+            std::cerr << "Failed to create beam pipeline: " << SDL_GetError() << '\n';
+        }
+        return m_beamPipelines[slot];
+    }
+
+    void Renderer::DrawBeam(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
+                            const glm::mat4& viewProjection)
+    {
+        if (!m_spotActive || m_spot.beam <= 0.0f || !m_beamMesh)
+        {
+            return;
+        }
+        SDL_GPUGraphicsPipeline* pipeline = GetBeamPipeline(m_targets.GetSamples());
+        if (!pipeline)
+        {
+            return;
+        }
+
+        // The planes reach most of the way to the range (the falloff has
+        // nearly ended there) and open to the outer cone.
+        const glm::vec3 forward = glm::normalize(m_spot.direction);
+        const glm::vec3 up = std::abs(forward.y) > 0.99f ? glm::vec3{ 1.0f, 0.0f, 0.0f } : glm::vec3{ 0.0f, 1.0f, 0.0f };
+        const glm::vec3 right = glm::normalize(glm::cross(up, forward));
+        const glm::vec3 realUp = glm::cross(forward, right);
+        const float length = m_spot.range * 0.75f;
+        const float halfWidth = length * std::tan(glm::radians(m_spot.outerAngleDegrees));
+        glm::mat4 model{ 1.0f };
+        model[0] = glm::vec4{ right * halfWidth, 0.0f };
+        model[1] = glm::vec4{ realUp * halfWidth, 0.0f };
+        model[2] = glm::vec4{ forward * length, 0.0f };
+        model[3] = glm::vec4{ m_spot.position, 1.0f };
+
+        const ObjectUniforms object{ viewProjection, model };
+        const glm::vec4 beam{ m_spot.beam, 1.2f, 0.0f, 0.0f }; // fades in over the first 1.2 m
+        SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &object, sizeof(object));
+        SDL_PushGPUFragmentUniformData(commandBuffer, 0, &beam, sizeof(beam));
+        const SDL_GPUBufferBinding vertices{ m_beamMesh->GetVertexBuffer(), 0 };
+        const SDL_GPUBufferBinding indices{ m_beamMesh->GetIndexBuffer(), 0 };
+        SDL_BindGPUVertexBuffers(renderPass, 0, &vertices, 1);
+        SDL_BindGPUIndexBuffer(renderPass, &indices, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+        SDL_DrawGPUIndexedPrimitives(renderPass, m_beamMesh->GetIndexCount(), 1, 0, 0, 0);
+    }
+
     void Renderer::DrawParticles(
         SDL_GPURenderPass* renderPass,
         SDL_GPUCommandBuffer* commandBuffer,
@@ -2119,11 +2266,12 @@ namespace Atom
     {
         m_drawCommands.clear();
 
+        m_beamMesh.reset(); // before the device it lives on
         if (m_device)
         {
             m_ui.Shutdown();
             m_glow.Release();
-            for (auto* pipelines : { &m_haloPipelines, &m_skyPipelines })
+            for (auto* pipelines : { &m_haloPipelines, &m_skyPipelines, &m_beamPipelines })
             {
                 for (SDL_GPUGraphicsPipeline*& pipeline : *pipelines)
                 {
@@ -2217,6 +2365,7 @@ namespace Atom
         m_postPipeline = nullptr;
         m_shadowPipelines = {};
         m_particlePipelines = {};
+        m_beamPipelines = {};
         m_particleBuffer = nullptr;
         m_particleTransfer = nullptr;
         m_particles.clear();

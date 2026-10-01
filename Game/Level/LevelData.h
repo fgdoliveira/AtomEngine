@@ -266,6 +266,8 @@ namespace AtomGame
         bool outdoor = true; // distant cicada calls, sky
         bool leaves = true;
         bool fogBanks = true;
+        bool dust = false;        // M45: motes only the flashlight shows
+        float beam = 0.0f;        // M45: the flashlight's beam seen in the air here
         LevelUnease unease;
         std::optional<LevelLab> lab; // M36: opens in the model viewer
         std::vector<EntityData> entities;

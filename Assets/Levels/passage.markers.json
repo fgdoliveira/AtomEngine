@@ -1,0 +1,63 @@
+{
+  "_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit",
+  "entities": {
+    "bolt": {
+      "position": [
+        5.5,
+        -0.1,
+        -25.1
+      ],
+      "yaw": 0.0
+    },
+    "candle": {
+      "position": [
+        2.8,
+        -1.4,
+        -7.4
+      ],
+      "yaw": 0.0
+    },
+    "fork_marks": {
+      "position": [
+        1.5,
+        -2.4,
+        -18.38
+      ],
+      "yaw": 0.0
+    },
+    "ladder": {
+      "position": [
+        5.5,
+        -2.4,
+        -25.95
+      ],
+      "yaw": 0.0
+    },
+    "stairs_up": {
+      "position": [
+        0.0,
+        0.0,
+        0.2
+      ],
+      "yaw": 0.0
+    }
+  },
+  "spawns": {
+    "from_house": {
+      "position": [
+        0.0,
+        0.0,
+        -0.2
+      ],
+      "yaw": 0.0
+    },
+    "from_shed": {
+      "position": [
+        5.5,
+        -2.4,
+        -25.0
+      ],
+      "yaw": 180.0
+    }
+  }
+}

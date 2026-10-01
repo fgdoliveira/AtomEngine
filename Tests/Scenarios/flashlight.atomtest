@@ -28,10 +28,11 @@ expect_target none
 press_action toggle_light
 wait 0.3
 
-teleport_to dark_corridor 1.4
-face dark_corridor
-interact dark_corridor
-expect_message stairs
 teleport_to flashlight 1.3
 face flashlight
 expect_target none                   # taken
+
+teleport 3.1 0.3 -12.2 0             # with the light, the corridor goes on (M45)
+face dark_corridor
+interact dark_corridor
+wait_for_level passage

@@ -110,6 +110,7 @@ MATERIALS = {
     "cube_gold": (lambda: tex.flat((0.80, 0.62, 0.18)), 1.0, 0.6, 0.0),
     # The passage (M44): chalk only the flashlight shows; the flashlight's body.
     "reveal_marks": (lambda: tex.reveal_marks(), 1.0, 0.95, 0.0),
+    "exit_sign": (lambda: tex.exit_sign(), 1.0, 0.5, 1.6),
     "flashlight_body": (lambda: tex.flat((0.10, 0.11, 0.12), size=16, seed=101, variation=0.05), 1.0, 0.35, 0.0),
     # Character lab (M36): studio floor, cyclorama, turntable.
     "lab_floor": (lambda: tex.lab_floor(), 1.0, 0.7, 0.0),

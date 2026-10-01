@@ -168,7 +168,8 @@ namespace AtomGame
     void DemoApp::ConfigureForLevel(Level& incoming)
     {
         const LevelData& data = incoming.GetData();
-        m_atmosphere.Configure(data.leaves, data.fogBanks);
+        m_atmosphere.Configure(data.leaves, data.fogBanks, data.dust);
+        m_flashlight.EditLight().beam = data.beam; // the air decides if the beam shows
         m_unease.Configure(data.unease, &incoming);
         m_audioScape.SetOutdoor(data.outdoor);
         m_audioScape.SetSurfaceProvider([&incoming](float x, float z) {
@@ -798,7 +799,7 @@ namespace AtomGame
 
         Atom::UIRenderer& ui = GetRenderer().GetUI();
         const glm::vec2 screen = ui.GetScreenSize();
-        const std::string prompt = "[E]  " + target->interactable->prompt;
+        const std::string prompt = "[E]  " + InteractionSystem::ResolvePrompt(*target->interactable, m_gameState);
         const float textScale = scale * 0.9f;
         const glm::vec2 size = ui.MeasureText(*m_font, prompt, textScale);
         const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y * 0.62f };

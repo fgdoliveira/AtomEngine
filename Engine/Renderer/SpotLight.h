@@ -33,6 +33,9 @@ namespace Atom
         // shadow acne. Per metre from the lamp: a shadow-map texel covers
         // more of the world the further away it is (perspective).
         float shadowNormalOffset = 0.004f;
+
+        // A visible beam in the air (M45): 0 = none; ~0.1 a dusty cellar.
+        float beam = 0.0f;
     };
 
     // The same maths as Shaders/Basic.frag.hlsl (SpotLighting), on the CPU,

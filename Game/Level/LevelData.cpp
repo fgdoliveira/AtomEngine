@@ -236,6 +236,7 @@ namespace AtomGame
                 interactable.radius = Number(*use, "radius", at, 2.2f);
                 interactable.requiresFlag = String(*use, "requires", at);
                 interactable.requiresLight = Bool(*use, "requiresLight", at, false);
+                interactable.lockedPrompt = String(*use, "lockedPrompt", at);
                 if (const auto locked = use->find("locked"); locked != use->end())
                 {
                     interactable.lockedAction = ParseAction(*locked, JsonPath(at, "locked"));
@@ -639,6 +640,8 @@ namespace AtomGame
             {
                 level.leaves = Bool(*particles, "leaves", "/particles", true);
                 level.fogBanks = Bool(*particles, "fogBanks", "/particles", true);
+                level.dust = Bool(*particles, "dust", "/particles", false);
+                level.beam = Number(*particles, "beam", "/particles", 0.0f);
             }
 
             if (const auto unease = root.find("unease"); unease != root.end())

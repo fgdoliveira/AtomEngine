@@ -36,10 +36,13 @@ namespace AtomGame
         void Submit(Atom::Renderer& renderer) const;
 
         // Per level: which effects belong there (none indoors).
-        void Configure(bool leaves, bool fogBanks)
+        // Dust (M45): motes hanging in still air, invisible until the
+        // flashlight's beam catches them.
+        void Configure(bool leaves, bool fogBanks, bool dust = false)
         {
             m_leaves = leaves;
             m_fogBanks = fogBanks;
+            m_dust = dust;
         }
 
         // Current wind including gusts (m/s), for vertex sway.
@@ -69,11 +72,19 @@ namespace AtomGame
             float opacity;
         };
 
+        struct Mote
+        {
+            glm::vec3 position;
+            float size;
+            float phase;
+        };
+
         void RespawnBank(Bank& bank, const glm::vec3& center, bool anywhere);
 
         std::unique_ptr<Atom::Texture> m_atlas;
         std::vector<Flake> m_flakes;
         std::vector<Bank> m_banks;
+        std::vector<Mote> m_motes;
         std::vector<Atom::Particle> m_particles;
 
         glm::vec3 m_wind{ 0.45f, 0.0f, 0.15f };
@@ -82,6 +93,7 @@ namespace AtomGame
         bool m_enabled = true;
         bool m_leaves = true;
         bool m_fogBanks = true;
+        bool m_dust = false;
         bool m_seeded = false;
         std::mt19937 m_random{ 777 };
     };

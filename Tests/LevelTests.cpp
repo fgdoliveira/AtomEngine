@@ -162,6 +162,22 @@ TEST_CASE("A lab names its subject, and entities may be scaled")
     CHECK_FALSE(badScale.level.has_value());
 }
 
+TEST_CASE("Dust and the flashlight's beam are per level")
+{
+    const auto dusty = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "particles": { "leaves": false, "fogBanks": false, "dust": true, "beam": 0.06 } })");
+    REQUIRE(dusty.level.has_value());
+    CHECK(dusty.level->dust);
+    CHECK(dusty.level->beam == doctest::Approx(0.06f));
+
+    const auto plain = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } } })");
+    REQUIRE(plain.level.has_value());
+    CHECK_FALSE(plain.level->dust);
+    CHECK(plain.level->beam == 0.0f);
+}
+
 TEST_CASE("Every shipped level file is valid")
 {
     const std::filesystem::path folder = ATOM_SOURCE_DIR "/Assets/Levels";
