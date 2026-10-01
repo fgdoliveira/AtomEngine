@@ -76,6 +76,7 @@ namespace AtomGame
         void DrawDevTools(float deltaSeconds);
         std::array<float, 240> m_frameHistory{}; // ms, a ring
         std::size_t m_frameHistoryNext = 0;
+        std::optional<bool> m_devToolsCollapse; // harness: collapse/expand all panels once
 
         // A spot light to try the renderer's (M42) before the flashlight
         // exists: from the Spot light panel or "set spot on". Held at the

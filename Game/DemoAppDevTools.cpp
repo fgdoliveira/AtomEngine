@@ -43,6 +43,12 @@ namespace AtomGame
         {
             return;
         }
+        // ImGui's two closing rules, which differ (mixing them up is the
+        // classic ImGui crash, "Missing End()"):
+        //   Begin()      -> End() ALWAYS, even when Begin() returned false
+        //                   (the window is collapsed or clipped: skip only
+        //                   the contents);
+        //   BeginTable() -> EndTable() ONLY when BeginTable() returned true.
         const float scale = 1.0f;
         // Laid out around the window's edges, clear of the game's HUD in
         // the top-left corner: stats and level on the left, render and
@@ -50,10 +56,19 @@ namespace AtomGame
         const float width = ImGui::GetIO().DisplaySize.x;
         Atom::Renderer& renderer = GetRenderer();
         const Atom::FrameStats& stats = renderer.GetLastFrameStats();
+        // The harness can collapse or expand every panel for a frame
+        // ("set devtools_collapsed"), to run the collapsed path in tests.
+        const auto collapse = [&] {
+            if (m_devToolsCollapse)
+            {
+                ImGui::SetNextWindowCollapsed(*m_devToolsCollapse, ImGuiCond_Always);
+            }
+        };
 
         // Frame: time and what was drawn.
         ImGui::SetNextWindowPos({ 16.0f, 130.0f }, ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize({ 340.0f * scale, 260.0f * scale }, ImGuiCond_FirstUseEver);
+        collapse();
         if (ImGui::Begin("Frame"))
         {
             float average = 0.0f;
@@ -98,6 +113,7 @@ namespace AtomGame
 
         // Render: the same switches as the harness's "set".
         ImGui::SetNextWindowPos({ width - 330.0f, 16.0f }, ImGuiCond_FirstUseEver);
+        collapse();
         if (ImGui::Begin("Render"))
         {
             const Atom::RenderSettings& settings = renderer.GetSettings();
@@ -149,50 +165,55 @@ namespace AtomGame
         // Lighting: the level's own values, live. "Copy as JSON" gives the
         // block to paste into the level file; nothing is saved by itself.
         Level* level = m_levels ? m_levels->GetLevel() : nullptr;
-        ImGui::SetNextWindowPos({ width - 420.0f, 330.0f }, ImGuiCond_FirstUseEver);
-        if (level && ImGui::Begin("Lighting"))
+        if (level)
         {
-            LevelLighting& l = level->EditLighting();
-            bool changed = false;
-            changed |= ImGui::DragFloat3("Sun direction", &l.sunDirection.x, 0.01f, -1.0f, 1.0f);
-            changed |= EditColor("Sun", l.sunColor);
-            changed |= EditColor("Sky", l.skyColor);
-            changed |= EditColor("Ground", l.groundColor);
-            changed |= EditColor("Fog colour", l.fogColor);
-            changed |= ImGui::Checkbox("Sun shadows", &l.shadows);
-            changed |= ImGui::SliderFloat("Baked light", &l.bakedLight, 0.0f, 1.0f);
-            changed |= ImGui::SliderFloat("Glow strength", &l.glowStrength, 0.0f, 2.0f);
-            changed |= ImGui::SliderFloat("Glow threshold", &l.glowThreshold, 0.1f, 4.0f);
-            if (changed)
+            ImGui::SetNextWindowPos({ width - 420.0f, 330.0f }, ImGuiCond_FirstUseEver);
+            collapse();
+            if (ImGui::Begin("Lighting"))
             {
-                ApplyLighting();
+                LevelLighting& l = level->EditLighting();
+                bool changed = false;
+                changed |= ImGui::DragFloat3("Sun direction", &l.sunDirection.x, 0.01f, -1.0f, 1.0f);
+                changed |= EditColor("Sun", l.sunColor);
+                changed |= EditColor("Sky", l.skyColor);
+                changed |= EditColor("Ground", l.groundColor);
+                changed |= EditColor("Fog colour", l.fogColor);
+                changed |= ImGui::Checkbox("Sun shadows", &l.shadows);
+                changed |= ImGui::SliderFloat("Baked light", &l.bakedLight, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Glow strength", &l.glowStrength, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Glow threshold", &l.glowThreshold, 0.1f, 4.0f);
+                if (changed)
+                {
+                    ApplyLighting();
+                }
+                if (ImGui::Button("Copy as JSON"))
+                {
+                    char glow[96];
+                    std::snprintf(glow, sizeof(glow), "{ \"strength\": %.3g, \"threshold\": %.3g }",
+                        l.glowStrength, l.glowThreshold);
+                    char baked[32];
+                    std::snprintf(baked, sizeof(baked), "%.3g", l.bakedLight);
+                    const std::string json = std::string("\"lighting\": {\n")
+                        + "  \"sunDirection\": " + Vec3Json(l.sunDirection) + ",\n"
+                        + "  \"sunColor\": " + Vec3Json(l.sunColor) + ",\n"
+                        + "  \"skyColor\": " + Vec3Json(l.skyColor) + ",\n"
+                        + "  \"groundColor\": " + Vec3Json(l.groundColor) + ",\n"
+                        + "  \"fogColor\": " + Vec3Json(l.fogColor) + ",\n"
+                        + "  \"shadows\": " + (l.shadows ? "true" : "false") + ",\n"
+                        + "  \"bakedLight\": " + baked + ",\n"
+                        + "  \"glow\": " + glow + "\n}";
+                    SDL_SetClipboardText(json.c_str());
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("(paste into %s.json)", level->GetName().c_str());
             }
-            if (ImGui::Button("Copy as JSON"))
-            {
-                char glow[96];
-                std::snprintf(glow, sizeof(glow), "{ \"strength\": %.3g, \"threshold\": %.3g }",
-                    l.glowStrength, l.glowThreshold);
-                char baked[32];
-                std::snprintf(baked, sizeof(baked), "%.3g", l.bakedLight);
-                const std::string json = std::string("\"lighting\": {\n")
-                    + "  \"sunDirection\": " + Vec3Json(l.sunDirection) + ",\n"
-                    + "  \"sunColor\": " + Vec3Json(l.sunColor) + ",\n"
-                    + "  \"skyColor\": " + Vec3Json(l.skyColor) + ",\n"
-                    + "  \"groundColor\": " + Vec3Json(l.groundColor) + ",\n"
-                    + "  \"fogColor\": " + Vec3Json(l.fogColor) + ",\n"
-                    + "  \"shadows\": " + (l.shadows ? "true" : "false") + ",\n"
-                    + "  \"bakedLight\": " + baked + ",\n"
-                    + "  \"glow\": " + glow + "\n}";
-                SDL_SetClipboardText(json.c_str());
-            }
-            ImGui::SameLine();
-            ImGui::TextDisabled("(paste into %s.json)", level->GetName().c_str());
-            ImGui::End();
+            ImGui::End(); // always, even when Begin returned false (collapsed)
         }
 
         // Spot light (M42): the renderer's spot, before the flashlight
         // exists. Every parameter live; Copy as JSON for the data later.
         ImGui::SetNextWindowPos({ width - 420.0f, 600.0f }, ImGuiCond_FirstUseEver);
+        collapse();
         if (ImGui::Begin("Spot light"))
         {
             ImGui::Checkbox("On", &m_devSpotOn);
@@ -234,6 +255,7 @@ namespace AtomGame
         // Level: where we are, what's in it, the game's state.
         ImGui::SetNextWindowPos({ 16.0f, 400.0f }, ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize({ 340.0f * scale, 280.0f * scale }, ImGuiCond_FirstUseEver);
+        collapse();
         if (ImGui::Begin("Level"))
         {
             const glm::vec3 feet = FeetPosition();
@@ -282,5 +304,6 @@ namespace AtomGame
             }
         }
         ImGui::End();
+        m_devToolsCollapse.reset(); // applied once
     }
 }

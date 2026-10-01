@@ -1423,6 +1423,7 @@ namespace AtomGame
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) m_showDebugOverlay = on;
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
+        else if (what == "devtools_collapsed" && onOff) m_devToolsCollapse = on; // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
         else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
         else if (what == "spot_shadows" && onOff) m_devSpot.castsShadows = on; // M43
