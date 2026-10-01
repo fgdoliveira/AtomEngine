@@ -132,6 +132,9 @@ Developer switches (environment variables):
 | `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`; outside the demo: `character_lab`, `first_render`) |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
+| `ATOM_PRESENT=immediate` | with `ATOM_VSYNC=0`: tearing allowed, never waits (some displays hold the default to their refresh) |
+| `ATOM_PERF_LOG=1` | after an engine warm-up, one line per block of frames: `PERF block … samples … median … p95 … mean … label …` |
+| `ATOM_PERF_BLOCK=<frames>` / `ATOM_PERF_CSV=<file>` | block size (default 240) / the same rows as CSV |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 
@@ -158,6 +161,35 @@ expect_flag keeper_permission
 wait_for_level shrine_grounds
 expect_voices_max 4
 ```
+
+## Measuring performance
+
+A laptop's speed isn't constant: heat, power source and boost clocks move
+frame times by more than most changes cost (unplugged, this one ran 3×
+slower; after 40 minutes of load it drifted 20 % within one run). So
+AtomEngine compares A and B **close together in time** and reports the
+**paired difference**, never two absolute numbers from separate sessions.
+
+- **What does a feature cost?** In-process A/B, the tightest tool: a
+  scenario line `bench <setting> <a> <b> <rounds> <seconds> [settle]`, for
+  any `set` switch. It alternates A and B in the order AB BA AB BA…, lets
+  each switch settle (rebuilt targets aren't steady state), and reports the
+  median of the rounds' differences:
+  `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
+- **Did a build get slower?** `pwsh Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <level>`
+  alternates the two executables (ABBA) and reports the median paired
+  difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward).
+- **Trust the tools first:** `ab.ps1` with the same build as A and B must
+  give ~0 ms. On the development laptop it gives up to ~0.15 ms, so smaller
+  differences between builds are noise.
+- **Why is it slow?** Capture a frame in PIX for Windows (Direct3D 12) or
+  Intel GPA for per-pass GPU times; SDL_GPU exposes no GPU timers.
+
+Checklist: plugged in, high-performance power plan, the laptop's own screen,
+`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. The
+300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
+hardware; the interleaving takes care of that. Timing is never a ctest
+gate: `expect_bench_under` is for local use on known hardware.
 
 ## Content pipeline
 
