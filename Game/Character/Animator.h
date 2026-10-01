@@ -53,6 +53,16 @@ namespace AtomGame
         bool loop = true;
         std::string next;                   // one-shot: where to go when it ends
         float nextBlend = 0.2f;
+        std::string inPlace;                // M38: a joint pinned at rest (root motion off)
+    };
+
+    // Something that happens at a moment of a clip (M38): a foot touching
+    // down, for a footstep sound.
+    struct AnimEventData
+    {
+        std::string clip;
+        std::string name;
+        float time = 0.0f; // seconds into the clip
     };
 
     struct AnimTransitionData
@@ -68,6 +78,7 @@ namespace AtomGame
         std::string initial;
         std::unordered_map<std::string, AnimStateData> states;
         std::vector<AnimTransitionData> transitions; // first match wins
+        std::vector<AnimEventData> events;
     };
 
     // Walk and run cycles of different lengths, blended: both play at the
@@ -89,9 +100,15 @@ namespace AtomGame
             float duration = 0.0f;
         };
         using ClipLookup = std::function<std::optional<ClipInfo>(std::string_view)>;
+        using NodeLookup = std::function<int(std::string_view)>; // -1 if none
 
-        // Resolves clip and state names; on failure returns the problem.
-        std::optional<std::string> Bind(const AnimatorData& data, const ClipLookup& lookup);
+        // Resolves clip, state and joint names; on failure returns the problem.
+        std::optional<std::string> Bind(const AnimatorData& data, const ClipLookup& lookup,
+                                         const NodeLookup& nodes = {});
+
+        // Events the current state passed through since the last call (a
+        // state fading out fires none: its feet are leaving the ground).
+        std::vector<std::string> TakeEvents();
 
         void SetParam(const std::string& name, float value) { m_params[name] = value; }
         float GetParam(const std::string& name) const;
@@ -120,6 +137,13 @@ namespace AtomGame
             bool loop = true;
             int next = -1;
             float nextBlend = 0.2f;
+            int pinNode = -1;
+        };
+        struct Event
+        {
+            int clip = -1;
+            float phase = 0.0f; // time / clip duration
+            std::string name;
         };
         struct Transition
         {
@@ -141,9 +165,12 @@ namespace AtomGame
         void Advance(Playing& playing, float deltaSeconds) const;
         void AppendSamples(const Playing& playing, float weight, std::vector<Atom::ClipSample>& out) const;
         void Enter(int state, float blend);
+        void FireEvents(const State& state, float from, float to);
 
         std::vector<State> m_states;
         std::vector<Transition> m_transitions;
+        std::vector<Event> m_events;
+        std::vector<std::string> m_fired;
         std::unordered_map<std::string, float> m_params;
         Playing m_current;
         Playing m_previous;

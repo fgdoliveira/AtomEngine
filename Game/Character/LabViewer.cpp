@@ -205,7 +205,8 @@ namespace AtomGame
 
     LabViewer::DemoParams LabViewer::Demo(float time)
     {
-        // 0-2 stand, 2-6 speed up to 4.5 m/s, 6-8 run (jump at 6.8),
+        // 0-2 stand, 2-6 speed up to 4.5 m/s, 6-8 run (a jump's flight
+        // from 6.6 to 7.5),
         // 8-12 slow down, 12-14 stand.
         constexpr float TopSpeed = 4.5f;
         time = std::fmod(std::max(time, 0.0f), DemoSeconds);
@@ -214,7 +215,7 @@ namespace AtomGame
         else if (time < 6.0f) params.speed = TopSpeed * (time - 2.0f) / 4.0f;
         else if (time < 8.0f) params.speed = TopSpeed;
         else if (time < 12.0f) params.speed = TopSpeed * (12.0f - time) / 4.0f;
-        params.grounded = !(time >= 6.8f && time < 7.0f);
+        params.grounded = !(time >= 6.6f && time < 7.5f);
         return params;
     }
 

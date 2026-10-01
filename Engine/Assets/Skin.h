@@ -11,6 +11,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace Atom
@@ -54,6 +55,7 @@ namespace Atom
     struct Skeleton
     {
         std::vector<int> parents; // -1 for roots
+        std::vector<std::string> names; // glTF node names
         Pose rest;
         std::vector<Skin> skins;
     };
@@ -81,6 +83,10 @@ namespace Atom
         int clip = -1;
         float time = 0.0f;
         float weight = 1.0f;
+        // "In place" (M38): this node keeps its rest translation, removing
+        // the motion a clip bakes into it (a jump's rise, when physics
+        // does the rising). -1 = none.
+        int pinNode = -1;
     };
 
     // The shader's sum, on the CPU: reference for tests and bounds.

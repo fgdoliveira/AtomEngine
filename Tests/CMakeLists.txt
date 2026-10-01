@@ -23,6 +23,7 @@ add_executable(
     SkinningTests.cpp
     LabViewerTests.cpp
     AnimatorTests.cpp
+    DriveTests.cpp
 )
 
 target_link_libraries(

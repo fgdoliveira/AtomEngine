@@ -2,6 +2,7 @@
 
 #include "Atmosphere.h"
 #include "Character/LabViewer.h"
+#include "Character/SpringArm.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
 #include "Dialogue/Dialogue.h"
@@ -50,6 +51,7 @@ namespace AtomGame
             InSequence,    // M26: a sequence runs; the player is frozen
             AtMachine,     // M29: sitting at a pachinko machine
             Viewing,       // M36: the character lab's model viewer
+            Driving,       // M38: the lab's third-person drive mode
         };
 
         // Where play rests between dialogues and transitions: the viewer in
@@ -109,7 +111,10 @@ namespace AtomGame
         {
             m_levels->RequestChange(level, spawn);
         }
-        glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
+        glm::vec3 FeetPosition() const override
+        {
+            return m_mode == Mode::Driving ? m_driveBody.GetFeetPosition() : m_player.GetFeetPosition();
+        }
         bool AnimationPlaying(const std::string& entity) const override;
         bool SetClip(const std::string& entity, const std::string& clip) override;
         std::string ClipName(const std::string& entity) const override;
@@ -175,6 +180,15 @@ namespace AtomGame
         void DrawLabOverlay(float scale);
         void DrawSkeleton(const Entity& subject);
         bool m_labScriptedParams = false; // the harness sets them: no demo
+
+        // Drive mode (M38): the subject walks on the player's kind of body,
+        // the camera on a spring arm; its feet's events count footsteps.
+        PlayerController m_driveBody;
+        SpringArm m_arm;
+        int m_driveSteps = 0;
+        void BeginDrive();
+        void EndDrive();
+        void UpdateDrive(float deltaSeconds);
         SequenceRunner m_sequence;
         bool RunSequence(const std::string& id);
         void UpdateSequence(float deltaSeconds);

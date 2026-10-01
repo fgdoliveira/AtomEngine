@@ -224,7 +224,7 @@ namespace AtomGame
                         return std::nullopt;
                     }
                     return Animator::ClipInfo{ clip, model->GetClip(clip)->duration };
-                });
+                }, [model](std::string_view name) { return model ? model->FindNode(name) : -1; });
                 if (error)
                 {
                     std::cerr << "Level '" << d.name << "': entity '" << data.name

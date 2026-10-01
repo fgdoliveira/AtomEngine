@@ -43,7 +43,19 @@ namespace AtomGame
             float deltaSeconds
         );
 
+        // The body alone (M38), for any character: eases toward a target
+        // horizontal velocity, slides along walls, steps up ledges, falls;
+        // jumps when asked while standing. No camera involved.
+        void Move(const glm::vec3& targetVelocity, bool jump,
+                  const Atom::CollisionWorld* world, float deltaSeconds);
+        const glm::vec3& GetVelocity() const { return m_velocity; }
+        // Feet height eased up steps (what a body or camera should follow).
+        float GetVisualFeetY() const { return m_visualFeetY; }
+        // Places the body without touching any camera.
+        void Place(const glm::vec3& feet);
+
         float mouseSensitivity = 0.0022f; // radians per pixel
+        float jumpSpeed = 4.4f;           // m/s upward: about a 1 m jump
         float walkSpeed = 1.4f;           // m/s, unhurried walk
         float jogSpeed = 3.2f;
         float acceleration = 10.0f;       // 1/s, exponential approach

@@ -59,6 +59,8 @@ namespace AtomGame
         ModeAnimator, // M37: the state machine demo
         BlendDown,
         BlendUp,
+        Jump,         // M38: drive mode
+        ToggleDrive,  // M38: Tab, viewer <-> drive
         Count,
     };
 
@@ -68,6 +70,7 @@ namespace AtomGame
         Dialogue,
         Machine,
         Viewer, // M36: the character lab's model viewer
+        Driving, // M38: the lab's third-person drive mode
     };
 
     // "launch" <-> InputAction::Launch, for scripts and error messages.

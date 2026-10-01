@@ -299,6 +299,7 @@ namespace AtomGame
                     state.loop = Bool(value, "loop", stateAt, true);
                     state.next = String(value, "next", stateAt);
                     state.nextBlend = Number(value, "nextBlend", stateAt, state.nextBlend);
+                    state.inPlace = String(value, "inPlace", stateAt);
                     data.states[name] = std::move(state);
                 }
                 std::size_t index = 0;
@@ -321,6 +322,38 @@ namespace AtomGame
                         transition.when.push_back(*condition);
                     }
                     data.transitions.push_back(std::move(transition));
+                }
+                // "events": { "Walk": { "foot": [0.45, 0.98] } }: per clip,
+                // per event name, the seconds it happens at.
+                if (const auto events = animator->find("events"); events != animator->end())
+                {
+                    if (!events->is_object())
+                    {
+                        throw LevelError(JsonPath(at, "events"), "must map clips to events");
+                    }
+                    for (const auto& [clip, named] : events->items())
+                    {
+                        const std::string clipAt = JsonPath(JsonPath(at, "events"), clip);
+                        if (!named.is_object())
+                        {
+                            throw LevelError(clipAt, "must map event names to times");
+                        }
+                        for (const auto& [eventName, times] : named.items())
+                        {
+                            if (!times.is_array())
+                            {
+                                throw LevelError(JsonPath(clipAt, eventName), "must be a list of seconds");
+                            }
+                            for (const Json& time : times)
+                            {
+                                if (!time.is_number())
+                                {
+                                    throw LevelError(JsonPath(clipAt, eventName), "must be a list of seconds");
+                                }
+                                data.events.push_back({ clip, eventName, time.get<float>() });
+                            }
+                        }
+                    }
                 }
                 entity.animator = std::move(data);
             }

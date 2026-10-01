@@ -269,6 +269,7 @@ namespace AtomGame
         const InputContextId context = m_mode == Mode::InDialogue ? InputContextId::Dialogue
             : m_mode == Mode::AtMachine ? InputContextId::Machine
             : m_mode == Mode::Viewing ? InputContextId::Viewer
+            : m_mode == Mode::Driving ? InputContextId::Driving
             : InputContextId::Exploring;
         m_actions.Update(m_inputMap, context, GetInput());
 
@@ -312,9 +313,29 @@ namespace AtomGame
             m_target = {};
             UpdateMachine(deltaSeconds);
             break;
+        // Tab switches between the lab's two modes, once per press: the
+        // mode entered this frame doesn't see the same press again.
         case Mode::Viewing:
             m_target = {};
-            UpdateLab(deltaSeconds);
+            if (m_actions.Pressed(InputAction::ToggleDrive))
+            {
+                BeginDrive();
+            }
+            else
+            {
+                UpdateLab(deltaSeconds);
+            }
+            break;
+        case Mode::Driving:
+            m_target = {};
+            if (m_actions.Pressed(InputAction::ToggleDrive))
+            {
+                EndDrive();
+            }
+            else
+            {
+                UpdateDrive(deltaSeconds);
+            }
             break;
         case Mode::Transitioning:
             m_target = {};
@@ -328,10 +349,13 @@ namespace AtomGame
         {
             m_audioScape.ToggleMute();
         }
+        // Footsteps: the player's, or in drive mode the character's, timed
+        // by its animation's foot-down events.
+        const bool driving = m_mode == Mode::Driving;
         m_audioScape.Update(deltaSeconds, m_camera, AudioScape::Listener{
-            m_player.GetFeetPosition(),
-            m_player.GetStepCount(),
-            m_player.IsGrounded(),
+            driving ? m_driveBody.GetFeetPosition() : m_player.GetFeetPosition(),
+            driving ? m_driveSteps : m_player.GetStepCount(),
+            driving ? m_driveBody.IsGrounded() : m_player.IsGrounded(),
             input.IsKeyDown(SDL_SCANCODE_LSHIFT)
         });
 
@@ -458,7 +482,7 @@ namespace AtomGame
         {
             m_dialogueView.Draw(ui, *m_font, *m_smallFont, m_dialogue, scale, m_time);
         }
-        else if (m_mode == Mode::Viewing)
+        else if (m_mode == Mode::Viewing || m_mode == Mode::Driving)
         {
             DrawLabOverlay(scale);
         }
@@ -948,6 +972,14 @@ namespace AtomGame
 
     void DemoApp::Teleport(const glm::vec3& feet, float yawDegrees)
     {
+        if (m_mode == Mode::Driving)
+        {
+            // Drive mode: the character moves, and the camera looks the
+            // given way (forward walks along it).
+            m_driveBody.Place(feet);
+            m_arm.Reset(-yawDegrees, m_arm.GetPitchDegrees());
+            return;
+        }
         m_player.Teleport(feet, m_camera);
         m_camera.SetRotation(glm::radians(yawDegrees), 0.0f);
     }
@@ -1047,6 +1079,7 @@ namespace AtomGame
         case Mode::InSequence: return "sequence";
         case Mode::AtMachine: return "machine";
         case Mode::Viewing: return "viewer";
+        case Mode::Driving: return "drive";
         default: return "exploring";
         }
     }

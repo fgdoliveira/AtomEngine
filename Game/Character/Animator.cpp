@@ -65,7 +65,8 @@ namespace AtomGame
         return SyncedBlend{ weight, durationA + (durationB - durationA) * weight };
     }
 
-    std::optional<std::string> Animator::Bind(const AnimatorData& data, const ClipLookup& lookup)
+    std::optional<std::string> Animator::Bind(const AnimatorData& data, const ClipLookup& lookup,
+                                               const NodeLookup& nodes)
     {
         *this = Animator{};
         std::unordered_map<std::string, int> index;
@@ -105,6 +106,14 @@ namespace AtomGame
             state.rangeHigh = source.rangeHigh;
             state.loop = source.loop;
             state.nextBlend = source.nextBlend;
+            if (!source.inPlace.empty())
+            {
+                state.pinNode = nodes ? nodes(source.inPlace) : -1;
+                if (state.pinNode < 0)
+                {
+                    return "state '" + name + "': no joint '" + source.inPlace + "'";
+                }
+            }
             if (!source.next.empty())
             {
                 const auto found = index.find(source.next);
@@ -136,6 +145,20 @@ namespace AtomGame
             }
             transition.to = to->second;
             m_transitions.push_back(std::move(transition));
+        }
+        for (const AnimEventData& source : data.events)
+        {
+            ClipInfo info;
+            if (auto error = clip(source.clip, info))
+            {
+                return "event '" + source.name + "': " + *error;
+            }
+            const float phase = info.duration > 0.0f ? source.time / info.duration : 0.0f;
+            if (phase < 0.0f || phase > 1.0f)
+            {
+                return "event '" + source.name + "' lies outside clip '" + source.clip + "'";
+            }
+            m_events.push_back(Event{ info.index, phase, source.name });
         }
         const auto initial = index.find(data.initial);
         if (initial == index.end())
@@ -214,7 +237,13 @@ namespace AtomGame
         {
             return;
         }
+        const float before = m_current.phase;
+        const bool wasFinished = m_current.finished;
         Advance(m_current, deltaSeconds);
+        if (!wasFinished)
+        {
+            FireEvents(m_states[m_current.state], before, m_current.phase);
+        }
         if (m_fade > 0.0f)
         {
             Advance(m_previous, deltaSeconds);
@@ -242,6 +271,39 @@ namespace AtomGame
                 return;
             }
         }
+    }
+
+    void Animator::FireEvents(const State& state, float from, float to)
+    {
+        // Blended walk/run: both cycles share the phase, so the clip with
+        // more weight speaks for the pair (their feet land together).
+        int clip = state.clip.index;
+        if (state.isBlend)
+        {
+            clip = BlendWeight(state) < 0.5f ? state.from.index : state.to.index;
+        }
+        const bool wrapped = to < from; // looped past the end
+        for (const Event& event : m_events)
+        {
+            if (event.clip != clip)
+            {
+                continue;
+            }
+            const bool crossed = wrapped
+                ? (event.phase > from || event.phase <= to)
+                : (event.phase > from && event.phase <= to);
+            if (crossed)
+            {
+                m_fired.push_back(event.name);
+            }
+        }
+    }
+
+    std::vector<std::string> Animator::TakeEvents()
+    {
+        std::vector<std::string> fired;
+        fired.swap(m_fired);
+        return fired;
     }
 
     bool Animator::ForceState(std::string_view name)
@@ -273,13 +335,13 @@ namespace AtomGame
         const State& state = m_states[playing.state];
         if (!state.isBlend)
         {
-            out.push_back({ state.clip.index, playing.phase * state.clip.duration, weight });
+            out.push_back({ state.clip.index, playing.phase * state.clip.duration, weight, state.pinNode });
             return;
         }
         // Same phase in both cycles: each clip at its own time for it.
         const float w = BlendWeight(state);
-        out.push_back({ state.from.index, playing.phase * state.from.duration, weight * (1.0f - w) });
-        out.push_back({ state.to.index, playing.phase * state.to.duration, weight * w });
+        out.push_back({ state.from.index, playing.phase * state.from.duration, weight * (1.0f - w), state.pinNode });
+        out.push_back({ state.to.index, playing.phase * state.to.duration, weight * w, state.pinNode });
     }
 
     std::vector<Atom::ClipSample> Animator::GetSamples() const

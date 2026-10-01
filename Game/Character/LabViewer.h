@@ -133,6 +133,7 @@ namespace AtomGame
         // The camera: where it is and where it looks (yaw/pitch in radians,
         // in Atom::Camera's convention).
         const Orbit& GetOrbit() const { return m_orbit; }
+        void SetOrbit(const Orbit& orbit) { m_orbit = orbit; }
         glm::vec3 GetEye() const;
         float GetCameraYaw() const;
         float GetCameraPitch() const;

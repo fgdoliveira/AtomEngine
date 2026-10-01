@@ -62,7 +62,7 @@ TEST_CASE("Input contexts: injected actions behave like keys")
     CHECK_FALSE(actions.Pressed(InputAction::Leave));
 
     CHECK(ActionFromName("launch") == InputAction::Launch);
-    CHECK_FALSE(ActionFromName("jump").has_value());
+    CHECK_FALSE(ActionFromName("fly").has_value());
     CHECK(ActionName(InputAction::StrengthUp) == "strength_up");
 }
 

@@ -16,6 +16,8 @@ add_library(
     Character/Animator.cpp
     Character/Animator.h
     Character/LabViewer.cpp
+    Character/SpringArm.cpp
+    Character/SpringArm.h
     Character/LabViewer.h
     PlayerController.cpp
     PlayerController.h

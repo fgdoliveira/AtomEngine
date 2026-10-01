@@ -106,6 +106,8 @@ namespace Atom
         const Pose& GetRestPose() const { return m_skeleton.rest; }
         const Skeleton& GetSkeleton() const { return m_skeleton; }
         bool IsSkinned() const { return !m_skeleton.skins.empty(); }
+        // A node by its glTF name; -1 if there is none.
+        int FindNode(std::string_view name) const;
 
         // World-space box around every part in its rest pose.
         const glm::vec3& GetBoundsMin() const { return m_boundsMin; }

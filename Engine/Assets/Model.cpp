@@ -341,12 +341,14 @@ namespace Atom
         {
             Skeleton skeleton;
             skeleton.parents.resize(data.nodes_count, -1);
+            skeleton.names.resize(data.nodes_count);
             skeleton.rest.resize(data.nodes_count);
             for (cgltf_size n = 0; n < data.nodes_count; ++n)
             {
                 const cgltf_node& source = data.nodes[n];
                 NodeTransform& node = skeleton.rest[n];
                 skeleton.parents[n] = source.parent ? static_cast<int>(source.parent - data.nodes) : -1;
+                skeleton.names[n] = source.name ? source.name : "";
                 if (source.has_matrix)
                 {
                     // Rare in exports; decompose so the node can be posed.
@@ -759,6 +761,13 @@ namespace Atom
         return nullptr;
     }
 
+    int Model::FindNode(std::string_view name) const
+    {
+        const auto& names = m_skeleton.names;
+        const auto found = std::find(names.begin(), names.end(), name);
+        return found != names.end() ? static_cast<int>(found - names.begin()) : -1;
+    }
+
     int Model::FindClip(std::string_view name) const
     {
         for (std::size_t i = 0; i < m_clips.size(); ++i)
@@ -799,6 +808,10 @@ namespace Atom
                 continue;
             }
             SamplePose(sample.clip, sample.time, sampled);
+            if (sample.pinNode >= 0 && sample.pinNode < static_cast<int>(sampled.size()))
+            {
+                sampled[sample.pinNode].translation = m_skeleton.rest[sample.pinNode].translation;
+            }
             total += sample.weight;
             if (total == sample.weight)
             {

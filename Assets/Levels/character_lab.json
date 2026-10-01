@@ -41,13 +41,19 @@
         "states": {
           "idle": { "clip": "Idle" },
           "move": { "blend": ["Walk", "Run"], "param": "speed", "range": [1.4, 4.0] },
-          "jump": { "clip": "Jump", "loop": false, "next": "idle", "nextBlend": 0.2 }
+          "jump": { "clip": "Jump", "loop": false, "next": "idle", "nextBlend": 0.2, "inPlace": "hips" }
         },
         "transitions": [
           { "from": "*", "to": "jump", "when": ["grounded == 0"], "blend": 0.1 },
+          { "from": "jump", "to": "move", "when": ["grounded == 1", "speed > 0.2"], "blend": 0.15 },
+          { "from": "jump", "to": "idle", "when": ["grounded == 1"], "blend": 0.2 },
           { "from": "idle", "to": "move", "when": ["speed > 0.2"], "blend": 0.25 },
           { "from": "move", "to": "idle", "when": ["speed <= 0.2"], "blend": 0.3 }
-        ]
+        ],
+        "events": {
+          "Walk": { "foot": [0.45, 0.98] },
+          "Run": { "foot": [0.33, 0.66] }
+        }
       }
     }
   ]

@@ -360,9 +360,15 @@
                   "range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
                   "loop": { "type": "boolean" },
                   "next": { "type": "string", "description": "One-shot: the state it returns to." },
+                  "inPlace": { "type": "string", "description": "A joint held at its rest position: the clip's own travel removed (M38)." },
                   "nextBlend": { "type": "number" }
                 }
               }
+            },
+            "events": {
+              "type": "object",
+              "description": "Per clip, per event name, the seconds into the clip it happens at (M38: \"foot\" plays a footstep).",
+              "additionalProperties": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "number" } } }
             },
             "transitions": {
               "type": "array",

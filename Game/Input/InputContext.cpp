@@ -12,7 +12,7 @@ namespace AtomGame
             "orbit_left", "orbit_right", "orbit_up", "orbit_down", "zoom_in", "zoom_out",
             "clip_1", "clip_2", "clip_3", "clip_4", "slower", "faster", "pause", "step",
             "toggle_bind", "toggle_skeleton", "toggle_weights",
-            "mode_blend", "mode_animator", "blend_down", "blend_up",
+            "mode_blend", "mode_animator", "blend_down", "blend_up", "jump", "toggle_drive",
         };
         static_assert(std::size(Names) == static_cast<std::size_t>(InputAction::Count));
     }
@@ -93,6 +93,22 @@ namespace AtomGame
         // Spanish one). Z and X are in the same place on every layout.
         map.Bind(C::Viewer, InputAction::BlendDown, SDL_SCANCODE_Z);
         map.Bind(C::Viewer, InputAction::BlendUp, SDL_SCANCODE_X);
+        map.Bind(C::Viewer, InputAction::ToggleDrive, SDL_SCANCODE_TAB);
+
+        // Drive: the walking keys, Space jumps, arrows (or the mouse) swing
+        // the camera, Tab returns to the viewer.
+        map.Bind(C::Driving, InputAction::MoveForward, SDL_SCANCODE_W);
+        map.Bind(C::Driving, InputAction::MoveBack, SDL_SCANCODE_S);
+        map.Bind(C::Driving, InputAction::MoveLeft, SDL_SCANCODE_A);
+        map.Bind(C::Driving, InputAction::MoveRight, SDL_SCANCODE_D);
+        map.Bind(C::Driving, InputAction::Jog, SDL_SCANCODE_LSHIFT);
+        map.Bind(C::Driving, InputAction::Jump, SDL_SCANCODE_SPACE);
+        map.Bind(C::Driving, InputAction::OrbitLeft, SDL_SCANCODE_LEFT);
+        map.Bind(C::Driving, InputAction::OrbitRight, SDL_SCANCODE_RIGHT);
+        map.Bind(C::Driving, InputAction::OrbitUp, SDL_SCANCODE_UP);
+        map.Bind(C::Driving, InputAction::OrbitDown, SDL_SCANCODE_DOWN);
+        map.Bind(C::Driving, InputAction::ToggleSkeleton, SDL_SCANCODE_K);
+        map.Bind(C::Driving, InputAction::ToggleDrive, SDL_SCANCODE_TAB);
         return map;
     }
 

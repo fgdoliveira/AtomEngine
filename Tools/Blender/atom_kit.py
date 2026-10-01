@@ -112,6 +112,8 @@ MATERIALS = {
     "lab_floor": (lambda: tex.lab_floor(), 1.0, 0.7, 0.0),
     "lab_cyc": (lambda: tex.flat((0.80, 0.83, 0.88), size=16, seed=96, variation=0.015), 4.0, 0.9, 0.0),
     "lab_checker": (lambda: tex.lab_checker(), 1.0, 0.5, 0.0),
+    "lab_block": (lambda: tex.flat((0.40, 0.48, 0.64), size=16, seed=97, variation=0.04), 1.0, 0.7, 0.0),
+    "lab_crate": (lambda: tex.flat((0.86, 0.46, 0.16), size=16, seed=98, variation=0.06), 1.0, 0.6, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
@@ -1240,8 +1242,9 @@ def box_triangles(center, size, rotation=None):
 
 def build_collision(name, boxes, collection):
     verts, faces = [], []
-    for center, size in boxes:
-        box_verts, box_faces = box_triangles(center, size)
+    # (center, size) or (center, size, rotation matrix): a ramp (M38).
+    for box in boxes:
+        box_verts, box_faces = box_triangles(*box)
         offset = len(verts)
         verts.extend(box_verts)
         faces.extend(tuple(i + offset for i in face) for face in box_faces)
