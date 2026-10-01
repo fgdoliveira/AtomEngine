@@ -5,12 +5,13 @@ project, on **SDL3's GPU API (Direct3D 12)**. Its demo is a first-person walk
 through a foggy rural Japanese street in the spirit of 2000s horror (Silent
 Hill 2's daytime town, Siren) — and, a night bus ride away, one street of a
 neon city that implies a whole one — *2000s-inspired art direction on a
-modern, resolution-independent renderer*.
+modern, resolution-independent renderer*. A separate character lab, a
+2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.5** — the pachinko game: sit down at a machine in
-the night city's hall and play it - a 2D physics simulation of balls and
-nails, a lottery and fever rounds, tokens and a prize exchange. (0.0.4 built
-the night city itself.)
+Current version: **0.0.6** — the character lab: a rigged character skinned
+on the GPU, its clips blended and driven by a state machine, shown in an
+orbit viewer with skeleton and weight views, and driven in third person
+with a spring-arm camera. (0.0.5 made a pachinko machine playable.)
 See [CHANGELOG.md](CHANGELOG.md).
 
 ## What's in it
@@ -21,8 +22,8 @@ MSAA; hemispheric + sun lighting with baked light (vertex colours and
 lightmaps, per chunk); a few live point lights; exponential height fog; a
 directional shadow map (texel-snapped, PCF); alpha-tested foliage and cloth,
 and decals; emissive masks, a quarter-resolution glow and halo billboards;
-a night-sky panorama; wet surfaces; rigid node animation and wind sway in
-the vertex shader; ACES tonemapping, colour grade, film grain and vignette;
+a night-sky panorama; wet surfaces; rigid node animation, skeletal skinning
+(linear blend, up to 64 joints, in the vertex shader) and wind sway; ACES tonemapping, colour grade, film grain and vignette;
 instanced particles; chunk and cell culling with near/mid/far layers,
 impostors and skyline cards; draw sorting; render-to-texture; a 2D
 text/UI overlay.
@@ -40,6 +41,13 @@ input contexts (named actions, keys mapped per mode); entities built from
 capabilities (drawn, interactable, animated, moving) instead of a class
 hierarchy; data-driven actions and timed action sequences; persistent story
 flags and counters; branching, flag-gated dialogue from JSON.
+
+**Animation** — clips sampled into explicit poses and blended per joint
+(crossfades, a walk/run blend kept in phase); an animation state machine
+as data (states, conditions, blend times, one-shots, in-place clips);
+animation events (footsteps from foot-down times); a third-person
+character on the player's body with a jump and a spring-arm camera;
+debug views of the skeleton, the skin weights and the bind pose.
 
 **Pachinko** — a playable machine: a deterministic 2D physics world (balls,
 nails, rails; fixed substeps, no tunnelling), playfields as data, a launcher
@@ -94,6 +102,21 @@ At the pachinko machine:
 | B or Enter | buy 50 balls for 10 tokens |
 | Q or Backspace | stand up |
 
+In the character lab (`ATOM_START_LEVEL=character_lab`), the viewer:
+
+| Key | Action |
+|---|---|
+| Arrows / mouse (click in), wheel or PgUp/PgDn | orbit / zoom |
+| 1–4 | clip (Idle, Jump, Run, Walk), crossfaded |
+| 5, then Z / X | walk/run blend, slider |
+| 6 | the state machine, driven by a demo script |
+| − / + , Space, . | speed, pause, one frame |
+| B / K / W | bind pose / skeleton / skin weights |
+| Tab | drive: WASD move, Shift run, Space jump, arrows / mouse camera, Tab back |
+
+Keys are bound by position, not by the symbol printed on them: on non-US
+layouts − and + are the two keys left of Backspace.
+
 The demo: talk to the shrine keeper by the torii, find a way through the
 shrine gate, try the door of the house at the east end of the street, and
 take the field path at the west end to the windmill. At the bus stop past
@@ -106,7 +129,7 @@ Developer switches (environment variables):
 
 | Variable | Effect |
 |---|---|
-| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`) |
+| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`; outside the demo: `character_lab`, `first_render`) |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
@@ -186,11 +209,19 @@ script: `screenshot <stem>`, `capture <stem> <count> <every>`, `pan …
 world, fixed_dt). Each file is named after the manual section it
 illustrates.
 
+The character lab has its own: skinning, the skeleton and weights, every
+clip, a crossfade, the walk/run blend, the state machine, driving and the
+spring arm, into `out/img/character_lab/`:
+
+```sh
+pwsh Tools/Docs/capture_character_lab.ps1
+```
+
 ## Layout
 
 ```text
 Engine/   Assets Audio Core Physics Platform Renderer Scene UI
-Game/     Dialogue Interaction Level Testing World  + the demo (DemoApp, player, audio, atmosphere)
+Game/     Character Dialogue Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
 Shaders/  HLSL, compiled to DXIL at build time
 Tools/    Blender content scripts
 Assets/   generated models, levels, dialogue, font
@@ -202,3 +233,5 @@ external/ pinned dependencies
 
 Code: see [LICENSE.txt](LICENSE.txt). The bundled font is a Latin subset of
 Shippori Mincho (SIL Open Font License 1.1, see `Assets/Fonts/`).
+Third-party assets used as they came (the lab's character) are credited in
+[Assets/ThirdParty/README.md](Assets/ThirdParty/README.md).

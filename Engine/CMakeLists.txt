@@ -5,6 +5,7 @@ target_sources(
     PRIVATE
         Assets/Animation.cpp
         Assets/Model.cpp
+        Assets/Skin.cpp
         Audio/AudioSystem.cpp
         Assets/ThirdParty.cpp
         Core/Application.cpp
@@ -26,6 +27,7 @@ target_sources(
     PUBLIC
         Assets/Animation.h
         Assets/Model.h
+        Assets/Skin.h
         Audio/AudioSystem.h
         Core/Application.h
         Core/Time.h

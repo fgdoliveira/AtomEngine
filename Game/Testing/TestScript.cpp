@@ -46,6 +46,10 @@ namespace AtomGame
                 { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
+                { "clip", { 2, 2 } },               // entity clip: play it (the lab: show it)
+                { "expect_clip", { 2, 2 } },        // entity clip | none
+                { "set_param", { 3, 3 } },          // entity param value: its animator's
+                { "expect_state", { 2, 2 } },       // entity state: its animator's
                 { "reload_level", { 0, 0 } },       // hot reload in place
                 { "goto_level", { 1, 2 } },         // level [spawn]: change as a door would
                 { "expect_near", { 3, 4 } },        // x y z [metres]: the player's feet
@@ -509,6 +513,41 @@ namespace AtomGame
                 return true;
             }
             return false;
+        }
+        if (name == "clip")
+        {
+            if (!game.SetClip(args[0], args[1]))
+            {
+                Fail(command, "'" + args[0] + "' has no clip '" + args[1] + "'");
+            }
+            return true;
+        }
+        if (name == "expect_clip")
+        {
+            const std::string actual = game.ClipName(args[0]);
+            if (actual != (args[1] == "none" ? std::string{} : args[1]))
+            {
+                Fail(command, "'" + args[0] + "' shows " + (actual.empty() ? "no clip" : "'" + actual + "'"));
+            }
+            return true;
+        }
+        if (name == "set_param")
+        {
+            float value = 0.0f;
+            if (!ToFloat(args[2], value) || !game.SetAnimatorParam(args[0], args[1], value))
+            {
+                Fail(command, "'" + args[0] + "' has no animator, or '" + args[2] + "' is no number");
+            }
+            return true;
+        }
+        if (name == "expect_state")
+        {
+            const std::string actual = game.AnimatorState(args[0]);
+            if (actual != args[1])
+            {
+                Fail(command, "'" + args[0] + "' is in " + (actual.empty() ? "no state" : "'" + actual + "'"));
+            }
+            return true;
         }
         if (name == "goto_level")
         {

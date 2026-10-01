@@ -454,42 +454,47 @@ namespace Atom
     SDL_GPUGraphicsPipeline* Renderer::GetScenePipeline(
         std::uint32_t samples,
         bool doubleSided,
-        bool alphaToCoverage
+        bool alphaToCoverage,
+        bool skinned
     )
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
         alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
-        const std::size_t index = slot * 4 + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
+        const std::size_t index = (skinned ? 12 : 0) + slot * 4
+            + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
         if (!m_scenePipelines[index])
         {
-            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false);
+            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned);
         }
         return m_scenePipelines[index];
     }
 
-    SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples)
+    SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples, bool skinned)
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
-        if (!m_decalPipelines[slot])
+        const std::size_t index = (skinned ? 3 : 0) + slot;
+        if (!m_decalPipelines[index])
         {
-            m_decalPipelines[slot] = CreateScenePipeline(slot, false, false, true);
+            m_decalPipelines[index] = CreateScenePipeline(slot, false, false, true, skinned);
         }
-        return m_decalPipelines[slot];
+        return m_decalPipelines[index];
     }
 
     SDL_GPUGraphicsPipeline* Renderer::CreateScenePipeline(
         std::size_t slot,
         bool doubleSided,
         bool alphaToCoverage,
-        bool decal
+        bool decal,
+        bool skinned
     )
     {
-
+        // Skinned meshes: the same fragment shading, a vertex shader that
+        // blends joints first (uniform slot 2 holds the palette).
         SDL_GPUShader* vertexShader = LoadShader(
             m_device,
-            "Basic.vert",
+            skinned ? "Skinned.vert" : "Basic.vert",
             SDL_GPU_SHADERSTAGE_VERTEX,
-            ShaderResources{ .uniformBuffers = 2 }
+            ShaderResources{ .uniformBuffers = skinned ? 3u : 2u }
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
@@ -516,7 +521,21 @@ namespace Atom
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute attributes[5]{};
+        // A second stream for skinned meshes: joints and weights.
+        SDL_GPUVertexBufferDescription vertexBuffers[2]{ vertexBuffer, {} };
+        vertexBuffers[1].slot = 1;
+        vertexBuffers[1].pitch = sizeof(SkinVertex);
+        vertexBuffers[1].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+
+        SDL_GPUVertexAttribute attributes[7]{};
+        attributes[5].location = 5;
+        attributes[5].buffer_slot = 1;
+        attributes[5].format = SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4;
+        attributes[5].offset = offsetof(SkinVertex, joints);
+        attributes[6].location = 6;
+        attributes[6].buffer_slot = 1;
+        attributes[6].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
+        attributes[6].offset = offsetof(SkinVertex, weights);
         attributes[0].location = 0;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[0].offset = offsetof(Vertex, position);
@@ -550,11 +569,10 @@ namespace Atom
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
         createInfo.fragment_shader = fragmentShader;
-        createInfo.vertex_input_state.vertex_buffer_descriptions =
-            &vertexBuffer;
-        createInfo.vertex_input_state.num_vertex_buffers = 1;
+        createInfo.vertex_input_state.vertex_buffer_descriptions = vertexBuffers;
+        createInfo.vertex_input_state.num_vertex_buffers = skinned ? 2 : 1;
         createInfo.vertex_input_state.vertex_attributes = attributes;
-        createInfo.vertex_input_state.num_vertex_attributes = 5;
+        createInfo.vertex_input_state.num_vertex_attributes = skinned ? 7 : 5;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         createInfo.rasterizer_state.cull_mode =
@@ -668,10 +686,11 @@ namespace Atom
     std::unique_ptr<Mesh> Renderer::CreateMesh(
         std::span<const Vertex> vertices,
         std::span<const std::uint32_t> indices,
-        bool hasBakedLight
+        bool hasBakedLight,
+        std::span<const SkinVertex> skin
     )
     {
-        return Mesh::Create(m_device, vertices, indices, hasBakedLight);
+        return Mesh::Create(m_device, vertices, indices, hasBakedLight, skin);
     }
 
     std::unique_ptr<Texture> Renderer::CreateTexture(
@@ -723,6 +742,32 @@ namespace Atom
         m_drawCommands.push_back(DrawCommand{ &mesh, &material, model, m_currentChunk });
     }
 
+    std::uint32_t Renderer::AddPalette(std::span<const glm::mat4> palette)
+    {
+        const std::size_t count = std::min(palette.size(), MaxPaletteJoints);
+        m_paletteRanges.push_back(PaletteRange{
+            static_cast<std::uint32_t>(m_palettes.size()),
+            static_cast<std::uint32_t>(count) });
+        m_palettes.insert(m_palettes.end(), palette.begin(), palette.begin() + count);
+        return static_cast<std::uint32_t>(m_paletteRanges.size() - 1);
+    }
+
+    void Renderer::SubmitSkinned(
+        const Mesh& mesh,
+        const Material& material,
+        const glm::mat4& model,
+        std::uint32_t palette
+    )
+    {
+        if (!mesh.IsSkinned() || palette >= m_paletteRanges.size())
+        {
+            Submit(mesh, material, model);
+            return;
+        }
+        m_drawCommands.push_back(DrawCommand{
+            &mesh, &material, model, m_currentChunk, static_cast<int>(palette) });
+    }
+
     void Renderer::BeginChunk(const ChunkInfo& chunk)
     {
         m_currentChunk = static_cast<int>(m_chunks.size());
@@ -737,6 +782,7 @@ namespace Atom
                 m.alphaMode == AlphaMode::Blend,
                 m.alphaMode == AlphaMode::Mask,
                 m.doubleSided,
+                c.palette >= 0,
                 c.material,
                 c.mesh };
         };
@@ -760,14 +806,18 @@ namespace Atom
             std::vector<ChunkInfo>& chunks;
             int& currentChunk;
             UIRenderer& ui;
+            std::vector<glm::mat4>& palettes;
+            std::vector<PaletteRange>& paletteRanges;
             ~ClearOnExit()
             {
                 commands.clear();
+                palettes.clear();
+                paletteRanges.clear();
                 chunks.clear();
                 currentChunk = -1;
                 ui.EndFrame();
             }
-        } clearDrawCommands{ m_drawCommands, m_chunks, m_currentChunk, m_ui };
+        } clearDrawCommands{ m_drawCommands, m_chunks, m_currentChunk, m_ui, m_palettes, m_paletteRanges };
 
         SDL_GPUCommandBuffer* commandBuffer =
             SDL_AcquireGPUCommandBuffer(m_device);
@@ -942,11 +992,16 @@ namespace Atom
             return false;
         }
 
+        return GetShadowPipeline(false) != nullptr;
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::CreateShadowPipeline(bool skinned)
+    {
         SDL_GPUShader* vertexShader = LoadShader(
             m_device,
-            "Shadow.vert",
+            skinned ? "ShadowSkinned.vert" : "Shadow.vert",
             SDL_GPU_SHADERSTAGE_VERTEX,
-            ShaderResources{ .uniformBuffers = 2 }
+            ShaderResources{ .uniformBuffers = skinned ? 3u : 2u }
         );
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
@@ -965,7 +1020,7 @@ namespace Atom
             {
                 SDL_ReleaseGPUShader(m_device, fragmentShader);
             }
-            return false;
+            return nullptr;
         }
 
         // Same vertex buffers as the scene; position, and the uv that alpha
@@ -975,7 +1030,20 @@ namespace Atom
         vertexBuffer.pitch = sizeof(Vertex);
         vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        SDL_GPUVertexAttribute attributes[3]{};
+        SDL_GPUVertexBufferDescription vertexBuffers[2]{ vertexBuffer, {} };
+        vertexBuffers[1].slot = 1;
+        vertexBuffers[1].pitch = sizeof(SkinVertex);
+        vertexBuffers[1].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+
+        SDL_GPUVertexAttribute attributes[5]{};
+        attributes[3].location = 3;
+        attributes[3].buffer_slot = 1;
+        attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4;
+        attributes[3].offset = offsetof(SkinVertex, joints);
+        attributes[4].location = 4;
+        attributes[4].buffer_slot = 1;
+        attributes[4].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
+        attributes[4].offset = offsetof(SkinVertex, weights);
         attributes[0].location = 0;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         attributes[0].offset = offsetof(Vertex, position);
@@ -989,10 +1057,10 @@ namespace Atom
         SDL_GPUGraphicsPipelineCreateInfo createInfo{};
         createInfo.vertex_shader = vertexShader;
         createInfo.fragment_shader = fragmentShader;
-        createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
-        createInfo.vertex_input_state.num_vertex_buffers = 1;
+        createInfo.vertex_input_state.vertex_buffer_descriptions = vertexBuffers;
+        createInfo.vertex_input_state.num_vertex_buffers = skinned ? 2 : 1;
         createInfo.vertex_input_state.vertex_attributes = attributes;
-        createInfo.vertex_input_state.num_vertex_attributes = 3;
+        createInfo.vertex_input_state.num_vertex_attributes = skinned ? 5 : 3;
         createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         // Kit pieces include single-sided quads (doors, ground); let both
@@ -1012,21 +1080,19 @@ namespace Atom
         createInfo.target_info.depth_stencil_format = ShadowMapFormat;
         createInfo.target_info.has_depth_stencil_target = true;
 
-        m_shadowPipeline = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+        SDL_GPUGraphicsPipeline* pipeline = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
 
         SDL_ReleaseGPUShader(m_device, vertexShader);
         SDL_ReleaseGPUShader(m_device, fragmentShader);
 
-        if (!m_shadowPipeline)
+        if (!pipeline)
         {
             std::cerr
                 << "Failed to create shadow pipeline: "
                 << SDL_GetError()
                 << '\n';
-            return false;
         }
-
-        return true;
+        return pipeline;
     }
 
     glm::mat4 Renderer::ComputeLightViewProjection() const
@@ -1132,6 +1198,17 @@ namespace Atom
                 &uniforms,
                 sizeof(uniforms)
             );
+            const bool skinned = command.palette >= 0;
+            if (skinned)
+            {
+                const PaletteRange& range = m_paletteRanges[command.palette];
+                SDL_PushGPUVertexUniformData(
+                    commandBuffer,
+                    2,
+                    m_palettes.data() + range.first,
+                    range.count * static_cast<Uint32>(sizeof(glm::mat4))
+                );
+            }
 
             const Material& material = *command.material;
             const bool masked = material.alphaMode == AlphaMode::Mask;
@@ -1143,8 +1220,8 @@ namespace Atom
             if (bindMaterials)
             {
                 SDL_GPUGraphicsPipeline* pipeline = isDecal
-                    ? GetDecalPipeline(sceneSamples)
-                    : GetScenePipeline(sceneSamples, material.doubleSided, masked);
+                    ? GetDecalPipeline(sceneSamples, skinned)
+                    : GetScenePipeline(sceneSamples, material.doubleSided, masked, skinned);
                 if (!pipeline)
                 {
                     continue;
@@ -1168,7 +1245,7 @@ namespace Atom
                         material.lightmapIntensity,
                         material.lightmap ? m_lighting.bakedLight : 0.0f,
                         material.wet,
-                        0.0f },
+                        skinned && m_skinWeightsView ? 1.0f : 0.0f },
                     glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f,
                                material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount }
                 };
@@ -1217,6 +1294,16 @@ namespace Atom
             }
             else
             {
+                SDL_GPUGraphicsPipeline* pipeline = GetShadowPipeline(skinned);
+                if (!pipeline)
+                {
+                    continue;
+                }
+                if (pipeline != bound)
+                {
+                    SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+                    bound = pipeline;
+                }
                 // Depth only: just enough to cut the same holes as the scene.
                 const ShadowMaterialUniforms shadowUniforms{
                     glm::vec4{ cutoff, material.baseColorFactor.a, 0.0f, 0.0f }
@@ -1230,15 +1317,15 @@ namespace Atom
                 SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
             }
 
-            const SDL_GPUBufferBinding vertexBinding{
-                command.mesh->GetVertexBuffer(),
-                0
+            const SDL_GPUBufferBinding vertexBindings[2]{
+                { command.mesh->GetVertexBuffer(), 0 },
+                { command.mesh->GetSkinBuffer(), 0 }
             };
             const SDL_GPUBufferBinding indexBinding{
                 command.mesh->GetIndexBuffer(),
                 0
             };
-            SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
+            SDL_BindGPUVertexBuffers(renderPass, 0, vertexBindings, skinned ? 2 : 1);
             SDL_BindGPUIndexBuffer(
                 renderPass,
                 &indexBinding,
@@ -1287,7 +1374,7 @@ namespace Atom
             return false;
         }
 
-        SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipeline);
+        SDL_BindGPUGraphicsPipeline(renderPass, m_shadowPipelines[0]);
         SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
         m_stats.shadowDrawn =
             DrawQueue(renderPass, commandBuffer, lightViewProjection, 0);
@@ -1987,9 +2074,12 @@ namespace Atom
             {
                 SDL_ReleaseGPUGraphicsPipeline(m_device, m_postPipeline);
             }
-            if (m_shadowPipeline)
+            for (SDL_GPUGraphicsPipeline* pipeline : m_shadowPipelines)
             {
-                SDL_ReleaseGPUGraphicsPipeline(m_device, m_shadowPipeline);
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
             }
             for (SDL_GPUGraphicsPipeline* pipeline : m_particlePipelines)
             {
@@ -2026,7 +2116,7 @@ namespace Atom
         m_scenePipelines = {};
         m_decalPipelines = {};
         m_postPipeline = nullptr;
-        m_shadowPipeline = nullptr;
+        m_shadowPipelines = {};
         m_particlePipelines = {};
         m_particleBuffer = nullptr;
         m_particleTransfer = nullptr;

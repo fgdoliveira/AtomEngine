@@ -1,0 +1,127 @@
+# Documentation captures: the character lab (v0.0.6).
+# Run through Tools/Docs/capture_character_lab.ps1 (it sets the level, the
+# asset root and builds the GIFs). Images go to out/img/character_lab/.
+#
+# Every frame advances exactly 1/30 s, so sequences are evenly spaced and
+# a rerun gives the same frames. The lab's HUD stays on: it names what each
+# shot shows (clip, time, blend, state). Post without grain or vignette,
+# which change every frame and bloat the GIFs.
+
+set fixed_dt 0.0333333
+set unease off
+set msaa 4
+set post grade
+wait_for_mode viewer 5
+wait 0.5
+
+# 01 - Skinning: the bind pose against a pose from a clip (M35). The mesh is
+# the same; only the joints moved, and the skin followed.
+clip rudy Walk
+set pause on
+set bind on
+wait 0.1
+screenshot character_lab/01_bind_pose ui
+set bind off
+wait 0.1
+screenshot character_lab/01_posed_walk ui
+set pause off
+
+# 02 - The skeleton (M36): 22 joints drawn over the body, turning round it.
+set skeleton on
+wait 0.1
+screenshot character_lab/02_skeleton ui
+hold_action orbit_right on
+capture character_lab/seq/02_skeleton_orbit 60 2 ui
+hold_action orbit_right off
+set skeleton off
+
+# 03 - Skin weights (M36): every joint a colour, blended by weight. Soft
+# gradients where joints share vertices (shoulders, neck), hard edges where
+# a whole part follows one joint.
+set weights on
+set pause on
+wait 0.1
+screenshot character_lab/03_weights ui
+set pause off
+hold_action orbit_right on
+capture character_lab/seq/03_weights_orbit 60 2 ui
+hold_action orbit_right off
+set weights off
+
+# 04 - Each clip, one full cycle (Idle 2.0 s, Jump 1.4 s, Run 0.7 s,
+# Walk 1.1 s): the clip's own motion, the jump's rise included.
+clip rudy Jump
+capture character_lab/seq/04_clip_jump 41 1 ui
+clip rudy Run
+capture character_lab/seq/04_clip_run 21 1 ui
+clip rudy Walk
+capture character_lab/seq/04_clip_walk 33 1 ui
+clip rudy Idle
+capture character_lab/seq/04_clip_idle 61 1 ui
+
+# 05 - Crossfade (M37): Idle into Walk over 0.3 s, at quarter speed so the
+# blend is visible (1.2 s of frames).
+press_action slower
+press_action slower
+wait 0.5
+press_action clip_4
+capture character_lab/seq/05_crossfade_idle_walk 45 1 ui
+press_action faster
+press_action faster
+
+# 06 - Walk/run blend (M37): the slider from all walk to all run, both
+# cycles kept in phase; then the three points as stills.
+set mode blend
+set blend 0
+wait 0.2
+hold_action blend_up on
+capture character_lab/seq/06_blend_walk_to_run 66 1 ui
+hold_action blend_up off
+set blend 0
+set pause on
+wait 0.1
+screenshot character_lab/06_blend_000 ui
+set blend 0.5
+wait 0.1
+screenshot character_lab/06_blend_050 ui
+set blend 1
+wait 0.1
+screenshot character_lab/06_blend_100 ui
+set pause off
+
+# 07 - The state machine (M37): the demo script plays a player - stand,
+# speed up, run, jump, slow down, stand - and the animator picks states
+# and crossfades. 14 s, every other frame.
+set mode machine
+capture character_lab/seq/07_state_machine 210 2 ui
+
+# 08 - Drive (M38): Rudy runs and jumps on the steps; the camera follows on
+# its spring arm.
+set mode clips
+press_action toggle_drive
+wait 0.1
+expect_mode drive
+teleport -0.5 0.05 2 90
+wait 0.3
+hold_action move_forward on
+hold_action jog on
+capture character_lab/seq/08_drive_run_steps 30 1 ui
+press_action jump
+capture character_lab/seq/08_drive_jump 30 1 ui
+hold_action jog off
+hold_action move_forward off
+wait 1.0
+
+# 09 - The spring arm (M38): backing toward the wall, the arm pulls in at
+# once; walking away, it eases back out.
+teleport 0 0.05 4 0
+wait 0.5
+hold_action move_back on
+capture character_lab/seq/09_spring_arm 30 2 ui
+hold_action move_back off
+hold_action move_forward on
+capture character_lab/seq/09_spring_arm_out 30 1 ui
+hold_action move_forward off
+press_action toggle_drive
+wait 0.1
+log character lab captures done

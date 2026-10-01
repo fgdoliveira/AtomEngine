@@ -26,6 +26,15 @@ namespace AtomGame
         constexpr float KillHeight = -20.0f;
     }
 
+    void PlayerController::Place(const glm::vec3& feet)
+    {
+        m_feetPosition = feet;
+        m_spawnPosition = feet;
+        m_visualFeetY = feet.y;
+        m_velocity = glm::vec3{ 0.0f };
+        m_grounded = false;
+    }
+
     void PlayerController::Teleport(const glm::vec3& feet, Atom::Camera& camera)
     {
         m_feetPosition = feet;
@@ -69,6 +78,36 @@ namespace AtomGame
             (camera.GetFlatForward() * move.y + camera.GetFlatRight() * move.x)
             * speed;
 
+        Move(targetVelocity, false, world, deltaSeconds);
+
+        // Bob follows distance walked, and fades in/out with movement.
+        const float blend = 1.0f - std::exp(-acceleration * deltaSeconds);
+        const float horizontalSpeed =
+            std::sqrt(m_velocity.x * m_velocity.x + m_velocity.z * m_velocity.z);
+        if (m_grounded)
+        {
+            m_bobPhase += horizontalSpeed * BobFrequency * deltaSeconds;
+        }
+
+        const float targetWeight =
+            std::min(horizontalSpeed / walkSpeed, 1.5f);
+        m_bobWeight += (targetWeight - m_bobWeight) * blend;
+
+        const float vertical =
+            std::sin(m_bobPhase * 2.0f) * BobVertical * m_bobWeight;
+        const float lateral =
+            std::sin(m_bobPhase) * BobLateral * m_bobWeight;
+
+        camera.SetPosition(
+            glm::vec3{ m_feetPosition.x, m_visualFeetY, m_feetPosition.z }
+            + glm::vec3{ 0.0f, eyeHeight + vertical, 0.0f }
+            + camera.GetFlatRight() * lateral
+        );
+    }
+
+    void PlayerController::Move(const glm::vec3& targetVelocity, bool jump,
+                                const Atom::CollisionWorld* world, float deltaSeconds)
+    {
         // Frame-rate independent ease toward the target horizontal velocity.
         const float blend = 1.0f - std::exp(-acceleration * deltaSeconds);
         m_velocity.x += (targetVelocity.x - m_velocity.x) * blend;
@@ -98,6 +137,11 @@ namespace AtomGame
             m_feetPosition += displacement;
         }
 
+        if (jump && m_grounded)
+        {
+            m_velocity.y = jumpSpeed;
+            m_grounded = false;
+        }
         UpdateVertical(world, deltaSeconds);
 
         if (m_feetPosition.y < KillHeight)
@@ -117,29 +161,6 @@ namespace AtomGame
         {
             m_visualFeetY = m_feetPosition.y;
         }
-
-        // Bob follows distance walked, and fades in/out with movement.
-        const float horizontalSpeed =
-            std::sqrt(m_velocity.x * m_velocity.x + m_velocity.z * m_velocity.z);
-        if (m_grounded)
-        {
-            m_bobPhase += horizontalSpeed * BobFrequency * deltaSeconds;
-        }
-
-        const float targetWeight =
-            std::min(horizontalSpeed / walkSpeed, 1.5f);
-        m_bobWeight += (targetWeight - m_bobWeight) * blend;
-
-        const float vertical =
-            std::sin(m_bobPhase * 2.0f) * BobVertical * m_bobWeight;
-        const float lateral =
-            std::sin(m_bobPhase) * BobLateral * m_bobWeight;
-
-        camera.SetPosition(
-            glm::vec3{ m_feetPosition.x, m_visualFeetY, m_feetPosition.z }
-            + glm::vec3{ 0.0f, eyeHeight + vertical, 0.0f }
-            + camera.GetFlatRight() * lateral
-        );
     }
 
     void PlayerController::MoveHorizontally(
@@ -217,7 +238,8 @@ namespace AtomGame
         if (floor)
         {
             const bool landing = m_feetPosition.y <= *floor;
-            const bool snapping = wasGrounded
+            // Rising (a jump) never snaps back down to the floor.
+            const bool snapping = wasGrounded && m_velocity.y <= 0.0f
                 && m_feetPosition.y - *floor <= stepHeight;
             if (landing || snapping)
             {

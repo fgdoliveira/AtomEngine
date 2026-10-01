@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.5 / M34**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52).
+A study guide to every concept the engine uses, as of **v0.0.6 / M40**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -61,9 +61,14 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 50. [Playfields as data, and tuning by simulation (M31)](#50-playfields-as-data-and-tuning-by-simulation-m31)
 51. [Rules as a state machine: the lottery and the fever (M32)](#51-rules-as-a-state-machine-the-lottery-and-the-fever-m32)
 52. [Counters and the economy (M33)](#52-counters-and-the-economy-m33)
-53. [Anatomy of a frame and what it costs](#53-anatomy-of-a-frame-and-what-it-costs)
-54. [Build system and project layout](#54-build-system-and-project-layout)
-55. [Glossary](#55-glossary)
+53. [Skeletal skinning (M35)](#53-skeletal-skinning-m35)
+54. [The character lab: a viewer and debug views (M36)](#54-the-character-lab-a-viewer-and-debug-views-m36)
+55. [Pose blending and the animation state machine (M37)](#55-pose-blending-and-the-animation-state-machine-m37)
+56. [A third-person character: drive mode (M38)](#56-a-third-person-character-drive-mode-m38)
+57. [Releasing the lab: captures, and a regression found by measuring (M39–M40)](#57-releasing-the-lab-captures-and-a-regression-found-by-measuring-m39m40)
+58. [Anatomy of a frame and what it costs](#58-anatomy-of-a-frame-and-what-it-costs)
+59. [Build system and project layout](#59-build-system-and-project-layout)
+60. [Glossary](#60-glossary)
 
 ---
 
@@ -935,7 +940,7 @@ Decals cast no shadows.
 - **step**: hold the previous key;
 - **cubic spline**: Hermite curves using the stored in and out tangents.
 
-Times outside the keys clamp to the first or last key. This is *rigid* animation: whole parts move, nothing bends. Bending needs skinning (joints and weights), which was left out on purpose.
+Times outside the keys clamp to the first or last key. This is *rigid* animation: whole parts move, nothing bends. Bending needs skinning (joints and weights), which came in v0.0.6 (§53).
 
 **In AtomEngine.**
 - `Model` keeps the node hierarchy and its clips.
@@ -1369,7 +1374,149 @@ The loader validates it: every shape on the board, no touching nails, a start po
 
 ---
 
-## 53. Anatomy of a frame and what it costs
+## 53. Skeletal skinning (M35)
+
+**Concept.** Rigid animation (§38) moves whole parts. A character has to *bend*: an elbow, a knee, the cloth over a shoulder. **Skinning** does it with a **skeleton**, a hierarchy of **joints** (glTF nodes), and per-vertex **weights**: each vertex follows up to four joints, blended by how much it belongs to each.
+
+- **Bind pose:** the pose the mesh was modelled and attached to the skeleton in.
+- **Inverse bind matrix:** one per joint. It takes a vertex from model space into that joint's own space as it stood in the bind pose. Pose the joint, multiply back out, and the vertex moves with it.
+- **Palette matrix:** `jointWorld × inverseBind`. In the bind pose it is the identity, and the mesh stands as modelled.
+- **Linear blend skinning:** `skinned = Σ weightᵢ × paletteᵢ × position`. The matrices are blended, then applied once. Its known flaw: blending rotations as matrices shrinks volume at sharp twists (the "candy wrapper"). Fixing that takes dual quaternions; it's not needed here.
+
+**AtomEngine.**
+- **Loading:** cgltf gives the skins (joint lists, inverse binds) and the attributes `JOINTS_0` (u8 or u16) and `WEIGHTS_0`. Weights are **renormalised**: exporters store them as floats or normalised integers, and a sum drifting from 1 shrinks the vertex toward the origin. A skin over 64 joints is refused.
+- **A second vertex stream:** `SkinVertex` (4 joint indices, 4 weights) lives in its own buffer next to `Vertex`. Static meshes are untouched; skinned draws bind both streams.
+- **Pipelines:** skinned variants of the scene, decal and shadow pipelines use `Skinned.vert` / `ShadowSkinned.vert` (`Skinning.hlsli`) with the same fragment shaders. The palette is a vertex uniform (slot 2), pushed per draw.
+- **Per frame:** `Model::Submit` with a **pose** (one local `T·R·S` per node) composes world matrices (`ComputeWorldMatrices`, resolving parents on demand), computes one palette per skin (`ComputePalette`), stores it once (`Renderer::AddPalette`) and submits every part with its handle (`SubmitSkinned`). A skinned mesh ignores its node's transform: the joints place it.
+- **Culling:** a running character leaves its bind-pose box. At load, `ComputeSkinnedBounds` skins the mesh through every clip (16 samples each, plus a 5 % margin) and widens the mesh's box to fit.
+- **Entities** get a uniform `scale` (Rudy at 0.8, about 1.7 m).
+
+**Tests.** The skin loads with 22 joints and weights summing to 1; the bind-pose palette is the identity; one vertex skinned on the CPU (`SkinPoint`) matches a hand computation; the bounds hold every vertex at times off the sampling grid.
+
+**Code.** `Engine/Assets/Skin.*`, `Model::Load/Submit/SamplePose`, `Mesh` (skin stream), `Renderer::AddPalette/SubmitSkinned`, `Shaders/Skinned.vert.hlsl`, `ShadowSkinned.vert.hlsl`, `Skinning.hlsli`, `Tests/SkinningTests.cpp`.
+
+---
+
+## 54. The character lab: a viewer and debug views (M36)
+
+**Concept.** Animation is hard to judge in a game: the camera moves, the character moves, things happen fast. Tools of the 2000s (and engines' animation editors since) give it a **viewer**: the model alone on a turntable, an orbit camera, clips to pick and step through, and **debug views** that show the machinery instead of the result.
+
+**AtomEngine.**
+- **The level:** `character_lab` (`Tools/Blender/atom_lab.py`): a grid floor, a **cyclorama** (a backdrop curving smoothly up from the floor) whose colour matches the fog, so the open sides dissolve, and a checkered turntable. A level with a `lab` section (subject entity, orbit) opens in the viewer.
+- **`LabViewer`, pure state:**
+  - an orbit camera: yaw, pitch (clamped), distance (zoom by a fixed share per notch, so it feels the same near and far);
+  - clips, speed steps, pause and a one-frame step (which pauses: stepping is for looking closely);
+  - toggles for the bind pose, the skeleton and the weights.
+
+  Keys come in as a `ViewerInput`; the camera and the pose come out. Unit-tested without a window.
+- **The viewer owns the clock:** the subject's clip and time are written each frame, and the level draws what it's told.
+- **Skeleton overlay:** each joint's origin is projected to the screen and drawn in the UI layer, joined to its nearest ancestor that is also a joint. It's drawn over everything, so the bones show through the body.
+- **Weights view:** each joint gets a colour (golden-ratio hues), and each vertex the blend of its joints' colours by weight. Gradients mark joints sharing vertices (shoulders, neck); hard edges mark parts following one joint. Skinned meshes carry no baked light, so `Skinned.vert` writes this colour into the vertex-colour channel, and a material flag makes `Basic.frag` show it.
+- **Input is by position:** bindings are scancodes, physical key positions. `[` `]` on a US keyboard are `` ` `` `+` on a Spanish one, so the blend slider also sits on Z/X, which are in the same place on every layout.
+
+**Code.** `Game/Character/LabViewer.*`, `Game/DemoAppLab.cpp`, `Level::EntityModelTransform`, `LevelLab` in `LevelData`, `Tools/Blender/atom_lab.py`, `Tests/LabViewerTests.cpp`.
+
+---
+
+## 55. Pose blending and the animation state machine (M37)
+
+### Blending poses
+**Concept.** A character rarely plays one clip: it eases from standing into walking, and walks faster into a run. Both are **blends** of poses, joint by joint:
+- translation and scale: a straight `lerp`;
+- rotation: **slerp** (§38). A quaternion `q` and `-q` are the same rotation, so slerp first takes whichever is nearer. Otherwise a 20° blend can swing 200° the long way.
+
+More than two poses blend as a running weighted average: each new pose comes in by its share of the weight seen so far.
+
+**Crossfade:** when a clip changes, the old one keeps playing while its weight falls to 0 over a blend time (0.3 s in the viewer). No pop.
+
+### Walk and run in phase
+**Concept.** Walk (1.1 s per stride) and Run (0.7 s) blended *by time* tangle their legs: at 0.5 s one has the left foot forward, the other the right. Blend them by **phase** instead, the fraction of a stride:
+
+```
+walk time = phase × 1.1      run time = phase × 0.7
+cycle     = 1.1 + (0.7 − 1.1) × weight      phase += dt / cycle
+```
+
+Both clips are always at the same point of the stride, so the feet agree; the blended stride lasts in between (0.9 s at 50 %). Games call these **sync groups**.
+
+### The animation state machine
+**Concept.** What plays when is gameplay logic, best written as data: **states** (a clip, or a blend driven by a parameter) and **transitions** with conditions on **parameters** and a crossfade time. Gameplay only sets parameters (`speed`, `grounded`); the animator decides.
+
+```json
+"move": { "blend": ["Walk", "Run"], "param": "speed", "range": [1.4, 4.0] },
+{ "from": "*", "to": "jump", "when": ["grounded == 0"], "blend": 0.1 }
+```
+
+- Transitions are checked in order, and the first that matches wins. `"*"` means from any state but the target.
+- A **one-shot** (`"loop": false`) returns to its `next` state by itself.
+- Unset parameters read 0, so `grounded` must be set before anything moves. A test learned that the hard way: a forgotten `grounded` fired the jump.
+
+**AtomEngine.**
+- `BlendPoses` and `Model::SamplePose(samples)` blend any weighted clips.
+- `Animator` binds a model's clips by name once (errors name what's missing) and outputs `ClipSample`s (clip, time, weight) for the level to draw.
+- **Viewer:** 5 shows the walk/run blend on a slider; 6 runs the state machine from a 14 s demo script (stand, speed up, run, jump, slow down).
+- **Harness:** `set_param`, `expect_state`.
+
+**Tests.** Blend endpoints are the sources; slerp takes the short way; the state machine follows scripted parameters, and its weights always sum to 1; both blended clips stay at the same phase.
+
+**Code.** `Game/Character/Animator.*`, `BlendPoses` in `Skin.*`, `Model::SamplePose(std::span<const ClipSample>)`, `Tests/AnimatorTests.cpp`.
+
+---
+
+## 56. A third-person character: drive mode (M38)
+
+**Concept.** Third-person control has three parts:
+- **Movement relative to the camera:** W means "away from the camera", whatever way the character faces. It turns to face its movement, smoothly and the short way round.
+- **A body with physics:** walls, steps, gravity, a jump.
+- **A camera on a spring arm:** behind and above the shoulders, swung by the player. A ray from the pivot toward the camera finds walls in between. The arm **pulls in at once** (never show the inside of a wall) and **eases back out** (no jump when the wall is gone).
+
+**Animation follows the body, not the keys.** The animator reads the body's actual speed and whether it stands. Walking into a wall plays idle, and walking off a ledge plays the fall.
+
+**Root motion vs in place.** The Jump clip lifts the hips about 0.55 m by itself (its **root motion**). If physics also lifts the body, the jump is doubled. The choice is who moves the character: the animation, or physics. Here physics jumps (it lands on steps and platforms), and the clip plays **in place**: an `inPlace` state pins the hips to their rest position, so the clip keeps only the arms' and legs' motion. Landing ends the jump early.
+
+**Animation events.** Moments of a clip, written as data, such as a foot touching down. The foot-down times were measured from the clips by sampling the foot joints' height (Walk at 41 % and 89 % of a stride, Run at 47 % and 94 %, close thanks to the phase sync). An event fires when the playback crosses it, wraps included, and only from the state playing, not one fading out. Each "foot" bumps the step counter the footstep audio already listens to.
+
+**AtomEngine.**
+- `PlayerController::Move`: the first-person body split from its camera, now with a jump (and no snapping back to the floor while rising). Rudy uses a second one with his own size and speeds; the player's code path is unchanged.
+- `SpringArm`: a pure class with a raycast callback, unit-tested.
+- Tab switches viewer ↔ drive in the mode switch, once per press. Handling it inside the entered mode's update made one press switch twice in the same frame.
+- **The lab:** steps (0.15 m each) to a platform, a ramp (a rotated collider; colliders may now carry a rotation), crates, and a wall to back the camera into. The asset lint caught the ramp sharing a plane with the platform's sides, and a 2 cm inset fixed it.
+- **Scenario `character_lab`:** drive, walk, run, jump, climb the steps and the ramp, Tab back.
+
+**Code.** `Game/Character/SpringArm.*`, `PlayerController::Move/Place`, `DemoApp::BeginDrive/UpdateDrive/EndDrive`, `Animator` (events, `inPlace`), `Tests/DriveTests.cpp`, `Tests/Scenarios/character_lab.atomtest`.
+
+---
+
+## 57. Releasing the lab: captures, and a regression found by measuring (M39–M40)
+
+**Captures.** `Tools/Docs/character_lab.atomtest` directs the lab like first-render (§47), at a fixed 1/30 s step:
+- bind pose vs posed;
+- skeleton and weights, as stills and turntable orbits;
+- every clip;
+- a crossfade at quarter speed;
+- the blend swept from walk to run;
+- the state machine's demo;
+- driving up the steps;
+- the spring arm at the wall.
+
+`capture_character_lab.ps1` makes the GIFs into `out/img/character_lab/`.
+
+**A regression, found by comparing.** Release frame times looked a little high, but this laptop drifts ±10 % between runs, so one number proves nothing. The fair test is **A/B**:
+- build the previous release (a git worktree at `master`);
+- add the same timing to both;
+- alternate the runs.
+
+The lightmapped levels were 10 % slower (the interior 2.30 against 2.06 ms; the night street +0.5 ms); the plain first-render scene was not.
+
+**Bisecting by hypothesis.** The cost grew with lit, lightmapped scenes, which points at the GPU and per-pixel work. The only per-pixel change was the weights view: an `if` at the top of `Basic.frag` replacing the base colour. Removing it alone gave the time back (2.10 ms). Rewritten as a branch-free `lerp` driven by the same flag, the interior measured 2.07 ms.
+
+Why would a uniform branch cost anything? On paper it shouldn't: every pixel takes the same way. In practice the compiler and the driver may lay the shader out differently around it (registers, scheduling), and this GPU paid for it. The lesson isn't "branches are slow". It's: **measure against the last release, change one thing, measure again.**
+
+**Code.** `Tools/Docs/character_lab.atomtest`, `capture_character_lab.ps1`, `Shaders/Basic.frag.hlsl` (the debug blend).
+
+---
+
+## 58. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -1403,11 +1550,12 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Per layer**: on the night street, without the mid and far layers the frame is ≈ 2.8 ms, so shells, skyline and seven impostors cost ≈ 0.65 ms for 8 draws, none in the shadow pass.
 - **The older levels** are 0.3–0.5 ms slower than in v0.0.3. The likeliest cause is the glow pass (§41), which now runs in every level; it wasn't measured separately.
 - **v0.0.5**: the pachinko hall ≈ 2.8 ms walking around (its three screens now simulate the real game), ≈ 3.5 ms seated and playing (the 2D game fullscreen with the hall still drawn underneath); the night street ≈ 3.3 ms, within noise of v0.0.4.
+- **v0.0.6** (measured side by side with a 0.0.5 build, §57): the character lab ≈ 2.35 ms in the viewer, ≈ 2.4 ms with the skeleton, weights and state machine on, ≈ 2.2 ms driving (8 draws, 7 in the shadow pass; the skinned character is 3 of them). The other levels are unchanged: the interior 2.07 ms (0.0.5: 2.06), the pachinko hall 2.85 (2.99 that day), the night street ≈ 3.1.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 54. Build system and project layout
+## 59. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3.
@@ -1416,8 +1564,8 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
-- **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`.
+- **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
@@ -1429,13 +1577,16 @@ Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Atmosphere, UneaseDirector, Main
          World/ Interaction/ Dialogue/ Level/ Testing/
          Input/ (contexts) Pachinko/ (physics, playfield, rules, game, machine mode)
+         Character/ (LabViewer, Animator, SpringArm); DemoAppLab (the lab's modes)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
-         GlowBright, GlowBlur (.hlsl) + Common.hlsli, Sway.hlsli
+         GlowBright, GlowBlur, Skinned, ShadowSkinned (.hlsl)
+         + Common.hlsli, Sway.hlsli, Skinning.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
-Tools/Blender/  kit + street + levels + city + night + pachinko + lint
+Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
-Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/
+Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/
+         ThirdParty/ (used as they came: the lab's character, credits README)
          Sky/ (.glb, lightmap .png, impostor atlas),
          Levels/*.json (+ *.markers.json), Dialogue/*.json,
          Schemas/*.schema.json, Fonts/
@@ -1446,9 +1597,11 @@ external/ SDL glm cgltf stb json doctest
 
 **Controls:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc release/quit · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · M mute.
 
+**Character lab:** arrows / mouse orbit, wheel zoom · 1–4 clip · 5 blend (Z/X slider) · 6 state machine · −/+ speed · Space pause · . step · B bind pose · K skeleton · W weights · Tab drive (WASD, Shift run, Space jump, Tab back).
+
 ---
 
-## 55. Glossary
+## 60. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -1456,7 +1609,10 @@ external/ SDL glm cgltf stb json doctest
 - **Alpha dilation** — filling transparent texels with nearby opaque colour so filtering doesn't pull dark fringes into cut-out edges.
 - **Alpha test / alpha mask** — drawing a pixel or discarding it by comparing its alpha with a cutoff; no sorting needed.
 - **Alpha-to-coverage** — with MSAA, turning a pixel's alpha into how many of its samples are covered: soft cut-out edges without sorting.
+- **Animation event** — a named moment of a clip (a foot touching down) that fires when playback crosses it.
+- **Animation state machine** — states (clips or blends) and transitions on parameters, as data; gameplay only sets the parameters.
 - **Atlas** — several small images packed into one texture.
+- **A/B measurement** — timing the old and the new build alternately on the same machine, so drift between runs cancels out.
 - **Attachment** — a texture a render pass draws into (colour, depth).
 - **Attenuation** — a sound getting quieter with distance.
 - **Baked lighting** — light computed offline and stored (in vertex colours or lightmaps) instead of computed every frame.
@@ -1465,6 +1621,7 @@ external/ SDL glm cgltf stb json doctest
 - **Bloom / glow** — bright parts of the image blurred and added back, imitating light scattering in the eye and lens.
 - **Broad phase** — a cheap first test that narrows down which objects or triangles could collide, before the exact test.
 - **Broad phase / narrow phase** — first cheaply list what *might* touch (a grid), then test those exactly.
+- **Bind pose** — the pose a mesh was attached to its skeleton in; skinning measures every movement from it.
 - **Beer–Lambert law** — light through a medium decays as e^(−density·distance); the basis of exponential fog.
 - **Billboard** — a quad that always faces the camera.
 - **Biquad** — a standard 2nd-order digital filter (low/high/band-pass).
@@ -1474,6 +1631,8 @@ external/ SDL glm cgltf stb json doctest
 - **Comb filter** — a delay fed back into itself: an echo that repeats and decays; the building block of classic reverbs.
 - **Contact normal** — the direction a colliding body is pushed out along; the approaching velocity along it is removed and partly returned.
 - **Counter (game state)** — a named number that outlives levels (tokens, balls), next to the yes/no flags.
+- **Crossfade** — blending from one animation to the next over a short time, so the pose doesn't pop.
+- **Cyclorama** — a studio backdrop curving seamlessly up from the floor, with no visible corner.
 - **Clip (animation)** — a named set of keyframed channels that move a model's nodes.
 - **Clip space / NDC** — coordinates after projection / after dividing by w.
 - **Command buffer** — recorded GPU work, submitted as a unit.
@@ -1506,6 +1665,8 @@ external/ SDL glm cgltf stb json doctest
 - **Hysteresis** — keeping a state until the input has clearly moved past the switching point, so it doesn't flicker at the boundary.
 - **Input context / action map** — named actions mapped to keys per mode, so gameplay never reads keys directly.
 - **Integer scaling** — enlarging pixel art by a whole number, so every pixel stays an equal square.
+- **In place (animation)** — a clip with its root motion removed, so something else (physics) moves the character.
+- **Inverse bind matrix** — per joint, the transform from model space into that joint's space at the bind pose.
 - **Hot reload** — replacing content in a running program when its files change, without restarting.
 - **JSON Pointer** — a path to one value inside a JSON document, e.g. `/entities/3/interactable/action/type`.
 - **JSON Schema** — a description of a JSON file's shape that editors use for completion and validation.
@@ -1527,10 +1688,13 @@ external/ SDL glm cgltf stb json doctest
 - **Mover** — an entity capability shuttling it between two points (the train).
 - **Median cut** — building a palette by repeatedly splitting the colour box with the widest range.
 - **LZW** — the dictionary compression GIFs use: repeated runs become short codes.
+- **Linear blend skinning** — each vertex moved by the weighted sum of its joints' palette matrices.
 - **Marker** — an empty in Blender named `spawn:`/`entity:` that places something the level file describes.
 - **Mipmap** — pre-filtered smaller copies of a texture.
 - **MSAA / resolve** — multisample AA / averaging samples into a normal image.
 - **Model / view separation** — keeping logic (the dialogue runner) apart from its presentation (the dialogue view).
+- **Palette (joint)** — the matrices a skinned draw uses: joint world × inverse bind, one per joint.
+- **Phase (animation)** — how far through its cycle a clip is, 0..1; walk and run blend at the same phase to stay in step.
 - **Normal offset** — nudging a shadow lookup along the surface normal to avoid acne.
 - **Oversampling (glyphs)** — rasterising glyphs at higher resolution so text placed between pixels stays sharp.
 - **Orthographic projection** — parallel projection without perspective; used for sun shadows.
@@ -1546,9 +1710,11 @@ external/ SDL glm cgltf stb json doctest
 - **Replay determinism** — the same seed and inputs reproduce a whole session exactly.
 - **Rest threshold** — a speed below which a contact doesn't bounce, so resting bodies don't jitter.
 - **Restitution** — the share of the approach speed a bounce gives back (1 elastic, 0 dead).
+- **Root motion** — travel built into a clip (a jump's rise, a walk's forward drift) rather than done by gameplay.
 - **Render pass** — scope of drawing into a set of attachments, with load/store ops.
-- **Rigid animation** — whole parts moving by node transforms, without deforming (no skinning).
+- **Rigid animation** — whole parts moving by node transforms, without deforming (compare skinning).
 - **Render scale** — scene resolution as a fraction of the window.
+- **Scancode** — a key's physical position, the same whatever symbol a keyboard layout prints on it.
 - **Separable filter** — a 2D filter split into a horizontal and a vertical 1D pass (the Gaussian blur of the glow).
 - **Sequence (action)** — a list of timed steps written as data and run over several frames (the bus arriving).
 - **Sample / frame (audio)** — one amplitude value / one value per channel at a point in time.
@@ -1557,8 +1723,9 @@ external/ SDL glm cgltf stb json doctest
 - **Shadow map** — a depth image rendered from a light, used to test visibility from that light.
 - **Skyline card** — a flat, alpha-tested cut-out of distant buildings; rings of them give parallax in front of the sky.
 - **Substep** — one of several short physics steps inside a frame's step, for stability and to avoid tunnelling.
-- **Skinning** — deforming a mesh by weighted joints (a skeleton); not used in AtomEngine.
+- **Skinning** — deforming a mesh by weighted joints (a skeleton), §53.
 - **Slerp** — spherical linear interpolation between rotations (quaternions), at constant angular speed.
+- **Spring arm** — a third-person camera on an arm that shortens at once in front of walls and eases back out.
 - **Slot map** — a container of reusable slots addressed by generational handles.
 - **Soft clipping** — saturating loud audio smoothly (tanh) instead of hard-cutting at ±1.
 - **Spawn** — a named position and facing where the player enters a level.
@@ -1569,6 +1736,7 @@ external/ SDL glm cgltf stb json doctest
 - **Sway (vertex)** — moving vertices in the vertex shader by a weighted wind offset, for foliage and cloth.
 - **Soft knee** — a threshold that eases in over a band instead of switching on (the glow's bright pass).
 - **Tunnelling** — a fast body passing through a thin one between two physics steps.
+- **Third person** — the camera outside the character, usually behind it; movement relative to the camera.
 - **Tessellation (here)** — splitting large faces into a grid so vertex-stored data (baked light) has vertices to live on.
 - **Texel snapping** — moving a shadow box only in whole-texel steps to stop shimmering.
 - **Tonemapping** — compressing HDR values into the display range with a smooth curve.

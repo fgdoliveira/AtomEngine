@@ -1,0 +1,23 @@
+{
+  "_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit",
+  "entities": {
+    "rudy": {
+      "position": [
+        0.0,
+        0.05,
+        -0.0
+      ],
+      "yaw": 0.0
+    }
+  },
+  "spawns": {
+    "start": {
+      "position": [
+        0.0,
+        0.0,
+        6.0
+      ],
+      "yaw": 0.0
+    }
+  }
+}

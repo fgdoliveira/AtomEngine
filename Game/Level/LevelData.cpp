@@ -202,6 +202,11 @@ namespace AtomGame
             entity.hasYaw = json.contains("yaw");
             entity.position = Vec3(json, "position", glm::vec3{ 0.0f }, path);
             entity.yawDegrees = Number(json, "yaw", path, 0.0f);
+            entity.scale = Number(json, "scale", path, 1.0f);
+            if (entity.scale <= 0.0f)
+            {
+                throw LevelError(JsonPath(path, "scale"), "must be positive");
+            }
             entity.model = String(json, "model", path);
             entity.hidden = Bool(json, "hidden", path, false);
 
@@ -252,6 +257,105 @@ namespace AtomGame
                     throw LevelError(at, "animation needs a \"clip\" and the entity a \"model\"");
                 }
                 entity.animation = a;
+            }
+
+            if (const auto animator = json.find("animator"); animator != json.end())
+            {
+                const std::string at = JsonPath(path, "animator");
+                if (entity.model.empty() || entity.animation)
+                {
+                    throw LevelError(at, "an animator needs a \"model\" and no \"animation\"");
+                }
+                AnimatorData data;
+                data.initial = String(*animator, "initial", at);
+                const auto states = animator->find("states");
+                if (states == animator->end() || !states->is_object() || states->empty())
+                {
+                    throw LevelError(at, "animator needs \"states\"");
+                }
+                for (const auto& [name, value] : states->items())
+                {
+                    const std::string stateAt = JsonPath(JsonPath(at, "states"), name);
+                    AnimStateData state;
+                    state.clip = String(value, "clip", stateAt);
+                    if (const auto blend = value.find("blend"); blend != value.end())
+                    {
+                        if (!blend->is_array() || blend->size() != 2 || !(*blend)[0].is_string() || !(*blend)[1].is_string())
+                        {
+                            throw LevelError(JsonPath(stateAt, "blend"), "must be two clip names");
+                        }
+                        state.blendFrom = (*blend)[0].get<std::string>();
+                        state.blendTo = (*blend)[1].get<std::string>();
+                        state.param = String(value, "param", stateAt);
+                        const auto range = value.find("range");
+                        if (range == value.end() || !range->is_array() || range->size() != 2
+                            || !(*range)[0].is_number() || !(*range)[1].is_number())
+                        {
+                            throw LevelError(JsonPath(stateAt, "range"), "a blend needs a [low, high] range");
+                        }
+                        state.rangeLow = (*range)[0].get<float>();
+                        state.rangeHigh = (*range)[1].get<float>();
+                    }
+                    state.loop = Bool(value, "loop", stateAt, true);
+                    state.next = String(value, "next", stateAt);
+                    state.nextBlend = Number(value, "nextBlend", stateAt, state.nextBlend);
+                    state.inPlace = String(value, "inPlace", stateAt);
+                    data.states[name] = std::move(state);
+                }
+                std::size_t index = 0;
+                for (const Json& value : Array(*animator, "transitions", at))
+                {
+                    const std::string transitionAt = JsonPath(JsonPath(at, "transitions"), index++);
+                    AnimTransitionData transition;
+                    transition.from = String(value, "from", transitionAt);
+                    transition.to = String(value, "to", transitionAt);
+                    transition.blend = Number(value, "blend", transitionAt, transition.blend);
+                    std::size_t c = 0;
+                    for (const Json& text : Array(value, "when", transitionAt))
+                    {
+                        const std::string conditionAt = JsonPath(JsonPath(transitionAt, "when"), c++);
+                        const auto condition = text.is_string() ? ParseCondition(text.get<std::string>()) : std::nullopt;
+                        if (!condition)
+                        {
+                            throw LevelError(conditionAt, "must read \"param op value\" (op: < <= > >= == !=)");
+                        }
+                        transition.when.push_back(*condition);
+                    }
+                    data.transitions.push_back(std::move(transition));
+                }
+                // "events": { "Walk": { "foot": [0.45, 0.98] } }: per clip,
+                // per event name, the seconds it happens at.
+                if (const auto events = animator->find("events"); events != animator->end())
+                {
+                    if (!events->is_object())
+                    {
+                        throw LevelError(JsonPath(at, "events"), "must map clips to events");
+                    }
+                    for (const auto& [clip, named] : events->items())
+                    {
+                        const std::string clipAt = JsonPath(JsonPath(at, "events"), clip);
+                        if (!named.is_object())
+                        {
+                            throw LevelError(clipAt, "must map event names to times");
+                        }
+                        for (const auto& [eventName, times] : named.items())
+                        {
+                            if (!times.is_array())
+                            {
+                                throw LevelError(JsonPath(clipAt, eventName), "must be a list of seconds");
+                            }
+                            for (const Json& time : times)
+                            {
+                                if (!time.is_number())
+                                {
+                                    throw LevelError(JsonPath(clipAt, eventName), "must be a list of seconds");
+                                }
+                                data.events.push_back({ clip, eventName, time.get<float>() });
+                            }
+                        }
+                    }
+                }
+                entity.animator = std::move(data);
             }
 
             if (const auto mover = json.find("mover"); mover != json.end())
@@ -551,6 +655,21 @@ namespace AtomGame
                 }
             }
 
+            if (const auto lab = root.find("lab"); lab != root.end())
+            {
+                LevelLab l;
+                l.subject = String(*lab, "subject", "/lab");
+                if (l.subject.empty())
+                {
+                    throw LevelError("/lab", "lab needs a \"subject\" entity");
+                }
+                l.target = Vec3(*lab, "target", l.target, "/lab");
+                l.distance = Number(*lab, "distance", "/lab", l.distance);
+                l.yawDegrees = Number(*lab, "yaw", "/lab", l.yawDegrees);
+                l.pitchDegrees = Number(*lab, "pitch", "/lab", l.pitchDegrees);
+                level.lab = l;
+            }
+
             if (const auto sky = root.find("sky"); sky != root.end())
             {
                 LevelSky s{ String(*sky, "panorama", "/sky"), Number(*sky, "intensity", "/sky", 1.0f) };
@@ -828,6 +947,11 @@ namespace AtomGame
                     throw LevelError(JsonPath(JsonPath("/lights", i), "entity"),
                         "no entity named \"" + level.lights[i].entity + "\"");
                 }
+            }
+
+            if (level.lab && !entityExists(level.lab->subject))
+            {
+                throw LevelError("/lab/subject", "no entity named \"" + level.lab->subject + "\"");
             }
 
             // Sequences name entities and are named by actions (M26).

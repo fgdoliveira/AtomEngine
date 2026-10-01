@@ -15,6 +15,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <unordered_map>
 
@@ -171,6 +172,10 @@ namespace Atom
                 FindAttribute(primitive, cgltf_attribute_type_texcoord, 1);
             const cgltf_accessor* colors =
                 FindAttribute(primitive, cgltf_attribute_type_color);
+            const cgltf_accessor* joints =
+                FindAttribute(primitive, cgltf_attribute_type_joints);
+            const cgltf_accessor* weights =
+                FindAttribute(primitive, cgltf_attribute_type_weights);
             if (!positions)
             {
                 return std::nullopt;
@@ -180,6 +185,10 @@ namespace Atom
             geometry.hasBakedLight = colors != nullptr;
             geometry.hasLightmapUv = lightmapUvs != nullptr;
             geometry.vertices.resize(positions->count);
+            if (joints && weights)
+            {
+                geometry.skin.resize(positions->count);
+            }
             for (cgltf_size v = 0; v < positions->count; ++v)
             {
                 Vertex& vertex = geometry.vertices[v];
@@ -213,6 +222,23 @@ namespace Atom
                     {
                         vertex.color[c] = ToUnorm16(color[c]);
                     }
+                }
+                if (!geometry.skin.empty())
+                {
+                    // Exporters store weights as floats or normalised ints,
+                    // and their sum drifts from 1: renormalise, or the
+                    // vertex would shrink toward the model's origin.
+                    SkinVertex& skin = geometry.skin[v];
+                    cgltf_uint indices[4]{};
+                    cgltf_accessor_read_uint(joints, v, indices, 4);
+                    cgltf_accessor_read_float(weights, v, glm::value_ptr(skin.weights), 4);
+                    for (int j = 0; j < 4; ++j)
+                    {
+                        skin.joints[j] = static_cast<std::uint8_t>(std::min<cgltf_uint>(indices[j], 255));
+                        skin.weights[j] = std::max(skin.weights[j], 0.0f);
+                    }
+                    const float sum = skin.weights.x + skin.weights.y + skin.weights.z + skin.weights.w;
+                    skin.weights = sum > 0.0f ? skin.weights / sum : glm::vec4{ 1.0f, 0.0f, 0.0f, 0.0f };
                 }
             }
 
@@ -307,6 +333,105 @@ namespace Atom
             }
             return clips;
         }
+    }
+
+    namespace
+    {
+        Skeleton ReadSkeleton(const cgltf_data& data)
+        {
+            Skeleton skeleton;
+            skeleton.parents.resize(data.nodes_count, -1);
+            skeleton.names.resize(data.nodes_count);
+            skeleton.rest.resize(data.nodes_count);
+            for (cgltf_size n = 0; n < data.nodes_count; ++n)
+            {
+                const cgltf_node& source = data.nodes[n];
+                NodeTransform& node = skeleton.rest[n];
+                skeleton.parents[n] = source.parent ? static_cast<int>(source.parent - data.nodes) : -1;
+                skeleton.names[n] = source.name ? source.name : "";
+                if (source.has_matrix)
+                {
+                    // Rare in exports; decompose so the node can be posed.
+                    const glm::mat4 m = glm::make_mat4(source.matrix);
+                    node.translation = glm::vec3{ m[3] };
+                    node.scale = { glm::length(glm::vec3{ m[0] }), glm::length(glm::vec3{ m[1] }),
+                                   glm::length(glm::vec3{ m[2] }) };
+                    node.rotation = glm::quat_cast(glm::mat3{
+                        glm::vec3{ m[0] } / node.scale.x, glm::vec3{ m[1] } / node.scale.y,
+                        glm::vec3{ m[2] } / node.scale.z });
+                }
+                if (source.has_translation)
+                {
+                    node.translation = glm::make_vec3(source.translation);
+                }
+                if (source.has_rotation)
+                {
+                    const float* r = source.rotation; // x y z w
+                    node.rotation = glm::quat(r[3], r[0], r[1], r[2]);
+                }
+                if (source.has_scale)
+                {
+                    node.scale = glm::make_vec3(source.scale);
+                }
+            }
+            for (cgltf_size s = 0; s < data.skins_count; ++s)
+            {
+                const cgltf_skin& source = data.skins[s];
+                Skin skin;
+                skin.joints.resize(source.joints_count);
+                skin.inverseBinds.resize(source.joints_count, glm::mat4{ 1.0f });
+                for (cgltf_size j = 0; j < source.joints_count; ++j)
+                {
+                    skin.joints[j] = static_cast<int>(source.joints[j] - data.nodes);
+                    if (source.inverse_bind_matrices)
+                    {
+                        cgltf_accessor_read_float(source.inverse_bind_matrices, j,
+                                                  glm::value_ptr(skin.inverseBinds[j]), 16);
+                    }
+                }
+                skeleton.skins.push_back(std::move(skin));
+            }
+            return skeleton;
+        }
+    }
+
+    Skeleton LoadModelSkeleton(const std::string& path)
+    {
+        const GltfData data = ParseGltf(path);
+        return data ? ReadSkeleton(*data) : Skeleton{};
+    }
+
+    void ComputeSkinnedBounds(const PrimitiveGeometry& geometry, const Skeleton& skeleton,
+                              int skin, std::span<const AnimationClip> clips,
+                              int samplesPerClip, float margin,
+                              glm::vec3& low, glm::vec3& high)
+    {
+        low = glm::vec3{ std::numeric_limits<float>::max() };
+        high = glm::vec3{ std::numeric_limits<float>::lowest() };
+        std::vector<glm::mat4> palette;
+        const auto cover = [&](const Pose& pose) {
+            const std::vector<glm::mat4> world = ComputeWorldMatrices(skeleton.parents, pose);
+            ComputePalette(skeleton.skins[skin], world, palette);
+            for (std::size_t v = 0; v < geometry.vertices.size(); ++v)
+            {
+                const glm::vec3 p = SkinPoint(geometry.vertices[v].position, geometry.skin[v], palette);
+                low = glm::min(low, p);
+                high = glm::max(high, p);
+            }
+        };
+        cover(skeleton.rest);
+        for (const AnimationClip& clip : clips)
+        {
+            for (int i = 0; i <= samplesPerClip; ++i)
+            {
+                Pose pose = skeleton.rest;
+                ApplyClip(clip, clip.duration * static_cast<float>(i) / static_cast<float>(samplesPerClip), pose);
+                cover(pose);
+            }
+        }
+        const glm::vec3 grow = (high - low) * margin;
+        low -= grow;
+        high += grow;
     }
 
     std::vector<AnimationClip> LoadModelAnimations(const std::string& path)
@@ -460,6 +585,30 @@ namespace Atom
         model->m_materials.push_back(Material{});
         model->m_materialNames.emplace_back();
 
+        model->m_clips = ReadAnimations(*data);
+        model->m_skeleton = ReadSkeleton(*data);
+        for (const Skin& skin : model->m_skeleton.skins)
+        {
+            if (skin.joints.size() > MaxSkinJoints)
+            {
+                std::cerr << "Model '" << path << "': a skin has " << skin.joints.size()
+                          << " joints; at most " << MaxSkinJoints << " are supported.\n";
+                return nullptr;
+            }
+        }
+
+        // The skin each primitive is drawn with: that of the first node
+        // using its mesh (glTF puts the skin on the node, not the mesh).
+        std::unordered_map<const cgltf_mesh*, int> meshSkins;
+        for (cgltf_size n = 0; n < data->nodes_count; ++n)
+        {
+            const cgltf_node& node = data->nodes[n];
+            if (node.mesh && node.skin && !meshSkins.contains(node.mesh))
+            {
+                meshSkins[node.mesh] = static_cast<int>(node.skin - data->skins);
+            }
+        }
+
         // Meshes: one GPU mesh per triangle primitive.
         std::unordered_map<const cgltf_primitive*, const Mesh*> meshes;
         std::unordered_map<const cgltf_primitive*, std::size_t> primitiveMaterials;
@@ -475,11 +624,24 @@ namespace Atom
                     continue;
                 }
 
+                const auto skinOf = meshSkins.find(&mesh);
+                const bool skinned = skinOf != meshSkins.end() && !geometry->skin.empty();
                 auto gpuMesh = renderer.CreateMesh(
-                    geometry->vertices, geometry->indices, geometry->hasBakedLight);
+                    geometry->vertices, geometry->indices, geometry->hasBakedLight,
+                    skinned ? std::span<const SkinVertex>(geometry->skin) : std::span<const SkinVertex>{});
                 if (!gpuMesh)
                 {
                     return nullptr;
+                }
+                if (skinned)
+                {
+                    // Culling needs a box that holds every pose, not just
+                    // the bind pose: skin it through each clip.
+                    glm::vec3 low{ 0.0f };
+                    glm::vec3 high{ 0.0f };
+                    ComputeSkinnedBounds(*geometry, model->m_skeleton, skinOf->second,
+                                         model->m_clips, 16, 0.05f, low, high);
+                    gpuMesh->SetBounds(low, high);
                 }
 
                 meshes[&primitive] = gpuMesh.get();
@@ -490,29 +652,7 @@ namespace Atom
             }
         }
 
-        // Node hierarchy and clips. A node moves if a clip targets it or
-        // any of its ancestors.
-        model->m_clips = ReadAnimations(*data);
-        model->m_nodes.resize(data->nodes_count);
-        for (cgltf_size n = 0; n < data->nodes_count; ++n)
-        {
-            const cgltf_node& source = data->nodes[n];
-            Node& node = model->m_nodes[n];
-            node.parent = source.parent ? static_cast<int>(source.parent - data->nodes) : -1;
-            if (source.has_translation)
-            {
-                node.translation = glm::make_vec3(source.translation);
-            }
-            if (source.has_rotation)
-            {
-                const float* r = source.rotation; // x y z w
-                node.rotation = glm::quat(r[3], r[0], r[1], r[2]);
-            }
-            if (source.has_scale)
-            {
-                node.scale = glm::make_vec3(source.scale);
-            }
-        }
+        // A node moves if a clip targets it or any of its ancestors.
         std::vector<bool> targeted(data->nodes_count, false);
         for (const AnimationClip& clip : model->m_clips)
         {
@@ -522,7 +662,7 @@ namespace Atom
             }
         }
         const auto moves = [&](int node) {
-            for (; node >= 0; node = model->m_nodes[node].parent)
+            for (; node >= 0; node = model->m_skeleton.parents[node])
             {
                 if (targeted[node])
                 {
@@ -544,6 +684,13 @@ namespace Atom
             glm::mat4 world{ 1.0f };
             cgltf_node_transform_world(&node, glm::value_ptr(world));
             const int animatedNode = moves(static_cast<int>(n)) ? static_cast<int>(n) : -1;
+            // glTF: a skinned mesh ignores its node's transform; the joints
+            // place it (the palette is in model space).
+            const int skin = node.skin ? static_cast<int>(node.skin - data->skins) : -1;
+            if (skin >= 0)
+            {
+                world = glm::mat4{ 1.0f };
+            }
 
             for (cgltf_size p = 0; p < node.mesh->primitives_count; ++p)
             {
@@ -554,12 +701,15 @@ namespace Atom
                     continue;
                 }
 
+                const bool skinned = skin >= 0 && found->second->IsSkinned();
                 model->m_parts.push_back(Part{
                     found->second,
                     primitiveMaterials.at(primitive),
                     world,
-                    animatedNode
+                    skinned ? -1 : animatedNode,
+                    skinned ? skin : -1
                 });
+                model->m_animated = model->m_animated || skinned || animatedNode >= 0;
             }
         }
 
@@ -611,6 +761,13 @@ namespace Atom
         return nullptr;
     }
 
+    int Model::FindNode(std::string_view name) const
+    {
+        const auto& names = m_skeleton.names;
+        const auto found = std::find(names.begin(), names.end(), name);
+        return found != names.end() ? static_cast<int>(found - names.begin()) : -1;
+    }
+
     int Model::FindClip(std::string_view name) const
     {
         for (std::size_t i = 0; i < m_clips.size(); ++i)
@@ -628,55 +785,84 @@ namespace Atom
         return clip >= 0 && clip < static_cast<int>(m_clips.size()) ? &m_clips[clip] : nullptr;
     }
 
+    void Model::SamplePose(int clip, float time, Pose& pose) const
+    {
+        pose = m_skeleton.rest;
+        if (const AnimationClip* playing = GetClip(clip))
+        {
+            ApplyClip(*playing, time, pose);
+        }
+    }
+
+    void Model::SamplePose(std::span<const ClipSample> samples, Pose& pose) const
+    {
+        // A running weighted average: each new pose is blended in by its
+        // share of the weight seen so far, so n poses need n - 1 blends.
+        pose = m_skeleton.rest;
+        Pose sampled;
+        float total = 0.0f;
+        for (const ClipSample& sample : samples)
+        {
+            if (sample.weight <= 0.0f)
+            {
+                continue;
+            }
+            SamplePose(sample.clip, sample.time, sampled);
+            if (sample.pinNode >= 0 && sample.pinNode < static_cast<int>(sampled.size()))
+            {
+                sampled[sample.pinNode].translation = m_skeleton.rest[sample.pinNode].translation;
+            }
+            total += sample.weight;
+            if (total == sample.weight)
+            {
+                pose = sampled;
+            }
+            else
+            {
+                BlendPoses(pose, sampled, sample.weight / total, pose);
+            }
+        }
+    }
+
     void Model::Submit(Renderer& renderer, const glm::mat4& transform, int clip, float time) const
     {
-        const AnimationClip* playing = GetClip(clip);
-
-        // Pose: rest transforms with the clip's channels applied.
-        std::vector<Node> pose;
-        std::vector<glm::mat4> world;
-        std::vector<bool> done;
-        if (playing)
+        if (!m_animated || (!IsSkinned() && !GetClip(clip)))
         {
-            pose = m_nodes;
-            for (const AnimationChannel& channel : playing->channels)
+            // Static: every part where it was baked.
+            for (const Part& part : m_parts)
             {
-                const glm::vec4 v = SampleChannel(channel, time);
-                Node& node = pose[channel.node];
-                switch (channel.path)
-                {
-                case AnimationPath::Translation: node.translation = glm::vec3{ v }; break;
-                case AnimationPath::Rotation: node.rotation = glm::quat(v.w, v.x, v.y, v.z); break;
-                case AnimationPath::Scale: node.scale = glm::vec3{ v }; break;
-                }
+                renderer.Submit(*part.mesh, m_materials[part.materialIndex], transform * part.transform);
             }
-            world.resize(pose.size());
-            done.resize(pose.size(), false);
+            return;
         }
+        Pose pose;
+        SamplePose(clip, time, pose);
+        Submit(renderer, transform, pose);
+    }
 
-        // World matrix of a posed node: its local T*R*S under its parent's.
-        const auto nodeWorld = [&](int node, const auto& self) -> const glm::mat4& {
-            if (!done[node])
-            {
-                const Node& n = pose[node];
-                const glm::mat4 local = glm::translate(glm::mat4{ 1.0f }, n.translation)
-                    * glm::mat4_cast(n.rotation) * glm::scale(glm::mat4{ 1.0f }, n.scale);
-                world[node] = n.parent >= 0 ? self(n.parent, self) * local : local;
-                done[node] = true;
-            }
-            return world[node];
-        };
+    void Model::Submit(Renderer& renderer, const glm::mat4& transform, const Pose& pose) const
+    {
+        const std::vector<glm::mat4> world = ComputeWorldMatrices(m_skeleton.parents, pose);
+
+        // One palette per skin this frame, shared by all its parts.
+        std::vector<std::uint32_t> palettes(m_skeleton.skins.size());
+        std::vector<glm::mat4> palette;
+        for (std::size_t s = 0; s < m_skeleton.skins.size(); ++s)
+        {
+            ComputePalette(m_skeleton.skins[s], world, palette);
+            palettes[s] = renderer.AddPalette(palette);
+        }
 
         for (const Part& part : m_parts)
         {
-            const glm::mat4 partTransform = playing && part.node >= 0
-                ? nodeWorld(part.node, nodeWorld)
-                : part.transform;
-            renderer.Submit(
-                *part.mesh,
-                m_materials[part.materialIndex],
-                transform * partTransform
-            );
+            const Material& material = m_materials[part.materialIndex];
+            if (part.skin >= 0)
+            {
+                renderer.SubmitSkinned(*part.mesh, material, transform, palettes[part.skin]);
+                continue;
+            }
+            const glm::mat4 partTransform = part.node >= 0 ? world[part.node] : part.transform;
+            renderer.Submit(*part.mesh, material, transform * partTransform);
         }
     }
 }
