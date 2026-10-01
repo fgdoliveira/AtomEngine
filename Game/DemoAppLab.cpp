@@ -9,6 +9,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/trigonometric.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -212,8 +213,9 @@ namespace AtomGame
         m_driveBody.walkSpeed = DriveWalkSpeed;
         m_driveBody.jogSpeed = DriveRunSpeed;
         m_driveBody.Place(subject->position);
-        // The arm starts where the viewer's camera was.
-        m_arm.Reset(m_viewer.GetOrbit().yawDegrees, 15.0f);
+        // The arm starts behind him, as third-person games do: W walks the
+        // way he faces. (Yaw 0 puts the arm on +Z; he faces +Z at yaw 0.)
+        m_arm.Reset(glm::degrees(subject->renderable->yaw) + 180.0f, 15.0f);
         subject->animator->ForceState("idle");
         subject->animator->SetParam("speed", 0.0f);
         subject->animator->SetParam("grounded", 1.0f);
