@@ -9,6 +9,7 @@ target_sources(
         Audio/AudioSystem.cpp
         Assets/ThirdParty.cpp
         Core/Application.cpp
+        Core/FrameStatsWindow.cpp
         Core/Time.cpp
         Debug/DevTools.cpp
         Physics/CollisionWorld.cpp
@@ -31,6 +32,7 @@ target_sources(
         Assets/Skin.h
         Audio/AudioSystem.h
         Core/Application.h
+        Core/FrameStatsWindow.h
         Core/Time.h
         Debug/DevTools.h
         Physics/CollisionWorld.h

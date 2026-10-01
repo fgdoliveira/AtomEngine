@@ -26,6 +26,7 @@ add_executable(
     DriveTests.cpp
     LightingTests.cpp
     FlashlightTests.cpp
+    FrameStatsTests.cpp
 )
 
 target_link_libraries(
