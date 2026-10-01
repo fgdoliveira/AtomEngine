@@ -91,6 +91,8 @@ namespace AtomGame
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
         std::string startSpawn;
+        InitializePerfLog();
+
         if (const char* start = SDL_getenv("ATOM_START_LEVEL"))
         {
             const std::string value = start;
@@ -284,6 +286,7 @@ namespace AtomGame
 
     void DemoApp::OnUpdate(float deltaSeconds)
     {
+        RecordFrameTime(deltaSeconds); // the real one, before any fixed step
         if (m_fixedDeltaSeconds > 0.0f)
         {
             deltaSeconds = m_fixedDeltaSeconds; // docs: every frame the same step
@@ -493,6 +496,53 @@ namespace AtomGame
         }
         const glm::vec3 focus = entity->position + (entity->interactable ? entity->interactable->focusOffset : glm::vec3{ 0.0f });
         return m_flashlight.Lights(focus, const_cast<DemoApp*>(this)->CurrentCollision());
+    }
+
+    void DemoApp::InitializePerfLog()
+    {
+        const char* enabled = SDL_getenv("ATOM_PERF_LOG");
+        m_perf.enabled = enabled && *enabled && std::string_view(enabled) != "0";
+        if (const char* block = SDL_getenv("ATOM_PERF_BLOCK"))
+        {
+            m_perf.block = static_cast<std::size_t>(std::max(30, std::atoi(block)));
+        }
+        if (const char* path = SDL_getenv("ATOM_PERF_CSV"); m_perf.enabled && path && *path)
+        {
+            m_perf.csv = std::make_unique<std::ofstream>(path);
+            *m_perf.csv << "block,samples,median_ms,p95_ms,mean_ms,label\n";
+        }
+    }
+
+    void DemoApp::RecordFrameTime(float realSeconds)
+    {
+        if (!m_perf.enabled)
+        {
+            return;
+        }
+        if (m_perf.warmupLeft > 0)
+        {
+            --m_perf.warmupLeft;
+            return;
+        }
+        m_perf.window.AddSample(static_cast<double>(realSeconds) * 1000.0);
+        if (m_perf.window.Count() < m_perf.block)
+        {
+            return;
+        }
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        const std::string label = !m_perf.label.empty() ? m_perf.label : level ? level->GetName() : std::string{ "-" };
+        char line[256];
+        std::snprintf(line, sizeof(line), "PERF block %d samples %zu median %.3f p95 %.3f mean %.3f label %s",
+            m_perf.blockIndex, m_perf.window.Count(), m_perf.window.Median(), m_perf.window.Percentile(0.95),
+            m_perf.window.Mean(), label.c_str());
+        std::cout << line << std::endl;
+        if (m_perf.csv)
+        {
+            *m_perf.csv << m_perf.blockIndex << ',' << m_perf.window.Count() << ',' << m_perf.window.Median() << ','
+                        << m_perf.window.Percentile(0.95) << ',' << m_perf.window.Mean() << ',' << label << '\n';
+        }
+        ++m_perf.blockIndex;
+        m_perf.window.Clear();
     }
 
     void DemoApp::OnShutdown()

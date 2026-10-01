@@ -5,6 +5,7 @@
 #include "Character/SpringArm.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
+#include "Core/FrameStatsWindow.h"
 #include "Dialogue/Dialogue.h"
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
@@ -28,6 +29,7 @@
 
 #include <array>
 #include <cstddef>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -74,6 +76,23 @@ namespace AtomGame
         void UpdateWindowTitle(float deltaSeconds);
         // Developer tools (M41): the ImGui panels, when F10 shows them.
         void DrawDevTools(float deltaSeconds);
+        // Frame-time log (M46, ATOM_PERF_LOG=1): after an engine warm-up,
+        // one line per block of frames - median, p95, mean - and a CSV row
+        // if ATOM_PERF_CSV names a file. Real frame times, not the
+        // harness's fixed step.
+        struct PerfLog
+        {
+            bool enabled = false;
+            int warmupLeft = 300;  // frames: pipelines, caches, allocations - not heat
+            std::size_t block = 240;
+            int blockIndex = 0;
+            Atom::FrameStatsWindow window;
+            std::unique_ptr<std::ofstream> csv;
+            std::string label;     // what is being measured (the level, a bench half)
+        } m_perf;
+        void InitializePerfLog();
+        void RecordFrameTime(float realSeconds);
+
         std::array<float, 240> m_frameHistory{}; // ms, a ring
         std::size_t m_frameHistoryNext = 0;
         std::optional<bool> m_devToolsCollapse; // harness: collapse/expand all panels once
