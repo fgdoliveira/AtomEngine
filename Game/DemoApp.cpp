@@ -372,6 +372,17 @@ namespace AtomGame
         {
             drawn->Submit(renderer, m_player.GetFeetPosition());
         }
+        if (m_devSpotOn)
+        {
+            if (m_devSpotFollows)
+            {
+                // Held low and to the right, as a hand would hold it.
+                const glm::vec3 right = m_camera.GetFlatRight();
+                m_devSpot.position = m_camera.GetPosition() + right * 0.18f + glm::vec3{ 0.0f, -0.15f, 0.0f };
+                m_devSpot.direction = m_camera.GetForward();
+            }
+            renderer.SubmitSpotLight(m_devSpot);
+        }
 
         // Fog banks stay faintly visible with fog off: morning haze.
         const Atom::SceneLighting& lighting = renderer.GetLighting();
@@ -1354,6 +1365,8 @@ namespace AtomGame
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) m_showDebugOverlay = on;
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
+        else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
+        else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
         else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
         {
             m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips

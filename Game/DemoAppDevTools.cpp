@@ -189,6 +189,40 @@ namespace AtomGame
             ImGui::End();
         }
 
+        // Spot light (M42): the renderer's spot, before the flashlight
+        // exists. Every parameter live; Copy as JSON for the data later.
+        ImGui::SetNextWindowPos({ width - 420.0f, 600.0f }, ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("Spot light"))
+        {
+            ImGui::Checkbox("On", &m_devSpotOn);
+            ImGui::SameLine();
+            ImGui::Checkbox("Follow the camera", &m_devSpotFollows);
+            Atom::SpotLight& spot = m_devSpot;
+            ImGui::SliderFloat("Range (m)", &spot.range, 1.0f, 40.0f);
+            ImGui::SliderFloat("Inner angle", &spot.innerAngleDegrees, 1.0f, 60.0f, "%.1f deg");
+            ImGui::SliderFloat("Outer angle", &spot.outerAngleDegrees, 1.0f, 75.0f, "%.1f deg");
+            spot.outerAngleDegrees = std::max(spot.outerAngleDegrees, spot.innerAngleDegrees);
+            ImGui::SliderFloat("Intensity", &spot.intensity, 0.0f, 40.0f);
+            EditColor("Colour", spot.color);
+            ImGui::SliderFloat("Specular", &spot.specular, 0.0f, 4.0f);
+            if (!m_devSpotFollows)
+            {
+                ImGui::DragFloat3("Position", &spot.position.x, 0.05f);
+                ImGui::DragFloat3("Direction", &spot.direction.x, 0.01f, -1.0f, 1.0f);
+            }
+            if (ImGui::Button("Copy as JSON"))
+            {
+                char json[320];
+                std::snprintf(json, sizeof(json),
+                    "\"spot\": { \"range\": %.3g, \"inner\": %.3g, \"outer\": %.3g, \"intensity\": %.3g, "
+                    "\"color\": %s, \"specular\": %.3g }",
+                    spot.range, spot.innerAngleDegrees, spot.outerAngleDegrees, spot.intensity,
+                    Vec3Json(spot.color).c_str(), spot.specular);
+                SDL_SetClipboardText(json);
+            }
+        }
+        ImGui::End();
+
         // Level: where we are, what's in it, the game's state.
         ImGui::SetNextWindowPos({ 16.0f, 400.0f }, ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize({ 340.0f * scale, 280.0f * scale }, ImGuiCond_FirstUseEver);

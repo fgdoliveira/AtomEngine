@@ -74,6 +74,13 @@ namespace AtomGame
         void DrawDevTools(float deltaSeconds);
         std::array<float, 240> m_frameHistory{}; // ms, a ring
         std::size_t m_frameHistoryNext = 0;
+
+        // A spot light to try the renderer's (M42) before the flashlight
+        // exists: from the Spot light panel or "set spot on". Held at the
+        // camera like a torch, or left where it is.
+        Atom::SpotLight m_devSpot;
+        bool m_devSpotOn = false;
+        bool m_devSpotFollows = true;
         void DrawOverlay(float deltaSeconds);
         void UpdateInteraction();
         void DrawInteractionPrompt(float scale);

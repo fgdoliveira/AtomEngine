@@ -195,6 +195,12 @@ namespace Atom
         void SubmitHalos(std::span<const Particle> halos);
         // A live point light for this frame (M25); see LiveLight.
         void SubmitLiveLight(const LiveLight& light);
+        // The spot light for this frame (M42), one at most: the flashlight.
+        void SubmitSpotLight(const SpotLight& light)
+        {
+            m_spot = light;
+            m_spotActive = true;
+        }
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
@@ -332,6 +338,8 @@ namespace Atom
         std::vector<Particle> m_halos;
         std::array<LiveLight, MaxLiveLights> m_liveLights{};
         std::size_t m_liveLightCount = 0;
+        SpotLight m_spot;
+        bool m_spotActive = false;
         std::uint32_t m_uploadedHalos = 0;
         SDL_GPUBuffer* m_particleBuffer = nullptr;
         SDL_GPUTransferBuffer* m_particleTransfer = nullptr;

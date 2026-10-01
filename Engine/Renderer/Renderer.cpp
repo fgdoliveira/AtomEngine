@@ -110,6 +110,7 @@ namespace Atom
             glm::vec4 lightmap;       // x: intensity, y: weight (0 = none)
             glm::vec4 alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                                       // z: has emissive texture, w: fog amount
+            glm::vec4 surface;        // M42: x shininess, y specular strength
         };
 
         // Mirrors the cbuffer in Shaders/Shadow.frag.hlsl.
@@ -167,6 +168,10 @@ namespace Atom
             glm::vec4 time;           // x: seconds, y: live light count
             glm::vec4 liveLightPosition[MaxLiveLights]; // w: radius
             glm::vec4 liveLightColor[MaxLiveLights];
+            glm::vec4 spotPosition;  // M42: xyz, w: range
+            glm::vec4 spotDirection; // xyz, w: 1 on, 0 off
+            glm::vec4 spotColor;     // rgb times intensity, w: specular scale
+            glm::vec4 spotCone;      // x: cos outer, y: cos inner
         };
 
         SceneUniforms MakeSceneUniforms(
@@ -174,7 +179,8 @@ namespace Atom
             const glm::mat4& view,
             const glm::mat4& lightViewProjection,
             float time,
-            std::span<const LiveLight> liveLights
+            std::span<const LiveLight> liveLights,
+            const SpotLight* spot
         )
         {
             // The camera sits at the translation of the inverse view.
@@ -204,6 +210,22 @@ namespace Atom
             {
                 uniforms.liveLightPosition[i] = glm::vec4{ liveLights[i].position, liveLights[i].radius };
                 uniforms.liveLightColor[i] = glm::vec4{ liveLights[i].color, 0.0f };
+            }
+            if (spot)
+            {
+                // Off is all zeros: the shader multiplies by it rather than
+                // branching (a per-pixel branch cost 10 % once, §57).
+                uniforms.spotPosition = glm::vec4{ spot->position, std::max(spot->range, 0.01f) };
+                uniforms.spotDirection = glm::vec4{ glm::normalize(spot->direction), 1.0f };
+                uniforms.spotColor = glm::vec4{ spot->color * spot->intensity, spot->specular };
+                const float outer = std::max(spot->outerAngleDegrees, spot->innerAngleDegrees + 0.01f);
+                uniforms.spotCone = glm::vec4{
+                    std::cos(glm::radians(outer)), std::cos(glm::radians(spot->innerAngleDegrees)), 0.0f, 0.0f };
+            }
+            else
+            {
+                uniforms.spotPosition = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
+                uniforms.spotCone = glm::vec4{ 0.0f, 1.0f, 0.0f, 0.0f };
             }
             return uniforms;
         }
@@ -1248,7 +1270,9 @@ namespace Atom
                         material.wet,
                         skinned && m_skinWeightsView ? 1.0f : 0.0f },
                     glm::vec4{ cutoff, masked && CanUseAlphaToCoverage(sceneSamples) ? 1.0f : 0.0f,
-                               material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount }
+                               material.emissiveTexture ? 1.0f : 0.0f, material.fogAmount },
+                    glm::vec4{ SpotMath::Shininess(material.roughness),
+                               SpotMath::SpecularStrength(material.roughness, material.specular), 0.0f, 0.0f }
                 };
                 SDL_PushGPUFragmentUniformData(
                     commandBuffer,
@@ -1438,8 +1462,10 @@ namespace Atom
         // Once per frame; stays bound for every draw in this command buffer.
         const SceneUniforms sceneUniforms = MakeSceneUniforms(
             m_lighting, m_camera.view, lightViewProjection, m_wind.w,
-            std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount));
+            std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount),
+            m_spotActive ? &m_spot : nullptr);
         m_liveLightCount = 0;
+        m_spotActive = false;
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
             1,

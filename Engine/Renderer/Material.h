@@ -46,6 +46,12 @@ namespace Atom
         const Texture* lightmap = nullptr;
         float lightmapIntensity = 1.0f;
 
+        // Surface response to the spot light (M42): glTF roughness (0
+        // smooth .. 1 rough) sets how tight the highlight is; "atom_specular"
+        // (glTF extras) how strong, -1 = from the roughness.
+        float roughness = 1.0f;
+        float specular = -1.0f;
+
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false; // no back-face culling (thin cards)

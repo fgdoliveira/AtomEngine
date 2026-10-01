@@ -16,6 +16,10 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_time;           // x: seconds, y: live light count (M25)
     float4 u_liveLightPosition[4]; // xyz, w: radius
     float4 u_liveLightColor[4];    // rgb (times intensity)
+    float4 u_spotPosition;         // M42: xyz, w: range
+    float4 u_spotDirection;        // xyz, w: 1 on, 0 off
+    float4 u_spotColor;            // rgb times intensity, w: specular scale
+    float4 u_spotCone;             // x: cos outer, y: cos inner
 };
 
 // Exponential height fog, integrated along the view ray: density falls off

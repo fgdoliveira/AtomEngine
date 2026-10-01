@@ -45,6 +45,7 @@ target_sources(
         Renderer/RenderTargets.h
         Renderer/Renderer.h
         Renderer/Shader.h
+        Renderer/SpotLight.h
         Renderer/Texture.h
         Renderer/RenderTexture.h
         Audio/Reverb.h

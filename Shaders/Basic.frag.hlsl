@@ -25,6 +25,7 @@ cbuffer MaterialUniforms : register(b0, space3)
                              // colour as the base colour (skin weights, M36)
     float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                              // z: has emissive texture, w: fog amount
+    float4 u_surface;        // M42: x shininess (Blinn-Phong), y specular strength
 };
 
 struct PSInput
@@ -104,6 +105,31 @@ float3 LiveLights(float3 worldPosition, float3 normal)
     return light;
 }
 
+// The spot light (M42). Mirrors SpotMath::Evaluate (Engine/Renderer/SpotLight.h).
+// x: diffuse (times base colour), y: specular (times light colour). All
+// arithmetic, no branches: when the spot is off its colour is zero.
+float2 SpotLighting(float3 worldPosition, float3 normal)
+{
+    const float3 toLight = u_spotPosition.xyz - worldPosition;
+    const float distance = length(toLight);
+    const float3 l = toLight / max(distance, 1e-4);
+
+    // The cone: full inside the inner angle, nothing past the outer one.
+    const float cone = smoothstep(u_spotCone.x, u_spotCone.y, dot(-l, u_spotDirection.xyz));
+    // Inverse-square, +1 at the lamp, windowed to exactly 0 at the range.
+    const float ratio = distance / u_spotPosition.w;
+    const float window = saturate(1.0 - ratio * ratio * ratio * ratio);
+    const float reach = cone * window * window / (distance * distance + 1.0) * u_spotDirection.w;
+
+    const float lambert = saturate(dot(normal, l));
+    // Blinn-Phong: the normal against the half vector of light and eye.
+    const float3 h = normalize(l + normalize(u_cameraPosition.xyz - worldPosition));
+    const float shininess = u_surface.x;
+    const float spec = pow(saturate(dot(normal, h)), shininess) * (shininess + 8.0) / 8.0
+        * u_surface.y * u_spotColor.w * (lambert > 0.0 ? 1.0 : 0.0);
+    return float2(reach * lambert, reach * spec);
+}
+
 float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
 {
     // Double-sided cards are lit from whichever side we see.
@@ -159,7 +185,10 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
         : saturate(facing);
     const float3 sun = sunLight * u_sunColor.rgb * shadow;
 
-    const float3 lit = baseColor.rgb * (ambient + sun + LiveLights(input.worldPosition, normal));
+    const float2 spot = SpotLighting(input.worldPosition, normal);
+    const float3 lit = baseColor.rgb * (ambient + sun + LiveLights(input.worldPosition, normal)
+                                        + u_spotColor.rgb * spot.x)
+                     + u_spotColor.rgb * spot.y;
     // An emissive mask says exactly what glows; without one, the base
     // colour does (older kit pieces: vending screens, shoji).
     const float3 emissiveSource = u_alpha.z > 0.0
