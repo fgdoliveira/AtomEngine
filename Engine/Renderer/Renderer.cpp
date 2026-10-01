@@ -1926,7 +1926,11 @@ namespace Atom
             return nullptr;
         }
 
-        m_particlePipelines[slot] = pipeline;
+        // Cached in its own array: halos and particles are two pipelines.
+        // (Until v0.0.7 this stored every pipeline as the particles' - so
+        // particles drew with the halo shader, and a halo pipeline was
+        // created, and leaked, every frame.)
+        pipelines[slot] = pipeline;
         return pipeline;
     }
 
