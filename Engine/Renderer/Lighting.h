@@ -58,5 +58,13 @@ namespace Atom
         // nullptr clears to the fog colour as before.
         const Texture* skyPanorama = nullptr;
         float skyIntensity = 1.0f;
+
+        // Day sky (M47): a gradient from horizon to zenith with the sun's
+        // disc, drawn when there's no panorama.
+        bool skyGradient = false;
+        glm::vec3 skyZenith{ 0.22f, 0.38f, 0.70f };
+        glm::vec3 skyHorizon{ 0.62f, 0.70f, 0.78f };
+        float sunSize = 1.5f; // degrees
+        float sunGlow = 0.4f;
     };
 }

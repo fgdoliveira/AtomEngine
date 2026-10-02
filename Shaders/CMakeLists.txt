@@ -44,6 +44,7 @@ set(ATOM_SHADER_INCLUDES
     Common.hlsli
     Sway.hlsli
     Skinning.hlsli
+    SkyGradient.hlsli
 )
 list(TRANSFORM ATOM_SHADER_INCLUDES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/" OUTPUT_VARIABLE ATOM_SHADER_INCLUDE_PATHS)
 

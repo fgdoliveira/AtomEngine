@@ -38,8 +38,9 @@ namespace AtomGame
             { "medium", 0.085f },
             { "light", 0.045f },
             { "off", 0.0f },
+            { "level", -1.0f }, // M47: the level's own density (none: off)
         };
-        constexpr std::size_t DefaultFogPreset = 3; // off
+        constexpr std::size_t DefaultFogPreset = 4; // level
     }
 
     bool DemoApp::OnInitialize()
@@ -978,6 +979,7 @@ namespace AtomGame
         // The level decides the light; the player's toggles (fog preset,
         // shadows) apply on top wherever they are.
         Atom::SceneLighting lighting{};
+        float levelFog = 0.0f;
         if (const Level* level = m_levels ? m_levels->GetLevel() : nullptr)
         {
             const LevelLighting& l = level->GetData().lighting;
@@ -992,8 +994,18 @@ namespace AtomGame
             lighting.glowThreshold = l.glowThreshold;
             lighting.skyPanorama = level->GetSkyPanorama();
             lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;
+            if (l.sky)
+            {
+                lighting.skyGradient = true;
+                lighting.skyZenith = l.sky->zenith;
+                lighting.skyHorizon = l.sky->horizon;
+                lighting.sunSize = l.sky->sunSize;
+                lighting.sunGlow = l.sky->sunGlow;
+            }
+            levelFog = l.fogDensity.value_or(0.0f);
         }
-        lighting.fogDensity = FogPresets[m_fogPreset].density;
+        const float presetFog = FogPresets[m_fogPreset].density;
+        lighting.fogDensity = presetFog < 0.0f ? levelFog : presetFog;
         lighting.fogHeightFalloff = 0.08f;
         GetRenderer().SetLighting(lighting);
     }

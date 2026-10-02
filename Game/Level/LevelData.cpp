@@ -540,6 +540,35 @@ namespace AtomGame
                 l.skyColor = Vec3(*light, "skyColor", l.skyColor, at);
                 l.groundColor = Vec3(*light, "groundColor", l.groundColor, at);
                 l.fogColor = Vec3(*light, "fogColor", l.fogColor, at);
+                if (light->contains("fogDensity"))
+                {
+                    const float density = Number(*light, "fogDensity", at, 0.0f);
+                    if (density < 0.0f)
+                    {
+                        throw LevelError("/lighting/fogDensity", "must be >= 0");
+                    }
+                    l.fogDensity = density;
+                }
+                if (const auto sky = light->find("skyGradient"); sky != light->end())
+                {
+                    const std::string skyAt = "/lighting/skyGradient";
+                    SkyGradient g;
+                    g.zenith = Vec3(*sky, "zenith", g.zenith, skyAt);
+                    g.horizon = Vec3(*sky, "horizon", g.horizon, skyAt);
+                    g.sunSize = Number(*sky, "sunSize", skyAt, g.sunSize);
+                    g.sunGlow = Number(*sky, "sunGlow", skyAt, g.sunGlow);
+                    if (g.sunSize < 0.0f || g.sunSize > 20.0f || g.sunGlow < 0.0f)
+                    {
+                        throw LevelError(skyAt, "sunSize must be 0..20 degrees and sunGlow >= 0");
+                    }
+                    l.sky = g;
+                    // The ground melts into the sky: unless the level says
+                    // otherwise, the fog is the horizon's colour.
+                    if (!light->contains("fogColor"))
+                    {
+                        l.fogColor = g.horizon;
+                    }
+                }
                 l.shadows = Bool(*light, "shadows", at, l.shadows);
                 l.bakedLight = Number(*light, "bakedLight", at, l.bakedLight);
                 if (const auto glow = light->find("glow"); glow != light->end())

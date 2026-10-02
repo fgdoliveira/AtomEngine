@@ -38,6 +38,8 @@ add_library(
     Dialogue/DialogueView.cpp
     Dialogue/DialogueView.h
     Interaction/Actions.h
+    Level/Environment.cpp
+    Level/Environment.h
     Level/Level.cpp
     Level/Level.h
     Level/LevelData.cpp

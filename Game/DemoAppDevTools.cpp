@@ -19,7 +19,7 @@ namespace AtomGame
     namespace
     {
         // The names Set("fog") accepts, densest first.
-        constexpr const char* FogNames[] = { "dense", "medium", "light", "off" };
+        constexpr const char* FogNames[] = { "dense", "medium", "light", "off", "level" };
         constexpr const char* PostNames[] = { "full", "grade", "off" };
 
         bool EditColor(const char* label, glm::vec3& color)
@@ -181,6 +181,32 @@ namespace AtomGame
                 changed |= EditColor("Sky", l.skyColor);
                 changed |= EditColor("Ground", l.groundColor);
                 changed |= EditColor("Fog colour", l.fogColor);
+                // M47: the level's fog density (used while Render > Fog is "level").
+                bool hasFog = l.fogDensity.has_value();
+                if (ImGui::Checkbox("Level fog", &hasFog))
+                {
+                    l.fogDensity = hasFog ? std::optional<float>(0.03f) : std::nullopt;
+                    changed = true;
+                }
+                if (l.fogDensity)
+                {
+                    ImGui::SameLine();
+                    changed |= ImGui::SliderFloat("##density", &*l.fogDensity, 0.0f, 0.15f, "%.3f");
+                }
+                // M47: the day sky.
+                bool hasSky = l.sky.has_value();
+                if (ImGui::Checkbox("Sky gradient", &hasSky))
+                {
+                    l.sky = hasSky ? std::optional<SkyGradient>(SkyGradient{}) : std::nullopt;
+                    changed = true;
+                }
+                if (l.sky)
+                {
+                    changed |= EditColor("Zenith", l.sky->zenith);
+                    changed |= EditColor("Horizon", l.sky->horizon);
+                    changed |= ImGui::SliderFloat("Sun size", &l.sky->sunSize, 0.0f, 10.0f, "%.2f deg");
+                    changed |= ImGui::SliderFloat("Sun glow", &l.sky->sunGlow, 0.0f, 2.0f);
+                }
                 changed |= ImGui::Checkbox("Sun shadows", &l.shadows);
                 changed |= ImGui::SliderFloat("Baked light", &l.bakedLight, 0.0f, 1.0f);
                 changed |= ImGui::SliderFloat("Glow strength", &l.glowStrength, 0.0f, 2.0f);
@@ -196,12 +222,27 @@ namespace AtomGame
                         l.glowStrength, l.glowThreshold);
                     char baked[32];
                     std::snprintf(baked, sizeof(baked), "%.3g", l.bakedLight);
+                    std::string extra;
+                    if (l.fogDensity)
+                    {
+                        char density[48];
+                        std::snprintf(density, sizeof(density), "  \"fogDensity\": %.3g,\n", *l.fogDensity);
+                        extra += density;
+                    }
+                    if (l.sky)
+                    {
+                        char sun[96];
+                        std::snprintf(sun, sizeof(sun), "\"sunSize\": %.3g, \"sunGlow\": %.3g", l.sky->sunSize, l.sky->sunGlow);
+                        extra += "  \"skyGradient\": { \"zenith\": " + Vec3Json(l.sky->zenith)
+                            + ", \"horizon\": " + Vec3Json(l.sky->horizon) + ", " + sun + " },\n";
+                    }
                     const std::string json = std::string("\"lighting\": {\n")
                         + "  \"sunDirection\": " + Vec3Json(l.sunDirection) + ",\n"
                         + "  \"sunColor\": " + Vec3Json(l.sunColor) + ",\n"
                         + "  \"skyColor\": " + Vec3Json(l.skyColor) + ",\n"
                         + "  \"groundColor\": " + Vec3Json(l.groundColor) + ",\n"
                         + "  \"fogColor\": " + Vec3Json(l.fogColor) + ",\n"
+                        + extra
                         + "  \"shadows\": " + (l.shadows ? "true" : "false") + ",\n"
                         + "  \"bakedLight\": " + baked + ",\n"
                         + "  \"glow\": " + glow + "\n}";

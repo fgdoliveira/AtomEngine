@@ -76,6 +76,18 @@
         "skyColor": { "$ref": "#/definitions/vec3" },
         "groundColor": { "$ref": "#/definitions/vec3" },
         "fogColor": { "$ref": "#/definitions/vec3" },
+        "fogDensity": { "type": "number", "minimum": 0, "description": "The level's fog (M47), used while the player's fog setting is \"level\": ~3/density metres until fully fogged." },
+        "skyGradient": {
+          "type": "object",
+          "description": "Day sky (M47): horizon to zenith, with the sun. Without fogColor, the fog takes the horizon's colour.",
+          "additionalProperties": false,
+          "properties": {
+            "zenith": { "$ref": "#/definitions/vec3" },
+            "horizon": { "$ref": "#/definitions/vec3" },
+            "sunSize": { "type": "number", "minimum": 0, "maximum": 20, "default": 1.5, "description": "Degrees: the sun disc's radius." },
+            "sunGlow": { "type": "number", "minimum": 0, "default": 0.4 }
+          }
+        },
         "shadows": { "type": "boolean" },
         "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." },
         "glow": {

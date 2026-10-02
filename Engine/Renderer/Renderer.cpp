@@ -1818,7 +1818,8 @@ namespace Atom
     void Renderer::DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
                            const glm::mat4& projection)
     {
-        if (!m_lighting.skyPanorama)
+        const bool panorama = m_lighting.skyPanorama != nullptr;
+        if (!panorama && !m_lighting.skyGradient)
         {
             return; // the pass cleared to the fog colour
         }
@@ -1831,12 +1832,29 @@ namespace Atom
         glm::mat4 view = m_camera.view;
         view[3] = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
         const glm::mat4 inverse = glm::inverse(projection * view);
-        const glm::vec4 params{ m_lighting.skyIntensity, 0.0f, 0.0f, 0.0f };
+        glm::vec3 sun = m_lighting.sunDirection;
+        sun = glm::length(sun) > 1e-4f ? glm::normalize(sun) : glm::vec3{ 0.0f, 1.0f, 0.0f };
+        struct SkyParams
+        {
+            glm::vec4 sky;
+            glm::vec4 zenith;
+            glm::vec4 horizon;
+            glm::vec4 sunDirection;
+            glm::vec4 sunColor;
+        } const params{
+            { panorama ? m_lighting.skyIntensity : 1.0f, panorama ? 0.0f : 1.0f, 0.0f, 0.0f },
+            { m_lighting.skyZenith, 0.0f },
+            { m_lighting.skyHorizon, std::cos(glm::radians(m_lighting.sunSize)) },
+            { sun, m_lighting.sunGlow },
+            { m_lighting.sunColor, 0.0f },
+        };
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
         SDL_PushGPUVertexUniformData(commandBuffer, 0, &inverse, sizeof(inverse));
         SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
-        const SDL_GPUTextureSamplerBinding binding{ m_lighting.skyPanorama->GetGPUTexture(), m_sampler };
+        // The gradient samples nothing, but the slot must still be bound.
+        const Texture* texture = panorama ? m_lighting.skyPanorama : m_whiteTexture.get();
+        const SDL_GPUTextureSamplerBinding binding{ texture->GetGPUTexture(), m_sampler };
         SDL_BindGPUFragmentSamplers(renderPass, 0, &binding, 1);
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
     }

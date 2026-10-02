@@ -3,6 +3,7 @@
 #include "Character/Animator.h"
 #include "Interaction/Actions.h"
 #include "Interaction/Sequence.h"
+#include "Level/Environment.h"
 #include "World/GameWorld.h"
 
 #include <glm/vec2.hpp>
@@ -31,13 +32,10 @@ namespace AtomGame
         float yawDegrees = 0.0f; // 0 looks down -Z, 90 looks down +X
     };
 
-    struct LevelLighting
+    // A level's light: the environment (sun, ambient, fog, sky - what
+    // weather and time of day change, M47) plus what stays the level's own.
+    struct LevelLighting : EnvironmentState
     {
-        glm::vec3 sunDirection{ 0.35f, 0.6f, -0.55f };
-        glm::vec3 sunColor{ 0.45f };
-        glm::vec3 skyColor{ 0.75f, 0.77f, 0.80f };
-        glm::vec3 groundColor{ 0.20f, 0.19f, 0.17f };
-        glm::vec3 fogColor{ 0.46f, 0.47f, 0.47f };
         bool shadows = true;
         float bakedLight = 1.0f; // weight of the vertex-colour bake (M15)
         float glowStrength = 0.35f; // M23: 0 = no glow
