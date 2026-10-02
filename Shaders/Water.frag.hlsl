@@ -128,7 +128,7 @@ float4 main(PSInput input) : SV_Target0
     // by the ripples (Blinn-Phong on the rippled normal).
     const float3 halfway = normalize(toSun + toEye);
     const float nh = saturate(dot(n, halfway));
-    color += u_sunColor.rgb * shadow * (pow(nh, 700.0) * 6.0 + pow(nh, 90.0) * 0.25);
+    color += u_sunColor.rgb * shadow * u_skySun.y * (pow(nh, 700.0) * 6.0 + pow(nh, 90.0) * 0.25);
 
     // Foam: a band along the shore, broken and drifting.
     const float band = saturate(1.0 - depth / 0.14);

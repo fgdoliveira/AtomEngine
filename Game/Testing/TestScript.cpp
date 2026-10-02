@@ -45,6 +45,8 @@ namespace AtomGame
                 { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
                 { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
                 { "expect_water", { 1, 1 } },       // min water surfaces drawn (M48)
+                { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
+                { "expect_environment", { 1, 1 } }, // preset | level | (blending)
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "clip", { 2, 2 } },               // entity clip: play it (the lab: show it)
@@ -650,6 +652,22 @@ namespace AtomGame
             if (targets == 0 || draws < static_cast<std::uint32_t>(number(0, 1.0f)))
             {
                 Fail(command, std::to_string(targets) + " render textures, " + std::to_string(draws) + " screen draws");
+            }
+            return true;
+        }
+        if (name == "environment")
+        {
+            if (!game.SetEnvironment(args[0], number(1, 0.0f)))
+            {
+                Fail(command, "no environment preset '" + args[0] + "'");
+            }
+            return true;
+        }
+        if (name == "expect_environment")
+        {
+            if (game.EnvironmentName() != args[0])
+            {
+                Fail(command, "the environment is " + game.EnvironmentName());
             }
             return true;
         }

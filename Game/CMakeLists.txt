@@ -13,6 +13,8 @@ add_library(
     DemoApp.cpp
     DemoApp.h
     Flashlight.cpp
+    Environment/EnvironmentController.cpp
+    Environment/EnvironmentController.h
     Flashlight.h
     DemoAppLab.cpp
     DemoAppDevTools.cpp

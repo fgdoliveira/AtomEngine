@@ -134,6 +134,14 @@ reflects the sky at grazing angles, glints in the sun and foams at the
 shore, and a jetty to walk out on. Its look is authored in the level's
 `lighting` (`skyGradient`, `water`), live in the F10 Lighting panel.
 
+Weather and time of day are presets (`Assets/Environments/*.json`: clear
+day, overcast, rain, fog, sunset, night). Each one changes the sun, ambient
+light, fog, sky **and water** together, over whatever the level leaves the
+same. A level names the ones it offers and starts in (`"environment"`);
+switch and blend between them in the F10 Environment panel, tune what's
+showing, and Copy as JSON for a preset file. Harness: `environment <preset>
+[seconds]`, `expect_environment <preset>`.
+
 Keys are bound by position, not by the symbol printed on them: on non-US
 layouts − and + are the two keys left of Backspace.
 

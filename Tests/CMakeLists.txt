@@ -28,6 +28,7 @@ add_executable(
     FlashlightTests.cpp
     FrameStatsTests.cpp
     EnvironmentTests.cpp
+    EnvironmentControllerTests.cpp
     PairedBenchTests.cpp
 )
 

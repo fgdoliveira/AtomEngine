@@ -214,6 +214,7 @@ namespace AtomGame
                     changed |= EditColor("Deep", l.water.deep);
                     changed |= ImGui::SliderFloat("Sky reflection", &l.water.skyReflection, 0.0f, 1.0f);
                     changed |= ImGui::SliderFloat("Ripple", &l.water.ripple, 0.0f, 3.0f);
+                    changed |= ImGui::SliderFloat("Glint", &l.water.glint, 0.0f, 2.0f);
                     ImGui::TreePop(); // only when TreeNode returned true
                 }
                 changed |= ImGui::Checkbox("Sun shadows", &l.shadows);
@@ -222,6 +223,7 @@ namespace AtomGame
                 changed |= ImGui::SliderFloat("Glow threshold", &l.glowThreshold, 0.1f, 4.0f);
                 if (changed)
                 {
+                    RefreshEnvironment(); // the preset showing, over the edited level
                     ApplyLighting();
                 }
                 if (ImGui::Button("Copy as JSON"))
@@ -245,9 +247,9 @@ namespace AtomGame
                         extra += "  \"skyGradient\": { \"zenith\": " + Vec3Json(l.sky->zenith)
                             + ", \"horizon\": " + Vec3Json(l.sky->horizon) + ", " + sun + " },\n";
                     }
-                    char water[96];
-                    std::snprintf(water, sizeof(water), "\"skyReflection\": %.3g, \"ripple\": %.3g",
-                        l.water.skyReflection, l.water.ripple);
+                    char water[128];
+                    std::snprintf(water, sizeof(water), "\"skyReflection\": %.3g, \"ripple\": %.3g, \"glint\": %.3g",
+                        l.water.skyReflection, l.water.ripple, l.water.glint);
                     extra += "  \"water\": { \"shallow\": " + Vec3Json(l.water.shallow)
                         + ", \"deep\": " + Vec3Json(l.water.deep) + ", " + water + " },\n";
                     const std::string json = std::string("\"lighting\": {\n")
@@ -264,6 +266,100 @@ namespace AtomGame
                 }
                 ImGui::SameLine();
                 ImGui::TextDisabled("(paste into %s.json)", level->GetName().c_str());
+            }
+            ImGui::End(); // always, even when Begin returned false (collapsed)
+        }
+
+        // Environment (M49): switch presets, blended; edit what's showing
+        // live; Copy as JSON gives a whole preset file.
+        if (level)
+        {
+            ImGui::SetNextWindowPos({ 20.0f, 330.0f }, ImGuiCond_FirstUseEver);
+            collapse();
+            if (ImGui::Begin("Environment"))
+            {
+                ImGui::SliderFloat("Transition", &m_environmentSeconds, 0.0f, 10.0f, "%.1f s");
+                if (ImGui::RadioButton("level", m_environmentName.empty()))
+                {
+                    SetEnvironment("level", m_environmentSeconds);
+                }
+                for (const std::string& name : OfferedPresets())
+                {
+                    ImGui::SameLine();
+                    if (ImGui::GetContentRegionAvail().x < 90.0f)
+                    {
+                        ImGui::NewLine();
+                    }
+                    if (ImGui::RadioButton(name.c_str(), m_environmentName == name))
+                    {
+                        SetEnvironment(name, m_environmentSeconds);
+                    }
+                }
+                if (m_environment.IsTransitioning())
+                {
+                    ImGui::ProgressBar(m_environment.Progress(), { -1.0f, 0.0f }, "blending");
+                }
+
+                ImGui::SeparatorText("Showing now (live edits last until the next switch)");
+                EnvironmentState e = m_environment.Current();
+                bool changed = false;
+                changed |= ImGui::DragFloat3("Sun direction", &e.sunDirection.x, 0.01f, -1.0f, 1.0f);
+                changed |= EditColor("Sun", e.sunColor);
+                changed |= EditColor("Ambient sky", e.skyColor);
+                changed |= EditColor("Ambient ground", e.groundColor);
+                changed |= EditColor("Fog colour", e.fogColor);
+                if (e.fogDensity)
+                {
+                    changed |= ImGui::SliderFloat("Fog density", &*e.fogDensity, 0.0f, 0.15f, "%.3f");
+                }
+                if (e.sky)
+                {
+                    changed |= EditColor("Zenith", e.sky->zenith);
+                    changed |= EditColor("Horizon", e.sky->horizon);
+                    changed |= ImGui::SliderFloat("Sun size", &e.sky->sunSize, 0.0f, 10.0f, "%.2f deg");
+                    changed |= ImGui::SliderFloat("Sun glow", &e.sky->sunGlow, 0.0f, 2.0f);
+                }
+                changed |= EditColor("Water shallow", e.water.shallow);
+                changed |= EditColor("Water deep", e.water.deep);
+                changed |= ImGui::SliderFloat("Sky reflection", &e.water.skyReflection, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Ripple", &e.water.ripple, 0.0f, 3.0f);
+                changed |= ImGui::SliderFloat("Glint", &e.water.glint, 0.0f, 2.0f);
+                if (changed)
+                {
+                    m_environment.Reset(e);
+                    ApplyLighting();
+                }
+                if (ImGui::Button("Copy as JSON"))
+                {
+                    const std::string name = m_environmentName.empty() ? "my_preset" : m_environmentName;
+                    std::string json = "{\n  \"$schema\": \"../Schemas/environment.schema.json\",\n"
+                        "  \"name\": \"" + name + "\",\n"
+                        "  \"sunDirection\": " + Vec3Json(e.sunDirection) + ",\n"
+                        "  \"sunColor\": " + Vec3Json(e.sunColor) + ",\n"
+                        "  \"skyColor\": " + Vec3Json(e.skyColor) + ",\n"
+                        "  \"groundColor\": " + Vec3Json(e.groundColor) + ",\n"
+                        "  \"fogColor\": " + Vec3Json(e.fogColor) + ",\n";
+                    char number[160];
+                    if (e.fogDensity)
+                    {
+                        std::snprintf(number, sizeof(number), "  \"fogDensity\": %.3g,\n", *e.fogDensity);
+                        json += number;
+                    }
+                    if (e.sky)
+                    {
+                        std::snprintf(number, sizeof(number), "\"sunSize\": %.3g, \"sunGlow\": %.3g",
+                            e.sky->sunSize, e.sky->sunGlow);
+                        json += "  \"skyGradient\": { \"zenith\": " + Vec3Json(e.sky->zenith)
+                            + ", \"horizon\": " + Vec3Json(e.sky->horizon) + ", " + number + " },\n";
+                    }
+                    std::snprintf(number, sizeof(number), "\"skyReflection\": %.3g, \"ripple\": %.3g, \"glint\": %.3g",
+                        e.water.skyReflection, e.water.ripple, e.water.glint);
+                    json += "  \"water\": { \"shallow\": " + Vec3Json(e.water.shallow)
+                        + ", \"deep\": " + Vec3Json(e.water.deep) + ", " + number + " }\n}\n";
+                    SDL_SetClipboardText(json.c_str());
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("(Assets/Environments/<name>.json)");
             }
             ImGui::End(); // always, even when Begin returned false (collapsed)
         }

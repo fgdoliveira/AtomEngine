@@ -30,6 +30,10 @@
     "bakedLight": 1.0,
     "glow": { "strength": 0.35, "threshold": 1.0 }
   },
+  "environment": {
+    "default": "clear_day",
+    "presets": ["clear_day", "overcast", "rain", "fog", "sunset", "night"]
+  },
   "outdoor": true,
   "audio": {
     "beds": [

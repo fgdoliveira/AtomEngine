@@ -194,7 +194,7 @@ namespace Atom
             glm::vec4 spotShadow;    // x: on, y: texel size (uv), z: normal offset per metre
             glm::vec4 skyZenith;     // M48: rgb, w: 1 = gradient sky
             glm::vec4 skyHorizon;    // rgb, w: cosine of the sun disc's radius
-            glm::vec4 skySun;        // x: halo strength
+            glm::vec4 skySun;        // x: halo strength, y: water glint (M49)
             glm::vec4 waterShallow;  // rgb, w: sky reflection
             glm::vec4 waterDeep;     // rgb, w: ripple
         };
@@ -261,7 +261,7 @@ namespace Atom
             // What the water reflects and how it looks (M48).
             uniforms.skyZenith = glm::vec4{ lighting.skyZenith, lighting.skyGradient ? 1.0f : 0.0f };
             uniforms.skyHorizon = glm::vec4{ lighting.skyHorizon, std::cos(glm::radians(lighting.sunSize)) };
-            uniforms.skySun = glm::vec4{ lighting.sunGlow, 0.0f, 0.0f, 0.0f };
+            uniforms.skySun = glm::vec4{ lighting.sunGlow, lighting.waterGlint, 0.0f, 0.0f };
             uniforms.waterShallow = glm::vec4{ lighting.waterShallow, lighting.waterSkyReflection };
             uniforms.waterDeep = glm::vec4{ lighting.waterDeep, lighting.waterRipple };
             return uniforms;

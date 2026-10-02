@@ -85,7 +85,8 @@
             "shallow": { "$ref": "#/definitions/vec3" },
             "deep": { "$ref": "#/definitions/vec3" },
             "skyReflection": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.85 },
-            "ripple": { "type": "number", "minimum": 0, "default": 1.0 }
+            "ripple": { "type": "number", "minimum": 0, "default": 1.0 },
+            "glint": { "type": "number", "minimum": 0, "default": 1.0, "description": "The sun's highlight on the water." }
           }
         },
         "skyGradient": {
@@ -110,6 +111,16 @@
             "threshold": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
           }
         }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "Weather and time of day (M49): presets from Assets/Environments over this level's lighting.",
+      "required": ["default"],
+      "additionalProperties": false,
+      "properties": {
+        "default": { "type": "string", "description": "The preset the level starts in." },
+        "presets": { "type": "array", "items": { "type": "string" }, "description": "The ones it offers (all, if left out)." }
       }
     },
     "sky": {

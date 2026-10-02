@@ -60,6 +60,11 @@ namespace AtomGame
             return false;
         }
         virtual std::string AnimatorState(const std::string& /*entity*/) const { return {}; }
+        // M49: switch to an environment preset ("level": the level's own),
+        // blended over seconds; false for an unknown preset. Its name, or
+        // "(blending)" mid-transition.
+        virtual bool SetEnvironment(const std::string& /*name*/, float /*seconds*/) { return false; }
+        virtual std::string EnvironmentName() const { return "level"; }
         // M48: water surfaces the last frame drew.
         virtual std::uint32_t WaterDraws() const { return 0; }
         // M46: the last frame's real duration (ms), for "bench".

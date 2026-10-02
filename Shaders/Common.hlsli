@@ -24,7 +24,7 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_spotShadow;           // x: on, y: texel size (uv), z: normal offset per metre
     float4 u_skyZenith;            // M48: rgb, w: 1 = gradient sky
     float4 u_skyHorizon;           // rgb, w: cosine of the sun disc's radius
-    float4 u_skySun;               // x: halo strength
+    float4 u_skySun;               // x: halo strength, y: water glint (M49)
     float4 u_waterShallow;         // rgb, w: sky reflection
     float4 u_waterDeep;            // rgb, w: ripple
 };

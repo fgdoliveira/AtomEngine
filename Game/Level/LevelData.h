@@ -49,6 +49,14 @@ namespace AtomGame
         float intensity = 1.0f;
     };
 
+    // Weather and time of day (M49): the presets a level offers
+    // (Assets/Environments/<name>.json) and the one it starts in.
+    struct LevelEnvironment
+    {
+        std::string defaultPreset;
+        std::vector<std::string> presets;
+    };
+
     struct AudioBed
     {
         std::string sound;
@@ -270,6 +278,7 @@ namespace AtomGame
         std::optional<LevelLab> lab; // M36: opens in the model viewer
         std::vector<EntityData> entities;
         std::optional<LevelSky> sky;
+        std::optional<LevelEnvironment> environment; // M49
         std::vector<HaloData> halos;
         std::vector<ImpostorData> impostors;
         std::vector<LiveLightData> lights;
@@ -293,6 +302,12 @@ namespace AtomGame
     // Pointer ("/entities/3/interactable/action/type: ...") for content.
     // `markers` is the optional <level>.markers.json written from Blender.
     LevelParseResult ParseLevel(std::string_view json, std::string_view markers = {});
+
+    // An environment preset (M49): the same keys as a level's "lighting"
+    // environment (sun, ambient, fog, skyGradient, water), each optional;
+    // what it leaves out keeps its value in `state`, which is changed only
+    // when the whole preset is valid. Returns the error, or "".
+    std::string ApplyEnvironmentPreset(std::string_view json, EnvironmentState& state);
 
     // Reads the file and its markers file beside it, if any; errors are
     // prefixed with the file name.

@@ -26,6 +26,7 @@ namespace AtomGame
         glm::vec3 deep{ 0.03f, 0.12f, 0.17f };
         float skyReflection = 0.85f; // 0..1
         float ripple = 1.0f;         // how strongly the surface moves
+        float glint = 1.0f;          // M49: the sun's highlight (low under cloud)
     };
 
     // The part of a level's light that weather and time of day change

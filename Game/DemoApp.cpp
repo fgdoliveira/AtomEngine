@@ -78,6 +78,7 @@ namespace AtomGame
 
         m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
         LoadFlashlightSettings();
+        LoadEnvironmentPresets();
 
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
@@ -180,6 +181,7 @@ namespace AtomGame
         m_audioScape.SetSurfaceProvider([&incoming](float x, float z) {
             return incoming.GetData().SurfaceAt(x, z);
         });
+        ResetEnvironment();
         ApplyLighting();
         WatchLevelFiles();
     }
@@ -202,6 +204,118 @@ namespace AtomGame
         }
         m_dialogueFiles.Watch(std::move(dialogues));
         m_dataFiles.Watch({ m_assetRoot + "Assets/Data/flashlight.json" });
+        std::vector<std::string> presets;
+        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Environments", error))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                presets.push_back(entry.path().string());
+            }
+        }
+        m_environmentFiles.Watch(std::move(presets));
+    }
+
+    void DemoApp::LoadEnvironmentPresets()
+    {
+        // Every preset in Assets/Environments (M49), checked as it loads: a
+        // broken one is reported and left out.
+        m_presets.clear();
+        std::error_code error;
+        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Environments", error))
+        {
+            if (entry.path().extension() != ".json")
+            {
+                continue;
+            }
+            std::ifstream file(entry.path(), std::ios::binary);
+            std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+            EnvironmentState probe;
+            if (const std::string problem = ApplyEnvironmentPreset(text, probe); !problem.empty())
+            {
+                const std::string name = entry.path().filename().string();
+                std::cerr << entry.path().string() << ": " << problem << '\n';
+                m_messages.Show(name + ": " + problem);
+                continue;
+            }
+            m_presets[entry.path().stem().string()] = std::move(text);
+        }
+    }
+
+    EnvironmentState DemoApp::ResolveEnvironment(const std::string& name) const
+    {
+        // The level's own light, with the preset's values on top.
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        EnvironmentState state = level ? static_cast<const EnvironmentState&>(level->GetData().lighting)
+                                       : EnvironmentState{};
+        if (const auto found = m_presets.find(name); found != m_presets.end())
+        {
+            ApplyEnvironmentPreset(found->second, state); // checked when loaded
+        }
+        return state;
+    }
+
+    std::vector<std::string> DemoApp::OfferedPresets() const
+    {
+        // The level's list; a level without one may try them all.
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        if (level && level->GetData().environment && !level->GetData().environment->presets.empty())
+        {
+            return level->GetData().environment->presets;
+        }
+        std::vector<std::string> names;
+        for (const auto& [name, text] : m_presets)
+        {
+            names.push_back(name);
+        }
+        return names;
+    }
+
+    void DemoApp::ResetEnvironment()
+    {
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        m_environmentName.clear();
+        if (level && level->GetData().environment)
+        {
+            const std::string& name = level->GetData().environment->defaultPreset;
+            if (m_presets.count(name))
+            {
+                m_environmentName = name;
+            }
+            else
+            {
+                std::cerr << "Level '" << level->GetName() << "': no environment preset '" << name << "'\n";
+            }
+        }
+        m_environment.Reset(ResolveEnvironment(m_environmentName));
+    }
+
+    void DemoApp::RefreshEnvironment()
+    {
+        m_environment.Reset(ResolveEnvironment(m_environmentName));
+    }
+
+    bool DemoApp::SetEnvironment(const std::string& name, float seconds)
+    {
+        // "level" (or "") is the level's own light.
+        const std::string preset = name == "level" ? std::string() : name;
+        if (!preset.empty() && !m_presets.count(preset))
+        {
+            return false;
+        }
+        m_environmentName = preset;
+        m_environment.SwitchTo(ResolveEnvironment(preset), seconds);
+        ApplyLighting();
+        return true;
+    }
+
+    std::string DemoApp::EnvironmentName() const
+    {
+        // Mid-blend it isn't any preset yet.
+        if (m_environment.IsTransitioning())
+        {
+            return "(blending)";
+        }
+        return m_environmentName.empty() ? "level" : m_environmentName;
     }
 
     void DemoApp::LoadFlashlightSettings()
@@ -242,6 +356,13 @@ namespace AtomGame
         {
             LoadFlashlightSettings();
             m_messages.Show("Flashlight reloaded");
+        }
+        if (!m_environmentFiles.Poll().empty())
+        {
+            LoadEnvironmentPresets();
+            RefreshEnvironment();
+            ApplyLighting();
+            m_messages.Show("Environment reloaded");
         }
         const std::vector<std::string> changed = m_levelFiles.Poll();
         if (changed.empty())
@@ -309,6 +430,11 @@ namespace AtomGame
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
+        if (m_environment.IsTransitioning())
+        {
+            m_environment.Update(deltaSeconds); // game time: fixed steps blend the same way
+            ApplyLighting();
+        }
         UpdateHotReload(deltaSeconds);
         if (Level* level = m_levels->GetLevel())
         {
@@ -983,30 +1109,35 @@ namespace AtomGame
         if (const Level* level = m_levels ? m_levels->GetLevel() : nullptr)
         {
             const LevelLighting& l = level->GetData().lighting;
-            lighting.sunDirection = l.sunDirection;
-            lighting.sunColor = m_sunEnabled ? l.sunColor : glm::vec3{ 0.0f };
-            lighting.skyColor = l.skyColor;
-            lighting.groundColor = l.groundColor;
-            lighting.fogColor = l.fogColor;
+            // Sun, ambient, fog, sky and water from the environment (the
+            // level's own light, or a preset over it, M49); the rest stays
+            // the level's.
+            const EnvironmentState& e = m_environment.Current();
+            lighting.sunDirection = e.sunDirection;
+            lighting.sunColor = m_sunEnabled ? e.sunColor : glm::vec3{ 0.0f };
+            lighting.skyColor = e.skyColor;
+            lighting.groundColor = e.groundColor;
+            lighting.fogColor = e.fogColor;
             lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
             lighting.bakedLight = m_bakedLightEnabled ? l.bakedLight : 0.0f;
             lighting.glowStrength = l.glowStrength;
             lighting.glowThreshold = l.glowThreshold;
             lighting.skyPanorama = level->GetSkyPanorama();
             lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;
-            if (l.sky)
+            if (e.sky)
             {
                 lighting.skyGradient = true;
-                lighting.skyZenith = l.sky->zenith;
-                lighting.skyHorizon = l.sky->horizon;
-                lighting.sunSize = l.sky->sunSize;
-                lighting.sunGlow = l.sky->sunGlow;
+                lighting.skyZenith = e.sky->zenith;
+                lighting.skyHorizon = e.sky->horizon;
+                lighting.sunSize = e.sky->sunSize;
+                lighting.sunGlow = e.sky->sunGlow;
             }
-            levelFog = l.fogDensity.value_or(0.0f);
-            lighting.waterShallow = l.water.shallow;
-            lighting.waterDeep = l.water.deep;
-            lighting.waterSkyReflection = l.water.skyReflection;
-            lighting.waterRipple = l.water.ripple;
+            levelFog = e.fogDensity.value_or(0.0f);
+            lighting.waterShallow = e.water.shallow;
+            lighting.waterDeep = e.water.deep;
+            lighting.waterSkyReflection = e.water.skyReflection;
+            lighting.waterRipple = e.water.ripple;
+            lighting.waterGlint = e.water.glint;
         }
         const float presetFog = FogPresets[m_fogPreset].density;
         lighting.fogDensity = presetFog < 0.0f ? levelFog : presetFog;

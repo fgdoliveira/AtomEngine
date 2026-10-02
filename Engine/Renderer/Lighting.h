@@ -72,5 +72,6 @@ namespace Atom
         glm::vec3 waterDeep{ 0.03f, 0.12f, 0.17f };
         float waterSkyReflection = 0.85f;
         float waterRipple = 1.0f;
+        float waterGlint = 1.0f; // M49
     };
 }
