@@ -44,6 +44,7 @@ namespace AtomGame
                 { "expect_surface", { 1, 1 } },     // footstep surface name
                 { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
                 { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
+                { "expect_water", { 1, 1 } },       // min water surfaces drawn (M48)
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "clip", { 2, 2 } },               // entity clip: play it (the lab: show it)
@@ -649,6 +650,15 @@ namespace AtomGame
             if (targets == 0 || draws < static_cast<std::uint32_t>(number(0, 1.0f)))
             {
                 Fail(command, std::to_string(targets) + " render textures, " + std::to_string(draws) + " screen draws");
+            }
+            return true;
+        }
+        if (name == "expect_water")
+        {
+            const std::uint32_t draws = game.WaterDraws();
+            if (draws < static_cast<std::uint32_t>(number(0, 1.0f)))
+            {
+                Fail(command, std::to_string(draws) + " water draws");
             }
             return true;
         }

@@ -77,6 +77,17 @@
         "groundColor": { "$ref": "#/definitions/vec3" },
         "fogColor": { "$ref": "#/definitions/vec3" },
         "fogDensity": { "type": "number", "minimum": 0, "description": "The level's fog (M47), used while the player's fog setting is \"level\": ~3/density metres until fully fogged." },
+        "water": {
+          "type": "object",
+          "description": "How the level's water looks (M48): authored colours; the sky shows at grazing angles.",
+          "additionalProperties": false,
+          "properties": {
+            "shallow": { "$ref": "#/definitions/vec3" },
+            "deep": { "$ref": "#/definitions/vec3" },
+            "skyReflection": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.85 },
+            "ripple": { "type": "number", "minimum": 0, "default": 1.0 }
+          }
+        },
         "skyGradient": {
           "type": "object",
           "description": "Day sky (M47): horizon to zenith, with the sun. Without fogColor, the fog takes the horizon's colour.",

@@ -140,6 +140,10 @@ namespace AtomGame
         std::string SurfaceName() const override;
         float ZoneLevel(const std::string& cell) const override;
         std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override;
+        std::uint32_t WaterDraws() const override
+        {
+            return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().waterDraws;
+        }
         std::string Capture(const std::string& stem, bool includeUi) override;
         bool CapturePending() const override;
         bool Set(const std::string& what, const std::string& value) override;

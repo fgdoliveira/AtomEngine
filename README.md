@@ -128,6 +128,12 @@ In the character lab (`ATOM_START_LEVEL=character_lab`), the viewer:
 | B / K / W | bind pose / skeleton / skin weights |
 | Tab | drive: WASD move, Shift run, Space jump, arrows / mouse camera, Tab back |
 
+The lakeshore lab (`ATOM_START_LEVEL=lakeshore`) is a lake in a meadow for
+stylized water and weather: a day sky, water tinted shallow to deep that
+reflects the sky at grazing angles, glints in the sun and foams at the
+shore, and a jetty to walk out on. Its look is authored in the level's
+`lighting` (`skyGradient`, `water`), live in the F10 Lighting panel.
+
 Keys are bound by position, not by the symbol printed on them: on non-US
 layouts − and + are the two keys left of Backspace.
 
@@ -146,7 +152,7 @@ Developer switches (environment variables):
 
 | Variable | Effect |
 |---|---|
-| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`, `passage`; outside the demo: `character_lab`, `first_render`) |
+| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`, `passage`; outside the demo: `character_lab`, `lakeshore`, `first_render`) |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
 | `ATOM_PRESENT=immediate` | with `ATOM_VSYNC=0`: tearing allowed, never waits (some displays hold the default to their refresh) |

@@ -54,6 +54,10 @@ namespace Atom
         // Revealed by light (M44, "atom_reveal"): a decal whose alpha follows
         // the spot's reach - chalk only the flashlight shows.
         float reveal = 0.0f;
+        // Water (M48, "atom_water"): drawn by the water shader after the
+        // opaque scene, blended; the mesh's first UV's u is the depth below
+        // it (0 at the shore, 1 deep), which drives tint, foam and alpha.
+        float water = 0.0f;
 
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;

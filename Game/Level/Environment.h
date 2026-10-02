@@ -17,6 +17,17 @@ namespace AtomGame
         float sunGlow = 0.4f; // how much the air around the sun lights up
     };
 
+    // Stylized water (M48): authored colours, not optics. Shallow water
+    // shows its tint, deep water its depth colour; at grazing angles the
+    // sky takes over (Fresnel), by up to skyReflection.
+    struct WaterLook
+    {
+        glm::vec3 shallow{ 0.16f, 0.40f, 0.40f };
+        glm::vec3 deep{ 0.03f, 0.12f, 0.17f };
+        float skyReflection = 0.85f; // 0..1
+        float ripple = 1.0f;         // how strongly the surface moves
+    };
+
     // The part of a level's light that weather and time of day change
     // (M47): plain numbers, so two states can be blended. A level's
     // lighting is one; presets (M49) resolve into one.
@@ -29,6 +40,7 @@ namespace AtomGame
         glm::vec3 fogColor{ 0.46f, 0.47f, 0.47f };
         std::optional<float> fogDensity; // unset: the player's fog setting (F5)
         std::optional<SkyGradient> sky;  // unset: no day sky (clear to fog colour)
+        WaterLook water;                 // M48: how any water in the level looks
     };
 
     // a at t = 0, b at t = 1. Colours and numbers mix linearly, the sun's

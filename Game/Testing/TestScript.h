@@ -60,6 +60,8 @@ namespace AtomGame
             return false;
         }
         virtual std::string AnimatorState(const std::string& /*entity*/) const { return {}; }
+        // M48: water surfaces the last frame drew.
+        virtual std::uint32_t WaterDraws() const { return 0; }
         // M46: the last frame's real duration (ms), for "bench".
         virtual double RealFrameMs() const { return 0.0; }
         // M44: is the entity's focus point lit by the flashlight?

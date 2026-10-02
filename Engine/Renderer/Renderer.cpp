@@ -192,6 +192,11 @@ namespace Atom
             glm::vec4 spotCone;      // x: cos outer, y: cos inner
             glm::mat4 spotViewProjection; // M43: its shadow map
             glm::vec4 spotShadow;    // x: on, y: texel size (uv), z: normal offset per metre
+            glm::vec4 skyZenith;     // M48: rgb, w: 1 = gradient sky
+            glm::vec4 skyHorizon;    // rgb, w: cosine of the sun disc's radius
+            glm::vec4 skySun;        // x: halo strength
+            glm::vec4 waterShallow;  // rgb, w: sky reflection
+            glm::vec4 waterDeep;     // rgb, w: ripple
         };
 
         SceneUniforms MakeSceneUniforms(
@@ -253,6 +258,12 @@ namespace Atom
                 uniforms.spotPosition = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
                 uniforms.spotCone = glm::vec4{ 0.0f, 1.0f, 0.0f, 0.0f };
             }
+            // What the water reflects and how it looks (M48).
+            uniforms.skyZenith = glm::vec4{ lighting.skyZenith, lighting.skyGradient ? 1.0f : 0.0f };
+            uniforms.skyHorizon = glm::vec4{ lighting.skyHorizon, std::cos(glm::radians(lighting.sunSize)) };
+            uniforms.skySun = glm::vec4{ lighting.sunGlow, 0.0f, 0.0f, 0.0f };
+            uniforms.waterShallow = glm::vec4{ lighting.waterShallow, lighting.waterSkyReflection };
+            uniforms.waterDeep = glm::vec4{ lighting.waterDeep, lighting.waterRipple };
             return uniforms;
         }
 
@@ -535,12 +546,23 @@ namespace Atom
         return m_decalPipelines[index];
     }
 
+    SDL_GPUGraphicsPipeline* Renderer::GetWaterPipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        if (!m_waterPipelines[slot])
+        {
+            m_waterPipelines[slot] = CreateScenePipeline(slot, false, false, true, false, true);
+        }
+        return m_waterPipelines[slot];
+    }
+
     SDL_GPUGraphicsPipeline* Renderer::CreateScenePipeline(
         std::size_t slot,
         bool doubleSided,
         bool alphaToCoverage,
         bool decal,
-        bool skinned
+        bool skinned,
+        bool water
     )
     {
         // Skinned meshes: the same fragment shading, a vertex shader that
@@ -551,9 +573,10 @@ namespace Atom
             SDL_GPU_SHADERSTAGE_VERTEX,
             ShaderResources{ .uniformBuffers = skinned ? 3u : 2u }
         );
+        // Water binds the same resources as the scene, shading them its own way.
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
-            "Basic.frag",
+            water ? "Water.frag" : "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
             ShaderResources{ .samplers = 5, .uniformBuffers = 2 }
         );
@@ -647,7 +670,7 @@ namespace Atom
         createInfo.depth_stencil_state.enable_depth_write = !decal;
         createInfo.depth_stencil_state.compare_op =
             SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
-        if (decal)
+        if (decal && !water)
         {
             // Pulled toward the camera, more on slanted views, so the 2 mm
             // they float above their surface is never lost to precision.
@@ -835,6 +858,7 @@ namespace Atom
             const Material& m = *c.material;
             return std::tuple{
                 m.alphaMode == AlphaMode::Blend,
+                m.water > 0.0f, // water after the decals: they lie on what it covers
                 m.alphaMode == AlphaMode::Mask,
                 m.doubleSided,
                 c.palette >= 0,
@@ -1286,7 +1310,9 @@ namespace Atom
 
             if (bindMaterials)
             {
-                SDL_GPUGraphicsPipeline* pipeline = isDecal
+                SDL_GPUGraphicsPipeline* pipeline = material.water > 0.0f
+                    ? GetWaterPipeline(sceneSamples)
+                    : isDecal
                     ? GetDecalPipeline(sceneSamples, skinned)
                     : GetScenePipeline(sceneSamples, material.doubleSided, masked, skinned);
                 if (!pipeline)
@@ -1319,6 +1345,7 @@ namespace Atom
                 }
                 const bool spotReaches = spotOn && IsVisible(spotFrustum, *command.mesh, command.model);
                 m_stats.spotLitDraws += spotReaches ? 1 : 0;
+                m_stats.waterDraws += material.water > 0.0f ? 1 : 0;
                 m_stats.liveLitDraws += liveBits != 0 ? 1 : 0;
 
                 const MaterialUniforms materialUniforms{
@@ -2368,6 +2395,13 @@ namespace Atom
                     SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
                 }
             }
+            for (SDL_GPUGraphicsPipeline* pipeline : m_waterPipelines)
+            {
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
+            }
             for (SDL_GPUGraphicsPipeline* pipeline : m_scenePipelines)
             {
                 if (pipeline)
@@ -2424,6 +2458,7 @@ namespace Atom
 
         m_scenePipelines = {};
         m_decalPipelines = {};
+        m_waterPipelines = {};
         m_postPipeline = nullptr;
         m_shadowPipelines = {};
         m_particlePipelines = {};

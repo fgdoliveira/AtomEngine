@@ -80,21 +80,6 @@ float ComputeShadow(float3 worldPosition, float3 normal)
     return visibility / 9.0;
 }
 
-// Value noise in [0, 1] (M25): a hash per lattice point, smoothly blended.
-float Hash(float2 p)
-{
-    return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
-}
-
-float ValueNoise(float2 p)
-{
-    const float2 i = floor(p);
-    const float2 f = frac(p);
-    const float2 s = f * f * (3.0 - 2.0 * f);
-    return lerp(lerp(Hash(i), Hash(i + float2(1, 0)), s.x),
-                lerp(Hash(i + float2(0, 1)), Hash(i + float2(1, 1)), s.x), s.y);
-}
-
 // Live point lights (M25): Lambert with a falloff that reaches zero at the
 // radius, so a light's reach is exact and cheap to reason about.
 float3 LiveLights(float3 worldPosition, float3 normal)

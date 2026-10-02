@@ -57,6 +57,10 @@ namespace AtomGame
         {
             result.sky = nearer.sky;
         }
+        result.water.shallow = glm::mix(a.water.shallow, b.water.shallow, t);
+        result.water.deep = glm::mix(a.water.deep, b.water.deep, t);
+        result.water.skyReflection = glm::mix(a.water.skyReflection, b.water.skyReflection, t);
+        result.water.ripple = glm::mix(a.water.ripple, b.water.ripple, t);
         return result;
     }
 }

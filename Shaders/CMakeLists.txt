@@ -26,6 +26,7 @@ set(ATOM_SHADER_SOURCES
     GlowBlur.frag.hlsl
     Sky.vert.hlsl
     Sky.frag.hlsl
+    Water.frag.hlsl
     Halo.frag.hlsl
     Shadow.vert.hlsl
     Shadow.frag.hlsl

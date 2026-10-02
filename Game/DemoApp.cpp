@@ -1003,6 +1003,10 @@ namespace AtomGame
                 lighting.sunGlow = l.sky->sunGlow;
             }
             levelFog = l.fogDensity.value_or(0.0f);
+            lighting.waterShallow = l.water.shallow;
+            lighting.waterDeep = l.water.deep;
+            lighting.waterSkyReflection = l.water.skyReflection;
+            lighting.waterRipple = l.water.ripple;
         }
         const float presetFog = FogPresets[m_fogPreset].density;
         lighting.fogDensity = presetFog < 0.0f ? levelFog : presetFog;

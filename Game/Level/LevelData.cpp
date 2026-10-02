@@ -549,6 +549,19 @@ namespace AtomGame
                     }
                     l.fogDensity = density;
                 }
+                if (const auto water = light->find("water"); water != light->end())
+                {
+                    const std::string waterAt = "/lighting/water";
+                    WaterLook& w = l.water;
+                    w.shallow = Vec3(*water, "shallow", w.shallow, waterAt);
+                    w.deep = Vec3(*water, "deep", w.deep, waterAt);
+                    w.skyReflection = Number(*water, "skyReflection", waterAt, w.skyReflection);
+                    w.ripple = Number(*water, "ripple", waterAt, w.ripple);
+                    if (w.skyReflection < 0.0f || w.skyReflection > 1.0f || w.ripple < 0.0f)
+                    {
+                        throw LevelError(waterAt, "skyReflection must be 0..1 and ripple >= 0");
+                    }
+                }
                 if (const auto sky = light->find("skyGradient"); sky != light->end())
                 {
                     const std::string skyAt = "/lighting/skyGradient";

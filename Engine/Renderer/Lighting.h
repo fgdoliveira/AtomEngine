@@ -66,5 +66,11 @@ namespace Atom
         glm::vec3 skyHorizon{ 0.62f, 0.70f, 0.78f };
         float sunSize = 1.5f; // degrees
         float sunGlow = 0.4f;
+
+        // Water (M48): tints, how much sky it shows, how much it moves.
+        glm::vec3 waterShallow{ 0.16f, 0.40f, 0.40f };
+        glm::vec3 waterDeep{ 0.03f, 0.12f, 0.17f };
+        float waterSkyReflection = 0.85f;
+        float waterRipple = 1.0f;
     };
 }

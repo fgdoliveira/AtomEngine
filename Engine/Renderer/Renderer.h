@@ -92,6 +92,7 @@ namespace Atom
         std::uint32_t msaaSamples = 0;
         std::uint32_t renderTextures = 0;  // M27: drawn into this frame
         std::uint32_t renderTextureDraws = 0; // scene draws sampling one
+        std::uint32_t waterDraws = 0;      // M48: water surfaces drawn
     };
 
     class Renderer
@@ -269,8 +270,12 @@ namespace Atom
         // Decals: alpha blending, no depth writes, a depth bias toward the
         // camera so they win against the surface they lie on.
         SDL_GPUGraphicsPipeline* GetDecalPipeline(std::uint32_t samples, bool skinned = false);
+        // Water (M48): blended like a decal but without its depth bias,
+        // shaded by Water.frag.
+        SDL_GPUGraphicsPipeline* GetWaterPipeline(std::uint32_t samples);
         SDL_GPUGraphicsPipeline* CreateScenePipeline(
-            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned);
+            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned,
+            bool water = false);
         SDL_GPUGraphicsPipeline* CreateShadowPipeline(bool skinned);
         SDL_GPUGraphicsPipeline* GetShadowPipeline(bool skinned)
         {
@@ -336,6 +341,7 @@ namespace Atom
         // [skinned][samples slot][double-sided][alpha-to-coverage]
         std::array<SDL_GPUGraphicsPipeline*, 24> m_scenePipelines{};
         std::array<SDL_GPUGraphicsPipeline*, 6> m_decalPipelines{}; // [skinned][samples slot]
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_waterPipelines{}; // [samples slot]
         glm::vec4 m_wind{ 0.0f };
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         std::array<SDL_GPUGraphicsPipeline*, 2> m_shadowPipelines{}; // [skinned]
