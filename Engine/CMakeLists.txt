@@ -9,7 +9,9 @@ target_sources(
         Audio/AudioSystem.cpp
         Assets/ThirdParty.cpp
         Core/Application.cpp
+        Core/FrameStatsWindow.cpp
         Core/Time.cpp
+        Debug/DevTools.cpp
         Physics/CollisionWorld.cpp
         Platform/Input.cpp
         Platform/Window.cpp
@@ -30,7 +32,9 @@ target_sources(
         Assets/Skin.h
         Audio/AudioSystem.h
         Core/Application.h
+        Core/FrameStatsWindow.h
         Core/Time.h
+        Debug/DevTools.h
         Physics/CollisionWorld.h
         Platform/Input.h
         Platform/Window.h
@@ -43,6 +47,7 @@ target_sources(
         Renderer/RenderTargets.h
         Renderer/Renderer.h
         Renderer/Shader.h
+        Renderer/SpotLight.h
         Renderer/Texture.h
         Renderer/RenderTexture.h
         Audio/Reverb.h
@@ -65,6 +70,7 @@ target_link_libraries(
     PUBLIC
         SDL3::SDL3
         glm::glm
+        imgui
 )
 
 target_compile_definitions(

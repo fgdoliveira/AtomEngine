@@ -12,7 +12,7 @@ namespace AtomGame
             "orbit_left", "orbit_right", "orbit_up", "orbit_down", "zoom_in", "zoom_out",
             "clip_1", "clip_2", "clip_3", "clip_4", "slower", "faster", "pause", "step",
             "toggle_bind", "toggle_skeleton", "toggle_weights",
-            "mode_blend", "mode_animator", "blend_down", "blend_up", "jump", "toggle_drive",
+            "mode_blend", "mode_animator", "blend_down", "blend_up", "jump", "toggle_drive", "toggle_light",
         };
         static_assert(std::size(Names) == static_cast<std::size_t>(InputAction::Count));
     }
@@ -44,6 +44,7 @@ namespace AtomGame
         map.Bind(C::Exploring, InputAction::MoveRight, SDL_SCANCODE_D);
         map.Bind(C::Exploring, InputAction::Jog, SDL_SCANCODE_LSHIFT);
         map.Bind(C::Exploring, InputAction::Interact, SDL_SCANCODE_E);
+        map.Bind(C::Exploring, InputAction::ToggleLight, SDL_SCANCODE_F);
 
         map.Bind(C::Dialogue, InputAction::Confirm, SDL_SCANCODE_E);
         map.Bind(C::Dialogue, InputAction::Confirm, SDL_SCANCODE_SPACE);

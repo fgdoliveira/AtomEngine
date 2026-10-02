@@ -32,6 +32,9 @@ namespace AtomGame
         }
 
         std::size_t FlagCount() const { return m_flags.size(); }
+        // For inspection (developer tools).
+        const std::unordered_set<std::string>& GetFlags() const { return m_flags; }
+        const std::map<std::string, int, std::less<>>& GetCounters() const { return m_counters; }
 
         // Counters (M33): missing ones read 0; they never go below 0.
         int GetCounter(std::string_view name) const

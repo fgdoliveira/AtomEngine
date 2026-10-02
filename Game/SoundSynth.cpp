@@ -622,6 +622,23 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle SwitchClick()
+    {
+        // Two tiny knocks a few milliseconds apart: plastic sliding home.
+        std::vector<float> out(Frames(0.06f));
+        Noise noise(1234);
+        Biquad tick = Biquad::Bandpass(3200.0f, 3.0f);
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float first = std::exp(-t / 0.002f);
+            const float second = t > 0.012f ? std::exp(-(t - 0.012f) / 0.003f) * 0.6f : 0.0f;
+            out[i] = tick.Process(noise() * (first + second));
+        }
+        Normalize(out, 0.45f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle Reach()
     {
         // A rising, wobbling square-ish tone: the tease.

@@ -8,10 +8,12 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.6** — the character lab: a rigged character skinned
-on the GPU, its clips blended and driven by a state machine, shown in an
-orbit viewer with skeleton and weight views, and driven in third person
-with a spring-arm camera. (0.0.5 made a pachinko machine playable.)
+Current version: **0.0.7** — into the dark: a flashlight found in the
+machiya, a spot light with its own shadow map, and a dark passage under the
+house - a cellar and a tunnel up to the windmill field's shed - where chalk
+marks and a bolt are only found in the beam; plus developer tools (Dear
+ImGui, F10) and a way to measure performance that a laptop's drift can't
+fool. (0.0.6 built the character lab.)
 See [CHANGELOG.md](CHANGELOG.md).
 
 ## What's in it
@@ -19,12 +21,15 @@ See [CHANGELOG.md](CHANGELOG.md).
 **Rendering** — forward renderer on SDL_GPU / D3D12 with HLSL shaders compiled
 offline to DXIL; off-screen HDR target with configurable render scale and
 MSAA; hemispheric + sun lighting with baked light (vertex colours and
-lightmaps, per chunk); a few live point lights; exponential height fog; a
-directional shadow map (texel-snapped, PCF); alpha-tested foliage and cloth,
+lightmaps, per chunk); a few live point lights (culled per draw); a spot
+light (the flashlight) with a Blinn-Phong highlight from each material's
+roughness and its own perspective shadow map, culled to its cone;
+exponential height fog; a directional shadow map (texel-snapped, PCF); alpha-tested foliage and cloth,
 and decals; emissive masks, a quarter-resolution glow and halo billboards;
 a night-sky panorama; wet surfaces; rigid node animation, skeletal skinning
 (linear blend, up to 64 joints, in the vertex shader) and wind sway; ACES tonemapping, colour grade, film grain and vignette;
-instanced particles; chunk and cell culling with near/mid/far layers,
+instanced particles, including dust only the beam shows, and a faked
+visible beam; decals revealed only by the spot's light; chunk and cell culling with near/mid/far layers,
 impostors and skyline cards; draw sorting; render-to-texture; a 2D
 text/UI overlay.
 
@@ -40,7 +45,14 @@ model cache and a grid-accelerated collision world.
 input contexts (named actions, keys mapped per mode); entities built from
 capabilities (drawn, interactable, animated, moving) instead of a class
 hierarchy; data-driven actions and timed action sequences; persistent story
-flags and counters; branching, flag-gated dialogue from JSON.
+flags and counters; branching, flag-gated dialogue from JSON; a flashlight
+(found, toggled, held a little behind the view) and interactables found
+only in its beam; things that stay gone once taken.
+
+**Tools** — Dear ImGui developer panels (F10: frame, render, lighting and
+spot light tuning with Copy as JSON for the data files, level state), kept
+out of every screenshot; frame-time logging and paired A/B benchmarks
+(see Measuring performance).
 
 **Animation** — clips sampled into explicit poses and blended per joint
 (crossfades, a walk/run blend kept in phase); an animation state machine
@@ -78,7 +90,7 @@ build/bin/Release/AtomGame.exe
 ```
 
 Dependencies are pinned git submodules: SDL 3.4.16, GLM 1.0.1, cgltf 1.15,
-stb, nlohmann/json 3.12.0, doctest 2.5.3.
+stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9.
 
 ## Playing
 
@@ -86,12 +98,14 @@ stb, nlohmann/json 3.12.0, doctest 2.5.3.
 |---|---|
 | WASD / Shift / Mouse | move / jog / look |
 | E | interact; in dialogue: continue / confirm |
+| F | flashlight on / off (once found) |
 | W S or 1–4 | choose a dialogue option |
 | Esc | release the mouse (again: quit) |
 | F1 | debug overlay |
 | F2 / F3 / F4 | render scale / baked light / MSAA |
 | F5 / F6 / F7 | fog preset / shadows / post look |
 | F8 / F9 / M | particles / unease events / mute |
+| F10 | developer tools (Dear ImGui) |
 
 At the pachinko machine:
 
@@ -123,15 +137,21 @@ take the field path at the west end to the windmill. At the bus stop past
 the house, wait for the night bus to the city: walk its street and alley,
 listen for the train, and step into the pachinko hall. The attendant has
 tokens for a first night; one machine is free - sit down and play, and 300
-balls buy something from the prize shelf.
+balls buy something from the prize shelf. Back in the house, a flashlight
+lies on the entry step: with it, the dark corridor leads down into a cellar
+and a tunnel - follow the chalk only the beam shows, unbolt the trapdoor,
+and come up in the windmill field's shed.
 
 Developer switches (environment variables):
 
 | Variable | Effect |
 |---|---|
-| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`; outside the demo: `character_lab`, `first_render`) |
+| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`, `passage`; outside the demo: `character_lab`, `first_render`) |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
+| `ATOM_PRESENT=immediate` | with `ATOM_VSYNC=0`: tearing allowed, never waits (some displays hold the default to their refresh) |
+| `ATOM_PERF_LOG=1` | after an engine warm-up, one line per block of frames: `PERF block … samples … median … p95 … mean … label …` |
+| `ATOM_PERF_BLOCK=<frames>` / `ATOM_PERF_CSV=<file>` | block size (default 240) / the same rows as CSV |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 
@@ -158,6 +178,35 @@ expect_flag keeper_permission
 wait_for_level shrine_grounds
 expect_voices_max 4
 ```
+
+## Measuring performance
+
+A laptop's speed isn't constant: heat, power source and boost clocks move
+frame times by more than most changes cost (unplugged, this one ran 3×
+slower; after 40 minutes of load it drifted 20 % within one run). So
+AtomEngine compares A and B **close together in time** and reports the
+**paired difference**, never two absolute numbers from separate sessions.
+
+- **What does a feature cost?** In-process A/B, the tightest tool: a
+  scenario line `bench <setting> <a> <b> <rounds> <seconds> [settle]`, for
+  any `set` switch. It alternates A and B in the order AB BA AB BA…, lets
+  each switch settle (rebuilt targets aren't steady state), and reports the
+  median of the rounds' differences:
+  `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
+- **Did a build get slower?** `pwsh Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <level>`
+  alternates the two executables (ABBA) and reports the median paired
+  difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward).
+- **Trust the tools first:** `ab.ps1` with the same build as A and B must
+  give ~0 ms. On the development laptop it gives up to ~0.15 ms, so smaller
+  differences between builds are noise.
+- **Why is it slow?** Capture a frame in PIX for Windows (Direct3D 12) or
+  Intel GPA for per-pass GPU times; SDL_GPU exposes no GPU timers.
+
+Checklist: plugged in, high-performance power plan, the laptop's own screen,
+`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. The
+300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
+hardware; the interleaving takes care of that. Timing is never a ctest
+gate: `expect_bench_under` is for local use on known hardware.
 
 ## Content pipeline
 
@@ -220,11 +269,11 @@ pwsh Tools/Docs/capture_character_lab.ps1
 ## Layout
 
 ```text
-Engine/   Assets Audio Core Physics Platform Renderer Scene UI
+Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
 Game/     Character Dialogue Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
 Shaders/  HLSL, compiled to DXIL at build time
-Tools/    Blender content scripts
-Assets/   generated models, levels, dialogue, font
+Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
+Assets/   generated models, levels, dialogue, data (flashlight), font
 Tests/    unit tests and in-game scenarios
 external/ pinned dependencies
 ```

@@ -61,6 +61,7 @@ namespace AtomGame
         BlendUp,
         Jump,         // M38: drive mode
         ToggleDrive,  // M38: Tab, viewer <-> drive
+        ToggleLight,  // M44: the flashlight
         Count,
     };
 

@@ -108,6 +108,10 @@ MATERIALS = {
     "cube_red": (lambda: tex.flat((0.72, 0.16, 0.12)), 1.0, 0.6, 0.0),
     "cube_teal": (lambda: tex.flat((0.10, 0.52, 0.55)), 1.0, 0.6, 0.0),
     "cube_gold": (lambda: tex.flat((0.80, 0.62, 0.18)), 1.0, 0.6, 0.0),
+    # The passage (M44): chalk only the flashlight shows; the flashlight's body.
+    "reveal_marks": (lambda: tex.reveal_marks(), 1.0, 0.95, 0.0),
+    "exit_sign": (lambda: tex.exit_sign(), 1.0, 0.5, 1.6),
+    "flashlight_body": (lambda: tex.flat((0.10, 0.11, 0.12), size=16, seed=101, variation=0.05), 1.0, 0.35, 0.0),
     # Character lab (M36): studio floor, cyclorama, turntable.
     "lab_floor": (lambda: tex.lab_floor(), 1.0, 0.7, 0.0),
     "lab_cyc": (lambda: tex.flat((0.80, 0.83, 0.88), size=16, seed=96, variation=0.015), 4.0, 0.9, 0.0),
@@ -173,7 +177,12 @@ SWAY = {
 # bias. Exported as glTF alphaMode BLEND. The only faces the lint allows to
 # lie (nearly) in the plane of another piece's face.
 DECALS = {"water_stain", "grime", "shop_sign", "ofuda", "road_diamond", "road_paint",
-          "neon_reflection", "puddle", "posters"}
+          "neon_reflection", "puddle", "posters", "reveal_marks"}
+
+# Revealed by light (M44): decals whose alpha follows the spot light's
+# reach, so they appear only in the flashlight's beam (glTF extras
+# "atom_reveal").
+REVEAL = {"reveal_marks"}
 DECAL_OFFSET = 0.002  # metres
 
 # Faces of different pieces closer than this, parallel and overlapping,
@@ -227,6 +236,8 @@ def _make_material(name):
 
     if name in WET:
         material["atom_wet"] = WET[name]
+    if name in REVEAL:
+        material["atom_reveal"] = 1.0
 
     if name in MASKED:
         _make_masked(material, texture, bsdf, name, image)
@@ -1158,6 +1169,21 @@ def build_offering_box(materials, collection):
     return m.build("offering_box", materials, collection)
 
 
+def build_flashlight(materials, collection):
+    """An old flashlight (M44), lying on its side: a dark ribbed body, a
+    wider head with a pale lens. About 22 cm long."""
+    m = MeshBuilder(grid=1.0)
+    m.box((-0.03, 0, 0.022), (0.16, 0.042, 0.042), "flashlight_body")
+    for x in (-0.08, -0.04, 0.0):  # grip ribs
+        m.box((x, 0, 0.022), (0.008, 0.046, 0.046), "flashlight_body")
+    # The head: open at the front, where the lens closes it (a face behind
+    # the lens would z-fight with it).
+    m.box((0.075, 0, 0.03), (0.05, 0.06, 0.06), "metal_white",
+          faces=[(-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)])
+    m.quad([(0.1, -0.03, 0.0), (0.1, 0.03, 0.0), (0.1, 0.03, 0.06), (0.1, -0.03, 0.06)], "cloth_white")
+    return m.build("flashlight", materials, collection)
+
+
 PIECES = [
     build_machiya,
     build_utility_pole,
@@ -1189,6 +1215,9 @@ PIECES = [
     build_demo_cube_red,
     build_demo_cube_teal,
     build_demo_cube_gold,
+    # Appended, never inserted: pieces are laid out in this order for the
+    # bake, so a new one in the middle would move (and re-bake) the rest.
+    build_flashlight,
 ]
 
 

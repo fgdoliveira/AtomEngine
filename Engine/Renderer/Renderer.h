@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string>
@@ -78,6 +79,10 @@ namespace Atom
         std::uint32_t submitted = 0;
         std::uint32_t drawn = 0; // after frustum culling
         std::uint32_t shadowDrawn = 0;
+        std::uint32_t spotShadowDrawn = 0; // M43: the spot's shadow pass
+        std::uint32_t spotLitDraws = 0;    // M46: scene draws the spot reaches
+        std::uint32_t liveLitDraws = 0;    // M46: scene draws a live light reaches
+        std::uint32_t liveLights = 0;      // M46: live lights this frame
         std::array<LayerStats, RenderLayerCount> layers{};
         std::uint32_t pipelineBinds = 0;
         std::uint32_t materialBinds = 0;
@@ -166,6 +171,13 @@ namespace Atom
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
 
+        // Developer overlay (M41): called each frame after the game's UI,
+        // with the window's image to draw on. Screenshots and captures are
+        // drawn separately, so nothing drawn here ends up in them.
+        using OverlayPass = std::function<void(SDL_GPUCommandBuffer*, SDL_GPUTexture*)>;
+        void SetOverlayPass(OverlayPass pass) { m_overlayPass = std::move(pass); }
+        SDL_GPUDevice* GetDevice() const { return m_device; }
+
         // Debug (M36): skinned meshes coloured by their joint weights.
         void SetSkinWeightsView(bool on) { m_skinWeightsView = on; }
         bool GetSkinWeightsView() const { return m_skinWeightsView; }
@@ -187,6 +199,12 @@ namespace Atom
         void SubmitHalos(std::span<const Particle> halos);
         // A live point light for this frame (M25); see LiveLight.
         void SubmitLiveLight(const LiveLight& light);
+        // The spot light for this frame (M42), one at most: the flashlight.
+        void SubmitSpotLight(const SpotLight& light)
+        {
+            m_spot = light;
+            m_spotActive = true;
+        }
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
@@ -231,6 +249,12 @@ namespace Atom
         bool CreatePostPipeline();
         bool CreateShadowResources();
         bool CreateParticleResources();
+        // The flashlight's fake beam (M45): three planes crossing along the
+        // spot's axis, added onto the scene where the spot reaches.
+        bool CreateBeamResources();
+        SDL_GPUGraphicsPipeline* GetBeamPipeline(std::uint32_t samples);
+        void DrawBeam(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
+                      const glm::mat4& viewProjection);
         SDL_GPUGraphicsPipeline* GetParticlePipeline(std::uint32_t samples, bool additive = false);
         // Sorts back to front and copies this frame's particles to the GPU.
         bool UploadParticles(SDL_GPUCommandBuffer* commandBuffer);
@@ -279,16 +303,23 @@ namespace Atom
             SDL_GPURenderPass* renderPass,
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection,
-            std::uint32_t sceneSamples
+            std::uint32_t sceneSamples,
+            bool spotPass = false
         );
 
         bool RenderShadowPass(
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& lightViewProjection
         );
+        // M43: the spot's depth from the lamp, into its own shadow map.
+        bool RenderSpotShadowPass(
+            SDL_GPUCommandBuffer* commandBuffer,
+            const glm::mat4& spotViewProjection
+        );
         bool RenderScenePass(
             SDL_GPUCommandBuffer* commandBuffer,
-            const glm::mat4& lightViewProjection
+            const glm::mat4& lightViewProjection,
+            const glm::mat4& spotViewProjection
         );
         bool RenderPostPass(
             SDL_GPUCommandBuffer* commandBuffer,
@@ -309,10 +340,13 @@ namespace Atom
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         std::array<SDL_GPUGraphicsPipeline*, 2> m_shadowPipelines{}; // [skinned]
         SDL_GPUTexture* m_shadowMap = nullptr;
+        SDL_GPUTexture* m_spotShadowMap = nullptr; // M43
         SDL_GPUSampler* m_shadowSampler = nullptr; // comparison sampler
 
         std::array<SDL_GPUGraphicsPipeline*, 3> m_particlePipelines{};
         std::array<SDL_GPUGraphicsPipeline*, 3> m_haloPipelines{};
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_beamPipelines{};
+        std::unique_ptr<Mesh> m_beamMesh;
         std::array<SDL_GPUGraphicsPipeline*, 3> m_skyPipelines{};
         SDL_GPUGraphicsPipeline* GetSkyPipeline(std::uint32_t samples);
         bool RenderTextures(SDL_GPUCommandBuffer* commandBuffer);
@@ -324,6 +358,8 @@ namespace Atom
         std::vector<Particle> m_halos;
         std::array<LiveLight, MaxLiveLights> m_liveLights{};
         std::size_t m_liveLightCount = 0;
+        SpotLight m_spot;
+        bool m_spotActive = false;
         std::uint32_t m_uploadedHalos = 0;
         SDL_GPUBuffer* m_particleBuffer = nullptr;
         SDL_GPUTransferBuffer* m_particleTransfer = nullptr;
@@ -367,5 +403,6 @@ namespace Atom
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;
         bool m_skinWeightsView = false;
+        OverlayPass m_overlayPass;
     };
 }

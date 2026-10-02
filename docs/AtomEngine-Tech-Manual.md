@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.6 / M40**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57).
+A study guide to every concept the engine uses, as of **v0.0.7 / M46**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -66,9 +66,15 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 55. [Pose blending and the animation state machine (M37)](#55-pose-blending-and-the-animation-state-machine-m37)
 56. [A third-person character: drive mode (M38)](#56-a-third-person-character-drive-mode-m38)
 57. [Releasing the lab: captures, and a regression found by measuring (M39–M40)](#57-releasing-the-lab-captures-and-a-regression-found-by-measuring-m39m40)
-58. [Anatomy of a frame and what it costs](#58-anatomy-of-a-frame-and-what-it-costs)
-59. [Build system and project layout](#59-build-system-and-project-layout)
-60. [Glossary](#60-glossary)
+58. [Developer tools: Dear ImGui (M41)](#58-developer-tools-dear-imgui-m41)
+59. [Spot lights and specular highlights (M42)](#59-spot-lights-and-specular-highlights-m42)
+60. [The spot shadow map (M43)](#60-the-spot-shadow-map-m43)
+61. [The flashlight: light as gameplay (M44)](#61-the-flashlight-light-as-gameplay-m44)
+62. [The passage: dust, a beam, and darkness that isn't black (M45)](#62-the-passage-dust-a-beam-and-darkness-that-isnt-black-m45)
+63. [Light culling and measuring performance honestly (M46)](#63-light-culling-and-measuring-performance-honestly-m46)
+64. [Anatomy of a frame and what it costs](#64-anatomy-of-a-frame-and-what-it-costs)
+65. [Build system and project layout](#65-build-system-and-project-layout)
+66. [Glossary](#66-glossary)
 
 ---
 
@@ -1516,7 +1522,185 @@ Why would a uniform branch cost anything? On paper it shouldn't: every pixel tak
 
 ---
 
-## 58. Anatomy of a frame and what it costs
+## 58. Developer tools: Dear ImGui (M41)
+
+**Concept.** Tuning a light by editing JSON, restarting and looking again is slow. A **developer UI** lets you drag a slider and see the result at once. **Dear ImGui** is the standard choice. It's an **immediate-mode** UI: every frame the code says "a window, a slider bound to this float". ImGui keeps no widget tree of yours, so there is nothing to synchronise with the game's state. The widget *is* the variable, for one frame.
+
+```cpp
+if (ImGui::Begin("Lighting"))
+{
+    ImGui::SliderFloat("Intensity", &light.intensity, 0.0f, 50.0f);
+}
+ImGui::End(); // always, whatever Begin() returned
+```
+
+**The one rule that bit us.** `Begin()` returns false when the window is collapsed, but `End()` must still be called. Putting `End()` inside the `if` crashed as soon as a panel was collapsed ("Missing End()"). Tables are the opposite: `EndTable()` only if `BeginTable()` returned true. A scenario (`set devtools_collapsed`) now collapses every panel.
+
+**AtomEngine.**
+- **Pinned and plain:** Dear ImGui 1.92.9 is a git submodule, built as a static library with its SDL3 platform backend and SDL_GPU renderer backend. ImGui ships no CMake of its own.
+- **F10** toggles the panels:
+  - **Frame:** a frame-time graph, draws, binds, layers, lit draws;
+  - **Render:** the same switches as the harness's `set`;
+  - **Lighting:** the level's sun, ambient and fog, edited live;
+  - **Spot light:** the flashlight's cone, range, intensity and lag;
+  - **Level:** entities, flags and counters.
+- **Copy as JSON:** a panel puts its values on the clipboard in exactly the shape the data file expects. You tune live, then paste the result into the file.
+- **A separate overlay pass:** ImGui is drawn after everything else, into the swapchain, and screenshots and captures are taken before it. Dev tools never show up in documentation images.
+- **Input:** while ImGui wants the mouse or keyboard, the game doesn't receive them.
+
+**Code.** `Engine/Debug/DevTools.*`, `Game/DemoAppDevTools.cpp`, `Renderer::SetOverlayPass`, `Tests/Scenarios/devtools.atomtest`.
+
+---
+
+## 59. Spot lights and specular highlights (M42)
+
+**Concept.** A **spot light** is a point light restricted to a cone. Four things decide how much it lights a point:
+- **The cone:** the angle from the spot's axis. Inside the **inner** angle the light is full, outside the **outer** angle it is zero, and between them it fades with a smoothstep. A soft edge looks like a real lamp; a hard one looks like a stencil.
+  ```
+  cone = smoothstep(cos(outer), cos(inner), dot(-L, spotDir))
+  ```
+- **Distance falloff:** physically, light falls as 1/d². Pure 1/d² never reaches zero, so a light would touch the whole level. The **windowed** version reaches exactly zero at the range and lets the engine skip everything beyond it:
+  ```
+  falloff = saturate(1 - (d/r)^4)^2 / (d^2 + 1)
+  ```
+  The `+1` stops it exploding at d = 0.
+- **Diffuse (Lambert):** `max(dot(N, L), 0)`, as for the sun.
+- **Specular (Blinn-Phong):** the shiny highlight. Take the **half vector** H = normalize(L + V), halfway between the light and the eye. The highlight is `pow(dot(N, H), shininess)`; a higher exponent gives a smaller, sharper spot. The factor `(n + 8) / 8π`, used here without the π and folded into the strength, keeps the energy roughly constant: a sharp highlight is also brighter.
+
+**Roughness → shininess.** glTF materials carry a **roughness** (0 = mirror, 1 = chalk), which the loader now reads. It maps to an exponent: rough stone barely gleams, a wet jar or a metal hinge catches a crisp spot. An `atom_specular` extra in Blender scales the strength per material, for things that should stay matte whatever their roughness says.
+
+**The same maths twice.** `SpotMath` in C++ implements the cone, the falloff and the shininess exactly as the shader does. The unit tests check the edges (inner, outer, range), and gameplay uses it (§61) to ask "is this lit?" without reading the GPU.
+
+**AtomEngine.** One spot light per frame (`Renderer::SubmitSpotLight`): position, direction, range (15 m), inner and outer angles (12° and 24°), colour, intensity and specular. The baked world remains almost all of the lighting; the spot is added on top in `Basic.frag`.
+
+**Code.** `Engine/Renderer/SpotLight.h` (`SpotLight`, `SpotMath`), `Shaders/Basic.frag.hlsl` (`SpotLighting`), `Shaders/Common.hlsli`, `Tests/SpotLightTests.cpp`.
+
+---
+
+## 60. The spot shadow map (M43)
+
+**Concept.** The sun's shadow map (§23) is **orthographic**: the sun is so far away that its rays are parallel. A spot light is a point, and its rays spread out, so its shadow map is a **perspective** render from the lamp. Its field of view is the cone's outer angle and its far plane is the range. Everything else is the same idea: render depth from the light, and later ask each pixel "was something closer to the light than me?"
+
+**What changes with perspective.**
+- **Texel size grows with distance.** One shadow texel covers a few millimetres at 1 m and several centimetres at 10 m. A fixed bias that's right near the lamp is too little far away (acne), and one right far away is too much near (peter-panning). The **normal offset therefore grows with distance**, per metre.
+- **Depth isn't linear.** Perspective depth crowds its precision near the lamp. A near plane that isn't too small (0.1 m) keeps that tolerable.
+- **No texel snapping.** The lamp moves with the player's hand, so there is nothing to keep stable. The lag and sway hide its motion instead (§61).
+
+**AtomEngine.**
+- **Shadow map:** 1024², 32-bit depth.
+- **Drawing:** `SpotMath::ViewProjection` builds the light's matrix. The sun's shadow pipelines (plain, alpha-tested, skinned) are reused, and draws are culled to the spot's frustum.
+- **Filtering:** 3×3 PCF with a comparison sampler.
+- **Skipping:** the taps run only where the spot reaches at all, behind a `[branch]`. Pixels outside the cone don't read the map.
+- **Opt out:** `castsShadows` lets a light skip the whole pass.
+
+**Code.** `Renderer::RenderSpotShadowPass`, `m_spotShadowMap`, `Basic.frag.hlsl` (`ComputeSpotShadow`, t4/s4), `FrameStats::spotShadowDrawn`.
+
+---
+
+## 61. The flashlight: light as gameplay (M44)
+
+**Concept.** A dynamic light becomes **gameplay** when the player controls it and the world answers to it: where you point the light decides what you can see and what you can do.
+
+**Holding it.** A flashlight fixed to the camera looks fake: the beam's centre never moves on screen. This one is held low and to the right, and follows the view **a moment late**: its direction eases toward the camera's with a short lag, plus a slight sway while walking. The beam drifts across the scene as you turn, which also hides the shadow map's motion (§60).
+
+**What only the light shows.**
+- **Reveal materials** (`atom_reveal`): decals such as chalk marks whose alpha is multiplied by how much the spot reaches that pixel (`SpotReach`). They are invisible in baked light and appear only in the beam.
+- **Lit-only interactables** (`requiresLight`): the interaction system asks `isLit` before offering a prompt. The answer comes from the CPU copy of the spot's maths (§59) at the entity's focus point, so the GPU is never read back.
+- **Things that stay gone** (`goneWithFlag`): once a flag is set, the entity is no longer spawned, in any visit. The flashlight itself is gone once picked up.
+- **Locked prompts** (`lockedPrompt`): what an interactable says while its condition isn't met ("The bolt is on the other side."), resolved by `ResolvePrompt`.
+
+**AtomEngine.** The flashlight is found on the machiya's entry step (`SetOwned`). F toggles it in any level. `Flashlight::Update` applies the lag and sway, and `Lights` produces the `SpotLight` for the frame. Its settings live in `Assets/Data/flashlight.json` with a schema (§63).
+
+**Code.** `Game/Flashlight.*`, `InteractionSystem::Settings::isLit`, `Tests/Scenarios/flashlight.atomtest`.
+
+---
+
+## 62. The passage: dust, a beam, and darkness that isn't black (M45)
+
+**Concept: baked darkness.** A dark level isn't black. Pure black reads as "nothing is drawn" and hides the level's shape. The passage is **baked** from its own small lights:
+- a candle in the cellar;
+- a battery lantern;
+- an old green exit lamp in the ladder chamber.
+
+These give pools of dim light and a readable silhouette. The flashlight adds detail and colour on top. Emissive materials (the exit sign, §41) glow without lighting anything.
+
+**Dust in the beam.** Air is full of dust you only see in a beam. The passage's particles are marked `beamLit`, and the particle shader multiplies their alpha by `SpotReach` at their position. Outside the cone they vanish; inside, they drift through the light. `SpotReach` lives in `Common.hlsli`, so the scene, the decals and the particles share one definition.
+
+**A faked visible beam.** Real volumetric light means marching rays through fog per pixel. That is expensive, and overkill for one lamp. The beam is instead **three crossed planes** along the spot's axis, textured with a soft gradient and drawn with **additive** blending: it only adds light, so the order doesn't matter. Two corrections make it hold up:
+- the planes **fade near the camera**, so you never see their edges from inside the beam;
+- each pixel is scaled by the spot's reach, so walls cut the beam where the light stops.
+
+Each level chooses whether its air shows it (`particles.beam`).
+
+**The level.** The passage is a cellar under the machiya and a tunnel up to the windmill field's shed:
+- **The cellar:** jars and the lantern.
+- **The tunnel:** timber-shored, with a fork.
+- **The fork:** chalk arrows that only the beam reveals.
+- **The ladder chamber:** the trapdoor's bolt, found only in the beam.
+
+Unbolting the trapdoor sets `hatch_unbolted`. Until then, the shed in the windmill field is locked from above (`lockedPrompt`); afterwards it is the way down.
+
+**Code.** `Tools/Blender/atom_passage.py`, `Assets/Levels/passage.json`, `Shaders/Beam.*`, `Shaders/Particle.*` (`beamLit`), `Renderer::DrawBeam`, `Tests/Scenarios/passage.atomtest`.
+
+---
+
+## 63. Light culling and measuring performance honestly (M46)
+
+### Light culling
+
+**Concept.** Every lit draw used to loop over all the live point lights and evaluate the spot, even when they were nowhere near it. **Light culling** decides per draw which lights can touch it, and the shader skips the rest.
+- **Point lights:** a sphere (position and range) against the draw's box (`SphereTouchesBox`). The answer is a **bitmask** per draw, one bit per light, in `u_lights.x`.
+- **The spot:** a flag (`u_lights.y`) set when the draw's box is in the spot's frustum.
+
+The shader branches on these values. They are the same for every pixel of a draw, so all threads take the same path and the branch costs almost nothing (compare §57, where a branch did cost something: always measure).
+
+### Settings as data
+
+The flashlight's cone, intensity, lag and sway moved into `Assets/Data/flashlight.json`. It has a schema, reloads while running (§39), and the dev tools' Copy as JSON writes exactly that file.
+
+### Measuring performance honestly
+
+**The problem.** A laptop's speed isn't constant. Two things happened during this release:
+- **Unplugged:** on battery, everything ran about 3× slower.
+- **Thermal throttling:** after a while under load, frame times climbed within one run, whatever was switched on.
+
+With drift that size, comparing two runs measured minutes apart answers nothing about a 0.3 ms change. Other things distort the numbers too: a 60 Hz monitor capped frame times until the measurements moved to the laptop's 144 Hz screen.
+
+**The method.**
+- **Medians, not means:** one hitch (a shader compile, a file read) moves the mean, not the median. The **p95**, the 95th percentile, shows how bad the slow frames get.
+- **Compare close together, in pairs:** run A, then B, then B, then A (**ABBA**), repeating. Each round's **paired difference** (B − A) is one sample, and the result is their median. Drift that slows the machine over a round hits both halves almost equally. Alternating the order cancels what's left: whichever half runs second looks slower, once one way and once the other.
+- **Settle before measuring:** after switching a setting, wait (0.5 s by default) before timing. Changing MSAA rebuilds render targets, and that transition is not the steady-state cost.
+- **Engine warm-up isn't thermal warm-up:** the first 300 frames, which compile pipelines and fill caches, are dropped. Heat is handled by the interleaving, not by waiting.
+- **Trust the tool first:** measure a build against itself. The difference should be ~0 within its spread. That spread (~0.15 ms here) is the smallest difference the tool can resolve.
+
+**The tools.**
+
+| Question | Tool |
+|---|---|
+| What does this feature cost? | the harness's `bench <setting> <a> <b> <rounds> <seconds> [settle]`, in-process |
+| Did this build get slower? | `Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <name>`, alternating executables |
+| How fast is this level now? | `ATOM_PERF_LOG=1`: median, p95 and mean every 240 frames (`ATOM_PERF_CSV` writes them to a file) |
+| *Why* is it slow? | a GPU profiler (PIX, Intel GPA); SDL_GPU has no GPU timers |
+
+The in-process `bench` is the tighter tool: no restart and no reload, with the halves seconds apart. `expect_bench_under` exists for local checks on known hardware but is never part of ctest. **Correctness belongs in CI; performance belongs in controlled benchmarks**, because shared CI machines time things too noisily to gate on.
+
+**What it found on the night street:**
+- **Particles:** +0.28 ms, consistent across runs. That's real, but small for 200 billboards, so optimising them wasn't justified.
+- **The flashlight:** +0.23 to +0.77 ms. It lights little of the street and the view moves, so it was not stable.
+- **The spot shadow pass:** indistinguishable from zero.
+- **MSAA 4× vs 1×:** about +1.1 ms, used as a known cost to check that the tool works.
+
+**A bug found on the way.** Since v0.0.4, the particle pipeline cache had stored every particle pipeline in the halo pipeline's slot. Two consequences:
+- leaves, ash and fog banks were blended like halos;
+- a new pipeline was created, and leaked, every frame.
+
+Looking at what a draw actually binds, not just how long it takes, found it.
+
+**Code.** `Engine/Core/FrameStatsWindow.*`, `Game/Testing/PairedBench.*`, `TestScript` (`bench`, `expect_bench_under`), `DemoApp` (`PerfLog`), `Tools/Perf/ab.ps1`, `Tools/Perf/lights_and_particles.atomtest`, `Tests/FrameStatsTests.cpp`, `Tests/PairedBenchTests.cpp`.
+
+---
+
+## 64. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -1551,57 +1735,61 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **The older levels** are 0.3–0.5 ms slower than in v0.0.3. The likeliest cause is the glow pass (§41), which now runs in every level; it wasn't measured separately.
 - **v0.0.5**: the pachinko hall ≈ 2.8 ms walking around (its three screens now simulate the real game), ≈ 3.5 ms seated and playing (the 2D game fullscreen with the hall still drawn underneath); the night street ≈ 3.3 ms, within noise of v0.0.4.
 - **v0.0.6** (measured side by side with a 0.0.5 build, §57): the character lab ≈ 2.35 ms in the viewer, ≈ 2.4 ms with the skeleton, weights and state machine on, ≈ 2.2 ms driving (8 draws, 7 in the shadow pass; the skinned character is 3 of them). The other levels are unchanged: the interior 2.07 ms (0.0.5: 2.06), the pachinko hall 2.85 (2.99 that day), the night street ≈ 3.1.
+- **v0.0.7**, the first measured the M46 way (`ATOM_PERF_LOG` medians of 240-frame blocks, p95 in brackets, plugged in, 144 Hz laptop screen, uncapped): the passage 1.89 ms (4.16) with the flashlight off, 2.32 ms (4.47) on; the machiya interior 2.04 (3.57); the character lab 2.21 (3.38); the pachinko hall 3.04 (9.06); the night street 3.94 (10.38); the street 4.23 (8.88). These are the baseline for later versions; earlier numbers above were averages and aren't directly comparable.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 59. Build system and project layout
+## 65. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
-- **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3.
+- **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`.
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
-- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39).
+- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
 ```
-Engine/  Assets/ Audio/ Core/ Physics/ Platform/ Renderer/ Scene/ UI/
+Engine/  Assets/ Audio/ Core/ Debug/ (ImGui) Physics/ Platform/ Renderer/ Scene/ UI/
 Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Atmosphere, UneaseDirector, Main
          World/ Interaction/ Dialogue/ Level/ Testing/
          Input/ (contexts) Pachinko/ (physics, playfield, rules, game, machine mode)
          Character/ (LabViewer, Animator, SpringArm); DemoAppLab (the lab's modes)
+         Flashlight; DemoAppDevTools (the ImGui panels)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
-         GlowBright, GlowBlur, Skinned, ShadowSkinned (.hlsl)
+         GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
+Tools/Perf/  ab.ps1 (build A/B), benchmark scenarios
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
-Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/
+Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/ Passage/
+         Data/ (flashlight.json)
          ThirdParty/ (used as they came: the lab's character, credits README)
          Sky/ (.glb, lightmap .png, impostor atlas),
          Levels/*.json (+ *.markers.json), Dialogue/*.json,
          Schemas/*.schema.json, Fonts/
 docs/    this manual
 Tests/   unit tests (*.cpp), Scenarios/*.atomtest
-external/ SDL glm cgltf stb json doctest
+external/ SDL glm cgltf stb json doctest imgui
 ```
 
-**Controls:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc release/quit · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · M mute.
+**Controls:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc release/quit · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · F10 developer tools · **F flashlight** (once found) · M mute.
 
 **Character lab:** arrows / mouse orbit, wheel zoom · 1–4 clip · 5 blend (Z/X slider) · 6 state machine · −/+ speed · Space pause · . step · B bind pose · K skeleton · W weights · Tab drive (WASD, Shift run, Space jump, Tab back).
 
 ---
 
-## 60. Glossary
+## 66. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -1623,6 +1811,8 @@ external/ SDL glm cgltf stb json doctest
 - **Broad phase / narrow phase** — first cheaply list what *might* touch (a grid), then test those exactly.
 - **Bind pose** — the pose a mesh was attached to its skeleton in; skinning measures every movement from it.
 - **Beer–Lambert law** — light through a medium decays as e^(−density·distance); the basis of exponential fog.
+- **Beam (faked)** — a visible light shaft drawn as crossed additive planes along a spot's axis instead of volumetric ray marching.
+- **Blinn-Phong** — a specular highlight from the angle between the normal and the half vector (halfway between light and eye), raised to a shininess exponent.
 - **Billboard** — a quad that always faces the camera.
 - **Biquad** — a standard 2nd-order digital filter (low/high/band-pass).
 - **Catenary** — the sag curve of a hanging cable (approximated by a parabola for the power lines).
@@ -1676,6 +1866,7 @@ external/ SDL glm cgltf stb json doctest
 - **Hemispheric ambient** — ambient light blended between a sky colour and a ground colour by the surface's up-facing.
 - **Impostor** — a pre-rendered picture of an object on a camera-facing card, showing the view closest to the camera's direction.
 - **Incremental build** — redoing only the work whose inputs changed.
+- **Dear ImGui** — an immediate-mode UI library for developer tools; panels described every frame, `End()` after every `Begin()`.
 - **Immediate-mode UI** — UI re-described every frame by the game instead of kept as a persistent widget tree.
 - **Instancing** — drawing many copies of a mesh in one draw call with per-instance data.
 - **Integration / scenario test** — a test that drives the real, running program end to end.
@@ -1683,9 +1874,11 @@ external/ SDL glm cgltf stb json doctest
 - **Kerning** — per-pair spacing adjustment between characters (e.g. "AV").
 - **Keyframe** — a value at a time; animation interpolates between keyframes.
 - **Lambert** — diffuse lighting ∝ cos(angle between normal and light).
+- **Light culling** — deciding per draw which lights can touch it (sphere against box), so the shader skips the rest.
 - **Lightmap** — a texture of baked light mapped by its own non-overlapping UV set.
 - **Lint** — an automatic check that rejects suspicious input (here: z-fighting geometry at export).
 - **Mover** — an entity capability shuttling it between two points (the train).
+- **Median / p95** — the middle frame time / the time 95 % of frames beat; robust to hitches, unlike the mean.
 - **Median cut** — building a palette by repeatedly splitting the colour box with the widest range.
 - **LZW** — the dictionary compression GIFs use: repeated runs become short codes.
 - **Linear blend skinning** — each vertex moved by the weighted sum of its joints' palette matrices.
@@ -1699,6 +1892,7 @@ external/ SDL glm cgltf stb json doctest
 - **Oversampling (glyphs)** — rasterising glyphs at higher resolution so text placed between pixels stays sharp.
 - **Orthographic projection** — parallel projection without perspective; used for sun shadows.
 - **PCF** — percentage-closer filtering: averaging several shadow comparisons for soft edges.
+- **Paired difference / ABBA** — measuring A and B alternately (AB BA AB…) and taking each round's B − A as the sample, so machine drift cancels.
 - **Peter-panning** — shadows detached from their caster because of too much bias.
 - **Pipeline** — shaders + fixed-function state, baked.
 - **RAII** — resource acquisition is initialisation: an object's destructor releases what it owns, so cleanup follows ownership automatically.
@@ -1725,6 +1919,7 @@ external/ SDL glm cgltf stb json doctest
 - **Substep** — one of several short physics steps inside a frame's step, for stability and to avoid tunnelling.
 - **Skinning** — deforming a mesh by weighted joints (a skeleton), §53.
 - **Slerp** — spherical linear interpolation between rotations (quaternions), at constant angular speed.
+- **Spot light** — a point light limited to a cone, with inner and outer angles and a range.
 - **Spring arm** — a third-person camera on an arm that shortens at once in front of walls and eases back out.
 - **Slot map** — a container of reusable slots addressed by generational handles.
 - **Soft clipping** — saturating loud audio smoothly (tanh) instead of hard-cutting at ±1.
@@ -1737,6 +1932,7 @@ external/ SDL glm cgltf stb json doctest
 - **Soft knee** — a threshold that eases in over a band instead of switching on (the glow's bright pass).
 - **Tunnelling** — a fast body passing through a thin one between two physics steps.
 - **Third person** — the camera outside the character, usually behind it; movement relative to the camera.
+- **Thermal throttling** — a hot CPU/GPU lowering its clocks, so the same work gets slower during a run.
 - **Tessellation (here)** — splitting large faces into a grid so vertex-stored data (baked light) has vertices to live on.
 - **Texel snapping** — moving a shadow box only in whole-texel steps to stop shimmering.
 - **Tonemapping** — compressing HDR values into the display range with a smooth curve.
@@ -1748,6 +1944,7 @@ external/ SDL glm cgltf stb json doctest
 - **Vignette** — gradual darkening toward the image corners.
 - **Voice** — one playing instance of a sound in a mixer.
 - **Vsync** — syncing presentation to the monitor refresh.
+- **Windowed falloff** — inverse-square attenuation multiplied by a window that reaches exactly zero at the light's range.
 - **Winding** — vertex order of a triangle (CW/CCW), used for back-face culling.
 - **Wet material** — a material whose emitted light ripples and which catches a moving sheen; the fake wet road.
 - **xorshift** — a tiny, fast pseudo-random generator; seeded, it gives the same sequence on every platform.

@@ -24,6 +24,10 @@ add_executable(
     LabViewerTests.cpp
     AnimatorTests.cpp
     DriveTests.cpp
+    LightingTests.cpp
+    FlashlightTests.cpp
+    FrameStatsTests.cpp
+    PairedBenchTests.cpp
 )
 
 target_link_libraries(

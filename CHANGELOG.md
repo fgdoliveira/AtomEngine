@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.0.7 — Into the dark
+
+The two dead ends written as darkness - the machiya's corridor and the
+windmill field's shed - are joined by a passage you cross with a
+flashlight: dynamic lighting as gameplay. One spot light with its own
+shadow map over a mostly baked world, dust and a beam in the air, marks
+only the light reveals. Alongside: developer tools, and a way of measuring
+performance that a laptop's drift can't fool.
+
+### Added
+- **Dear ImGui as a developer tool (M41):** F10 shows panels drawn last,
+  outside every screenshot and capture: frame (time graph, draws, binds,
+  layers, lit draws), render (the harness's `set` switches), lighting (the
+  level's light live, Copy as JSON for the level file), spot light, level
+  (entities, flags, counters). Harness `set devtools`.
+- **Spot lights and material response (M42):** cone (inner/outer), a
+  windowed inverse-square falloff ending at the range, Lambert and a
+  Blinn-Phong highlight whose exponent comes from glTF roughness (read at
+  last) and strength from `atom_specular`; the same maths on the CPU
+  (`SpotMath`) for tests.
+- **The spot shadow map (M43):** 1024², perspective from the lamp, drawn
+  by the sun's depth pipelines culled to the spot's frustum; 3×3 PCF; the
+  normal offset grows with distance.
+- **The flashlight (M44):** picked up from the machiya's entry step, F
+  toggles it in any level, held low and right and following the view a
+  moment late. Decals revealed only by the spot (`atom_reveal`),
+  interactables found only in the beam (`requiresLight`), entities gone
+  for good once a flag is set (`goneWithFlag`); the dark corridor opens
+  once you have it.
+- **The passage (M45):** a cellar (candle, battery lantern, jars), a
+  timber-shored tunnel that forks, a ladder chamber with an old exit lamp;
+  baked dark but not black from those lights alone. Chalk at the fork and
+  the trapdoor's bolt are found in the beam; the shed becomes the way down
+  once unbolted (`lockedPrompt`). Dust motes seen only in the beam, a faked
+  visible beam (three planes along the axis, lit by the spot's reach).
+- **Light culling and data (M46):** live point lights culled per draw
+  (sphere against box, a bitmask), the spot skipped for draws outside its
+  frustum; the flashlight's settings in `Assets/Data/flashlight.json`
+  (schema, hot reload, Copy as JSON writes exactly that file).
+- **Measuring performance (M46):** `ATOM_PERF_LOG` (per-block median, p95,
+  mean; CSV), the in-process `bench` harness command (AB BA alternation,
+  median paired difference), `Tools/Perf/ab.ps1` for builds, the procedure
+  in the README; `ATOM_PRESENT=immediate`.
+
+### Fixed
+- **Particles were drawn with the halo pipeline since 0.0.4**, and a halo
+  pipeline was created, and leaked, every frame: the particle pipeline
+  cache stored every pipeline as the particles'. Leaves, ash and fog banks
+  now blend as designed.
+- The developer tools crashed when the Lighting panel was collapsed
+  (`End()` must follow every `Begin()`); a scenario collapses every panel.
+- Kit pieces are appended to the bake layout, never inserted (inserting
+  moved and re-baked the pieces after it).
+
+### Measured
+Release, uncapped, Iris Xe, 1280×720, plugged in, the laptop's own screen;
+medians of 240-frame blocks (`ATOM_PERF_LOG`), p95 in brackets:
+- the passage 1.9 ms (4.2) with the flashlight off, 2.3 ms (4.5) on;
+- the machiya interior 2.0 ms (3.6), the character lab 2.2 ms (3.4);
+- the pachinko hall 3.0 ms (9.1), the night street 3.9 ms (10.4), the
+  street 4.2 ms (8.9).
+
+In-process benches on the night street (two runs): particles +0.28 ms,
+consistent; the flashlight +0.23 to +0.77 ms (it lights little of the
+street, and the view moves); its shadow pass indistinguishable from zero.
+`ab.ps1` of a build against itself gives up to ~0.15 ms, the floor for
+comparing builds here. 0.0.7 is the baseline for comparing later versions;
+0.0.6 has no `ATOM_PERF_LOG`, and its tag stays as released.
+
 ## 0.0.6 — The character lab
 
 The engine animates characters. A rigged model is skinned on the GPU, its

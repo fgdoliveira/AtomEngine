@@ -1,0 +1,13 @@
+# The developer tools (M41): every panel drawn open, then collapsed, then
+# open again. ImGui needs End() after every Begin(), even when Begin()
+# returns false (collapsed); a panel that skipped it crashed the game.
+goto_level street
+wait_for_level street
+set devtools on
+wait 0.2
+set devtools_collapsed on
+wait 0.2
+set devtools_collapsed off
+wait 0.2
+set devtools off
+wait 0.1

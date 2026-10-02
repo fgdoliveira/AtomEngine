@@ -44,6 +44,7 @@ namespace AtomGame
         Atom::SoundHandle PocketChime();  // a ball into the start pocket
         Atom::SoundHandle Payout();       // balls rattling into the tray
         Atom::SoundHandle ReelStop();     // a reel locks
+        Atom::SoundHandle SwitchClick();  // M44: a flashlight's slide switch
         Atom::SoundHandle Reach();        // two match: the rising tease
         Atom::SoundHandle Fanfare();      // a hit: the fever begins
 

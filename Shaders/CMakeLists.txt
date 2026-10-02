@@ -30,6 +30,8 @@ set(ATOM_SHADER_SOURCES
     Shadow.vert.hlsl
     Shadow.frag.hlsl
     Skinned.vert.hlsl
+    Beam.vert.hlsl
+    Beam.frag.hlsl
     ShadowSkinned.vert.hlsl
     Particle.vert.hlsl
     Particle.frag.hlsl

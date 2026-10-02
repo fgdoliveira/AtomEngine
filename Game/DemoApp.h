@@ -5,9 +5,12 @@
 #include "Character/SpringArm.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
+#include "Core/FrameStatsWindow.h"
 #include "Dialogue/Dialogue.h"
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
+#include "Flashlight.h"
+#include "Interaction/InteractionSystem.h"
 #include "Interaction/MessageFeed.h"
 #include "Level/FileWatcher.h"
 #include "Input/InputContext.h"
@@ -24,7 +27,9 @@
 #include "World/GameState.h"
 #include "World/GameWorld.h"
 
+#include <array>
 #include <cstddef>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -69,6 +74,44 @@ namespace AtomGame
         void UpdateRenderSettings();
         void ApplyLighting();
         void UpdateWindowTitle(float deltaSeconds);
+        // Developer tools (M41): the ImGui panels, when F10 shows them.
+        void DrawDevTools(float deltaSeconds);
+        // Frame-time log (M46, ATOM_PERF_LOG=1): after an engine warm-up,
+        // one line per block of frames - median, p95, mean - and a CSV row
+        // if ATOM_PERF_CSV names a file. Real frame times, not the
+        // harness's fixed step.
+        struct PerfLog
+        {
+            bool enabled = false;
+            int warmupLeft = 300;  // frames: pipelines, caches, allocations - not heat
+            std::size_t block = 240;
+            int blockIndex = 0;
+            Atom::FrameStatsWindow window;
+            std::unique_ptr<std::ofstream> csv;
+            std::string label;     // what is being measured (the level, a bench half)
+        } m_perf;
+        void InitializePerfLog();
+        void RecordFrameTime(float realSeconds);
+        double m_lastRealFrameMs = 0.0;
+        double RealFrameMs() const override { return m_lastRealFrameMs; }
+
+        std::array<float, 240> m_frameHistory{}; // ms, a ring
+        std::size_t m_frameHistoryNext = 0;
+        std::optional<bool> m_devToolsCollapse; // harness: collapse/expand all panels once
+
+        // A spot light to try the renderer's (M42) before the flashlight
+        // exists: from the Spot light panel or "set spot on". Held at the
+        // camera like a torch, or left where it is.
+        // The flashlight (M44): owned once "has_flashlight" is set.
+        Flashlight m_flashlight;
+        static constexpr const char* FlashlightFlag = "has_flashlight";
+        void UpdateFlashlight(float deltaSeconds);
+        InteractionSystem::Settings TargetSettings() const;
+        void ApplyGoneEntities(); // goneWithFlag
+
+        Atom::SpotLight m_devSpot;
+        bool m_devSpotOn = false;
+        bool m_devSpotFollows = true;
         void DrawOverlay(float deltaSeconds);
         void UpdateInteraction();
         void DrawInteractionPrompt(float scale);
@@ -120,6 +163,7 @@ namespace AtomGame
         std::string ClipName(const std::string& entity) const override;
         bool SetAnimatorParam(const std::string& entity, const std::string& param, float value) override;
         std::string AnimatorState(const std::string& entity) const override;
+        bool IsLit(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
         GameWorld* CurrentWorld();
@@ -132,6 +176,8 @@ namespace AtomGame
         float m_reloadTimer = 0.0f;
         FileWatcher m_levelFiles;
         FileWatcher m_dialogueFiles;
+        FileWatcher m_dataFiles; // M46: Assets/Data (the flashlight)
+        void LoadFlashlightSettings();
         std::unique_ptr<TestRunner> m_testRunner;
         ModelCache m_modelCache; // declared before the levels: outlives them
         std::unique_ptr<LevelManager> m_levels;

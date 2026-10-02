@@ -11,6 +11,10 @@ SamplerComparisonState ShadowSampler : register(s1, space2);
 Texture2D<float4> Lightmap : register(t2, space2);
 SamplerState LightmapSampler : register(s2, space2);
 
+// The spot's shadow map (M43), compared like the sun's.
+Texture2D<float> SpotShadowMap : register(t4, space2);
+SamplerComparisonState SpotShadowSampler : register(s4, space2);
+
 // Which pixels glow (M23); used when u_alpha.z says the material has one.
 Texture2D<float4> EmissiveTexture : register(t3, space2);
 SamplerState EmissiveSampler : register(s3, space2);
@@ -25,6 +29,10 @@ cbuffer MaterialUniforms : register(b0, space3)
                              // colour as the base colour (skin weights, M36)
     float4 u_alpha;          // x: cutoff (0 = opaque), y: alpha-to-coverage,
                              // z: has emissive texture, w: fog amount
+    float4 u_surface;        // M42: x shininess (Blinn-Phong), y specular strength,
+                             // z revealed by the spot (M44)
+    float4 u_lights;         // M46: which lights reach this draw - x: live lights
+                             // (bit i = light i), y: the spot (0 or 1)
 };
 
 struct PSInput
@@ -93,8 +101,13 @@ float3 LiveLights(float3 worldPosition, float3 normal)
 {
     float3 light = 0.0;
     const int count = (int)u_time.y;
+    const uint reaching = (uint)u_lights.x; // culled per draw on the CPU (M46)
     [loop] for (int i = 0; i < count; ++i)
     {
+        if (((reaching >> i) & 1u) == 0u)
+        {
+            continue; // the same for the whole draw: no divergence
+        }
         const float3 toLight = u_liveLightPosition[i].xyz - worldPosition;
         const float distance = length(toLight);
         const float reach = saturate(1.0 - distance / u_liveLightPosition[i].w);
@@ -102,6 +115,64 @@ float3 LiveLights(float3 worldPosition, float3 normal)
         light += u_liveLightColor[i].rgb * (reach * reach * lambert);
     }
     return light;
+}
+
+// 1 = lit by the spot, 0 = something stands between it and the lamp. The
+// same idea as the sun's, from a perspective view: a texel covers more of
+// the world further from the lamp, so the normal offset grows with the
+// distance. Points outside its frustum are lit (the cone already decides).
+float ComputeSpotShadow(float3 worldPosition, float3 normal, float distance)
+{
+    const float3 offsetPosition = worldPosition + normal * (u_spotShadow.z * max(distance, 0.5));
+    const float4 lightPosition = mul(u_spotViewProjection, float4(offsetPosition, 1.0));
+    const float3 ndc = lightPosition.xyz / max(lightPosition.w, 1e-4);
+    const float2 uv = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+
+    const float texel = u_spotShadow.y;
+    float visibility = 0.0;
+    [unroll] for (int y = -1; y <= 1; ++y)
+    {
+        [unroll] for (int x = -1; x <= 1; ++x)
+        {
+            visibility += SpotShadowMap.SampleCmpLevelZero(SpotShadowSampler, uv + float2(x, y) * texel, ndc.z);
+        }
+    }
+    // Outside the map (behind the lamp, beyond the range): lit.
+    const bool inside = all(uv >= 0.0) && all(uv <= 1.0) && ndc.z <= 1.0 && lightPosition.w > 0.0;
+    return inside ? visibility / 9.0 : 1.0;
+}
+
+// The spot light (M42). Mirrors SpotMath::Evaluate (Engine/Renderer/SpotLight.h).
+// x: diffuse (times base colour), y: specular (times light colour). All
+// arithmetic, no branches: when the spot is off its colour is zero.
+float2 SpotLighting(float3 worldPosition, float3 normal)
+{
+    const float3 toLight = u_spotPosition.xyz - worldPosition;
+    const float distance = length(toLight);
+    const float3 l = toLight / max(distance, 1e-4);
+
+    // The cone: full inside the inner angle, nothing past the outer one.
+    const float cone = smoothstep(u_spotCone.x, u_spotCone.y, dot(-l, u_spotDirection.xyz));
+    // Inverse-square, +1 at the lamp, windowed to exactly 0 at the range.
+    const float ratio = distance / u_spotPosition.w;
+    const float window = saturate(1.0 - ratio * ratio * ratio * ratio);
+    float reach = cone * window * window / (distance * distance + 1.0) * u_spotDirection.w;
+    // The 9 shadow taps only where the spot reaches at all: with the spot
+    // off (or outside its cone - most of the screen) they cost nothing.
+    // Like the sun's early return, the branch follows whole regions of the
+    // screen, not a coin-flip per pixel.
+    [branch] if (u_spotShadow.x > 0.0 && reach > 0.0)
+    {
+        reach *= ComputeSpotShadow(worldPosition, normal, distance);
+    }
+
+    const float lambert = saturate(dot(normal, l));
+    // Blinn-Phong: the normal against the half vector of light and eye.
+    const float3 h = normalize(l + normalize(u_cameraPosition.xyz - worldPosition));
+    const float shininess = u_surface.x;
+    const float spec = pow(saturate(dot(normal, h)), shininess) * (shininess + 8.0) / 8.0
+        * u_surface.y * u_spotColor.w * (lambert > 0.0 ? 1.0 : 0.0);
+    return float2(reach * lambert, reach * spec);
 }
 
 float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
@@ -159,7 +230,17 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
         : saturate(facing);
     const float3 sun = sunLight * u_sunColor.rgb * shadow;
 
-    const float3 lit = baseColor.rgb * (ambient + sun + LiveLights(input.worldPosition, normal));
+    // The spot only for draws its cone reaches (M46: tested per draw on the
+    // CPU against its frustum). The branch is the same for every pixel of
+    // the draw, so it skips the work outright.
+    float2 spot = 0.0;
+    [branch] if (u_lights.y > 0.5)
+    {
+        spot = SpotLighting(input.worldPosition, normal);
+    }
+    const float3 lit = baseColor.rgb * (ambient + sun + LiveLights(input.worldPosition, normal)
+                                        + u_spotColor.rgb * spot.x)
+                     + u_spotColor.rgb * spot.y;
     // An emissive mask says exactly what glows; without one, the base
     // colour does (older kit pieces: vending screens, shoji).
     const float3 emissiveSource = u_alpha.z > 0.0
@@ -185,5 +266,9 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     const float fog = ComputeFog(input.worldPosition) * u_alpha.w;
     const float3 color = lerp(lit + emitted + sheen, u_fogColor.rgb, fog);
 
-    return float4(color, baseColor.a);
+    // Revealed by light (M44): the decal's alpha follows the beam, so it's
+    // there only where the flashlight shines (diffuse reach, saturating
+    // well inside the beam).
+    const float revealed = lerp(1.0, saturate(spot.x * u_spotColor.g * 0.5), u_surface.z);
+    return float4(color, baseColor.a * revealed);
 }
