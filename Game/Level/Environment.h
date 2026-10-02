@@ -42,6 +42,8 @@ namespace AtomGame
         std::optional<float> fogDensity; // unset: the player's fog setting (F5)
         std::optional<SkyGradient> sky;  // unset: no day sky (clear to fog colour)
         WaterLook water;                 // M48: how any water in the level looks
+        float rain = 0.0f;               // M50: 0 dry .. 1 downpour (outdoors only)
+        glm::vec3 wind{ 0.45f, 0.0f, 0.15f }; // M50: m/s; sway, drifting leaves, slanting rain
     };
 
     // a at t = 0, b at t = 1. Colours and numbers mix linearly, the sun's

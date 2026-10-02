@@ -248,8 +248,20 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
         sheen = (lit * 0.5 + u_skyColor.rgb * 0.6) * u_lightmap.z * smoothstep(0.62, 0.9, ripple);
     }
 
+    // Rain (M50): upward surfaces get wet - darker, with a faint sheen of
+    // the sky drifting over them. The same for every pixel of a frame, so
+    // the branch skips it outright when it's dry.
+    float3 surface = lit;
+    [branch] if (u_weather.x > 0.0)
+    {
+        const float wet = u_weather.x * saturate(normal.y * 2.0 - 1.0);
+        const float2 p = input.worldPosition.xz * 1.3;
+        const float shimmer = ValueNoise(p + float2(u_time.x * 0.4, u_time.x * 0.25));
+        surface = lit * lerp(1.0, 0.62, wet) + u_skyColor.rgb * wet * (0.08 + 0.12 * shimmer);
+    }
+
     const float fog = ComputeFog(input.worldPosition) * u_alpha.w;
-    const float3 color = lerp(lit + emitted + sheen, u_fogColor.rgb, fog);
+    const float3 color = lerp(surface + emitted + sheen, u_fogColor.rgb, fog);
 
     // Revealed by light (M44): the decal's alpha follows the beam, so it's
     // there only where the flashlight shines (diffuse reach, saturating

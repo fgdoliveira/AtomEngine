@@ -76,6 +76,30 @@ float WaterHeight(float2 p, float t)
     return swell * 0.6 + ripples * 0.3 + sparkle * 0.1;
 }
 
+// Rain on the water (M50): rings spreading from where drops land. A grid
+// of cells, each with a drop at a jittered spot on its own clock; a ring
+// grows and fades over its life. Returns a slope to add to the normal.
+float2 RainRings(float2 p, float t, float rain)
+{
+    float2 slope = 0.0;
+    [unroll] for (int layer = 0; layer < 2; ++layer)
+    {
+        const float scale = layer == 0 ? 1.1 : 0.8;
+        const float2 q = p / scale + layer * 17.3;
+        const float2 cell = floor(q);
+        const float2 jitter = float2(Hash(cell), Hash(cell + 31.7)) * 0.6 + 0.2;
+        const float2 local = frac(q) - jitter;
+        const float age = frac(t * (0.7 + 0.4 * Hash(cell + 5.1)) + Hash(cell + 9.3));
+        // Heavier rain: more cells have a drop.
+        const float active = step(Hash(cell + 2.9 + floor(t * 0.7 + Hash(cell + 9.3))), rain);
+        const float d = length(local) * scale;
+        const float radius = age * 0.45;
+        const float ring = exp(-pow((d - radius) * 22.0, 2.0)) * (1.0 - age) * active;
+        slope += (local / max(length(local), 1e-3)) * ring;
+    }
+    return slope * 0.9;
+}
+
 // The normal from the height's slopes (central differences).
 float3 WaterNormal(float2 p, float t, float strength)
 {
@@ -92,7 +116,12 @@ float4 main(PSInput input) : SV_Target0
     const float3 position = input.worldPosition;
     const float t = u_time.x;
 
-    const float3 n = WaterNormal(position.xz, t, u_waterDeep.w);
+    float3 n = WaterNormal(position.xz, t, u_waterDeep.w);
+    [branch] if (u_weather.x > 0.0)
+    {
+        const float2 rings = RainRings(position.xz, t, u_weather.x);
+        n = normalize(n + float3(rings.x, 0.0, rings.y));
+    }
     const float3 toEye = normalize(u_cameraPosition.xyz - position);
     const float3 toSun = normalize(u_sunDirection.xyz);
     const float shadow = SunShadow(position + float3(0.0, 0.05, 0.0));

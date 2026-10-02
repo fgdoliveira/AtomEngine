@@ -324,6 +324,8 @@ namespace AtomGame
                 changed |= ImGui::SliderFloat("Sky reflection", &e.water.skyReflection, 0.0f, 1.0f);
                 changed |= ImGui::SliderFloat("Ripple", &e.water.ripple, 0.0f, 3.0f);
                 changed |= ImGui::SliderFloat("Glint", &e.water.glint, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Rain", &e.rain, 0.0f, 1.0f);
+                changed |= ImGui::DragFloat3("Wind (m/s)", &e.wind.x, 0.02f, -6.0f, 6.0f);
                 if (changed)
                 {
                     m_environment.Reset(e);

@@ -23,6 +23,8 @@
         "sunGlow": { "type": "number", "minimum": 0 }
       }
     },
+    "rain": { "type": "number", "minimum": 0, "maximum": 1, "default": 0, "description": "Rain (M50): 0 dry .. 1 downpour; outdoors only." },
+    "wind": { "$ref": "#/definitions/vec3", "description": "Wind (M50), m/s: sway, leaves, the rain's slant." },
     "water": {
       "type": "object",
       "additionalProperties": false,

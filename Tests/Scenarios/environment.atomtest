@@ -1,12 +1,15 @@
 # Environment presets (M49): the lakeshore starts in its default, switches
 # at once and blended, through every preset it offers, and back to its own
-# light. A level without presets can still be given one.
+# light. A level without presets can still be given one. Rain (M50)
+# fills the air with drops; dry, they're gone.
 goto_level lakeshore
 wait_for_level lakeshore
 expect_environment clear_day
 
 environment rain
 expect_environment rain
+wait 0.3
+expect_particles >= 1000             # M50: it rains (outdoors)
 environment sunset 1.5
 wait 0.1
 expect_environment (blending)
@@ -28,6 +31,8 @@ expect_water 1
 
 environment level
 expect_environment level
+wait 0.3
+expect_particles < 100               # dry again
 
 goto_level windmill_field
 wait_for_level windmill_field

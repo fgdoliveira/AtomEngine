@@ -546,8 +546,13 @@ namespace AtomGame
             renderer.SubmitSpotLight(m_devSpot);
         }
 
-        // Fog banks stay faintly visible with fog off: morning haze.
+        // Weather (M50): the environment's wind and, outdoors, its rain.
         const Atom::SceneLighting& lighting = renderer.GetLighting();
+        m_atmosphere.SetWind(m_environment.Current().wind);
+        m_atmosphere.SetRain(lighting.rain, lighting.skyColor * 0.55f + glm::vec3{ 0.18f });
+        m_audioScape.SetRainLevel(lighting.rain);
+
+        // Fog banks stay faintly visible with fog off: morning haze.
         m_atmosphere.Update(
             deltaSeconds,
             m_player.GetFeetPosition(),
@@ -1138,6 +1143,7 @@ namespace AtomGame
             lighting.waterSkyReflection = e.water.skyReflection;
             lighting.waterRipple = e.water.ripple;
             lighting.waterGlint = e.water.glint;
+            lighting.rain = level->GetData().outdoor ? e.rain : 0.0f; // indoors it rains elsewhere
         }
         const float presetFog = FogPresets[m_fogPreset].density;
         lighting.fogDensity = presetFog < 0.0f ? levelFog : presetFog;

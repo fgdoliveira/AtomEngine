@@ -151,6 +151,7 @@ namespace Atom
             glm::mat4 viewProjection;
             glm::vec4 cameraRight; // w: atlas columns
             glm::vec4 cameraUp;
+            glm::vec4 streak;      // M50: xyz, the direction streaks (rain) stretch along
         };
 
         std::size_t SampleSlot(std::uint32_t samples)
@@ -197,6 +198,7 @@ namespace Atom
             glm::vec4 skySun;        // x: halo strength, y: water glint (M49)
             glm::vec4 waterShallow;  // rgb, w: sky reflection
             glm::vec4 waterDeep;     // rgb, w: ripple
+            glm::vec4 weather;       // M50: x rain
         };
 
         SceneUniforms MakeSceneUniforms(
@@ -264,6 +266,7 @@ namespace Atom
             uniforms.skySun = glm::vec4{ lighting.sunGlow, lighting.waterGlint, 0.0f, 0.0f };
             uniforms.waterShallow = glm::vec4{ lighting.waterShallow, lighting.waterSkyReflection };
             uniforms.waterDeep = glm::vec4{ lighting.waterDeep, lighting.waterRipple };
+            uniforms.weather = glm::vec4{ lighting.rain, 0.0f, 0.0f, 0.0f };
             return uniforms;
         }
 
@@ -2255,7 +2258,8 @@ namespace Atom
         const ParticleUniforms uniforms{
             viewProjection,
             glm::vec4{ glm::vec3(cameraWorld[0]), static_cast<float>(m_particleAtlasColumns) },
-            glm::vec4{ glm::vec3(cameraWorld[1]), 0.0f }
+            glm::vec4{ glm::vec3(cameraWorld[1]), 0.0f },
+            glm::vec4{ m_particleStreak, 0.0f }
         };
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);

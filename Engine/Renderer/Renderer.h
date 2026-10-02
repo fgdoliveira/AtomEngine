@@ -207,6 +207,8 @@ namespace Atom
             m_spotActive = true;
         }
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
+        // M50: which way streak particles (rain) stretch, for this frame.
+        void SetParticleStreak(const glm::vec3& direction) { m_particleStreak = direction; }
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
         void SetSettings(const RenderSettings& settings);
@@ -392,6 +394,7 @@ namespace Atom
         RenderSettings m_settings;
         UIRenderer m_ui;
         SceneLighting m_lighting;
+        glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         RenderTargets m_targets;
 
         Camera m_camera;

@@ -45,6 +45,7 @@ namespace AtomGame
                 { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
                 { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
                 { "expect_water", { 1, 1 } },       // min water surfaces drawn (M48)
+                { "expect_particles", { 2, 2 } },   // op count: particles drawn (M50)
                 { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
                 { "expect_environment", { 1, 1 } }, // preset | level | (blending)
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
@@ -668,6 +669,19 @@ namespace AtomGame
             if (game.EnvironmentName() != args[0])
             {
                 Fail(command, "the environment is " + game.EnvironmentName());
+            }
+            return true;
+        }
+        if (name == "expect_particles")
+        {
+            const float count = static_cast<float>(game.ParticleCount());
+            const std::string& op = args[0];
+            const float value = number(1, 0.0f);
+            const bool ok = op == ">=" ? count >= value : op == "<=" ? count <= value
+                : op == ">" ? count > value : op == "<" ? count < value : count == value;
+            if (!ok)
+            {
+                Fail(command, std::to_string(game.ParticleCount()) + " particles");
             }
             return true;
         }

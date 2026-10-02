@@ -27,6 +27,7 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_skySun;               // x: halo strength, y: water glint (M49)
     float4 u_waterShallow;         // rgb, w: sky reflection
     float4 u_waterDeep;            // rgb, w: ripple
+    float4 u_weather;              // M50: x rain 0..1
 };
 
 // Value noise in [0, 1] (M25): a hash per lattice point, smoothly blended.

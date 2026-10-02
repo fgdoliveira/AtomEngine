@@ -77,6 +77,8 @@
         "groundColor": { "$ref": "#/definitions/vec3" },
         "fogColor": { "$ref": "#/definitions/vec3" },
         "fogDensity": { "type": "number", "minimum": 0, "description": "The level's fog (M47), used while the player's fog setting is \"level\": ~3/density metres until fully fogged." },
+        "rain": { "type": "number", "minimum": 0, "maximum": 1, "default": 0, "description": "Rain (M50): 0 dry .. 1 downpour; outdoors only." },
+        "wind": { "$ref": "#/definitions/vec3", "description": "Wind (M50), m/s: sway, leaves, the rain's slant." },
         "water": {
           "type": "object",
           "description": "How the level's water looks (M48): authored colours; the sky shows at grazing angles.",

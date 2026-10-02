@@ -137,7 +137,9 @@ shore, and a jetty to walk out on. Its look is authored in the level's
 Weather and time of day are presets (`Assets/Environments/*.json`: clear
 day, overcast, rain, fog, sunset, night). Each one changes the sun, ambient
 light, fog, sky **and water** together, over whatever the level leaves the
-same. A level names the ones it offers and starts in (`"environment"`);
+same. Rain (`rain`, 0..1) falls as streaks slanted by the `wind`, rings the
+water, darkens and wets the ground, and brings its own sound; the wind
+also sways the foliage. A level names the ones it offers and starts in (`"environment"`);
 switch and blend between them in the F10 Environment panel, tune what's
 showing, and Copy as JSON for a preset file. Harness: `environment <preset>
 [seconds]`, `expect_environment <preset>`.

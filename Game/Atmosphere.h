@@ -45,6 +45,17 @@ namespace AtomGame
             m_dust = dust;
         }
 
+        // M50: the wind the gusts breathe around (m/s), and rain: 0..1 of
+        // the drops, in a colour lit by the sky.
+        void SetWind(const glm::vec3& wind) { m_wind = wind; }
+        void SetRain(float rain, const glm::vec3& color)
+        {
+            m_rain = rain;
+            m_rainColor = color;
+        }
+        // The way the drops fall (normalised), for the streaks.
+        glm::vec3 GetRainDirection() const;
+
         // Current wind including gusts (m/s), for vertex sway.
         const glm::vec3& GetWind() const { return m_currentWind; }
 
@@ -72,6 +83,12 @@ namespace AtomGame
             float opacity;
         };
 
+        struct Drop
+        {
+            glm::vec3 position;
+            float speed; // m/s down
+        };
+
         struct Mote
         {
             glm::vec3 position;
@@ -85,6 +102,9 @@ namespace AtomGame
         std::vector<Flake> m_flakes;
         std::vector<Bank> m_banks;
         std::vector<Mote> m_motes;
+        std::vector<Drop> m_drops;
+        float m_rain = 0.0f;
+        glm::vec3 m_rainColor{ 0.6f };
         std::vector<Atom::Particle> m_particles;
 
         glm::vec3 m_wind{ 0.45f, 0.0f, 0.15f };

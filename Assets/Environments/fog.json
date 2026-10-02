@@ -5,6 +5,7 @@
   "skyColor": [0.7, 0.71, 0.72],
   "groundColor": [0.3, 0.3, 0.28],
   "fogDensity": 0.06,
+  "wind": [0.1, 0.0, 0.05],
   "skyGradient": {
     "zenith": [0.62, 0.64, 0.66],
     "horizon": [0.72, 0.73, 0.74],

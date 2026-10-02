@@ -142,6 +142,10 @@ namespace AtomGame
         std::string SurfaceName() const override;
         float ZoneLevel(const std::string& cell) const override;
         std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override;
+        std::uint32_t ParticleCount() const override
+        {
+            return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().particles;
+        }
         std::uint32_t WaterDraws() const override
         {
             return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().waterDraws;

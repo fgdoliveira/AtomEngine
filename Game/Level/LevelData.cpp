@@ -118,6 +118,12 @@ namespace AtomGame
                 }
                 e.fogDensity = density;
             }
+            e.rain = Number(object, "rain", at, e.rain);
+            if (e.rain < 0.0f || e.rain > 1.0f)
+            {
+                throw LevelError(at + "/rain", "must be 0..1");
+            }
+            e.wind = Vec3(object, "wind", e.wind, at);
             if (const auto water = object.find("water"); water != object.end())
             {
                 const std::string waterAt = at + "/water";

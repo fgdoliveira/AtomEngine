@@ -62,6 +62,8 @@ namespace AtomGame
         result.water.skyReflection = glm::mix(a.water.skyReflection, b.water.skyReflection, t);
         result.water.ripple = glm::mix(a.water.ripple, b.water.ripple, t);
         result.water.glint = glm::mix(a.water.glint, b.water.glint, t);
+        result.rain = glm::mix(a.rain, b.rain, t);
+        result.wind = glm::mix(a.wind, b.wind, t);
         return result;
     }
 }
