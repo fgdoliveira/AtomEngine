@@ -173,6 +173,7 @@ namespace AtomGame
             entity.position = data.position;
             entity.interactable = data.interactable;
             entity.hidden = data.hidden;
+            entity.goneWithFlag = data.goneWithFlag;
 
             const float yaw = glm::radians(data.yawDegrees);
             if (!data.model.empty())

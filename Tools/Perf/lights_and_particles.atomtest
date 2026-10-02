@@ -1,0 +1,15 @@
+# What the night street pays for its lights and particles (M46), measured
+# in-process (see README, Measuring performance). Each bench is "off on",
+# so the reported B - A is that feature's cost.
+#
+#   ATOM_VSYNC=0 ATOM_START_LEVEL=night_street ATOM_TEST_SCRIPT=Tools/Perf/lights_and_particles.atomtest AtomGame.exe
+#
+# v0.0.7, laptop plugged in (Iris Xe, 1280x720), two runs:
+#   particles     +0.279 / +0.263 ms   (consistent)
+#   flashlight    +0.769 / +0.228 ms   (not stable: it lights little of the street)
+#   spot shadows  +0.125 / -0.039 ms   (indistinguishable from 0)
+wait 2
+bench particles off on 8 2
+bench flashlight off on 8 2
+set flashlight on
+bench spot_shadows off on 8 2

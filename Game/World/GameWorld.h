@@ -41,6 +41,11 @@ namespace AtomGame
         // Optional gate: without this flag, `lockedAction` runs instead.
         std::string requiresFlag;
         std::optional<Action> lockedAction;
+        std::string lockedPrompt; // M45: shown instead while locked (empty: the same prompt)
+
+        // M44: only usable while the flashlight lights its focus point -
+        // something you find by looking with the beam.
+        bool requiresLight = false;
     };
 
     // A capability: "this moves" (M19). Plays one clip of the entity's
@@ -74,6 +79,9 @@ namespace AtomGame
         std::optional<Animator> animator;
         std::vector<Atom::ClipSample> poseSamples;
         bool hidden = false; // M26: not drawn (a bus before it arrives)
+        // M44: gone for good once this flag is set (taken: the flashlight),
+        // also when the level is entered again later.
+        std::string goneWithFlag;
     };
 
     // Owns the entities of the current world. Everything else refers to

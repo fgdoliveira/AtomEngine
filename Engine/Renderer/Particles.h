@@ -14,7 +14,8 @@ namespace Atom
         glm::vec4 color{ 1.0f };        // linear rgb, alpha
         float rotation = 0.0f;          // radians, in screen plane
         float atlasCell = 0.0f;         // column in the particle atlas
-        float padding[2]{};
+        float beamLit = 0.0f;           // M45: 1 = seen only where the spot reaches (dust)
+        float padding = 0.0f;
     };
 
     static_assert(sizeof(Particle) == 48, "Particle must match the GPU layout");

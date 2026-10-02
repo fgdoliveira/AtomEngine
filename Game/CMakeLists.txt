@@ -12,7 +12,10 @@ add_library(
     UneaseDirector.h
     DemoApp.cpp
     DemoApp.h
+    Flashlight.cpp
+    Flashlight.h
     DemoAppLab.cpp
+    DemoAppDevTools.cpp
     Character/Animator.cpp
     Character/Animator.h
     Character/LabViewer.cpp
@@ -22,6 +25,8 @@ add_library(
     PlayerController.cpp
     PlayerController.h
     Testing/TestScript.cpp
+    Testing/PairedBench.cpp
+    Testing/PairedBench.h
     Testing/TestScript.h
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h

@@ -20,6 +20,7 @@ struct VSOutput
     float2 uv            : TEXCOORD0;
     float4 color         : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
+    float  beamLit       : TEXCOORD3; // M45: seen only in the spot's beam (dust)
 };
 
 VSOutput main(VSInput input)
@@ -49,5 +50,6 @@ VSOutput main(VSInput input)
     output.uv = float2((input.params.y + local.x) / columns, local.y);
     output.color = input.color;
     output.worldPosition = world;
+    output.beamLit = input.params.z;
     return output;
 }

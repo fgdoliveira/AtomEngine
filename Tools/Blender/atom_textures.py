@@ -1030,3 +1030,44 @@ def lab_checker(size=256, squares=8):
     dark = np.array((0.16, 0.22, 0.38))
     rgb = np.where(odd[..., None], dark, light)
     return _rgba(rgb)
+
+
+def exit_sign(width=64, height=32):
+    """An old green emergency-exit lamp: a white running figure on green,
+    glowing through grime (M45)."""
+    ys, xs = np.mgrid[0:height, 0:width] / np.array([height - 1.0, width - 1.0])[:, None, None]
+    green = np.array([0.08, 0.55, 0.22])
+    figure = ((np.abs(xs - 0.3) < 0.06) & (ys > 0.25) & (ys < 0.7)) \
+        | (np.hypot(xs - 0.3, ys - 0.18) < 0.07) \
+        | ((np.abs(xs - 0.38 - (ys - 0.45) * 0.4) < 0.04) & (ys > 0.45) & (ys < 0.85)) \
+        | ((np.abs(xs - 0.72) < 0.14) & (np.abs(ys - 0.5) < 0.3) & ~((np.abs(xs - 0.72) < 0.1) & (np.abs(ys - 0.5) < 0.24)))
+    rgb = np.where(figure[:, :, None], np.array([0.9, 0.95, 0.9]), green)
+    return _rgba(rgb)
+
+
+def reveal_marks(width=128, height=192, seed=99):
+    """Chalk on the corridor wall (M44), seen only in the flashlight's beam:
+    a child's arrow pointing down and a few tally strokes, smudged."""
+    rng = np.random.default_rng(seed)
+    ys, xs = np.mgrid[0:height, 0:width] / np.array([height - 1.0, width - 1.0])[:, None, None]
+    u, v = xs, ys  # v grows downwards in the image
+
+    def stroke(x0, y0, x1, y1, width_uv):
+        # Distance from (u, v) to a segment, as a soft chalk line.
+        dx, dy = x1 - x0, y1 - y0
+        t = np.clip(((u - x0) * dx + (v - y0) * dy) / (dx * dx + dy * dy), 0.0, 1.0)
+        d = np.hypot(u - (x0 + t * dx), v - (y0 + t * dy))
+        return np.clip(1.0 - d / width_uv, 0.0, 1.0)
+
+    marks = np.zeros_like(u)
+    marks = np.maximum(marks, stroke(0.5, 0.18, 0.5, 0.78, 0.035))   # the shaft
+    marks = np.maximum(marks, stroke(0.5, 0.82, 0.28, 0.58, 0.035))  # the head
+    marks = np.maximum(marks, stroke(0.5, 0.82, 0.72, 0.58, 0.035))
+    for i in range(4):                                               # tallies
+        x = 0.14 + i * 0.05
+        marks = np.maximum(marks, stroke(x, 0.06, x + 0.01, 0.16, 0.012))
+    # Chalk is broken by the wall's grain: noise eats into every stroke.
+    grain = fbm(width, height, 24, 3, rng)
+    alpha = np.clip(marks * (0.55 + 0.7 * grain) - 0.15, 0.0, 0.9)
+    rgb = _tint(0.85 + 0.15 * grain, (0.92, 0.90, 0.84))
+    return _with_alpha(rgb, alpha * (alpha > 0.04))

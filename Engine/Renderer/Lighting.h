@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Renderer/SpotLight.h"
+
 #include <glm/vec3.hpp>
 
 namespace Atom

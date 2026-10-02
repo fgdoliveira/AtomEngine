@@ -1,0 +1,53 @@
+# The passage (M45): from the machiya's corridor down to the cellar, along
+# the tunnel to the fork, where chalk only the flashlight shows points the
+# way; at the ladder the trapdoor is bolted, and the bolt can only be found
+# in the beam. Up into the windmill field, back down through the shed's
+# trapdoor, and up the stairs to the house.
+goto_level machiya_interior
+wait_for_level machiya_interior
+set flashlight on
+teleport 3.1 0.3 -12.2 0              # in the corridor, the stairs ahead
+face dark_corridor
+interact dark_corridor
+wait_for_level passage
+expect_level passage
+
+teleport_to candle 1.4
+face candle
+interact candle
+expect_message not long lit
+
+teleport 0 -2.4 -17.6 0               # stepping into the fork
+face fork_marks
+wait 0.8                              # the beam swings round after the view
+expect_lit fork_marks
+expect_target fork_marks
+interact fork_marks
+expect_message pointing east
+
+teleport 5.5 -2.4 -24.5 0             # the ladder chamber
+face ladder
+interact ladder
+expect_message won't lift
+face bolt
+wait 0.8
+expect_lit bolt
+expect_target bolt
+interact bolt
+expect_flag hatch_unbolted
+face ladder
+interact ladder
+wait_for_level windmill_field
+expect_near 6 0 -5.6 0.5
+
+teleport_to shed 1.4                  # unbolted: the shed is now the way down
+face shed
+interact shed
+wait_for_level passage
+expect_near 5.5 -2.4 -25 0.5
+
+teleport_to stairs_up 1.0
+face stairs_up
+interact stairs_up
+wait_for_level machiya_interior
+expect_near 3.1 0.3 -13 0.5

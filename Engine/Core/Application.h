@@ -2,6 +2,7 @@
 
 #include "Audio/AudioSystem.h"
 #include "Core/Time.h"
+#include "Debug/DevTools.h"
 #include "Platform/Input.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
@@ -35,6 +36,7 @@ namespace Atom
         Input& GetInput() { return m_input; }
         Renderer& GetRenderer() { return m_renderer; }
         AudioSystem& GetAudio() { return m_audio; }
+        DevTools& GetDevTools() { return m_devTools; }
         const Time& GetTime() const { return m_time; }
 
     private:
@@ -48,6 +50,7 @@ namespace Atom
         Renderer m_renderer;
         AudioSystem m_audio;
         Input m_input;
+        DevTools m_devTools;
         Time m_time;
     };
 }

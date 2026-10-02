@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -75,6 +76,7 @@ namespace AtomGame
         }
 
         m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+        LoadFlashlightSettings();
 
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
@@ -89,6 +91,8 @@ namespace AtomGame
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
         std::string startSpawn;
+        InitializePerfLog();
+
         if (const char* start = SDL_getenv("ATOM_START_LEVEL"))
         {
             const std::string value = start;
@@ -168,7 +172,8 @@ namespace AtomGame
     void DemoApp::ConfigureForLevel(Level& incoming)
     {
         const LevelData& data = incoming.GetData();
-        m_atmosphere.Configure(data.leaves, data.fogBanks);
+        m_atmosphere.Configure(data.leaves, data.fogBanks, data.dust);
+        m_flashlight.EditLight().beam = data.beam; // the air decides if the beam shows
         m_unease.Configure(data.unease, &incoming);
         m_audioScape.SetOutdoor(data.outdoor);
         m_audioScape.SetSurfaceProvider([&incoming](float x, float z) {
@@ -195,6 +200,25 @@ namespace AtomGame
             }
         }
         m_dialogueFiles.Watch(std::move(dialogues));
+        m_dataFiles.Watch({ m_assetRoot + "Assets/Data/flashlight.json" });
+    }
+
+    void DemoApp::LoadFlashlightSettings()
+    {
+        // The flashlight's settings (M46); without the file it keeps the
+        // values it was built with.
+        const std::string path = m_assetRoot + "Assets/Data/flashlight.json";
+        std::ifstream file(path, std::ios::binary);
+        if (!file)
+        {
+            return;
+        }
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        if (const std::string error = m_flashlight.LoadSettings(text); !error.empty())
+        {
+            std::cerr << path << ": " << error << '\n';
+            m_messages.Show("flashlight.json: " + error);
+        }
     }
 
     void DemoApp::UpdateHotReload(float deltaSeconds)
@@ -212,6 +236,11 @@ namespace AtomGame
         {
             m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
             m_messages.Show("Dialogue reloaded");
+        }
+        if (!m_dataFiles.Poll().empty())
+        {
+            LoadFlashlightSettings();
+            m_messages.Show("Flashlight reloaded");
         }
         const std::vector<std::string> changed = m_levelFiles.Poll();
         if (changed.empty())
@@ -257,6 +286,7 @@ namespace AtomGame
 
     void DemoApp::OnUpdate(float deltaSeconds)
     {
+        RecordFrameTime(deltaSeconds); // the real one, before any fixed step
         if (m_fixedDeltaSeconds > 0.0f)
         {
             deltaSeconds = m_fixedDeltaSeconds; // docs: every frame the same step
@@ -372,6 +402,22 @@ namespace AtomGame
         {
             drawn->Submit(renderer, m_player.GetFeetPosition());
         }
+        UpdateFlashlight(deltaSeconds);
+        if (m_flashlight.IsOn() && !m_devSpotOn)
+        {
+            renderer.SubmitSpotLight(m_flashlight.GetLight());
+        }
+        if (m_devSpotOn)
+        {
+            if (m_devSpotFollows)
+            {
+                // Held low and to the right, as a hand would hold it.
+                const glm::vec3 right = m_camera.GetFlatRight();
+                m_devSpot.position = m_camera.GetPosition() + right * 0.18f + glm::vec3{ 0.0f, -0.15f, 0.0f };
+                m_devSpot.direction = m_camera.GetForward();
+            }
+            renderer.SubmitSpotLight(m_devSpot);
+        }
 
         // Fog banks stay faintly visible with fog off: morning haze.
         const Atom::SceneLighting& lighting = renderer.GetLighting();
@@ -398,6 +444,106 @@ namespace AtomGame
         DrawOverlay(deltaSeconds);
         DrawMachineView(); // over everything: the machine fills the window
         UpdateWindowTitle(deltaSeconds);
+        DrawDevTools(deltaSeconds);
+    }
+
+    void DemoApp::UpdateFlashlight(float deltaSeconds)
+    {
+        m_flashlight.SetOwned(m_gameState.HasFlag(FlashlightFlag));
+        ApplyGoneEntities();
+        // F works wherever you walk (not in dialogue or at the machine).
+        if (m_mode == Mode::Exploring && m_actions.Pressed(InputAction::ToggleLight) && m_flashlight.Toggle())
+        {
+            Atom::PlayParams click{};
+            click.gain = 0.6f;
+            GetAudio().Play(m_audioScape.GetSound("switch_click"), click);
+        }
+        // Arriving somewhere, the beam is already where you look.
+        m_flashlight.Update(m_camera.GetPosition(), m_camera.GetForward(), m_camera.GetFlatRight(),
+                            deltaSeconds, m_arriving);
+    }
+
+    InteractionSystem::Settings DemoApp::TargetSettings() const
+    {
+        InteractionSystem::Settings settings;
+        const Atom::CollisionWorld* collision = const_cast<DemoApp*>(this)->CurrentCollision();
+        settings.isLit = [this, collision](const glm::vec3& point) { return m_flashlight.Lights(point, collision); };
+        return settings;
+    }
+
+    void DemoApp::ApplyGoneEntities()
+    {
+        GameWorld* world = CurrentWorld();
+        if (!world)
+        {
+            return;
+        }
+        world->ForEach([&](EntityId, Entity& entity) {
+            if (!entity.goneWithFlag.empty() && m_gameState.HasFlag(entity.goneWithFlag))
+            {
+                entity.hidden = true;
+                entity.interactable.reset();
+            }
+        });
+    }
+
+    bool DemoApp::IsLit(const std::string& name) const
+    {
+        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(name);
+        if (!entity)
+        {
+            return false;
+        }
+        const glm::vec3 focus = entity->position + (entity->interactable ? entity->interactable->focusOffset : glm::vec3{ 0.0f });
+        return m_flashlight.Lights(focus, const_cast<DemoApp*>(this)->CurrentCollision());
+    }
+
+    void DemoApp::InitializePerfLog()
+    {
+        const char* enabled = SDL_getenv("ATOM_PERF_LOG");
+        m_perf.enabled = enabled && *enabled && std::string_view(enabled) != "0";
+        if (const char* block = SDL_getenv("ATOM_PERF_BLOCK"))
+        {
+            m_perf.block = static_cast<std::size_t>(std::max(30, std::atoi(block)));
+        }
+        if (const char* path = SDL_getenv("ATOM_PERF_CSV"); m_perf.enabled && path && *path)
+        {
+            m_perf.csv = std::make_unique<std::ofstream>(path);
+            *m_perf.csv << "block,samples,median_ms,p95_ms,mean_ms,label\n";
+        }
+    }
+
+    void DemoApp::RecordFrameTime(float realSeconds)
+    {
+        m_lastRealFrameMs = static_cast<double>(realSeconds) * 1000.0;
+        if (!m_perf.enabled)
+        {
+            return;
+        }
+        if (m_perf.warmupLeft > 0)
+        {
+            --m_perf.warmupLeft;
+            return;
+        }
+        m_perf.window.AddSample(static_cast<double>(realSeconds) * 1000.0);
+        if (m_perf.window.Count() < m_perf.block)
+        {
+            return;
+        }
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        const std::string label = !m_perf.label.empty() ? m_perf.label : level ? level->GetName() : std::string{ "-" };
+        char line[256];
+        std::snprintf(line, sizeof(line), "PERF block %d samples %zu median %.3f p95 %.3f mean %.3f label %s",
+            m_perf.blockIndex, m_perf.window.Count(), m_perf.window.Median(), m_perf.window.Percentile(0.95),
+            m_perf.window.Mean(), label.c_str());
+        std::cout << line << std::endl;
+        if (m_perf.csv)
+        {
+            *m_perf.csv << m_perf.blockIndex << ',' << m_perf.window.Count() << ',' << m_perf.window.Median() << ','
+                        << m_perf.window.Percentile(0.95) << ',' << m_perf.window.Mean() << ',' << label << '\n';
+        }
+        ++m_perf.blockIndex;
+        m_perf.window.Clear();
     }
 
     void DemoApp::OnShutdown()
@@ -468,7 +614,9 @@ namespace AtomGame
         const float hintAlpha = m_showHud && !m_lab ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
-            const char* hint = "WASD move   Shift jog   Mouse look   E interact   F1 debug";
+            const char* hint = m_flashlight.IsOwned()
+                ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
+                : "WASD move   Shift jog   Mouse look   E interact   F1 debug";
             const glm::vec2 size = ui.MeasureText(*m_font, hint, scale * 0.8f);
             const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y - size.y - 40.0f * scale };
             // A soft shadow keeps light text legible over the pale fog.
@@ -642,7 +790,7 @@ namespace AtomGame
         }
 
         m_target = InteractionSystem::FindTarget(
-            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward(), TargetSettings());
 
         const Entity* target = world->Find(m_target);
         if (target && m_actions.Pressed(InputAction::Interact))
@@ -728,7 +876,7 @@ namespace AtomGame
 
         Atom::UIRenderer& ui = GetRenderer().GetUI();
         const glm::vec2 screen = ui.GetScreenSize();
-        const std::string prompt = "[E]  " + target->interactable->prompt;
+        const std::string prompt = "[E]  " + InteractionSystem::ResolvePrompt(*target->interactable, m_gameState);
         const float textScale = scale * 0.9f;
         const glm::vec2 size = ui.MeasureText(*m_font, prompt, textScale);
         const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y * 0.62f };
@@ -866,7 +1014,7 @@ namespace AtomGame
                 RequestQuit();
             }
         }
-        else if (!input.IsMouseCaptured()
+        else if (!input.IsMouseCaptured() && !GetDevTools().IsVisible()
             && (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK))
         {
             input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
@@ -1009,7 +1157,7 @@ namespace AtomGame
             return {};
         }
         const EntityId id = InteractionSystem::FindTarget(
-            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward(), TargetSettings());
         const Entity* entity = world->Find(id);
         return entity ? entity->name : std::string{};
     }
@@ -1022,7 +1170,7 @@ namespace AtomGame
             return false;
         }
         m_target = InteractionSystem::FindTarget(
-            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward());
+            *world, CurrentCollision(), m_camera.GetPosition(), m_camera.GetForward(), TargetSettings());
         const Entity* entity = world->Find(m_target);
         if (!entity)
         {
@@ -1352,6 +1500,21 @@ namespace AtomGame
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) m_showDebugOverlay = on;
+        else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
+        else if (what == "devtools_collapsed" && onOff) m_devToolsCollapse = on; // every panel, next frame
+        else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
+        else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
+        else if (what == "spot_shadows" && onOff) m_devSpot.castsShadows = on; // M43
+        else if (what == "flashlight" && onOff) // M44: found and switched on (or off)
+        {
+            if (on)
+            {
+                m_gameState.SetFlag(FlashlightFlag);
+                m_flashlight.SetOwned(true);
+            }
+            m_flashlight.SetOn(on);
+        }
+        else if (what == "spot_offset" && isNumber && number >= 0.0f && number <= 0.1f) m_devSpot.shadowNormalOffset = number;
         else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
         {
             m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips

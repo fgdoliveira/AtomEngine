@@ -1,0 +1,143 @@
+#include "Debug/DevTools.h"
+
+#include <SDL3/SDL.h>
+
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_sdlgpu3.h>
+
+#include <iostream>
+
+namespace Atom
+{
+    bool DevTools::Initialize(SDL_Window* window, SDL_GPUDevice* device)
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        // No imgui.ini next to the executable: panels open where they're
+        // placed in code each run.
+        io.IniFilename = nullptr;
+        ImGui::StyleColorsDark();
+
+        ImGui_ImplSDLGPU3_InitInfo info{};
+        info.Device = device;
+        info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
+        info.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
+        if (!ImGui_ImplSDL3_InitForSDLGPU(window) || !ImGui_ImplSDLGPU3_Init(&info))
+        {
+            std::cerr << "Failed to initialise the developer tools (ImGui).\n";
+            ImGui::DestroyContext();
+            return false;
+        }
+        m_initialized = true;
+        return true;
+    }
+
+    void DevTools::Shutdown()
+    {
+        if (!m_initialized)
+        {
+            return;
+        }
+        if (m_frameActive)
+        {
+            ImGui::EndFrame();
+            m_frameActive = false;
+        }
+        ImGui_ImplSDLGPU3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
+        m_initialized = false;
+    }
+
+    bool DevTools::HandleEvent(const SDL_Event& event)
+    {
+        if (!m_initialized)
+        {
+            return false;
+        }
+        if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_F10 && !event.key.repeat)
+        {
+            m_visible = !m_visible;
+            return true;
+        }
+        if (!m_visible)
+        {
+            return false;
+        }
+        ImGui_ImplSDL3_ProcessEvent(&event);
+
+        // ImGui says what it wants this frame: the mouse over a panel, the
+        // keyboard while a field has focus. Everything else is the game's.
+        const ImGuiIO& io = ImGui::GetIO();
+        switch (event.type)
+        {
+        case SDL_EVENT_MOUSE_MOTION:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+        case SDL_EVENT_MOUSE_WHEEL:
+            return io.WantCaptureMouse;
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP:
+        case SDL_EVENT_TEXT_INPUT:
+            return io.WantCaptureKeyboard;
+        default:
+            return false;
+        }
+    }
+
+    void DevTools::BeginFrame()
+    {
+        if (!m_initialized)
+        {
+            return;
+        }
+        if (m_frameActive)
+        {
+            // Last frame never reached the overlay pass (a minimised
+            // window): close it before starting another.
+            ImGui::EndFrame();
+            m_frameActive = false;
+        }
+        if (!m_visible)
+        {
+            return;
+        }
+        ImGui_ImplSDLGPU3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+        m_frameActive = true;
+    }
+
+    void DevTools::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target)
+    {
+        if (!m_frameActive)
+        {
+            return;
+        }
+        m_frameActive = false;
+        ImGui::Render();
+        ImDrawData* drawData = ImGui::GetDrawData();
+        if (!drawData || drawData->DisplaySize.x <= 0.0f || drawData->DisplaySize.y <= 0.0f)
+        {
+            return;
+        }
+
+        // Vertices and indices are uploaded in a copy pass first; the draw
+        // itself then loads what's in the window and draws on top.
+        ImGui_ImplSDLGPU3_PrepareDrawData(drawData, commandBuffer);
+        SDL_GPUColorTargetInfo colorTarget{};
+        colorTarget.texture = target;
+        colorTarget.load_op = SDL_GPU_LOADOP_LOAD;
+        colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
+        if (!renderPass)
+        {
+            return;
+        }
+        ImGui_ImplSDLGPU3_RenderDrawData(drawData, commandBuffer, renderPass);
+        SDL_EndGPURenderPass(renderPass);
+    }
+}

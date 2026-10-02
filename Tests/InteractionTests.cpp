@@ -148,3 +148,25 @@ TEST_CASE("addCounter gives once; exchange pays for a flag or explains why not")
     CHECK(state.HasFlag("prize"));
     CHECK(state.GetCounter("balls") == 20);
 }
+
+TEST_CASE("A locked interactable can say something else until it opens")
+{
+    // M45: the shed's door slides open; once the trapdoor below is
+    // unbolted, the same spot is the way down - and says so.
+    Interactable shed{ "Climb down through the trapdoor", ChangeLevel{ "passage", "from_shed" } };
+    shed.requiresFlag = "hatch_unbolted";
+    shed.lockedPrompt = "Slide the door";
+    shed.lockedAction = PlayAnimation{ "shed", "open", "" };
+
+    GameState state;
+    CHECK(InteractionSystem::ResolvePrompt(shed, state) == "Slide the door");
+    CHECK(std::holds_alternative<PlayAnimation>(InteractionSystem::ResolveAction(shed, state)));
+    state.SetFlag("hatch_unbolted");
+    CHECK(InteractionSystem::ResolvePrompt(shed, state) == "Climb down through the trapdoor");
+    CHECK(std::holds_alternative<ChangeLevel>(InteractionSystem::ResolveAction(shed, state)));
+
+    // Without a locked prompt, the prompt stays the same either way.
+    Interactable door{ "Open", ShowMessage{ "" } };
+    door.requiresFlag = "key";
+    CHECK(InteractionSystem::ResolvePrompt(door, GameState{}) == "Open");
+}

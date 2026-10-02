@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "World/GameWorld.h"
 
 #include <glm/vec3.hpp>
@@ -26,6 +28,10 @@ namespace AtomGame
             float closeConeCosine = 0.35f; // ~70 degrees at arm's length
             float closeDistance = 0.5f;    // metres
             float occlusionSlack = 0.6f;  // metres; ignore hits this close to the target
+
+            // M44: is a point lit by the flashlight? Interactables marked
+            // requiresLight are only found while it is. Unset: nothing is.
+            std::function<bool(const glm::vec3&)> isLit;
         };
 
         // Best interactable in reach and in view with a clear line of
@@ -47,6 +53,13 @@ namespace AtomGame
         {
             return FindTarget(world, collision, eye, forward, Settings{});
         }
+
+        // The prompt to show for it given the flags (M45: a door that
+        // becomes a way down says so).
+        static const std::string& ResolvePrompt(
+            const Interactable& interactable,
+            const GameState& state
+        );
 
         // The action to perform for this interactable given the flags.
         static const Action& ResolveAction(

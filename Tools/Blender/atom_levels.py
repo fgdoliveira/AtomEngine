@@ -9,6 +9,7 @@ import math
 
 import atom_kit as kit
 import atom_lab
+import atom_passage
 import atom_pachinko
 from atom_street import Street
 
@@ -146,6 +147,12 @@ def build_machiya_interior(pieces, collision, materials, collection):
     m.quad([(wx, 5.0, 2.1), (wx, 6.3, 2.1), (wx, 6.3, 2.9), (wx, 5.0, 2.9)], "water_stain")
     ny = room_y1 - off
     m.quad([(2.55, ny, 0.45), (1.3, ny, 0.45), (1.3, ny, 1.6), (2.55, ny, 1.6)], "grime")
+    # Chalk on the corridor's west wall (M44), only seen in the flashlight's
+    # beam: an arrow pointing down, the way the passage goes.
+    cx = 2.6 + off
+    # Counter-clockwise seen from inside the corridor (+X), or it's culled.
+    m.quad([(cx, 11.4, 0.9), (cx, 12.2, 0.9), (cx, 12.2, 2.1), (cx, 11.4, 2.1)], "reveal_marks",
+           uvs=[(0, 1), (1, 1), (1, 0), (0, 0)])  # image rows run downwards
 
     # Low table with a folded letter.
     m.box((0, 6.5, floor + 0.3), (1.2, 0.9, 0.06), "wood_dark")
@@ -168,7 +175,10 @@ def build_machiya_interior(pieces, collision, materials, collection):
         ((3.8, 10.6, 1.5), (0.4, 0.2, 3.0)),
         ((0, 11.45, 1.5), (2.6, 0.2, 3.0)),
         ((-1.3, 10.95, 1.5), (0.1, 0.9, 3.0)), ((1.3, 10.95, 1.5), (0.1, 0.9, 3.0)),
-        ((3.1, 11.1, 1.5), (1.0, 0.3, 3.0)),               # the corridor: you don't go in
+        # The corridor (M44): you can step in, as far as the stairs (the
+        # passage, M45); the chalk on its west wall is on the way.
+        ((3.1, 13.6, 1.5), (1.0, 0.3, 3.0)),
+        ((3.1, 12.1, floor / 2), (1.0, 3.2, floor)),       # its floor, level with the tatami
     ])
     return level
 
@@ -260,18 +270,19 @@ LEVELS = [
     ("pachinko", atom_pachinko.build_pachinko_hall),
     ("first", build_first_render),
     ("lab", atom_lab.build_character_lab),
+    ("passage", atom_passage.build_passage),
 ]
 
 # The level file each Blender level belongs to (markers are written next to it).
 LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
                "pachinko": "pachinko_hall", "first": "first_render",
-               "lab": "character_lab"}
+               "lab": "character_lab", "passage": "passage"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.
 # "none": no vertex bake - the documentation scene shows the unbaked,
 # v0.0.1 look (and a bare plane would bake to plain white anyway).
-BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none"}
+BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none", "passage": "ao"}
 
 # Levels that also get a lightmap (atom_lightmap), with the bake-only lights
 # that make it: (location, rotation in degrees, (width, height), watts, rgb).
@@ -286,8 +297,10 @@ LIGHTMAPS = {
         ((0.0, 0.05, 1.0), (90, 0, 0), (1.4, 2.0), 25.0, (0.85, 0.9, 1.0)),
     ],
     "pachinko": atom_pachinko.LIGHTS,
+    "passage": atom_passage.LIGHTS,
 }
 
 # Lightmap settings other than the defaults (M27): the hall is dense and
 # full of small bright emitters (clamped, so they don't leave speckles).
-LIGHTMAP_OPTIONS = {"pachinko": {"size": 1024, "samples": 192, "clamp": 2.0}}
+LIGHTMAP_OPTIONS = {"pachinko": {"size": 1024, "samples": 192, "clamp": 2.0},
+                    "passage": {"size": 1024, "samples": 192, "clamp": 2.0}}

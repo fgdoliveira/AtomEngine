@@ -141,6 +141,8 @@ namespace Atom
                 };
                 read("\"atom_fog\"", material.fogAmount);
                 read("\"atom_wet\"", material.wet);
+                read("\"atom_specular\"", material.specular);
+                read("\"atom_reveal\"", material.reveal);
             }
             material.doubleSided = source.double_sided != 0;
             if (source.alpha_mode == cgltf_alpha_mode_mask)
@@ -576,6 +578,10 @@ namespace Atom
                 }
             }
             ReadAlpha(source, material);
+            if (source.has_pbr_metallic_roughness)
+            {
+                material.roughness = std::clamp(source.pbr_metallic_roughness.roughness_factor, 0.0f, 1.0f);
+            }
 
             materials[&source] = model->m_materials.size();
             model->m_materials.push_back(material);

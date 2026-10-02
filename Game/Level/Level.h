@@ -64,6 +64,9 @@ namespace AtomGame
         Level& operator=(const Level&) = delete;
 
         const LevelData& GetData() const { return m_data; }
+        // Developer tools (M41): tune the light live; a hot reload of the
+        // level file puts back what the file says.
+        LevelLighting& EditLighting() { return m_data.lighting; }
         const std::string& GetName() const { return m_data.name; }
         GameWorld& GetWorld() { return m_world; }
         const GameWorld& GetWorld() const { return m_world; }

@@ -5,7 +5,8 @@
   "collision": "Fields/fields_col.glb",
   "defaultSpawn": "from_street",
   "spawns": {
-    "from_street": {}
+    "from_street": {},
+    "from_hatch": { "position": [6.0, 0.0, -5.6], "yaw": 180 }
   },
   "lighting": {
     "sunDirection": [0.35, 0.6, -0.55],
@@ -47,8 +48,11 @@
       "model": "Kit/shed.glb",
       "collider": { "center": [0.0, 1.2, 0.0], "halfExtents": [1.6, 1.2, 1.3] },
       "interactable": {
-        "prompt": "Slide the door", "focus": [0.2, 1.1, 1.4], "radius": 2.4,
-        "action": { "type": "playAnimation", "entity": "shed", "clip": "open", "message": "The door grinds aside. Only darkness inside." }
+        "prompt": "Climb down through the trapdoor", "focus": [0.2, 1.1, 1.4], "radius": 2.4,
+        "requires": "hatch_unbolted",
+        "action": { "type": "changeLevel", "level": "passage", "spawn": "from_shed" },
+        "lockedPrompt": "Slide the door",
+        "locked": { "type": "playAnimation", "entity": "shed", "clip": "open", "message": "The door grinds aside. Only darkness inside." }
       }
     },
     {

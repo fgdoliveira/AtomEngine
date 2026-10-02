@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AtomEngine flashlight (M46)",
+  "description": "The player's flashlight: a spot light held in the hand. Assets/Data/flashlight.json; tune it live in the developer tools (F10, Spot light) and paste Copy as JSON here. How much its beam shows in the air is per level (particles.beam).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "range": { "type": "number", "minimum": 0.5, "maximum": 100, "description": "Metres; no light beyond." },
+    "inner": { "type": "number", "minimum": 0.5, "maximum": 80, "description": "Half-angle of full strength, degrees." },
+    "outer": { "type": "number", "minimum": 0.5, "maximum": 85, "description": "Half-angle where the light ends, degrees (at least inner)." },
+    "intensity": { "type": "number", "minimum": 0, "maximum": 500, "description": "At 1 m on its axis." },
+    "color": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 3, "maxItems": 3, "description": "Linear RGB." },
+    "specular": { "type": "number", "minimum": 0, "maximum": 10, "description": "Scales the highlights it makes." },
+    "shadows": { "type": "boolean", "description": "Its own shadow map." },
+    "shadowNormalOffset": { "type": "number", "minimum": 0, "maximum": 0.1, "description": "Metres per metre from the lamp: against shadow acne." }
+  }
+}
