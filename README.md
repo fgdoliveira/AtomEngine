@@ -240,7 +240,12 @@ AtomEngine compares A and B **close together in time** and reports the
   `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
 - **Did a build get slower?** `pwsh Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <level>`
   alternates the two executables (ABBA) and reports the median paired
-  difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward).
+  difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward). Each run has a
+  wall-clock limit (`-TimeoutSeconds`, default 60 s + the run + 30 s): a
+  hung game - a covered window, a driver stall, a dialog box, where the
+  script's own timeout (game time) stops counting - is killed and retried
+  once, and the environment variables it sets are restored however it
+  ends. ctest scenarios have their own 240 s limit.
 - **Trust the tools first:** `ab.ps1` with the same build as A and B must
   give ~0 ms. On the development laptop it gives up to ~0.15 ms, so smaller
   differences between builds are noise.
@@ -252,6 +257,28 @@ Checklist: plugged in, high-performance power plan, the laptop's own screen,
 300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
 hardware; the interleaving takes care of that. Timing is never a ctest
 gate: `expect_bench_under` is for local use on known hardware.
+
+## Development workflow
+
+Check a change with the cheapest step that can catch its mistakes, and
+climb only when it passes (`Tools/Dev/check.ps1`):
+
+| Change | Check |
+|---|---|
+| `.md`, CHANGELOG, `.gitignore`, the CI workflow | `-Level docs` - nothing to build |
+| C++ or shaders, inner loop | `-Level quick` - incremental build, unit tests (seconds) |
+| content JSON (levels, presets, dialogue) | `-Level quick` (the authoring tests), plus that level's scenario |
+| a feature | `-Level feature -Scenario <names>` - quick + the scenarios it touches |
+| a milestone or release commit | `-Level full` - Debug and Release, everything |
+
+Use the configuration where the defect shows (`-Config Debug` for asserts
+and lifetime checks, Release for anything timed). Which scenarios a change
+touches: rendering and shaders → `first_render`, `lakeshore`,
+`night_street`; levels and transitions → `levels_roundtrip`, `hot_reload`;
+developer tools → `devtools`; weather → `environment`; otherwise the
+level's own scenario. Rebuild assets only when Blender scripts or content
+products change. CI runs the unit tests on every push; scenarios are
+always a local job.
 
 ## Content pipeline
 

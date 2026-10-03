@@ -36,7 +36,20 @@ commits. No new feature; the engine is the same, and sturdier.
   passes, the GPU lifetime rule, source and product assets, decision
   records, and when each future library or framework would be justified.
 
+- **A validation ladder:** `Tools/Dev/check.ps1 -Level docs|quick|feature|full`
+  checks a change with the cheapest step that can catch its mistakes (from
+  nothing for docs, to one incremental build and the unit tests, to the
+  scenarios a feature touches, to the full Debug + Release matrix before a
+  milestone). README "Development workflow"; `CLAUDE.md` for agents.
+
 ### Fixed
+- **`ab.ps1` could hang forever:** it waited on the game with no
+  wall-clock limit, and the script's own timeout counts game time, which
+  stops when frames do. Each run now has a limit; a hung game is killed
+  and retried once, a second hang stops the comparison keeping the rounds
+  measured. It also left its environment variables set in your shell
+  (a later manual launch started in the benchmark level and quit); they
+  are now restored however it ends.
 - **A benchmark that measured nothing:** `bench` alternates AB BA, so after
   an even number of rounds it ended on its first value. After
   `bench weather off on` the water was left off, and the following
