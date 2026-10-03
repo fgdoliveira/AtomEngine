@@ -37,6 +37,7 @@ target_link_libraries(
     AtomTests
     PRIVATE
         AtomGameLib
+        nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 
 target_include_directories(
@@ -53,6 +54,11 @@ target_compile_definitions(
     PRIVATE
         ATOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
+
+# In-game scenarios need the game (ATOM_BUILD_GAME).
+if(NOT TARGET AtomGame)
+    return()
+endif()
 
 # In-game scenarios: each Tests/Scenarios/*.atomtest runs the real game with
 # ATOM_TEST_SCRIPT set (needs a GPU and a window). `ctest -L scenario` runs

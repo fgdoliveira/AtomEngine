@@ -12,6 +12,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# M54 (audit BUILD-001): the game executable and its shaders. Off, the
+# engine and game libraries and the unit tests still build - with no
+# shader compiler (dxc) needed: what CI runs.
+option(ATOM_BUILD_GAME "Build the AtomGame executable and compile its shaders (needs dxc)" ON)
+
 option(
     ATOM_BUILD_PRESENTATION_PROBE
     "Build the private D3D12 presentation investigation probe"
@@ -40,7 +45,9 @@ add_library(
 target_include_directories(imgui PUBLIC ${ATOM_IMGUI_DIR} ${ATOM_IMGUI_DIR}/backends)
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
-add_subdirectory(Shaders)
+if(ATOM_BUILD_GAME)
+    add_subdirectory(Shaders)
+endif()
 add_subdirectory(Engine)
 add_subdirectory(Game)
 

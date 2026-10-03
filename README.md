@@ -101,6 +101,17 @@ build/bin/Release/AtomGame.exe
 Dependencies are pinned git submodules: SDL 3.4.16, GLM 1.0.1, cgltf 1.15,
 stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9.
 
+Build options (CMake `-D`):
+
+| Option | Default | What it builds |
+|---|---|---|
+| `ATOM_BUILD_GAME` | ON | the `AtomGame` executable and its shaders (needs `dxc`) |
+| `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
+| `ATOM_BUILD_PRESENTATION_PROBE` | OFF | a private D3D12 diagnostic tool |
+
+`-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
+tests with no shader compiler - the configuration CI uses.
+
 ## Playing
 
 | Key | Action |

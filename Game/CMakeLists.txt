@@ -88,12 +88,26 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# JSON and ImGui are used only inside the library's .cpp files (the
+# parsers, the developer panels), so they stay PRIVATE (M54).
 target_link_libraries(
     AtomGameLib
     PUBLIC
         AtomEngine
+    PRIVATE
         nlohmann_json::nlohmann_json
+        imgui
 )
+
+target_compile_definitions(
+    AtomGameLib
+    PRIVATE
+        ATOM_VERSION="${PROJECT_VERSION}" # the window title
+)
+
+if(NOT ATOM_BUILD_GAME)
+    return() # the libraries only (ATOM_BUILD_GAME=OFF): no executable, no shaders
+endif()
 
 add_executable(
     AtomGame
