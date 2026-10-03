@@ -6,6 +6,7 @@ wait_for_level lakeshore
 expect_level lakeshore
 wait 0.3
 expect_water 1
+expect_reflection 10                 # M53: the level asks for it; the mirrored pass draws
 expect_surface dirt
 
 # Onto the jetty and out to its end (game Z is Blender's -Y).

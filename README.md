@@ -216,7 +216,7 @@ AtomEngine compares A and B **close together in time** and reports the
   scenario line `bench <setting> <a> <b> <rounds> <seconds> [settle]`, for
   any `set` switch. It alternates A and B in the order AB BA AB BA…, lets
   each switch settle (rebuilt targets aren't steady state), and reports the
-  median of the rounds' differences:
+  median of the rounds' differences (it always ends with the switch on B):
   `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
 - **Did a build get slower?** `pwsh Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <level>`
   alternates the two executables (ABBA) and reports the median paired

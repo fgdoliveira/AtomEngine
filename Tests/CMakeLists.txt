@@ -27,6 +27,7 @@ add_executable(
     LightingTests.cpp
     FlashlightTests.cpp
     FrameStatsTests.cpp
+    GpuResourcesTests.cpp
     EnvironmentTests.cpp
     EnvironmentControllerTests.cpp
     PairedBenchTests.cpp
@@ -65,6 +66,8 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
         PROPERTIES
             ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
             LABELS scenario
+            # M53: a GPU wrapper outliving the renderer fails the scenario.
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
             TIMEOUT 240
     )
 endforeach()

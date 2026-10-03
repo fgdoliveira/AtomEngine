@@ -146,6 +146,10 @@ namespace AtomGame
         {
             return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().particles;
         }
+        std::uint32_t ReflectionDraws() const override
+        {
+            return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().reflectionDrawn;
+        }
         std::uint32_t WaterDraws() const override
         {
             return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().waterDraws;

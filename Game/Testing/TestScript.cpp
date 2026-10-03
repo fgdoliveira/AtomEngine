@@ -45,6 +45,7 @@ namespace AtomGame
                 { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
                 { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
                 { "expect_water", { 1, 1 } },       // min water surfaces drawn (M48)
+                { "expect_reflection", { 1, 1 } },  // min draws in the planar reflection (M53)
                 { "expect_particles", { 2, 2 } },   // op count: particles drawn (M50)
                 { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
                 { "expect_environment", { 1, 1 } }, // preset | level | (blending)
@@ -66,7 +67,7 @@ namespace AtomGame
                 { "press_action", { 1, 1 } },       // action: one frame
                 { "expect_counter", { 3, 3 } },     // name op value (op: == >= <= > <)
                 { "set_counter", { 2, 2 } },        // name value
-                { "bench", { 5, 6 } },              // setting a b rounds seconds [settle]: A/B in-process
+                { "bench", { 5, 6 } },              // setting a b rounds seconds [settle]: A/B in-process; ends on b
                 { "expect_bench_under", { 1, 1 } }, // ms: the last bench's median B - A is below it
                 { "timeout", { 1, 1 } },            // seconds the whole script may take (default 180)
                 { "log", { 0, 64 } },
@@ -607,6 +608,10 @@ namespace AtomGame
             game.Log(line);
             m_benchDelta = m_bench->MedianDelta();
             m_bench.reset();
+            // M53: end on B, whatever half ran last (AB BA... finishes on A
+            // after an even count). A known end state: a later bench once
+            // measured "off vs off" because an earlier one left water off.
+            game.Set(args[0], args[2]);
             return true;
         }
         if (name == "expect_bench_under")
@@ -683,6 +688,15 @@ namespace AtomGame
             if (!ok)
             {
                 Fail(command, std::to_string(game.ParticleCount()) + " particles");
+            }
+            return true;
+        }
+        if (name == "expect_reflection")
+        {
+            const std::uint32_t draws = game.ReflectionDraws();
+            if (draws < static_cast<std::uint32_t>(number(0, 1.0f)))
+            {
+                Fail(command, std::to_string(draws) + " reflection draws");
             }
             return true;
         }

@@ -1,5 +1,7 @@
 #include "Renderer/Texture.h"
 
+#include "Renderer/GpuResources.h"
+
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -168,8 +170,14 @@ namespace Atom
         return texture;
     }
 
+    Texture::Texture(SDL_GPUDevice* device) : m_device(device)
+    {
+        GpuResources::Added(m_device, GpuResourceKind::Texture);
+    }
+
     Texture::~Texture()
     {
+        GpuResources::Removed(m_device, GpuResourceKind::Texture);
         if (m_texture)
         {
             SDL_ReleaseGPUTexture(m_device, m_texture);

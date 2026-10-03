@@ -1,5 +1,7 @@
 #include "Renderer/Mesh.h"
 
+#include "Renderer/GpuResources.h"
+
 #include <SDL3/SDL.h>
 
 #include <glm/common.hpp>
@@ -177,8 +179,14 @@ namespace Atom
         return mesh;
     }
 
+    Mesh::Mesh(SDL_GPUDevice* device) : m_device(device)
+    {
+        GpuResources::Added(m_device, GpuResourceKind::Mesh);
+    }
+
     Mesh::~Mesh()
     {
+        GpuResources::Removed(m_device, GpuResourceKind::Mesh);
         if (m_vertexBuffer)
         {
             SDL_ReleaseGPUBuffer(m_device, m_vertexBuffer);

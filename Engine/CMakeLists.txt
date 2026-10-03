@@ -16,6 +16,8 @@ target_sources(
         Platform/Input.cpp
         Platform/Window.cpp
         Renderer/Glow.cpp
+        Renderer/GpuResources.cpp
+        Renderer/GpuResources.h
         Renderer/Mesh.cpp
         Renderer/RenderTargets.cpp
         Renderer/Renderer.cpp
