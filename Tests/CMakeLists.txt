@@ -31,6 +31,8 @@ add_executable(
     EnvironmentTests.cpp
     EnvironmentControllerTests.cpp
     PairedBenchTests.cpp
+    GameDiagnosticsTests.cpp
+    FakeGame.h
 )
 
 target_link_libraries(

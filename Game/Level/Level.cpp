@@ -6,6 +6,8 @@
 #include "Renderer/Renderer.h"
 #include "World/LiveEffects.h"
 
+#include <cstdio>
+#include <chrono>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -73,6 +75,13 @@ namespace AtomGame
 
     std::unique_ptr<Level> Level::Create(LevelData data, Services& services)
     {
+        // M57 (audit ASSET-002): how long a level takes, and where - to
+        // decide on faster loading from numbers, not guesses.
+        const auto loadStart = std::chrono::steady_clock::now();
+        const std::size_t hitsBefore = services.models.GetHits();
+        const std::size_t loadsBefore = services.models.GetLoads();
+        const Atom::Model::LoadTimes timesBefore = services.models.GetLoadTimes();
+
         std::unique_ptr<Level> level(new Level(std::move(data), services.audio));
         const LevelData& d = level->m_data;
         const std::string assets = services.assetRoot + "Assets/";
@@ -364,9 +373,22 @@ namespace AtomGame
             level->m_lights.push_back(std::move(light));
         }
 
+        const Atom::Model::LoadTimes& times = services.models.GetLoadTimes();
+        const double totalMs =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - loadStart).count();
+        const double modelMs = times.totalMs - timesBefore.totalMs;
+        char timing[256];
+        std::snprintf(timing, sizeof(timing),
+            " in %.0f ms; models: %zu loaded, %zu reused (%.0f ms: parse %.0f, decode %.0f, upload %.0f, build %.0f)",
+            totalMs, services.models.GetLoads() - loadsBefore, services.models.GetHits() - hitsBefore, modelMs,
+            times.parseMs - timesBefore.parseMs, times.decodeMs - timesBefore.decodeMs,
+            times.uploadMs - timesBefore.uploadMs,
+            modelMs - (times.parseMs - timesBefore.parseMs) - (times.decodeMs - timesBefore.decodeMs)
+                - (times.uploadMs - timesBefore.uploadMs));
         std::cout
             << "Level '" << d.name << "' loaded: " << level->m_world.Count() << " entities, "
-            << level->m_models.size() << " extra models, " << level->m_voices.size() << " voices\n";
+            << level->m_models.size() << " extra models, " << level->m_voices.size() << " voices"
+            << timing << '\n';
         return level;
     }
 

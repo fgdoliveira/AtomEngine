@@ -94,7 +94,6 @@ namespace AtomGame
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
         std::string startSpawn;
-        InitializePerfLog();
 
         if (const char* start = SDL_getenv("ATOM_START_LEVEL"))
         {
@@ -113,11 +112,14 @@ namespace AtomGame
             << "  F2 render scale  F3 baked light  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
-        LoadTestScript();
+        if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
+        {
+            RequestQuit(*exitCode); // a script that can't run
+        }
 
         // A scripted run doesn't need the mouse (and may not have focus).
         const bool captured = GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
-        return captured || m_testRunner != nullptr;
+        return captured || m_diagnostics.HasTestScript();
     }
 
     void DemoApp::OnLevelUnloading(Level& /*outgoing*/)
@@ -411,14 +413,16 @@ namespace AtomGame
 
     void DemoApp::OnUpdate(float deltaSeconds)
     {
-        RecordFrameTime(deltaSeconds); // the real one, before any fixed step
-        if (m_fixedDeltaSeconds > 0.0f)
-        {
-            deltaSeconds = m_fixedDeltaSeconds; // docs: every frame the same step
-        }
+        // The real frame time, before any fixed step (M57: GameDiagnostics).
+        const Level* measured = m_levels ? m_levels->GetLevel() : nullptr;
+        m_diagnostics.RecordFrameTime(deltaSeconds, measured ? measured->GetName() : std::string{ "-" });
+        deltaSeconds = m_diagnostics.Step(deltaSeconds); // docs: every frame the same step
         UpdateMouseCapture();
         UpdateRenderSettings();
-        UpdateTestScript(deltaSeconds);
+        if (const std::optional<int> exitCode = m_diagnostics.UpdateTestScript(deltaSeconds, *this))
+        {
+            RequestQuit(*exitCode);
+        }
 
         // The mode decides what the keys mean (M29).
         const InputContextId context = m_mode == Mode::InDialogue ? InputContextId::Dialogue
@@ -631,54 +635,6 @@ namespace AtomGame
         }
         const glm::vec3 focus = entity->position + (entity->interactable ? entity->interactable->focusOffset : glm::vec3{ 0.0f });
         return m_flashlight.Lights(focus, const_cast<DemoApp*>(this)->CurrentCollision());
-    }
-
-    void DemoApp::InitializePerfLog()
-    {
-        const char* enabled = SDL_getenv("ATOM_PERF_LOG");
-        m_perf.enabled = enabled && *enabled && std::string_view(enabled) != "0";
-        if (const char* block = SDL_getenv("ATOM_PERF_BLOCK"))
-        {
-            m_perf.block = static_cast<std::size_t>(std::max(30, std::atoi(block)));
-        }
-        if (const char* path = SDL_getenv("ATOM_PERF_CSV"); m_perf.enabled && path && *path)
-        {
-            m_perf.csv = std::make_unique<std::ofstream>(path);
-            *m_perf.csv << "block,samples,median_ms,p95_ms,mean_ms,label\n";
-        }
-    }
-
-    void DemoApp::RecordFrameTime(float realSeconds)
-    {
-        m_lastRealFrameMs = static_cast<double>(realSeconds) * 1000.0;
-        if (!m_perf.enabled)
-        {
-            return;
-        }
-        if (m_perf.warmupLeft > 0)
-        {
-            --m_perf.warmupLeft;
-            return;
-        }
-        m_perf.window.AddSample(static_cast<double>(realSeconds) * 1000.0);
-        if (m_perf.window.Count() < m_perf.block)
-        {
-            return;
-        }
-        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
-        const std::string label = !m_perf.label.empty() ? m_perf.label : level ? level->GetName() : std::string{ "-" };
-        char line[256];
-        std::snprintf(line, sizeof(line), "PERF block %d samples %zu median %.3f p95 %.3f mean %.3f label %s",
-            m_perf.blockIndex, m_perf.window.Count(), m_perf.window.Median(), m_perf.window.Percentile(0.95),
-            m_perf.window.Mean(), label.c_str());
-        std::cout << line << std::endl;
-        if (m_perf.csv)
-        {
-            *m_perf.csv << m_perf.blockIndex << ',' << m_perf.window.Count() << ',' << m_perf.window.Median() << ','
-                        << m_perf.window.Percentile(0.95) << ',' << m_perf.window.Mean() << ',' << label << '\n';
-        }
-        ++m_perf.blockIndex;
-        m_perf.window.Clear();
     }
 
     void DemoApp::OnShutdown()
@@ -918,7 +874,7 @@ namespace AtomGame
     {
         const Atom::Input& input = GetInput();
         GameWorld* world = CurrentWorld();
-        if ((!input.IsMouseCaptured() && !m_testRunner) || !world)
+        if ((!input.IsMouseCaptured() && !m_diagnostics.HasTestScript()) || !world)
         {
             m_target = {};
             return;
@@ -1179,58 +1135,6 @@ namespace AtomGame
     }
 
     // --- Scripted tests ------------------------------------------------------
-
-    void DemoApp::LoadTestScript()
-    {
-        const char* path = SDL_getenv("ATOM_TEST_SCRIPT");
-        if (!path)
-        {
-            return;
-        }
-
-        size_t size = 0;
-        void* text = SDL_LoadFile(path, &size);
-        if (!text)
-        {
-            std::cerr << "[test] cannot read script '" << path << "'\n";
-            RequestQuit(2);
-            return;
-        }
-        TestScriptParseResult parsed = ParseTestScript(
-            std::string_view(static_cast<const char*>(text), size));
-        SDL_free(text);
-
-        if (!parsed.error.empty())
-        {
-            std::cerr << "[test] invalid script: " << parsed.error << '\n';
-            RequestQuit(2);
-            return;
-        }
-        std::cout << "[test] running '" << path << "' (" << parsed.commands.size() << " commands)\n";
-        m_testRunner = std::make_unique<TestRunner>(std::move(parsed.commands));
-    }
-
-    void DemoApp::UpdateTestScript(float deltaSeconds)
-    {
-        if (!m_testRunner || m_testRunner->IsFinished())
-        {
-            return;
-        }
-        m_testRunner->Update(deltaSeconds, *this);
-        if (m_testRunner->IsFinished())
-        {
-            if (m_testRunner->Passed())
-            {
-                std::cout << "[test] PASS\n";
-                RequestQuit(0);
-            }
-            else
-            {
-                std::cout << "[test] FAIL " << m_testRunner->GetFailure() << '\n';
-                RequestQuit(1);
-            }
-        }
-    }
 
     const Entity* DemoApp::FindEntity(const std::string& name)
     {
@@ -1707,7 +1611,7 @@ namespace AtomGame
         }
         else if (what == "fixed_dt" && isNumber && number >= 0.0f && number <= 0.25f)
         {
-            m_fixedDeltaSeconds = number;
+            m_diagnostics.SetFixedStep(number);
         }
         else
         {

@@ -3,6 +3,7 @@
 
 #include "Renderer/Renderer.h"
 
+#include <chrono>
 #include <cgltf.h>
 #include <stb_image.h>
 
@@ -501,7 +502,15 @@ namespace Atom
         const std::string& path
     )
     {
+        using Clock = std::chrono::steady_clock;
+        const auto since = [](Clock::time_point start) {
+            return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+        };
+        const Clock::time_point loadStart = Clock::now();
+        LoadTimes times;
+
         const GltfData data = ParseGltf(path);
+        times.parseMs = since(loadStart);
         if (!data)
         {
             return nullptr;
@@ -519,18 +528,22 @@ namespace Atom
             const cgltf_image& image = data->images[i];
             int width = 0;
             int height = 0;
+            const Clock::time_point decodeStart = Clock::now();
             const StbPixels pixels =
                 DecodeImage(image, baseDirectory, width, height);
+            times.decodeMs += since(decodeStart);
             if (!pixels)
             {
                 continue;
             }
 
+            const Clock::time_point uploadStart = Clock::now();
             auto texture = renderer.CreateTexture(
                 static_cast<std::uint32_t>(width),
                 static_cast<std::uint32_t>(height),
                 pixels.get()
             );
+            times.uploadMs += since(uploadStart);
             if (!texture)
             {
                 return nullptr;
@@ -640,9 +653,11 @@ namespace Atom
 
                 const auto skinOf = meshSkins.find(&mesh);
                 const bool skinned = skinOf != meshSkins.end() && !geometry->skin.empty();
+                const Clock::time_point meshStart = Clock::now();
                 auto gpuMesh = renderer.CreateMesh(
                     geometry->vertices, geometry->indices, geometry->hasBakedLight,
                     skinned ? std::span<const SkinVertex>(geometry->skin) : std::span<const SkinVertex>{});
+                times.uploadMs += since(meshStart);
                 if (!gpuMesh)
                 {
                     return nullptr;
@@ -751,6 +766,8 @@ namespace Atom
             << model->m_parts.size() << " parts, "
             << model->m_textures.size() << " textures\n";
 
+        times.totalMs = since(loadStart);
+        model->m_loadTimes = times;
         return model;
     }
 
