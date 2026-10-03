@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.7 / M46**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63).
+A study guide to every concept the engine uses, as of **v0.0.8 / M52**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -72,9 +72,15 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 61. [The flashlight: light as gameplay (M44)](#61-the-flashlight-light-as-gameplay-m44)
 62. [The passage: dust, a beam, and darkness that isn't black (M45)](#62-the-passage-dust-a-beam-and-darkness-that-isnt-black-m45)
 63. [Light culling and measuring performance honestly (M46)](#63-light-culling-and-measuring-performance-honestly-m46)
-64. [Anatomy of a frame and what it costs](#64-anatomy-of-a-frame-and-what-it-costs)
-65. [Build system and project layout](#65-build-system-and-project-layout)
-66. [Glossary](#66-glossary)
+64. [A day sky and the environment state (M47)](#64-a-day-sky-and-the-environment-state-m47)
+65. [Stylized water (M48)](#65-stylized-water-m48)
+66. [Weather as data: presets and blending (M49)](#66-weather-as-data-presets-and-blending-m49)
+67. [Rain and wind (M50)](#67-rain-and-wind-m50)
+68. [A planar reflection (M51)](#68-a-planar-reflection-m51)
+69. [Releasing 0.0.8: a branch that cost when skipped (M52)](#69-releasing-008-a-branch-that-cost-when-skipped-m52)
+70. [Anatomy of a frame and what it costs](#70-anatomy-of-a-frame-and-what-it-costs)
+71. [Build system and project layout](#71-build-system-and-project-layout)
+72. [Glossary](#72-glossary)
 
 ---
 
@@ -1700,7 +1706,179 @@ Looking at what a draw actually binds, not just how long it takes, found it.
 
 ---
 
-## 64. Anatomy of a frame and what it costs
+## 64. A day sky and the environment state (M47)
+
+**Concept: authored colour, not a simulated atmosphere.** A physically based sky (Rayleigh and Mie scattering) computes colour from sun angle and air. Early-2000s fantasy games painted it instead: a colour overhead (**zenith**), a colour at eye level (**horizon**), and a blend between them. It's cheap, it's art-directable, and changing two colours changes the whole mood.
+
+**The gradient.**
+```hlsl
+color = lerp(horizon, zenith, smoothstep(0.0, 0.65, max(dir.y, 0)));
+```
+`smoothstep` starts slowly, so the horizon colour holds a wide band low down and the zenith colour arrives higher up. Below the horizon the colour stays the horizon's. The fog uses the same colour, so distant ground dissolves into the sky with no visible edge.
+
+**The sun** is two terms added on top:
+- **The disc:** where the view direction is within the sun's radius, `smoothstep(cos(radius), …, dot(dir, sunDir))` gives a soft-edged disc. Its colour is about 12× the sun's, so in the HDR target it exceeds the glow threshold and blooms (§41).
+- **The halo:** `pow(dot(dir, sunDir), n)` for a broad glow (n = 6) and a tighter one (n = 64). These are the same "raise a cosine to a power" falloffs as a specular highlight (§59).
+
+**Environment state.** The part of a level's light that weather and time of day change became one plain struct, `EnvironmentState`: sun direction and colour, ambient sky and ground, fog colour and density, the sky gradient, and later water, rain and wind. `LevelLighting` now *inherits* from it and adds what stays the level's own (shadows, bake weight, glow). Inheritance means all existing code that reads `lighting.sunColor` kept working, and passing a `LevelLighting` where an `EnvironmentState` is expected copies just that part (**slicing**, which here is exactly what's wanted).
+
+**Blending.** `Blend(a, b, t)` mixes two states:
+- **Numbers and colours:** linear, `mix(a, b, t)`.
+- **The sun's direction:** mixed, then normalized back to length 1. Halfway between noon and the horizon is still a valid direction. Opposite directions have no middle, so they switch.
+- **Optional parts** (no sky on one side, or no fog density): switch at t = 0.5.
+
+**Fog setting "level".** F5's fog settings gained a default, "level", which uses the level's own `fogDensity`. Existing levels have none, so they look exactly as before.
+
+**Code.** `Game/Level/Environment.*`, `Shaders/SkyGradient.hlsli`, `Shaders/Sky.frag.hlsl` (gradient or panorama, a branch per draw), `Tests/EnvironmentTests.cpp`.
+
+---
+
+## 65. Stylized water (M48)
+
+**Concept.** Water that reads through **colour, movement, silhouette and highlights** rather than optics. There's no refraction, no rendered reflection (that came as an option in §68) and no simulation. The plan was a short recipe:
+
+```
+body colour (shallow → deep)   lit by sky and sun
++ sky colour, by Fresnel       along the rippled reflection
++ the sun's glint              on the ripples
++ foam                         where it meets the shore
+```
+
+**Depth without a depth buffer.** Water usually fades with how much water is under each pixel, which means reading the scene's depth. With MSAA that depth is multisampled and awkward to sample. Instead the depth is **baked into the mesh**: Blender computes the lake bed's height under each water vertex from the same height function that builds the ground, and stores `depth / maxDepth` in the vertex's first UV. The shader reads it as an ordinary interpolated value. It's free at runtime and exact for a static lake.
+
+**Ripples from noise.** The surface height is two layers of value noise drifting in different directions (a slow swell and smaller wind ripples), plus a fine layer for sparkle. The shader never moves vertices: it only needs the **slopes** to tilt the normal. They come from **central differences**, sampling the height a little to each side, `dh/dx ≈ (h(x+e) − h(x−e)) / 2e`. Noise is computed from world position, so neighbouring water meshes ripple as one sheet.
+
+**Fresnel.** Water, like glass, reflects more at grazing angles: about 2% looking straight down, nearly all of it skimming the surface. **Schlick's approximation**:
+```hlsl
+fresnel = 0.02 + 0.98 * pow(1 - dot(n, toEye), 5);
+```
+The reflected colour is the **sky gradient along the reflected ray**, the same function as §64's sky, shared in `SkyGradient.hlsli`. So the water shows the real sky, ripples included, with no extra render. The reflected sun is capped so the separate glint draws the highlight.
+
+**Glint, foam and alpha.**
+- **Glint:** Blinn-Phong with a very high exponent (700) on the rippled normal, a hot sparkle, plus a broad sheen (90).
+- **Foam:** a band where the baked depth is small, broken and drifting with noise.
+- **Alpha:** clear in the shallows (you see the sand), nearly opaque in the deep, and zero exactly at the waterline, so the shore has no hard edge. Fresnel and foam raise it: what water reflects isn't see-through.
+
+**Drawing it.** A material tagged `atom_water` in Blender gets its own pipeline:
+- blended like a decal, with depth testing but no depth writes;
+- no decal depth bias;
+- `Water.frag` as the fragment shader.
+
+It's sorted after the decals, which may lie on what the water covers.
+
+**The lakeshore lab.** A lab level (`ATOM_START_LEVEL=lakeshore`), built like the character lab and outside the demo:
+- a round lake, a sandy shelf, reeds, rocks and trees;
+- low hills;
+- a jetty to walk out on.
+
+It is lit **live**, with the sun and its shadow map; its bake stores only sky occlusion. A lightmap can't follow a sun that a weather preset moves, but occlusion (darker under the jetty, in corners) is true in any weather.
+
+**Code.** `Shaders/Water.frag.hlsl`, `Renderer::GetWaterPipeline`, `Material::water`, `Tools/Blender/atom_lakeshore.py`, `Tests/Scenarios/lakeshore.atomtest`.
+
+---
+
+## 66. Weather as data: presets and blending (M49)
+
+**Concept.** Weather here is **authored state**, not meteorology. A preset is a named set of environment values, and switching presets changes the whole mood at once:
+- **Rain:** dimmer sun, grey sky, denser fog, darker and calmer water.
+- **Sunset:** a low orange sun, a purple-to-orange sky, warm reflections.
+- **Night:** a cold, weak "sun" (a moon whose disc still blooms), a near-black blue sky.
+
+The key idea is that **the water's look is part of the preset**: a rainy lake isn't the sunny lake with rain on top.
+
+**Presets as partial data.** `Assets/Environments/<name>.json` uses the same keys as a level's `lighting` environment, and every key is optional. What a preset leaves out comes from **the level**. `clear_day.json` is empty, meaning "the level as authored". A preset can therefore be used in any level, and the level's own light stays the reference.
+
+**One reader, all or nothing.** The code that reads a level's lighting environment was turned into `ReadEnvironment(json, path, state)`. Levels and presets call the same function. `ApplyEnvironmentPreset` parses into a *copy* and assigns it only if the whole preset is valid. A typo then changes nothing and the error names the field (`/water/skyReflection: must be 0..1`), so the game is never left half-switched.
+
+**The controller.** `EnvironmentController` holds a *from*, a *to* and a timer:
+- **Eased:** `t² (3 − 2t)` (smoothstep), so weather drifts in rather than starting and stopping on a step.
+- **Deterministic:** the state depends only on the elapsed time, so the same switches give the same result at any frame rate. The unit tests compare 12 small steps with one large one.
+- **Change of mind:** a new switch mid-blend starts from *what's showing*, not from the old preset, so nothing jumps.
+
+**Tools.** The F10 Environment panel has a button per preset, a blend time and live sliders for everything showing. Copy as JSON writes a complete preset file. Presets hot reload. The harness has `environment <name> [seconds]` and `expect_environment <name>`, which answers `(blending)` mid-transition. A level offers presets with `"environment": { "default", "presets" }`.
+
+**Code.** `Game/Environment/EnvironmentController.*`, `ApplyEnvironmentPreset` (`LevelData.cpp`), `Assets/Environments/`, `environment.schema.json`, `Tests/EnvironmentControllerTests.cpp`, `Tests/Scenarios/environment.atomtest`.
+
+---
+
+## 67. Rain and wind (M50)
+
+**Rain as streaks.** A raindrop falling at 8 m/s is a short line to the eye, not a dot, because it moves during the eye's exposure. The drops are particles with a `stretch`. The vertex shader builds a thin quad *along the fall direction* instead of a camera-facing square, then turns it about that axis to face the camera as well as it can:
+```hlsl
+side  = normalize(cross(fallDirection, cameraForward));
+world = position + side * corner.x * width + fallDirection * corner.y * length / 2;
+```
+Like the leaves (§25), up to 1,400 drops live in a box that follows the player and wrap around its edges. The rain amount (0..1) decides how many are active. The wind tilts the fall direction, so the streaks slant.
+
+**Rings on the water.** A grid of cells covers the lake. Each cell has a drop at a jittered spot, on its own clock: a ring grows from radius 0 and fades as it does. Each ring pushes the water's normal outward around its radius, which shows as a bright and dark circle. Heavier rain enables more cells, chosen by a hash compared with the rain amount. Two offset grids hide the pattern.
+
+**Wet ground.** Surfaces facing up (`normal.y`) get darker when wet, as wet sand and wood do, and a faint drifting sheen of the sky appears. How this code is compiled turned out to matter; see §69.
+
+**Sound and wind.**
+- **Rain sound:** a new synthesized loop, a wash of filtered noise with occasional close "ticks". It plays only while it rains: a looping silent voice tripped the scenarios' voice-leak checks.
+- **Wind** is now part of the environment and drives the existing gusts, the vertex sway of foliage (§38) and the leaves. The default equals the old fixed wind.
+
+**Code.** `Game/Atmosphere.*` (drops), `Shaders/Particle.vert.hlsl` (streaks), `Water.frag` (`RainRings`), `BasicRain.frag`, `SoundSynth::Rain`, `AudioScape::SetRainLevel`.
+
+---
+
+## 68. A planar reflection (M51)
+
+**Concept.** A **planar reflection** renders the scene a second time from a camera mirrored below the water's plane, into a texture. The water then samples that texture where its Fresnel showed only the sky. It's exact for flat water and costs a second render of whatever it draws, so it was built as an experiment and kept only after measuring it.
+
+**Mirroring the camera.** Reflecting the world in the plane y = h is the matrix *translate(h) · scale(1, −1, 1) · translate(−h)*, applied before the view: `view' = view · mirror`. Two problems follow.
+
+- **Triangles turn inside out.** A mirror reverses winding order: front faces become back faces, and back-face culling would draw the wrong side of everything. Instead of building extra pipelines with the opposite cull mode, the reflected image is also **flipped left-right** (x negated after projection). Two flips restore the winding. The water reads the texture with `u → 1 − u`; because the water lies on the mirror plane, its own pixel maps exactly there.
+- **What's under the water rises into the sky.** Mirrored, the lake bed would appear above the water. It must be clipped at the plane, and there are no clip planes in SDL_GPU. The answer is an **oblique near plane** (Eric Lengyel's technique): rewrite the projection's depth row so its near plane *is* the water plane. The hardware then clips everything below it, with no shader test:
+  ```
+  c  = water plane in view space
+  q  = inverse(P) · (sign(c.x), sign(c.y), 1, 1)   // the far corner opposite the plane
+  P.row2 = c / dot(c, q)                           // for 0..1 depth
+  ```
+  The cost is depth precision far away, which a half-resolution reflection doesn't need.
+
+**What it draws.** At half resolution:
+- the sky;
+- the opaque draws of the near layer, culled to the *mirrored* frustum with the same chunk culling as the main view.
+
+It draws no decals, water, particles or mid and far layers. It runs only when a water surface is in view, and it's lit from the mirrored camera's position so fog and highlights match.
+
+**The decision.** It mirrors the jetty, its posts and the reeds into the water, grounding them. It cost **0.12–0.22 ms** on the Iris Xe. It's kept as an option of the water look (`lighting.water.reflection`, presets can set it) and is on for the lakeshore.
+
+**Code.** `Renderer::RenderReflectionPass`, `EnsureReflectionTargets`, `DrawQueue(..., reflection)`, `Water.frag` (t5), `Tools/Perf/water_and_weather.atomtest`.
+
+---
+
+## 69. Releasing 0.0.8: a branch that cost when skipped (M52)
+
+**What the lake costs.** These are in-process paired benches (§63), two runs, from the beach and from the jetty's end:
+
+| | beach | jetty's end |
+|---|---|---|
+| water | +0.34 ms | +0.68 ms |
+| rain | +0.23 ms | +0.18 ms |
+| both | +0.63 ms | +0.91 ms |
+| reflection | +0.21 ms | +0.14 ms |
+
+- **Water** costs per pixel (noise, Fresnel, sky), so it grows with how much screen it covers. From the jetty it fills the view.
+- **Rain** is mostly its drops: updating 1,400 of them on the CPU, sorting and uploading them, and their overdraw.
+
+**The regression.** The release check compares against the previous release with interleaved builds (`ab.ps1`). The demo levels don't use water, presets or rain, yet the street came out **0.26 ms slower** than v0.0.7.
+
+- **The suspect:** the one per-pixel change every scene draw shared was the rain's wet-ground code in `Basic.frag`. It sat behind `[branch] if (rain > 0)`, a branch that's the same for every pixel and false in every dry level.
+- **The test:** remove that code and nothing else. The street got 0.23 ms back.
+
+This is the same thing §57 found with the weights view. Code that never runs can still cost: its presence changes how the compiler allocates registers and schedules the *whole* shader, and on this GPU that slowed every pixel.
+
+**The fix: a shader variant.** Instead of branching at run time, choose at **compile time**. `BasicRain.frag` is three lines: `#define ATOM_RAIN` and `#include "Basic.frag.hlsl"`. The rain code sits inside `#ifdef ATOM_RAIN`. The renderer keeps a second set of scene and decal pipelines built from the variant and picks them only while it rains. Dry frames run the original shader exactly. Afterwards the street measured −0.035 ms against v0.0.7 and the windmill field −0.007 ms, both within the method's resolution.
+
+**The general lesson** is the trade-off every engine makes between **uber-shaders** (one shader, runtime branches) and **shader permutations** (many compiled variants). Branches keep the pipeline count down; variants keep each shader as lean as what it actually does. Here two variants cost almost nothing to manage and gave the time back. Engines with hundreds of features do the same thing at scale and pay for it in compile time and pipeline caches.
+
+**Code.** `Shaders/BasicRain.frag.hlsl`, `Renderer::GetScenePipeline` (the rain bit in its cache index), `Tools/Perf/ab.ps1`.
+
+---
+
+## 70. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -1736,21 +1914,23 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.5**: the pachinko hall ≈ 2.8 ms walking around (its three screens now simulate the real game), ≈ 3.5 ms seated and playing (the 2D game fullscreen with the hall still drawn underneath); the night street ≈ 3.3 ms, within noise of v0.0.4.
 - **v0.0.6** (measured side by side with a 0.0.5 build, §57): the character lab ≈ 2.35 ms in the viewer, ≈ 2.4 ms with the skeleton, weights and state machine on, ≈ 2.2 ms driving (8 draws, 7 in the shadow pass; the skinned character is 3 of them). The other levels are unchanged: the interior 2.07 ms (0.0.5: 2.06), the pachinko hall 2.85 (2.99 that day), the night street ≈ 3.1.
 - **v0.0.7**, the first measured the M46 way (`ATOM_PERF_LOG` medians of 240-frame blocks, p95 in brackets, plugged in, 144 Hz laptop screen, uncapped): the passage 1.89 ms (4.16) with the flashlight off, 2.32 ms (4.47) on; the machiya interior 2.04 (3.57); the character lab 2.21 (3.38); the pachinko hall 3.04 (9.06); the night street 3.94 (10.38); the street 4.23 (8.88). These are the baseline for later versions; earlier numbers above were averages and aren't directly comparable.
+- **v0.0.8** (same method; Balanced power plan): the lakeshore from the beach per preset - clear day, overcast and fog 3.53 ms, rain 3.90, sunset 3.32, night 3.58. Against v0.0.7, interleaved builds (§69): the street −0.035 ms, the windmill field −0.007, the night street +0.15 (noisy), all within resolution. What the lake's features cost is in §69.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 65. Build system and project layout
+## 71. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
+- **Shader variants** (§69): `BasicRain.frag` includes `Basic.frag` with a define; a change to `Basic.frag` rebuilds both.
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`.
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
@@ -1764,16 +1944,17 @@ Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Input/ (contexts) Pachinko/ (physics, playfield, rules, game, machine mode)
          Character/ (LabViewer, Animator, SpringArm); DemoAppLab (the lab's modes)
          Flashlight; DemoAppDevTools (the ImGui panels)
+         Environment/ (EnvironmentController); Level/Environment (state, Blend)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
-         GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam (.hlsl)
-         + Common.hlsli, Sway.hlsli, Skinning.hlsli
+         GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain (.hlsl)
+         + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
-Tools/Perf/  ab.ps1 (build A/B), benchmark scenarios
+Tools/Perf/  ab.ps1 (build A/B), benchmark scenarios (lights, water and weather)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
-                + bakes (vertex, lightmap, cached) + impostors + markers
+                + lakeshore + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
-Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/ Passage/
-         Data/ (flashlight.json)
+Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/ Passage/ Lakeshore/
+         Data/ (flashlight.json), Environments/ (weather presets)
          ThirdParty/ (used as they came: the lab's character, credits README)
          Sky/ (.glb, lightmap .png, impostor atlas),
          Levels/*.json (+ *.markers.json), Dialogue/*.json,
@@ -1789,7 +1970,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 66. Glossary
+## 72. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -1813,6 +1994,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Beer–Lambert law** — light through a medium decays as e^(−density·distance); the basis of exponential fog.
 - **Beam (faked)** — a visible light shaft drawn as crossed additive planes along a spot's axis instead of volumetric ray marching.
 - **Blinn-Phong** — a specular highlight from the angle between the normal and the half vector (halfway between light and eye), raised to a shininess exponent.
+- **Central differences** — estimating a slope from samples on either side, (h(x+e) − h(x−e)) / 2e; the water's normals from its noise height.
 - **Billboard** — a quad that always faces the camera.
 - **Biquad** — a standard 2nd-order digital filter (low/high/band-pass).
 - **Catenary** — the sag curve of a hanging cable (approximated by a parabola for the power lines).
@@ -1867,6 +2049,8 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Impostor** — a pre-rendered picture of an object on a camera-facing card, showing the view closest to the camera's direction.
 - **Incremental build** — redoing only the work whose inputs changed.
 - **Dear ImGui** — an immediate-mode UI library for developer tools; panels described every frame, `End()` after every `Begin()`.
+- **Environment preset** — a named, partial set of sun, ambient, fog, sky, water, rain and wind values laid over a level's own; weather as data.
+- **Fresnel (Schlick)** — reflection growing toward grazing angles, ≈ F0 + (1 − F0)(1 − cos θ)^5; ~2 % for water seen from above.
 - **Immediate-mode UI** — UI re-described every frame by the game instead of kept as a persistent widget tree.
 - **Instancing** — drawing many copies of a mesh in one draw call with per-instance data.
 - **Integration / scenario test** — a test that drives the real, running program end to end.
@@ -1875,6 +2059,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Keyframe** — a value at a time; animation interpolates between keyframes.
 - **Lambert** — diffuse lighting ∝ cos(angle between normal and light).
 - **Light culling** — deciding per draw which lights can touch it (sphere against box), so the shader skips the rest.
+- **Oblique near plane** — a projection whose near plane is tilted onto an arbitrary plane (Lengyel), so the hardware clips everything behind it; used to clip a reflection at the water.
 - **Lightmap** — a texture of baked light mapped by its own non-overlapping UV set.
 - **Lint** — an automatic check that rejects suspicious input (here: z-fighting geometry at export).
 - **Mover** — an entity capability shuttling it between two points (the train).
@@ -1893,6 +2078,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Orthographic projection** — parallel projection without perspective; used for sun shadows.
 - **PCF** — percentage-closer filtering: averaging several shadow comparisons for soft edges.
 - **Paired difference / ABBA** — measuring A and B alternately (AB BA AB…) and taking each round's B − A as the sample, so machine drift cancels.
+- **Planar reflection** — the scene rendered again from a camera mirrored in a flat surface, sampled by that surface.
 - **Peter-panning** — shadows detached from their caster because of too much bias.
 - **Pipeline** — shaders + fixed-function state, baked.
 - **RAII** — resource acquisition is initialisation: an object's destructor releases what it owns, so cleanup follows ownership automatically.
@@ -1920,6 +2106,8 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Skinning** — deforming a mesh by weighted joints (a skeleton), §53.
 - **Slerp** — spherical linear interpolation between rotations (quaternions), at constant angular speed.
 - **Spot light** — a point light limited to a cone, with inner and outer angles and a range.
+- **Shader variant (permutation)** — the same source compiled with different defines, chosen per draw, instead of a runtime branch (compare uber-shader).
+- **Sky gradient** — an authored zenith-to-horizon colour blend with a sun disc and halo, in place of a simulated atmosphere.
 - **Spring arm** — a third-person camera on an arm that shortens at once in front of walls and eases back out.
 - **Slot map** — a container of reusable slots addressed by generational handles.
 - **Soft clipping** — saturating loud audio smoothly (tanh) instead of hard-cutting at ±1.
@@ -1933,6 +2121,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Tunnelling** — a fast body passing through a thin one between two physics steps.
 - **Third person** — the camera outside the character, usually behind it; movement relative to the camera.
 - **Thermal throttling** — a hot CPU/GPU lowering its clocks, so the same work gets slower during a run.
+- **Streak particle** — a particle drawn as a thin quad along its motion instead of facing the camera; rain.
 - **Tessellation (here)** — splitting large faces into a grid so vertex-stored data (baked light) has vertices to live on.
 - **Texel snapping** — moving a shadow box only in whole-texel steps to stop shimmering.
 - **Tonemapping** — compressing HDR values into the display range with a smooth curve.
@@ -1945,6 +2134,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Voice** — one playing instance of a sound in a mixer.
 - **Vsync** — syncing presentation to the monitor refresh.
 - **Windowed falloff** — inverse-square attenuation multiplied by a window that reaches exactly zero at the light's range.
+- **Uber-shader** — one shader covering many features with runtime branches; fewer pipelines, but skipped code can still cost (§57, §69).
 - **Winding** — vertex order of a triangle (CW/CCW), used for back-face culling.
 - **Wet material** — a material whose emitted light ripples and which catches a moving sheen; the fake wet road.
 - **xorshift** — a tiny, fast pseudo-random generator; seeded, it gives the same sequence on every platform.
