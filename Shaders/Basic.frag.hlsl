@@ -249,16 +249,18 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     }
 
     // Rain (M50): upward surfaces get wet - darker, with a faint sheen of
-    // the sky drifting over them. The same for every pixel of a frame, so
-    // the branch skips it outright when it's dry.
+    // the sky drifting over them. Compiled only into the rain variant
+    // (BasicRain.frag), used while it rains: even skipped by a branch, this
+    // code cost a dry street 0.23 ms on Iris Xe (measured, as in M40).
     float3 surface = lit;
-    [branch] if (u_weather.x > 0.0)
+#ifdef ATOM_RAIN
     {
         const float wet = u_weather.x * saturate(normal.y * 2.0 - 1.0);
         const float2 p = input.worldPosition.xz * 1.3;
         const float shimmer = ValueNoise(p + float2(u_time.x * 0.4, u_time.x * 0.25));
         surface = lit * lerp(1.0, 0.62, wet) + u_skyColor.rgb * wet * (0.08 + 0.12 * shimmer);
     }
+#endif
 
     const float fog = ComputeFog(input.worldPosition) * u_alpha.w;
     const float3 color = lerp(surface + emitted + sheen, u_fogColor.rgb, fog);

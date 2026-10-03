@@ -283,7 +283,7 @@ namespace Atom
         SDL_GPUGraphicsPipeline* GetWaterPipeline(std::uint32_t samples);
         SDL_GPUGraphicsPipeline* CreateScenePipeline(
             std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned,
-            bool water = false);
+            bool water = false, bool rain = false);
         SDL_GPUGraphicsPipeline* CreateShadowPipeline(bool skinned);
         SDL_GPUGraphicsPipeline* GetShadowPipeline(bool skinned)
         {
@@ -348,8 +348,8 @@ namespace Atom
 
         // Indexed by log2(samples): 1x, 2x, 4x.
         // [skinned][samples slot][double-sided][alpha-to-coverage]
-        std::array<SDL_GPUGraphicsPipeline*, 24> m_scenePipelines{};
-        std::array<SDL_GPUGraphicsPipeline*, 6> m_decalPipelines{}; // [skinned][samples slot]
+        std::array<SDL_GPUGraphicsPipeline*, 48> m_scenePipelines{}; // [rain][skinned][samples][sides][a2c]
+        std::array<SDL_GPUGraphicsPipeline*, 12> m_decalPipelines{}; // [rain][skinned][samples slot]
         std::array<SDL_GPUGraphicsPipeline*, 3> m_waterPipelines{}; // [samples slot]
         glm::vec4 m_wind{ 0.0f };
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;

@@ -20,6 +20,7 @@ message(STATUS "AtomEngine shader compiler: ${ATOM_DXC}")
 set(ATOM_SHADER_SOURCES
     Basic.vert.hlsl
     Basic.frag.hlsl
+    BasicRain.frag.hlsl
     Fullscreen.vert.hlsl
     Post.frag.hlsl
     GlowBright.frag.hlsl
@@ -46,6 +47,7 @@ set(ATOM_SHADER_INCLUDES
     Sway.hlsli
     Skinning.hlsli
     SkyGradient.hlsli
+    Basic.frag.hlsl # BasicRain includes it
 )
 list(TRANSFORM ATOM_SHADER_INCLUDES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/" OUTPUT_VARIABLE ATOM_SHADER_INCLUDE_PATHS)
 

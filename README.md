@@ -8,12 +8,14 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.7** — into the dark: a flashlight found in the
-machiya, a spot light with its own shadow map, and a dark passage under the
-house - a cellar and a tunnel up to the windmill field's shed - where chalk
-marks and a bolt are only found in the beam; plus developer tools (Dear
-ImGui, F10) and a way to measure performance that a laptop's drift can't
-fool. (0.0.6 built the character lab.)
+Current version: **0.0.8** — water and weather: a lakeshore lab with
+stylized animated water (tinted shallow to deep, the sky and a planar
+reflection by Fresnel, a sun glint, shore foam), a day sky, and authored
+weather presets - clear day, overcast, rain, fog, sunset, night - that
+shift the sun, ambient light, fog, sky and the water together, blended at
+runtime; rain with wet ground and rings on the water, and wind. Early-2000s
+fantasy-game looks, presented on modern hardware. (0.0.7 went into the
+dark with a flashlight.)
 See [CHANGELOG.md](CHANGELOG.md).
 
 ## What's in it
@@ -26,7 +28,10 @@ light (the flashlight) with a Blinn-Phong highlight from each material's
 roughness and its own perspective shadow map, culled to its cone;
 exponential height fog; a directional shadow map (texel-snapped, PCF); alpha-tested foliage and cloth,
 and decals; emissive masks, a quarter-resolution glow and halo billboards;
-a night-sky panorama; wet surfaces; rigid node animation, skeletal skinning
+a night-sky panorama and a procedural day sky; stylized water (Fresnel
+toward the sky, a half-resolution planar reflection clipped by an oblique
+near plane, glint, foam, rain rings); rain streaks; wet surfaces (rippled sign reflections, and the ground in
+the rain); rigid node animation, skeletal skinning
 (linear blend, up to 64 joints, in the vertex shader) and wind sway; ACES tonemapping, colour grade, film grain and vignette;
 instanced particles, including dust only the beam shows, and a faked
 visible beam; decals revealed only by the spot's light; chunk and cell culling with near/mid/far layers,
@@ -49,8 +54,12 @@ flags and counters; branching, flag-gated dialogue from JSON; a flashlight
 (found, toggled, held a little behind the view) and interactables found
 only in its beam; things that stay gone once taken.
 
-**Tools** — Dear ImGui developer panels (F10: frame, render, lighting and
-spot light tuning with Copy as JSON for the data files, level state), kept
+**Weather** — environment presets as data (sun, ambient, fog, sky, water,
+rain, wind), offered per level and blended deterministically at runtime;
+the wind drives sway, leaves and the rain's slant.
+
+**Tools** — Dear ImGui developer panels (F10: frame, render, lighting,
+environment and spot light tuning with Copy as JSON for the data files, level state), kept
 out of every screenshot; frame-time logging and paired A/B benchmarks
 (see Measuring performance).
 
@@ -289,7 +298,7 @@ Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
 Game/     Character Dialogue Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
 Shaders/  HLSL, compiled to DXIL at build time
 Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
-Assets/   generated models, levels, dialogue, data (flashlight), font
+Assets/   generated models, levels, dialogue, environments, data (flashlight), font
 Tests/    unit tests and in-game scenarios
 external/ pinned dependencies
 ```

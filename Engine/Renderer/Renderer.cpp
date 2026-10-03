@@ -529,11 +529,13 @@ namespace Atom
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
         alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
-        const std::size_t index = (skinned ? 12 : 0) + slot * 4
+        // The rain variant (M50) while it rains.
+        const bool rain = m_lighting.rain > 0.0f;
+        const std::size_t index = (rain ? 24 : 0) + (skinned ? 12 : 0) + slot * 4
             + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
         if (!m_scenePipelines[index])
         {
-            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned);
+            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned, false, rain);
         }
         return m_scenePipelines[index];
     }
@@ -541,10 +543,11 @@ namespace Atom
     SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples, bool skinned)
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
-        const std::size_t index = (skinned ? 3 : 0) + slot;
+        const bool rain = m_lighting.rain > 0.0f;
+        const std::size_t index = (rain ? 6 : 0) + (skinned ? 3 : 0) + slot;
         if (!m_decalPipelines[index])
         {
-            m_decalPipelines[index] = CreateScenePipeline(slot, false, false, true, skinned);
+            m_decalPipelines[index] = CreateScenePipeline(slot, false, false, true, skinned, false, rain);
         }
         return m_decalPipelines[index];
     }
@@ -565,7 +568,8 @@ namespace Atom
         bool alphaToCoverage,
         bool decal,
         bool skinned,
-        bool water
+        bool water,
+        bool rain
     )
     {
         // Skinned meshes: the same fragment shading, a vertex shader that
@@ -579,7 +583,7 @@ namespace Atom
         // Water binds the same resources as the scene, shading them its own way.
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
-            water ? "Water.frag" : "Basic.frag",
+            water ? "Water.frag" : rain ? "BasicRain.frag" : "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
             ShaderResources{ .samplers = water ? 6u : 5u, .uniformBuffers = 2 }
         );
