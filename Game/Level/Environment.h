@@ -27,6 +27,7 @@ namespace AtomGame
         float skyReflection = 0.85f; // 0..1
         float ripple = 1.0f;         // how strongly the surface moves
         float glint = 1.0f;          // M49: the sun's highlight (low under cloud)
+        bool reflection = false;     // M51: mirror the near scene in it (a render pass)
     };
 
     // The part of a level's light that weather and time of day change

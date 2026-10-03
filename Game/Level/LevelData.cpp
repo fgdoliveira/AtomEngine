@@ -133,6 +133,7 @@ namespace AtomGame
                 w.skyReflection = Number(*water, "skyReflection", waterAt, w.skyReflection);
                 w.ripple = Number(*water, "ripple", waterAt, w.ripple);
                 w.glint = Number(*water, "glint", waterAt, w.glint);
+                w.reflection = Bool(*water, "reflection", waterAt, w.reflection);
                 if (w.skyReflection < 0.0f || w.skyReflection > 1.0f || w.ripple < 0.0f || w.glint < 0.0f)
                 {
                     throw LevelError(waterAt, "skyReflection must be 0..1, ripple and glint >= 0");

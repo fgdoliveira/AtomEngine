@@ -93,6 +93,7 @@ namespace Atom
         std::uint32_t renderTextures = 0;  // M27: drawn into this frame
         std::uint32_t renderTextureDraws = 0; // scene draws sampling one
         std::uint32_t waterDraws = 0;      // M48: water surfaces drawn
+        std::uint32_t reflectionDrawn = 0; // M51: draws in the reflection pass
     };
 
     class Renderer
@@ -211,6 +212,9 @@ namespace Atom
         void SetParticleStreak(const glm::vec3& direction) { m_particleStreak = direction; }
         // M51: skip water surfaces (to measure what they cost).
         void SetWaterEnabled(bool enabled) { m_waterEnabled = enabled; }
+        // M51: allow the planar reflection where the water asks for it
+        // (on by default; off to measure it).
+        void SetReflectionEnabled(bool enabled) { m_reflectionEnabled = enabled; }
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
         void SetSettings(const RenderSettings& settings);
@@ -313,7 +317,8 @@ namespace Atom
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection,
             std::uint32_t sceneSamples,
-            bool spotPass = false
+            bool spotPass = false,
+            bool reflection = false // M51: opaque near-layer draws only, not counted
         );
 
         bool RenderShadowPass(
@@ -363,7 +368,19 @@ namespace Atom
         bool RenderCapture(SDL_GPUCommandBuffer* commandBuffer, std::uint32_t width, std::uint32_t height);
         void FinishCapture(SDL_GPUFence* fence);
         void DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
-                     const glm::mat4& projection);
+                     const glm::mat4& projection, const glm::mat4& view, std::uint32_t samples);
+
+        // Planar reflection (M51): the near scene mirrored in
+        // the water's plane, at half resolution, for the water to sample.
+        bool RenderReflectionPass(SDL_GPUCommandBuffer* commandBuffer,
+                                  const glm::mat4& lightViewProjection, const glm::mat4& spotViewProjection);
+        bool EnsureReflectionTargets(std::uint32_t width, std::uint32_t height);
+        bool m_reflectionEnabled = true;
+        bool m_reflectionDrawn = false; // this frame
+        SDL_GPUTexture* m_reflectionColor = nullptr;
+        SDL_GPUTexture* m_reflectionDepth = nullptr;
+        std::uint32_t m_reflectionWidth = 0;
+        std::uint32_t m_reflectionHeight = 0;
         Glow m_glow;
         std::vector<Particle> m_halos;
         std::array<LiveLight, MaxLiveLights> m_liveLights{};

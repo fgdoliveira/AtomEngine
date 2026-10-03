@@ -88,7 +88,8 @@
             "deep": { "$ref": "#/definitions/vec3" },
             "skyReflection": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.85 },
             "ripple": { "type": "number", "minimum": 0, "default": 1.0 },
-            "glint": { "type": "number", "minimum": 0, "default": 1.0, "description": "The sun's highlight on the water." }
+            "glint": { "type": "number", "minimum": 0, "default": 1.0, "description": "The sun's highlight on the water." },
+            "reflection": { "type": "boolean", "default": false, "description": "Mirror the near scene in the water (M51): a half-resolution render pass, ~0.2 ms." }
           }
         },
         "skyGradient": {

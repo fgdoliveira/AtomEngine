@@ -73,7 +73,7 @@ TEST_CASE("A day sky and the level's fog parse, and the fog takes the horizon's 
 TEST_CASE("The water's look parses, with checked values (M48)")
 {
     const auto result = ParseLevel(Level(R"({ "water": { "shallow": [0.2,0.5,0.4], "deep": [0,0.1,0.2],
-        "skyReflection": 0.6, "ripple": 1.5 } })"));
+        "skyReflection": 0.6, "ripple": 1.5, "reflection": true } })"));
     INFO(result.error);
     REQUIRE(result.level.has_value());
     const WaterLook& w = result.level->lighting.water;
@@ -81,6 +81,8 @@ TEST_CASE("The water's look parses, with checked values (M48)")
     CHECK(w.deep.z == doctest::Approx(0.2f));
     CHECK(w.skyReflection == doctest::Approx(0.6f));
     CHECK(w.ripple == doctest::Approx(1.5f));
+    CHECK(w.reflection);
+    CHECK_FALSE(WaterLook{}.reflection); // off unless asked for
 
     CHECK_FALSE(ParseLevel(Level(R"({ "water": { "skyReflection": 2 } })")).level.has_value());
     CHECK_FALSE(ParseLevel(Level(R"({ "water": { "ripple": -1 } })")).level.has_value());

@@ -25,6 +25,10 @@ Texture2D<float4> EmissiveTexture : register(t3, space2);
 SamplerState EmissiveSampler : register(s3, space2);
 Texture2D<float> SpotShadowMap : register(t4, space2);
 SamplerComparisonState SpotShadowSampler : register(s4, space2);
+// M51: the scene mirrored in the water's plane (half
+// resolution, the image flipped left-right), when u_weather.y says so.
+Texture2D<float4> ReflectionTexture : register(t5, space2);
+SamplerState ReflectionSampler : register(s5, space2);
 
 cbuffer MaterialUniforms : register(b0, space3)
 {
@@ -145,6 +149,16 @@ float4 main(PSInput input) : SV_Target0
     else
     {
         sky = lerp(u_fogColor.rgb, u_skyColor.rgb, saturate(reflected.y * 2.0));
+    }
+
+    // The planar reflection (M51): where this pixel is on
+    // screen, mirrored left-right like the reflection image, nudged by the
+    // ripples so the reflection wobbles.
+    [branch] if (u_weather.y > 0.5)
+    {
+        const float2 screen = input.position.xy * u_weather.zw;
+        const float2 uv = float2(1.0 - screen.x, screen.y) + n.xz * 0.05;
+        sky = min(ReflectionTexture.Sample(ReflectionSampler, uv).rgb, 2.0);
     }
 
     // Fresnel (Schlick): water reflects ~2 % looking straight down and

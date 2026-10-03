@@ -215,6 +215,7 @@ namespace AtomGame
                     changed |= ImGui::SliderFloat("Sky reflection", &l.water.skyReflection, 0.0f, 1.0f);
                     changed |= ImGui::SliderFloat("Ripple", &l.water.ripple, 0.0f, 3.0f);
                     changed |= ImGui::SliderFloat("Glint", &l.water.glint, 0.0f, 2.0f);
+                    changed |= ImGui::Checkbox("Reflection", &l.water.reflection);
                     ImGui::TreePop(); // only when TreeNode returned true
                 }
                 changed |= ImGui::Checkbox("Sun shadows", &l.shadows);
@@ -247,9 +248,9 @@ namespace AtomGame
                         extra += "  \"skyGradient\": { \"zenith\": " + Vec3Json(l.sky->zenith)
                             + ", \"horizon\": " + Vec3Json(l.sky->horizon) + ", " + sun + " },\n";
                     }
-                    char water[128];
-                    std::snprintf(water, sizeof(water), "\"skyReflection\": %.3g, \"ripple\": %.3g, \"glint\": %.3g",
-                        l.water.skyReflection, l.water.ripple, l.water.glint);
+                    char water[160];
+                    std::snprintf(water, sizeof(water), "\"skyReflection\": %.3g, \"ripple\": %.3g, \"glint\": %.3g%s",
+                        l.water.skyReflection, l.water.ripple, l.water.glint, l.water.reflection ? ", \"reflection\": true" : "");
                     extra += "  \"water\": { \"shallow\": " + Vec3Json(l.water.shallow)
                         + ", \"deep\": " + Vec3Json(l.water.deep) + ", " + water + " },\n";
                     const std::string json = std::string("\"lighting\": {\n")
@@ -324,6 +325,7 @@ namespace AtomGame
                 changed |= ImGui::SliderFloat("Sky reflection", &e.water.skyReflection, 0.0f, 1.0f);
                 changed |= ImGui::SliderFloat("Ripple", &e.water.ripple, 0.0f, 3.0f);
                 changed |= ImGui::SliderFloat("Glint", &e.water.glint, 0.0f, 2.0f);
+                changed |= ImGui::Checkbox("Water reflection", &e.water.reflection);
                 changed |= ImGui::SliderFloat("Rain", &e.rain, 0.0f, 1.0f);
                 changed |= ImGui::DragFloat3("Wind (m/s)", &e.wind.x, 0.02f, -6.0f, 6.0f);
                 if (changed)
@@ -354,8 +356,8 @@ namespace AtomGame
                         json += "  \"skyGradient\": { \"zenith\": " + Vec3Json(e.sky->zenith)
                             + ", \"horizon\": " + Vec3Json(e.sky->horizon) + ", " + number + " },\n";
                     }
-                    std::snprintf(number, sizeof(number), "\"skyReflection\": %.3g, \"ripple\": %.3g, \"glint\": %.3g",
-                        e.water.skyReflection, e.water.ripple, e.water.glint);
+                    std::snprintf(number, sizeof(number), "\"skyReflection\": %.3g, \"ripple\": %.3g, \"glint\": %.3g%s",
+                        e.water.skyReflection, e.water.ripple, e.water.glint, e.water.reflection ? ", \"reflection\": true" : "");
                     json += "  \"water\": { \"shallow\": " + Vec3Json(e.water.shallow)
                         + ", \"deep\": " + Vec3Json(e.water.deep) + ", " + number + " }\n}\n";
                     SDL_SetClipboardText(json.c_str());

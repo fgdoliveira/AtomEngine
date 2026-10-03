@@ -73,6 +73,7 @@ namespace Atom
         float waterSkyReflection = 0.85f;
         float waterRipple = 1.0f;
         float waterGlint = 1.0f; // M49
+        bool waterReflection = false; // M51: the planar reflection pass
 
         // Rain (M50): wets upward surfaces and rings the water, 0..1.
         float rain = 0.0f;

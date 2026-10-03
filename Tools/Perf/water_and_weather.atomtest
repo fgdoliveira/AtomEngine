@@ -15,6 +15,9 @@
 # Water costs with the screen it covers (per pixel: noise, Fresnel, sky);
 # rain is mostly its 1,400 drops (CPU update, sort, upload) and their
 # overdraw. Together under 1 ms at worst: affordable, nothing to optimise.
+#   reflection    +0.201 / +0.217  +0.121 / +0.150 ms
+# The planar reflection (an experiment, kept): the opaque near scene
+# mirrored at half resolution; the lakeshore's draws are few.
 timeout 600
 wait 2
 teleport -3 0.25 -2 20                # the beach
@@ -22,9 +25,11 @@ wait 1
 bench water off on 8 2
 bench rain 0 1 8 2
 bench weather off on 8 2
+bench reflection off on 8 2
 teleport 0 0.5 -16 0                  # the jetty's end
 wait 1
 bench water off on 8 2
 bench rain 0 1 8 2
 bench weather off on 8 2
+bench reflection off on 8 2
 quit
