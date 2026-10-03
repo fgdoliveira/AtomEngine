@@ -1,0 +1,30 @@
+# What the lakeshore pays for its water and weather (M51), measured
+# in-process (see README, Measuring performance). Each bench is "off on"
+# (rain "0 1"), so the reported B - A is the cost; "weather" is water and
+# rain together. Two views: from the beach across the shallows, and from
+# the jetty's end out over open water.
+#
+#   ATOM_VSYNC=0 ATOM_START_LEVEL=lakeshore ATOM_TEST_SCRIPT=Tools/Perf/water_and_weather.atomtest AtomGame.exe
+#
+# v0.0.8, laptop plugged in (Iris Xe, 1280x720, Balanced power plan), two
+# runs, median paired deltas:
+#                 beach            jetty's end
+#   water         +0.340 / +0.331  +0.685 / +0.681 ms
+#   rain          +0.253 / +0.208  +0.163 / +0.191 ms
+#   weather       +0.600 / +0.663  +0.889 / +0.933 ms
+# Water costs with the screen it covers (per pixel: noise, Fresnel, sky);
+# rain is mostly its 1,400 drops (CPU update, sort, upload) and their
+# overdraw. Together under 1 ms at worst: affordable, nothing to optimise.
+timeout 600
+wait 2
+teleport -3 0.25 -2 20                # the beach
+wait 1
+bench water off on 8 2
+bench rain 0 1 8 2
+bench weather off on 8 2
+teleport 0 0.5 -16 0                  # the jetty's end
+wait 1
+bench water off on 8 2
+bench rain 0 1 8 2
+bench weather off on 8 2
+quit

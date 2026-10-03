@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -126,7 +127,18 @@ namespace AtomGame
     {
     public:
         explicit TestRunner(std::vector<TestCommand> commands, float timeoutSeconds = 180.0f)
-            : m_commands(std::move(commands)), m_timeout(timeoutSeconds) {}
+            : m_commands(std::move(commands)), m_timeout(timeoutSeconds)
+        {
+            // M51: "timeout <seconds>" anywhere in the script raises it (long benchmarks).
+            for (const TestCommand& command : m_commands)
+            {
+                if (command.name == "timeout" && !command.args.empty())
+                {
+                    const float seconds = std::strtof(command.args[0].c_str(), nullptr);
+                    m_timeout = seconds > 0.0f ? seconds : m_timeout;
+                }
+            }
+        }
 
         void Update(float deltaSeconds, TestHooks& game);
 

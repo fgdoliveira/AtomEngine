@@ -68,6 +68,7 @@ namespace AtomGame
                 { "set_counter", { 2, 2 } },        // name value
                 { "bench", { 5, 6 } },              // setting a b rounds seconds [settle]: A/B in-process
                 { "expect_bench_under", { 1, 1 } }, // ms: the last bench's median B - A is below it
+                { "timeout", { 1, 1 } },            // seconds the whole script may take (default 180)
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -709,6 +710,10 @@ namespace AtomGame
                 Fail(command, "surface is '" + game.SurfaceName() + "'");
             }
             return true;
+        }
+        if (name == "timeout")
+        {
+            return true; // read when the script starts
         }
         if (name == "log")
         {

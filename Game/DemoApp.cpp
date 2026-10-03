@@ -1143,7 +1143,7 @@ namespace AtomGame
             lighting.waterSkyReflection = e.water.skyReflection;
             lighting.waterRipple = e.water.ripple;
             lighting.waterGlint = e.water.glint;
-            lighting.rain = level->GetData().outdoor ? e.rain : 0.0f; // indoors it rains elsewhere
+            lighting.rain = level->GetData().outdoor ? m_rainOverride.value_or(e.rain) : 0.0f; // indoors it rains elsewhere
         }
         const float presetFog = FogPresets[m_fogPreset].density;
         lighting.fogDensity = presetFog < 0.0f ? levelFog : presetFog;
@@ -1649,6 +1649,15 @@ namespace AtomGame
         else if (what == "shadows" && onOff) m_shadowsEnabled = on;
         else if (what == "sun" && onOff) m_sunEnabled = on;
         else if (what == "particles" && onOff) m_atmosphere.SetEnabled(on);
+        else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
+        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_rainOverride = number;
+        else if (what == "rain" && value == "level") m_rainOverride.reset(); // the environment's again
+        else if (what == "weather" && onOff)
+        {
+            // M51: the lake's weather all at once - water and rain - or none.
+            renderer.SetWaterEnabled(on);
+            m_rainOverride = on ? 1.0f : 0.0f;
+        }
         else if (what == "unease" && onOff) m_unease.SetEnabled(on);
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;

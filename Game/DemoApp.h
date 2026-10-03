@@ -194,6 +194,7 @@ namespace AtomGame
         std::map<std::string, std::string> m_presets; // name -> file text (Assets/Environments)
         std::string m_environmentName;                // showing or heading for; "" = the level's own
         float m_environmentSeconds = 3.0f;            // dev tools: how long a switch blends
+        std::optional<float> m_rainOverride;          // M51: "set rain" for benchmarks
         FileWatcher m_environmentFiles;
         void LoadEnvironmentPresets();
         EnvironmentState ResolveEnvironment(const std::string& name) const;

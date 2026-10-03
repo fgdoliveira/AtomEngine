@@ -1268,6 +1268,10 @@ namespace Atom
             {
                 continue;
             }
+            if (!m_waterEnabled && command.material->water > 0.0f)
+            {
+                continue;
+            }
             if (!IsVisible(frustum, *command.mesh, command.model))
             {
                 continue;
