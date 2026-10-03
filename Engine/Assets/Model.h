@@ -87,6 +87,18 @@ namespace Atom
             const std::string& path
         );
 
+        // Where its load time went (M57, audit ASSET-002): reading the
+        // glTF, decoding images, creating GPU textures and meshes, and the
+        // rest (vertex conversion, materials, nodes, animation).
+        struct LoadTimes
+        {
+            double parseMs = 0.0;
+            double decodeMs = 0.0;
+            double uploadMs = 0.0;
+            double totalMs = 0.0;
+        };
+        const LoadTimes& GetLoadTimes() const { return m_loadTimes; }
+
         // Queues every part, placed by `transform`. With a clip, animated
         // parts are posed at `time` (seconds into the clip); the rest keep
         // their baked transforms.
@@ -128,6 +140,7 @@ namespace Atom
         void SetLightmap(const Texture* lightmap, float intensity);
 
     private:
+        LoadTimes m_loadTimes;
         std::vector<std::unique_ptr<Texture>> m_textures;
         std::vector<std::unique_ptr<Mesh>> m_meshes;
         std::vector<Material> m_materials; // last entry is the fallback

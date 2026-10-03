@@ -27,15 +27,19 @@ add_executable(
     LightingTests.cpp
     FlashlightTests.cpp
     FrameStatsTests.cpp
+    GpuResourcesTests.cpp
     EnvironmentTests.cpp
     EnvironmentControllerTests.cpp
     PairedBenchTests.cpp
+    GameDiagnosticsTests.cpp
+    FakeGame.h
 )
 
 target_link_libraries(
     AtomTests
     PRIVATE
         AtomGameLib
+        nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 
 target_include_directories(
@@ -53,6 +57,11 @@ target_compile_definitions(
         ATOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
+# In-game scenarios need the game (ATOM_BUILD_GAME).
+if(NOT TARGET AtomGame)
+    return()
+endif()
+
 # In-game scenarios: each Tests/Scenarios/*.atomtest runs the real game with
 # ATOM_TEST_SCRIPT set (needs a GPU and a window). `ctest -L scenario` runs
 # them; `ctest -LE scenario` runs only the fast unit tests.
@@ -65,6 +74,8 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
         PROPERTIES
             ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
             LABELS scenario
+            # M53: a GPU wrapper outliving the renderer fails the scenario.
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
             TIMEOUT 240
     )
 endforeach()

@@ -16,6 +16,10 @@ target_sources(
         Platform/Input.cpp
         Platform/Window.cpp
         Renderer/Glow.cpp
+        Core/AssetLog.cpp
+        Core/AssetLog.h
+        Renderer/GpuResources.cpp
+        Renderer/GpuResources.h
         Renderer/Mesh.cpp
         Renderer/RenderTargets.cpp
         Renderer/Renderer.cpp
@@ -65,20 +69,27 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/external/stb
 )
 
+# PUBLIC: what the engine's own headers expose (SDL types, GLM maths).
+# PRIVATE: what only its implementation uses - ImGui stays inside
+# DevTools.cpp (M54, audit BUILD-001).
 target_link_libraries(
     AtomEngine
     PUBLIC
         SDL3::SDL3
         glm::glm
+    PRIVATE
         imgui
 )
 
+# The GLM settings change what GLM's headers mean, so every user needs
+# them; the version string is the engine's own.
 target_compile_definitions(
     AtomEngine
     PUBLIC
         GLM_FORCE_DEPTH_ZERO_TO_ONE
-        ATOM_VERSION="${PROJECT_VERSION}"
         GLM_FORCE_RADIANS
+    PRIVATE
+        ATOM_VERSION="${PROJECT_VERSION}"
 )
 
 target_compile_features(

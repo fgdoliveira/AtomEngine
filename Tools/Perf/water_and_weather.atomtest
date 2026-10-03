@@ -18,6 +18,10 @@
 #   reflection    +0.201 / +0.217  +0.121 / +0.150 ms
 # The planar reflection (an experiment, kept): the opaque near scene
 # mirrored at half resolution; the lakeshore's draws are few.
+# (Until M53 a bench ended on whichever half ran last: after "weather off
+# on" the water was left off, and this bench compared nothing with
+# nothing, ~0 ms - what the 2026-10-03 audit measured. Benches now end on
+# their second value.)
 timeout 600
 wait 2
 teleport -3 0.25 -2 20                # the beach
@@ -25,11 +29,13 @@ wait 1
 bench water off on 8 2
 bench rain 0 1 8 2
 bench weather off on 8 2
+set rain level                        # the reflection alone: no forced rain
 bench reflection off on 8 2
 teleport 0 0.5 -16 0                  # the jetty's end
 wait 1
 bench water off on 8 2
 bench rain 0 1 8 2
 bench weather off on 8 2
+set rain level                        # the reflection alone: no forced rain
 bench reflection off on 8 2
 quit

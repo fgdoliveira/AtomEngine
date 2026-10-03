@@ -36,6 +36,14 @@ namespace AtomGame
                 return alive;
             }
             std::shared_ptr<Atom::Model> model = Atom::Model::Load(renderer, path);
+            if (model)
+            {
+                const Atom::Model::LoadTimes& t = model->GetLoadTimes();
+                m_loadTimes.parseMs += t.parseMs;
+                m_loadTimes.decodeMs += t.decodeMs;
+                m_loadTimes.uploadMs += t.uploadMs;
+                m_loadTimes.totalMs += t.totalMs;
+            }
             entry.model = model;
             entry.written = error ? std::filesystem::file_time_type{} : written;
             ++m_loads;
@@ -44,6 +52,8 @@ namespace AtomGame
 
         std::size_t GetHits() const { return m_hits; }
         std::size_t GetLoads() const { return m_loads; }
+        // M57: the summed stage times of every model loaded (not reused).
+        const Atom::Model::LoadTimes& GetLoadTimes() const { return m_loadTimes; }
 
     private:
         struct Entry
@@ -55,5 +65,6 @@ namespace AtomGame
         std::unordered_map<std::string, Entry> m_entries;
         std::size_t m_hits = 0;
         std::size_t m_loads = 0;
+        Atom::Model::LoadTimes m_loadTimes;
     };
 }

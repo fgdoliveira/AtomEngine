@@ -1,4 +1,5 @@
 #include "Audio/AudioSystem.h"
+#include "Core/AssetLog.h"
 
 #include <SDL3/SDL.h>
 
@@ -137,6 +138,7 @@ namespace Atom
         SDL_AudioSpec sourceSpec{};
         Uint8* sourceData = nullptr;
         Uint32 sourceLength = 0;
+        AssetLog::Opened(path);
         if (!SDL_LoadWAV(path.c_str(), &sourceSpec, &sourceData, &sourceLength))
         {
             std::cerr << "Failed to load WAV '" << path << "': " << SDL_GetError() << '\n';

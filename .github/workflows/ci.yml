@@ -1,0 +1,48 @@
+# Continuous integration (M55, audit TEST-001): on every push and pull
+# request, a fresh Windows machine clones the repository with its pinned
+# submodules, configures without the game (ATOM_BUILD_GAME=OFF: no shader
+# compiler needed), builds the unit tests in Release and runs them.
+#
+# What stays local, on a machine with a GPU: the in-game scenarios
+# (Tests/Scenarios) and every performance measurement - hosted runners
+# have no real GPU, and their timings are too noisy to judge by.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit tests (Windows, Release)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure (libraries and tests, no game)
+        run: cmake -B build -S . -DATOM_BUILD_GAME=OFF -DATOM_BUILD_TESTS=ON
+
+      - name: Build AtomTests
+        run: cmake --build build --config Release --target AtomTests --parallel
+
+      - name: Run the unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Keep the test log if anything failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: build/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore

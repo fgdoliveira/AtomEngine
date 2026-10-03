@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.8 / M52**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69).
+A study guide to every concept the engine uses, as of **v0.0.9 / M58**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -78,9 +78,15 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 67. [Rain and wind (M50)](#67-rain-and-wind-m50)
 68. [A planar reflection (M51)](#68-a-planar-reflection-m51)
 69. [Releasing 0.0.8: a branch that cost when skipped (M52)](#69-releasing-008-a-branch-that-cost-when-skipped-m52)
-70. [Anatomy of a frame and what it costs](#70-anatomy-of-a-frame-and-what-it-costs)
-71. [Build system and project layout](#71-build-system-and-project-layout)
-72. [Glossary](#72-glossary)
+70. [An architecture audit, and checked GPU lifetimes (M53)](#70-an-architecture-audit-and-checked-gpu-lifetimes-m53)
+71. [Honest CMake: PUBLIC, PRIVATE and build options (M54)](#71-honest-cmake-public-private-and-build-options-m54)
+72. [Continuous integration (M55)](#72-continuous-integration-m55)
+73. [The runtime asset payload, from evidence (M56)](#73-the-runtime-asset-payload-from-evidence-m56)
+74. [Diagnostics out of the coordinator, and load timings (M57)](#74-diagnostics-out-of-the-coordinator-and-load-timings-m57)
+75. [Writing the architecture down, and tooling that doesn't hang (M58)](#75-writing-the-architecture-down-and-tooling-that-doesnt-hang-m58)
+76. [Anatomy of a frame and what it costs](#76-anatomy-of-a-frame-and-what-it-costs)
+77. [Build system and project layout](#77-build-system-and-project-layout)
+78. [Glossary](#78-glossary)
 
 ---
 
@@ -1878,7 +1884,162 @@ This is the same thing §57 found with the weights view. Code that never runs ca
 
 ---
 
-## 70. Anatomy of a frame and what it costs
+## 70. An architecture audit, and checked GPU lifetimes (M53)
+
+**Concept: an audit before a rewrite.** After fifty-two milestones the engine was reviewed as a whole (2026-10-03): target dependencies, ownership, lifecycles, the renderer, assets, tests. The verdict was **no correctness failure and no case for a rewrite**. Its value was naming *where growth strains*, and just as importantly *what to protect*:
+- the one-way game → engine dependency;
+- immediate renderer submission;
+- the slot-map world;
+- committed deterministic assets;
+- the paired measurements.
+
+v0.0.9 is that audit's findings, done in small commits. The audit also rejected the things a growing engine is tempted by: an ECS, a render graph, an RHI, plugins, scripting, an asset database. Each needs a measured trigger first (§75).
+
+**A contract in comments is not a contract.** `Mesh` and `Texture` free their GPU memory through a raw `SDL_GPUDevice*` they don't own. If one outlives the renderer, it calls SDL on a destroyed device: a use-after-free during teardown, silent until it crashes. The rule "destroy before the device" existed only in comments.
+
+**Making it executable.**
+- **Counting:** `GpuResources` counts live wrappers per device and kind. Each `Mesh`/`Texture` constructor counts itself in, and each destructor counts itself out.
+- **Checking:** `Renderer::Shutdown` asks for the report *before* destroying the device: "GPU resources still alive at shutdown: 2 textures, 1 mesh; 0 render textures registered". It always logs, and asserts in Debug.
+- **In the tests:** the scenarios' ctest definition fails on that line (`FAIL_REGULAR_EXPRESSION`), so a leak introduced anywhere fails the scenarios at once.
+- **Ownership is unchanged:** the same `unique_ptr`s and the same raw pointers. This is the cheapest enforcement, not a redesign (renderer-owned handles would be the heavy alternative).
+
+**A measurement that measured nothing.** The audit found the reflection costing ~0 ms where M51 had measured ~0.15 ms. The pass wasn't broken; the *benchmark* was:
+- `bench` alternates AB BA, so after an even number of rounds it ended on A;
+- `bench weather off on`, run just before, left the water **off**;
+- the reflection only runs over water, so `bench reflection` compared nothing with nothing.
+
+`bench` now always ends on its second value. The lesson: when two measurements disagree, check the *measuring* before the *measured*.
+
+**Code.** `Engine/Renderer/GpuResources.*`, `Renderer::Shutdown`, `Tests/GpuResourcesTests.cpp`, `TestScript` (`bench` ends on B, `expect_reflection`).
+
+---
+
+## 71. Honest CMake: PUBLIC, PRIVATE and build options (M54)
+
+**Concept: usage requirements.** A CMake target declares what it needs with a scope:
+
+| Scope | Meaning | Example here |
+|---|---|---|
+| `PRIVATE` | my `.cpp` files need it | ImGui inside `DevTools.cpp` |
+| `PUBLIC` | my headers need it, so anyone including them does too | SDL types, GLM maths |
+| `INTERFACE` | only my users need it | (header-only libraries) |
+
+Over-using `PUBLIC` makes everything compile. It also hides who depends on what. The game's developer panels used ImGui only because the engine leaked it through a `PUBLIC` link, and every consumer rebuilt for headers it never used. M54 declared each dependency where it's used:
+- **ImGui:** `PRIVATE` in the engine and in the game library.
+- **JSON:** `PRIVATE` in the game library; the tests link it themselves.
+- **The version string:** `PRIVATE` in each target that prints it.
+
+SDL and GLM, plus the GLM defines that change what GLM's headers mean, stay `PUBLIC`.
+
+**A build option that removes a tool.** `ATOM_BUILD_GAME` (default ON) gates the executable, the shader compilation and the in-game scenarios. Off, the engine and game libraries and the unit tests build **without `dxc`**. That's what lets a plain CI machine build and test the engine. All three combinations (game+tests, tests only, game only) were built from clean directories.
+
+**Code.** root, `Engine/`, `Game/` and `Tests/` `CMakeLists.txt`.
+
+---
+
+## 72. Continuous integration (M55)
+
+**Concept.** **CI** runs the build and the tests on a clean machine for every change pushed. It catches the "works on my machine" failures a developer can't see locally:
+- a file not added;
+- a submodule not pinned;
+- a dependency installed only on the laptop.
+
+Engines of every size do this. Large ones run every platform, shader compilation and packaging; small ones run the cheap part.
+
+**What runs where.** GitHub Actions (`.github/workflows/ci.yml`), on every push and pull request:
+1. a fresh Windows runner clones with submodules;
+2. it configures with `ATOM_BUILD_GAME=OFF` (no shader compiler, §71);
+3. it builds `AtomTests` in Release and runs `ctest`.
+
+**What doesn't run there, and why:**
+- **The in-game scenarios:** hosted runners have no real GPU.
+- **Performance:** timings on shared machines are too noisy to gate on.
+
+Both stay local. CI is a confirmation *after* pushing, not a replacement for testing while working (§75).
+
+**Code.** `.github/workflows/ci.yml`; README "Testing".
+
+---
+
+## 73. The runtime asset payload, from evidence (M56)
+
+**Concept: source and product.** The vocabulary engines use for content (O3DE uses it too):
+- **Source:** what people edit (the Blender scripts, hand-written JSON).
+- **Products:** what tools generate from it (GLB, PNG, markers, DXIL).
+- **Runtime payload:** the products the game needs at run time.
+
+The build used to copy all of `Assets/` next to the game, so nothing could answer "what does the game need to run?".
+
+**Evidence first.**
+- **A log:** `ATOM_ASSET_LOG=<file>` makes every loader report each path it opens, once: models, textures, collision, fonts, WAV, levels, dialogue, playfields, impostors, presets, data.
+- **The run:** every scenario plus a visit to every level opened **86 files from 20 folders**. `Schemas/` was never opened; editors and the authoring tests read it from the source tree.
+
+**The list.** `Game/CMakeLists.txt` now names those 20 folders and copies them with `copy_directory_if_different`, which requires CMake 3.26. It works **per folder, not per file**: only 14 of the 31 kit models are used today, and a file list would break the day a level uses another. To validate it, the copied `Assets` folders were deleted, rebuilt from the list alone, and every scenario passed against them. Hot reload (`ATOM_ASSET_ROOT`) still reads the full source tree.
+
+**Code.** `Engine/Core/AssetLog.*` (and its calls in each loader), `Game/CMakeLists.txt`.
+
+---
+
+## 74. Diagnostics out of the coordinator, and load timings (M57)
+
+**Concept: extract what changes for its own reasons.** `DemoApp` had become the place where everything meets. Gameplay coordination belongs there; measurement and test control do not. `GameDiagnostics` took the frame-time log, the scripted test runner (and the exit code it produces) and the fixed time step. `DemoApp` keeps the frame's explicit order and calls it.
+
+This is one owned collaborator, not a framework: no event bus, no service interfaces.
+
+**Characterization tests first.** Before moving code, tests pinned what it *did*:
+- the PERF line byte for byte, since `ab.ps1` parses it;
+- the warm-up and blocks, and the CSV;
+- the fixed step;
+- the test exit code: 0 or 1, reported once.
+
+Moving code under such tests turns "I think it's the same" into "the tests say it's the same". The perf output now goes to any stream, which is what made it testable.
+
+**Measure before optimizing loading.** Each model records four stage times:
+- **parse:** the glTF;
+- **decode:** the images;
+- **upload:** creating GPU textures and meshes;
+- **build:** everything else.
+
+Every level load logs the total, models loaded versus reused, and where the time went. The night street: **173 ms, 11 models, 82 ms of it GPU upload**, against 2 ms of parsing. A faster parser (fastgltf) would change almost nothing here. If loading ever needs to be faster, upload is where to look. That's the kind of evidence the audit asked for before any loader refactor.
+
+**Code.** `Game/Testing/GameDiagnostics.*`, `Tests/GameDiagnosticsTests.cpp`, `Tests/FakeGame.h`, `Model::LoadTimes`, `ModelCache`, `Level::Create`.
+
+---
+
+## 75. Writing the architecture down, and tooling that doesn't hang (M58)
+
+**An architecture document.** `docs/Architecture.md` is the *structure* counterpart to this manual's concepts. Its key correction concerns the layering. It isn't "Application → Engine → Game":
+- **`Atom::Application`** is the engine's runtime and **composition root**: it owns and orders every subsystem.
+- **`DemoApp`** is the concrete game deriving from it.
+- There is **no `Engine` object**, and adding one would duplicate `Application`.
+
+The document also covers diagrams of targets, lifecycles and passes, the GPU lifetime rule, the asset vocabulary, and **architecture decision records**. An ADR is a short note of a decision, its reasons and when to revisit it. Its table "when to add what" names the trigger for each tempting addition: an ECS when entity queries are measured as painful; fastgltf when parsing fails a requirement; Jolt when dynamic 3D bodies enter scope.
+
+**A watchdog for external runs.** `ab.ps1` waited on each game run forever. The game's script timeout counts *game* time, which stops if frames stop (a covered window, a driver stall, a dialog box). Now:
+- each run has a **wall-clock** limit;
+- a hung run is killed and retried once, and a second hang stops the comparison while keeping the measured rounds;
+- the environment variables it sets are restored in a `finally` block. They used to linger in the caller's shell, so a later manual launch started in the benchmark level and quit.
+
+The general rule: a timeout inside the process can't catch the process hanging; something outside must watch the clock.
+
+**A validation ladder.** Check a change with the cheapest step that can catch its mistakes, and climb only when that passes:
+
+| Level (`Tools/Dev/check.ps1`) | Runs | For |
+|---|---|---|
+| `docs` | nothing | `.md`, CHANGELOG, `.gitignore`, the CI workflow |
+| `quick` | one incremental build + unit tests | the inner loop; content JSON |
+| `feature` | quick + the named scenarios | a feature, with a change-to-scenario map |
+| `full` | Debug and Release, everything | before a milestone or release commit |
+
+Use Debug for asserts and lifetime checks, Release for anything timed. Rebuild assets only when content changes. The full matrix is a **gate**, not the inner loop. A `CLAUDE.md` gives agents the same rules. It also bans editing escaped source (`\n`) through inline scripts, whose extra quoting layers broke C++ string literals three times in this project.
+
+**Releasing 0.0.9.** No feature, so no runtime cost: against v0.0.8 with interleaved builds, the street +0.027 ms and the lakeshore +0.024 ms, within resolution.
+
+**Code.** `docs/Architecture.md`, `Tools/Perf/ab.ps1`, `Tools/Dev/check.ps1`, `CLAUDE.md`.
+
+---
+
+## 76. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -1915,14 +2076,17 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.6** (measured side by side with a 0.0.5 build, §57): the character lab ≈ 2.35 ms in the viewer, ≈ 2.4 ms with the skeleton, weights and state machine on, ≈ 2.2 ms driving (8 draws, 7 in the shadow pass; the skinned character is 3 of them). The other levels are unchanged: the interior 2.07 ms (0.0.5: 2.06), the pachinko hall 2.85 (2.99 that day), the night street ≈ 3.1.
 - **v0.0.7**, the first measured the M46 way (`ATOM_PERF_LOG` medians of 240-frame blocks, p95 in brackets, plugged in, 144 Hz laptop screen, uncapped): the passage 1.89 ms (4.16) with the flashlight off, 2.32 ms (4.47) on; the machiya interior 2.04 (3.57); the character lab 2.21 (3.38); the pachinko hall 3.04 (9.06); the night street 3.94 (10.38); the street 4.23 (8.88). These are the baseline for later versions; earlier numbers above were averages and aren't directly comparable.
 - **v0.0.8** (same method; Balanced power plan): the lakeshore from the beach per preset - clear day, overcast and fog 3.53 ms, rain 3.90, sunset 3.32, night 3.58. Against v0.0.7, interleaved builds (§69): the street −0.035 ms, the windmill field −0.007, the night street +0.15 (noisy), all within resolution. What the lake's features cost is in §69.
+- **v0.0.9** adds no feature: against v0.0.8 (interleaved builds) the street +0.027 ms and the lakeshore +0.024 ms, within resolution. Level loads now log their own timing (§74), e.g. the night street 173 ms, mostly GPU upload.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 71. Build system and project layout
+## 77. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
+- **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73). CMake 3.26 or later.
+- **CI** (§72): `.github/workflows/ci.yml`, unit tests on every push. **Validation ladder** (§75): `Tools/Dev/check.ps1`.
 - **Shader variants** (§69): `BasicRain.frag` includes `Basic.frag` with a define; a change to `Basic.frag` rebuilds both.
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
@@ -1930,9 +2094,9 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`.
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
-- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63).
+- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
@@ -1949,7 +2113,8 @@ Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
-Tools/Perf/  ab.ps1 (build A/B), benchmark scenarios (lights, water and weather)
+Tools/Perf/  ab.ps1 (build A/B, hang guard), benchmark scenarios (lights, water and weather)
+Tools/Dev/  check.ps1 (the validation ladder)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + lakeshore + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
@@ -1959,7 +2124,8 @@ Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/ Pass
          Sky/ (.glb, lightmap .png, impostor atlas),
          Levels/*.json (+ *.markers.json), Dialogue/*.json,
          Schemas/*.schema.json, Fonts/
-docs/    this manual
+docs/    this manual and Architecture.md
+.github/ CI workflow; CLAUDE.md: working rules for agents
 Tests/   unit tests (*.cpp), Scenarios/*.atomtest
 external/ SDL glm cgltf stb json doctest imgui
 ```
@@ -1970,7 +2136,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 72. Glossary
+## 78. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -1978,6 +2144,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Alpha dilation** — filling transparent texels with nearby opaque colour so filtering doesn't pull dark fringes into cut-out edges.
 - **Alpha test / alpha mask** — drawing a pixel or discarding it by comparing its alpha with a cutoff; no sorting needed.
 - **Alpha-to-coverage** — with MSAA, turning a pixel's alpha into how many of its samples are covered: soft cut-out edges without sorting.
+- **ADR (architecture decision record)** — a short note of a decision, why it was taken, and when to revisit it.
 - **Animation event** — a named moment of a clip (a foot touching down) that fires when playback crosses it.
 - **Animation state machine** — states (clips or blends) and transitions on parameters, as data; gameplay only sets the parameters.
 - **Atlas** — several small images packed into one texture.
@@ -2005,10 +2172,13 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Counter (game state)** — a named number that outlives levels (tokens, balls), next to the yes/no flags.
 - **Crossfade** — blending from one animation to the next over a short time, so the pose doesn't pop.
 - **Cyclorama** — a studio backdrop curving seamlessly up from the floor, with no visible corner.
+- **Characterization test** — a test that pins what code currently does, written before moving it, so the move can be proven not to change it.
+- **CI (continuous integration)** — building and testing every pushed change on a clean machine.
 - **Clip (animation)** — a named set of keyframed channels that move a model's nodes.
 - **Clip space / NDC** — coordinates after projection / after dividing by w.
 - **Command buffer** — recorded GPU work, submitted as a unit.
 - **Comparison sampler** — a sampler that returns the result of a depth comparison (0..1) instead of the depth; used for shadow maps.
+- **Composition root** — the one place that creates and wires a program's long-lived objects; here `Application`.
 - **Capability** — an optional piece of data an entity may have (drawn, interactable); systems act on capabilities, not on object types.
 - **Composition over inheritance** — building objects from parts instead of deep class hierarchies.
 - **Constant-power pan** — stereo panning with cos/sin gains so loudness stays constant across the field.
@@ -2079,6 +2249,8 @@ external/ SDL glm cgltf stb json doctest imgui
 - **PCF** — percentage-closer filtering: averaging several shadow comparisons for soft edges.
 - **Paired difference / ABBA** — measuring A and B alternately (AB BA AB…) and taking each round's B − A as the sample, so machine drift cancels.
 - **Planar reflection** — the scene rendered again from a camera mirrored in a flat surface, sampled by that surface.
+- **Payload (runtime)** — the generated products a game needs to run, as opposed to sources and tooling files.
+- **PUBLIC / PRIVATE / INTERFACE (CMake)** — who needs a target's dependency: its users and itself, itself only, or its users only.
 - **Peter-panning** — shadows detached from their caster because of too much bias.
 - **Pipeline** — shaders + fixed-function state, baked.
 - **RAII** — resource acquisition is initialisation: an object's destructor releases what it owns, so cleanup follows ownership automatically.
@@ -2105,6 +2277,7 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Substep** — one of several short physics steps inside a frame's step, for stability and to avoid tunnelling.
 - **Skinning** — deforming a mesh by weighted joints (a skeleton), §53.
 - **Slerp** — spherical linear interpolation between rotations (quaternions), at constant angular speed.
+- **Source / product (assets)** — what people edit versus what tools generate from it.
 - **Spot light** — a point light limited to a cone, with inner and outer angles and a range.
 - **Shader variant (permutation)** — the same source compiled with different defines, chosen per draw, instead of a runtime branch (compare uber-shader).
 - **Sky gradient** — an authored zenith-to-horizon colour blend with a sun disc and halo, in place of a simulated atmosphere.
@@ -2134,7 +2307,10 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Voice** — one playing instance of a sound in a mixer.
 - **Vsync** — syncing presentation to the monitor refresh.
 - **Windowed falloff** — inverse-square attenuation multiplied by a window that reaches exactly zero at the light's range.
+- **Use-after-free** — touching memory or a resource after its owner released it; here, a GPU wrapper outliving its device.
+- **Validation ladder** — checking a change with the cheapest step that can catch its mistakes, escalating only on success.
 - **Uber-shader** — one shader covering many features with runtime branches; fewer pipelines, but skipped code can still cost (§57, §69).
+- **Watchdog (wall-clock)** — an outside timer that stops a process whose own, frame-driven timeouts can no longer fire.
 - **Winding** — vertex order of a triangle (CW/CCW), used for back-face culling.
 - **Wet material** — a material whose emitted light ripples and which catches a moving sheen; the fake wet road.
 - **xorshift** — a tiny, fast pseudo-random generator; seeded, it gives the same sequence on every platform.

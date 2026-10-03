@@ -35,7 +35,7 @@ namespace Atom
     };
 
     // GPU-resident indexed triangle mesh. Must be destroyed before the
-    // device that created it.
+    // device that created it - checked at renderer shutdown (GpuResources).
     class Mesh
     {
     public:
@@ -75,7 +75,7 @@ namespace Atom
         }
 
     private:
-        explicit Mesh(SDL_GPUDevice* device) : m_device(device) {}
+        explicit Mesh(SDL_GPUDevice* device);
 
         SDL_GPUDevice* m_device = nullptr;
         SDL_GPUBuffer* m_vertexBuffer = nullptr;
