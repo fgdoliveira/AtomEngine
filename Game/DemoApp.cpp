@@ -1,4 +1,5 @@
 #include "DemoApp.h"
+#include "Core/AssetLog.h"
 
 #include "Pachinko/PixelDraw.h"
 
@@ -227,6 +228,7 @@ namespace AtomGame
             {
                 continue;
             }
+            Atom::AssetLog::Opened(entry.path().string());
             std::ifstream file(entry.path(), std::ios::binary);
             std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
             EnvironmentState probe;
@@ -323,6 +325,7 @@ namespace AtomGame
         // The flashlight's settings (M46); without the file it keeps the
         // values it was built with.
         const std::string path = m_assetRoot + "Assets/Data/flashlight.json";
+        Atom::AssetLog::Opened(path);
         std::ifstream file(path, std::ios::binary);
         if (!file)
         {

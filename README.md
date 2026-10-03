@@ -90,7 +90,7 @@ scenario harness that drives the real game from scripts.
 
 ## Building
 
-Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.25, and
+Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.26, and
 `dxc` (found automatically in the Windows SDK or the Vulkan SDK).
 
 ```sh
@@ -192,6 +192,7 @@ Developer switches (environment variables):
 | `ATOM_PERF_BLOCK=<frames>` / `ATOM_PERF_CSV=<file>` | block size (default 240) / the same rows as CSV |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
+| `ATOM_ASSET_LOG=<file>` | append every asset file the game opens (once each): the evidence for the runtime payload |
 
 ## Testing
 
@@ -318,7 +319,9 @@ Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
 Game/     Character Dialogue Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
 Shaders/  HLSL, compiled to DXIL at build time
 Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
-Assets/   generated models, levels, dialogue, environments, data (flashlight), font
+Assets/   generated models, levels, dialogue, environments, data (flashlight), font;
+          the runtime payload - the folders copied next to the game - is
+          the list in Game/CMakeLists.txt (all but Schemas/)
 Tests/    unit tests and in-game scenarios
 external/ pinned dependencies
 ```

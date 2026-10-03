@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine

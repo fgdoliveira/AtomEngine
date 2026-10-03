@@ -1,4 +1,5 @@
 #include "Renderer/Renderer.h"
+#include "Core/AssetLog.h"
 
 #include "Renderer/GpuResources.h"
 #include "Renderer/Shader.h"
@@ -795,6 +796,7 @@ namespace Atom
         int width = 0;
         int height = 0;
         int channels = 0;
+        AssetLog::Opened(path);
         stbi_uc* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
         if (!pixels)
         {

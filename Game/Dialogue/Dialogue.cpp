@@ -1,4 +1,5 @@
 #include "Dialogue/Dialogue.h"
+#include "Core/AssetLog.h"
 
 #include "Level/JsonText.h"
 
@@ -126,6 +127,7 @@ namespace AtomGame
 
     DialogueParseResult LoadDialogueFile(const std::string& path)
     {
+        Atom::AssetLog::Opened(path);
         std::ifstream file(path, std::ios::binary);
         if (!file)
         {

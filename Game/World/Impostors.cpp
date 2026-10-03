@@ -1,4 +1,5 @@
 #include "World/Impostors.h"
+#include "Core/AssetLog.h"
 
 #include "Level/JsonText.h"
 #include "Renderer/Renderer.h"
@@ -53,6 +54,7 @@ namespace AtomGame
 
     std::unique_ptr<ImpostorSet> ImpostorSet::Load(Atom::Renderer& renderer, const std::string& descriptorPath)
     {
+        Atom::AssetLog::Opened(descriptorPath);
         std::ifstream file(descriptorPath, std::ios::binary);
         if (!file)
         {

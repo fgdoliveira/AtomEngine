@@ -1,4 +1,5 @@
 #include "Assets/Model.h"
+#include "Core/AssetLog.h"
 
 #include "Renderer/Renderer.h"
 
@@ -62,6 +63,7 @@ namespace Atom
             else if (image.uri)
             {
                 const std::string path = (baseDirectory / image.uri).string();
+                AssetLog::Opened(path);
                 pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
             }
 
@@ -100,6 +102,7 @@ namespace Atom
         {
             cgltf_options options{};
             cgltf_data* rawData = nullptr;
+            AssetLog::Opened(path);
             if (cgltf_parse_file(&options, path.c_str(), &rawData)
                 != cgltf_result_success)
             {

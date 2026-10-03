@@ -1,4 +1,5 @@
 #include "Pachinko/Playfield.h"
+#include "Core/AssetLog.h"
 
 #include "Level/JsonText.h"
 
@@ -307,6 +308,7 @@ namespace AtomGame
 
     PlayfieldParseResult LoadPlayfieldFile(const std::string& path)
     {
+        Atom::AssetLog::Opened(path);
         std::ifstream file(path, std::ios::binary);
         if (!file)
         {

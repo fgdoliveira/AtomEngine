@@ -1,4 +1,5 @@
 #include "Physics/CollisionWorld.h"
+#include "Core/AssetLog.h"
 
 #include <cgltf.h>
 
@@ -91,6 +92,7 @@ namespace Atom
 
         cgltf_options options{};
         cgltf_data* rawData = nullptr;
+        AssetLog::Opened(path);
         if (cgltf_parse_file(&options, path.c_str(), &rawData)
             != cgltf_result_success)
         {

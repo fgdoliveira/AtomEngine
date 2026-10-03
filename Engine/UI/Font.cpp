@@ -1,4 +1,5 @@
 #include "UI/Font.h"
+#include "Core/AssetLog.h"
 
 #include "Renderer/Renderer.h"
 
@@ -35,6 +36,7 @@ namespace Atom
     )
     {
         size_t size = 0;
+        AssetLog::Opened(path);
         void* file = SDL_LoadFile(path.c_str(), &size);
         if (!file)
         {
