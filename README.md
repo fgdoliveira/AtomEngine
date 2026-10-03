@@ -10,15 +10,14 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.8** — water and weather: a lakeshore lab with
-stylized animated water (tinted shallow to deep, the sky and a planar
-reflection by Fresnel, a sun glint, shore foam), a day sky, and authored
-weather presets - clear day, overcast, rain, fog, sunset, night - that
-shift the sun, ambient light, fog, sky and the water together, blended at
-runtime; rain with wet ground and rings on the water, and wind. Early-2000s
-fantasy-game looks, presented on modern hardware. (0.0.7 went into the
-dark with a flashlight.)
-See [CHANGELOG.md](CHANGELOG.md).
+Current version: **0.0.9** — hardening, from an architecture audit: GPU
+resource lifetimes checked at shutdown, honest CMake dependencies and a
+build without the shader compiler, continuous integration on every push,
+an explicit runtime asset payload, diagnostics moved out of the game
+coordinator, level load timings, and an
+[architecture document](docs/Architecture.md). No new feature: the engine
+is the same, and sturdier. (0.0.8 brought water and weather.)
+See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
 
@@ -316,13 +315,15 @@ pwsh Tools/Docs/capture_character_lab.ps1
 
 ```text
 Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
-Game/     Character Dialogue Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
+Game/     Character Dialogue Environment Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
 Shaders/  HLSL, compiled to DXIL at build time
 Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
 Assets/   generated models, levels, dialogue, environments, data (flashlight), font;
           the runtime payload - the folders copied next to the game - is
           the list in Game/CMakeLists.txt (all but Schemas/)
 Tests/    unit tests and in-game scenarios
+docs/     the technical manual (concepts) and Architecture.md (structure)
+.github/  CI
 external/ pinned dependencies
 ```
 
