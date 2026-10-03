@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.0.9 — Hardening
+
+An architecture audit of 0.0.8 (2026-10-03, kept private) found no correctness
+failure and no case for a rewrite, and named the places growth was
+straining: a GPU lifetime rule kept only in comments, CMake dependencies
+broader than their use, no CI, an implicit runtime payload, and a game
+coordinator holding too much. This release addresses them in small
+commits. No new feature; the engine is the same, and sturdier.
+
+### Changed
+- **GPU lifetimes are checked (M53):** meshes and textures count
+  themselves per device; the renderer reports anything still alive before
+  destroying its device, and asserts in Debug. Every scenario now fails if
+  a GPU resource outlives the renderer; all shut down clean.
+- **Honest CMake (M54):** ImGui and JSON are PRIVATE to the code that uses
+  them, the version string to each target that prints it; SDL and GLM stay
+  PUBLIC because the engine's headers expose them. `ATOM_BUILD_GAME`
+  (default ON) gates the executable, shaders and scenarios; off, the
+  libraries and unit tests build with no shader compiler.
+- **Continuous integration (M55):** GitHub Actions builds and runs the unit
+  and authoring tests on a fresh Windows machine on every push and pull
+  request. Scenarios and performance stay local (they need a GPU).
+- **An explicit runtime payload (M56):** the folders copied next to the
+  game are a list in `Game/CMakeLists.txt`, found by logging every file the
+  game opens (`ATOM_ASSET_LOG`) across all scenarios and levels: 86 files
+  from 20 folders; `Schemas/` stays out. CMake 3.26 or later.
+- **Diagnostics out of `DemoApp` (M57):** `GameDiagnostics` owns the
+  frame-time log, the scripted test runner and the fixed step, with tests
+  pinning the PERF line byte for byte. Every level load now logs its time
+  and where it went (parse, decode, GPU upload, build).
+- **Architecture documentation (M58):** `docs/Architecture.md` - the real
+  layering (`Application` is the runtime and composition root, `DemoApp`
+  the game; there is no `Engine` object), lifecycles, the renderer's
+  passes, the GPU lifetime rule, source and product assets, decision
+  records, and when each future library or framework would be justified.
+
+- **A validation ladder:** `Tools/Dev/check.ps1 -Level docs|quick|feature|full`
+  checks a change with the cheapest step that can catch its mistakes (from
+  nothing for docs, to one incremental build and the unit tests, to the
+  scenarios a feature touches, to the full Debug + Release matrix before a
+  milestone). README "Development workflow"; `CLAUDE.md` for agents.
+
+### Fixed
+- **`ab.ps1` could hang forever:** it waited on the game with no
+  wall-clock limit, and the script's own timeout counts game time, which
+  stops when frames do. Each run now has a limit; a hung game is killed
+  and retried once, a second hang stops the comparison keeping the rounds
+  measured. It also left its environment variables set in your shell
+  (a later manual launch started in the benchmark level and quit); they
+  are now restored however it ends.
+- **A benchmark that measured nothing:** `bench` alternates AB BA, so after
+  an even number of rounds it ended on its first value. After
+  `bench weather off on` the water was left off, and the following
+  `bench reflection` compared no reflection with no reflection (~0 ms, what
+  the audit recorded). Benches now always end on their second value; the
+  reflection measures +0.13..+0.16 ms again.
+
+### Measured
+No runtime cost, as intended: against v0.0.8 with interleaved builds
+(`Tools/Perf/ab.ps1`, 8 rounds, plugged in, Iris Xe), the street +0.027 ms
+(range −0.07..+0.67) and the lakeshore +0.024 ms (−0.10..+0.25), both
+within what the method resolves. Level loads now print their timing - the
+night street, for instance, 173 ms, most of it GPU upload.
+
 ## 0.0.8 — Water and weather
 
 Early-2000s fantasy-game looks on modern hardware: a lake that reads

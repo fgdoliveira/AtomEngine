@@ -1,4 +1,5 @@
 #include "Level/LevelData.h"
+#include "Core/AssetLog.h"
 
 #include "Level/JsonText.h"
 
@@ -1203,6 +1204,7 @@ namespace AtomGame
     {
         std::optional<std::string> ReadFile(const std::string& path)
         {
+            Atom::AssetLog::Opened(path);
             std::ifstream file(path, std::ios::binary);
             if (!file)
             {

@@ -21,6 +21,7 @@
 #include "World/FixedStep.h"
 #include "World/PachinkoAttract.h"
 #include "PlayerController.h"
+#include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "Scene/Camera.h"
 #include "UI/Font.h"
@@ -78,24 +79,10 @@ namespace AtomGame
         void UpdateWindowTitle(float deltaSeconds);
         // Developer tools (M41): the ImGui panels, when F10 shows them.
         void DrawDevTools(float deltaSeconds);
-        // Frame-time log (M46, ATOM_PERF_LOG=1): after an engine warm-up,
-        // one line per block of frames - median, p95, mean - and a CSV row
-        // if ATOM_PERF_CSV names a file. Real frame times, not the
-        // harness's fixed step.
-        struct PerfLog
-        {
-            bool enabled = false;
-            int warmupLeft = 300;  // frames: pipelines, caches, allocations - not heat
-            std::size_t block = 240;
-            int blockIndex = 0;
-            Atom::FrameStatsWindow window;
-            std::unique_ptr<std::ofstream> csv;
-            std::string label;     // what is being measured (the level, a bench half)
-        } m_perf;
-        void InitializePerfLog();
-        void RecordFrameTime(float realSeconds);
-        double m_lastRealFrameMs = 0.0;
-        double RealFrameMs() const override { return m_lastRealFrameMs; }
+        // Frame-time log, scripted tests and the fixed step (M57: moved out
+        // of DemoApp, which keeps the frame order and calls them).
+        GameDiagnostics m_diagnostics;
+        double RealFrameMs() const override { return m_diagnostics.RealFrameMs(); }
 
         std::array<float, 240> m_frameHistory{}; // ms, a ring
         std::size_t m_frameHistoryNext = 0;
@@ -122,8 +109,6 @@ namespace AtomGame
         void TurnCameraToward(const glm::vec3& point, float deltaSeconds);
         void InteractWith(const Entity& target);
         const Entity* FindEntity(const std::string& name);
-        void LoadTestScript();
-        void UpdateTestScript(float deltaSeconds);
 
         // TestHooks: what scripted tests may see and do (ATOM_TEST_SCRIPT).
         bool TeleportTo(const std::string& entity, float distance) override;
@@ -145,6 +130,10 @@ namespace AtomGame
         std::uint32_t ParticleCount() const override
         {
             return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().particles;
+        }
+        std::uint32_t ReflectionDraws() const override
+        {
+            return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().reflectionDrawn;
         }
         std::uint32_t WaterDraws() const override
         {
@@ -203,7 +192,6 @@ namespace AtomGame
         void RefreshEnvironment(); // the same preset over an edited or reloaded level, at once
         bool SetEnvironment(const std::string& name, float seconds) override;
         std::string EnvironmentName() const override;
-        std::unique_ptr<TestRunner> m_testRunner;
         ModelCache m_modelCache; // declared before the levels: outlives them
         std::unique_ptr<LevelManager> m_levels;
 
@@ -286,9 +274,8 @@ namespace AtomGame
         float m_hintTime = 0.0f;
         float m_smoothedFrameMs = 0.0f;
 
-        // Documentation switches (harness "set"): a fixed time step for
-        // evenly spaced frame sequences, and parts of the frame to leave out.
-        float m_fixedDeltaSeconds = 0.0f; // 0 = real time
+        // Documentation switches (harness "set"): parts of the frame to
+        // leave out (the fixed step lives in m_diagnostics).
         bool m_drawWorld = true;          // off: only the cleared frame
         bool m_showHud = true;            // the controls hint
         bool m_sunEnabled = true;

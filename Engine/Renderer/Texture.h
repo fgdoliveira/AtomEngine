@@ -9,7 +9,8 @@ struct SDL_GPUTexture;
 namespace Atom
 {
     // Immutable 2D RGBA8 texture with a full mip chain.
-    // Must be destroyed before the device that created it.
+    // Must be destroyed before the device that created it - checked at
+    // renderer shutdown (GpuResources).
     class Texture
     {
     public:
@@ -42,7 +43,7 @@ namespace Atom
         bool IsPixelArt() const { return m_pixelArt; }
 
     private:
-        explicit Texture(SDL_GPUDevice* device) : m_device(device) {}
+        explicit Texture(SDL_GPUDevice* device);
 
         SDL_GPUDevice* m_device = nullptr;
         SDL_GPUTexture* m_texture = nullptr;

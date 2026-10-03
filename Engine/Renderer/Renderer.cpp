@@ -1,5 +1,7 @@
 #include "Renderer/Renderer.h"
+#include "Core/AssetLog.h"
 
+#include "Renderer/GpuResources.h"
 #include "Renderer/Shader.h"
 
 #include <stb_image.h>
@@ -11,6 +13,7 @@
 #include <glm/matrix.hpp>
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -793,6 +796,7 @@ namespace Atom
         int width = 0;
         int height = 0;
         int channels = 0;
+        AssetLog::Opened(path);
         stbi_uc* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
         if (!pixels)
         {
@@ -2625,6 +2629,19 @@ namespace Atom
                     SDL_ReleaseGPUTexture(m_device, texture);
                 }
             }
+
+            // M53 (audit CPP-001): everything that frees itself through this
+            // device must be gone before it is destroyed. Reported always (a
+            // scenario fails on this line); stopped in Debug.
+            const std::string live = GpuResources::Report(m_device);
+            if (!live.empty() || !m_renderTextures.empty())
+            {
+                std::cerr << "GPU resources still alive at shutdown: "
+                          << (live.empty() ? std::string("none") : live) << "; "
+                          << m_renderTextures.size() << " render textures registered\n";
+                assert(false && "GPU resources outlive the renderer (see the log)");
+            }
+            GpuResources::Forget(m_device);
 
             if (m_windowClaimed && m_window)
             {

@@ -27,6 +27,8 @@ add_library(
     PlayerController.cpp
     PlayerController.h
     Testing/TestScript.cpp
+    Testing/GameDiagnostics.cpp
+    Testing/GameDiagnostics.h
     Testing/PairedBench.cpp
     Testing/PairedBench.h
     Testing/TestScript.h
@@ -88,12 +90,26 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# JSON and ImGui are used only inside the library's .cpp files (the
+# parsers, the developer panels), so they stay PRIVATE (M54).
 target_link_libraries(
     AtomGameLib
     PUBLIC
         AtomEngine
+    PRIVATE
         nlohmann_json::nlohmann_json
+        imgui
 )
+
+target_compile_definitions(
+    AtomGameLib
+    PRIVATE
+        ATOM_VERSION="${PROJECT_VERSION}" # the window title
+)
+
+if(NOT ATOM_BUILD_GAME)
+    return() # the libraries only (ATOM_BUILD_GAME=OFF): no executable, no shaders
+endif()
 
 add_executable(
     AtomGame
@@ -108,14 +124,33 @@ target_link_libraries(
 
 add_dependencies(AtomGame AtomShaders)
 
-# Ship the asset folder next to the executable.
+# The runtime asset payload (M56, audit ASSET-001): the folders of Assets/
+# the game reads, copied next to the executable. Derived from evidence -
+# every scenario and every level run with ATOM_ASSET_LOG opened 86 files
+# from exactly these folders - and kept per folder, so a level that starts
+# using another kit piece still finds it. Left out: Schemas/ (editors and
+# the authoring tests only, read from the source tree). Fonts/ and
+# ThirdParty/ also carry the licences and credits a distribution needs.
+# A new folder the game reads goes here; every scenario runs against this
+# copy, so a missing one fails them. ATOM_ASSET_ROOT (hot reload) reads
+# the source tree itself.
+set(ATOM_RUNTIME_ASSETS
+    City Data Dialogue Environments Fields First Fonts Interior Kit Lab
+    Lakeshore Levels Machines Night Pachinko Passage Shrine Sky Street
+    ThirdParty
+)
+set(ATOM_ASSET_COPY_COMMANDS)
+foreach(folder IN LISTS ATOM_RUNTIME_ASSETS)
+    list(APPEND ATOM_ASSET_COPY_COMMANDS
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            ${CMAKE_SOURCE_DIR}/Assets/${folder}
+            $<TARGET_FILE_DIR:AtomGame>/Assets/${folder})
+endforeach()
 add_custom_command(
     TARGET AtomGame
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/Assets
-        $<TARGET_FILE_DIR:AtomGame>/Assets
-    COMMENT "Copying assets"
+    ${ATOM_ASSET_COPY_COMMANDS}
+    COMMENT "Copying the runtime assets"
     VERBATIM
 )
 

@@ -1,5 +1,7 @@
 # AtomEngine
 
+[![CI](https://github.com/fgdoliveira/AtomEngine/actions/workflows/ci.yml/badge.svg)](https://github.com/fgdoliveira/AtomEngine/actions/workflows/ci.yml)
+
 A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)**. Its demo is a first-person walk
 through a foggy rural Japanese street in the spirit of 2000s horror (Silent
@@ -8,15 +10,14 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.8** — water and weather: a lakeshore lab with
-stylized animated water (tinted shallow to deep, the sky and a planar
-reflection by Fresnel, a sun glint, shore foam), a day sky, and authored
-weather presets - clear day, overcast, rain, fog, sunset, night - that
-shift the sun, ambient light, fog, sky and the water together, blended at
-runtime; rain with wet ground and rings on the water, and wind. Early-2000s
-fantasy-game looks, presented on modern hardware. (0.0.7 went into the
-dark with a flashlight.)
-See [CHANGELOG.md](CHANGELOG.md).
+Current version: **0.0.9** — hardening, from an architecture audit: GPU
+resource lifetimes checked at shutdown, honest CMake dependencies and a
+build without the shader compiler, continuous integration on every push,
+an explicit runtime asset payload, diagnostics moved out of the game
+coordinator, level load timings, and an
+[architecture document](docs/Architecture.md). No new feature: the engine
+is the same, and sturdier. (0.0.8 brought water and weather.)
+See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
 
@@ -88,7 +89,7 @@ scenario harness that drives the real game from scripts.
 
 ## Building
 
-Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.25, and
+Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.26, and
 `dxc` (found automatically in the Windows SDK or the Vulkan SDK).
 
 ```sh
@@ -100,6 +101,17 @@ build/bin/Release/AtomGame.exe
 
 Dependencies are pinned git submodules: SDL 3.4.16, GLM 1.0.1, cgltf 1.15,
 stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9.
+
+Build options (CMake `-D`):
+
+| Option | Default | What it builds |
+|---|---|---|
+| `ATOM_BUILD_GAME` | ON | the `AtomGame` executable and its shaders (needs `dxc`) |
+| `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
+| `ATOM_BUILD_PRESENTATION_PROBE` | OFF | a private D3D12 diagnostic tool |
+
+`-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
+tests with no shader compiler - the configuration CI uses.
 
 ## Playing
 
@@ -179,6 +191,7 @@ Developer switches (environment variables):
 | `ATOM_PERF_BLOCK=<frames>` / `ATOM_PERF_CSV=<file>` | block size (default 240) / the same rows as CSV |
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
+| `ATOM_ASSET_LOG=<file>` | append every asset file the game opens (once each): the evidence for the runtime payload |
 
 ## Testing
 
@@ -187,6 +200,13 @@ ctest --test-dir build -C Release              # everything
 ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
 ```
+
+**CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every push and
+pull request: a fresh Windows machine clones with submodules, configures
+with `-DATOM_BUILD_GAME=OFF` (no shader compiler), builds `AtomTests` in
+Release and runs them. It answers "does a clean clone build and pass?".
+The in-game scenarios and every performance measurement stay local: they
+need a real GPU, and hosted machines time things too noisily.
 
 Every scenario also checks, on each level change, that the new level is
 first drawn from its spawn. The asset build has its own check: it refuses
@@ -216,11 +236,16 @@ AtomEngine compares A and B **close together in time** and reports the
   scenario line `bench <setting> <a> <b> <rounds> <seconds> [settle]`, for
   any `set` switch. It alternates A and B in the order AB BA AB BA…, lets
   each switch settle (rebuilt targets aren't steady state), and reports the
-  median of the rounds' differences:
+  median of the rounds' differences (it always ends with the switch on B):
   `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
 - **Did a build get slower?** `pwsh Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <level>`
   alternates the two executables (ABBA) and reports the median paired
-  difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward).
+  difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward). Each run has a
+  wall-clock limit (`-TimeoutSeconds`, default 60 s + the run + 30 s): a
+  hung game - a covered window, a driver stall, a dialog box, where the
+  script's own timeout (game time) stops counting - is killed and retried
+  once, and the environment variables it sets are restored however it
+  ends. ctest scenarios have their own 240 s limit.
 - **Trust the tools first:** `ab.ps1` with the same build as A and B must
   give ~0 ms. On the development laptop it gives up to ~0.15 ms, so smaller
   differences between builds are noise.
@@ -232,6 +257,28 @@ Checklist: plugged in, high-performance power plan, the laptop's own screen,
 300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
 hardware; the interleaving takes care of that. Timing is never a ctest
 gate: `expect_bench_under` is for local use on known hardware.
+
+## Development workflow
+
+Check a change with the cheapest step that can catch its mistakes, and
+climb only when it passes (`Tools/Dev/check.ps1`):
+
+| Change | Check |
+|---|---|
+| `.md`, CHANGELOG, `.gitignore`, the CI workflow | `-Level docs` - nothing to build |
+| C++ or shaders, inner loop | `-Level quick` - incremental build, unit tests (seconds) |
+| content JSON (levels, presets, dialogue) | `-Level quick` (the authoring tests), plus that level's scenario |
+| a feature | `-Level feature -Scenario <names>` - quick + the scenarios it touches |
+| a milestone or release commit | `-Level full` - Debug and Release, everything |
+
+Use the configuration where the defect shows (`-Config Debug` for asserts
+and lifetime checks, Release for anything timed). Which scenarios a change
+touches: rendering and shaders → `first_render`, `lakeshore`,
+`night_street`; levels and transitions → `levels_roundtrip`, `hot_reload`;
+developer tools → `devtools`; weather → `environment`; otherwise the
+level's own scenario. Rebuild assets only when Blender scripts or content
+products change. CI runs the unit tests on every push; scenarios are
+always a local job.
 
 ## Content pipeline
 
@@ -295,11 +342,15 @@ pwsh Tools/Docs/capture_character_lab.ps1
 
 ```text
 Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
-Game/     Character Dialogue Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
+Game/     Character Dialogue Environment Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
 Shaders/  HLSL, compiled to DXIL at build time
 Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
-Assets/   generated models, levels, dialogue, environments, data (flashlight), font
+Assets/   generated models, levels, dialogue, environments, data (flashlight), font;
+          the runtime payload - the folders copied next to the game - is
+          the list in Game/CMakeLists.txt (all but Schemas/)
 Tests/    unit tests and in-game scenarios
+docs/     the technical manual (concepts) and Architecture.md (structure)
+.github/  CI
 external/ pinned dependencies
 ```
 
