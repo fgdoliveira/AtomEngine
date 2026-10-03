@@ -27,3 +27,6 @@ NoTrack/
 # Python
 __pycache__/
 *.pyc
+
+# Personal/local audit notes
+audits/
