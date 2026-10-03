@@ -14,9 +14,19 @@ namespace AtomGame
     namespace
     {
         constexpr int CellSize = 64;
-        constexpr int AtlasColumns = 2; // 0: fog puff, 1: leaf
+        constexpr int AtlasColumns = 3; // 0: fog puff, 1: leaf, 2: streak
         constexpr float FogCell = 0.0f;
         constexpr float LeafCell = 1.0f;
+        constexpr float StreakCell = 2.0f;
+
+        // Rain (M50): drops in a box that follows the player, as many as the
+        // rain asks for. Close drops are what reads; far ones are the fog.
+        constexpr int DropCount = 1400;
+        constexpr float DropHalfExtent = 9.0f;
+        constexpr float DropCeiling = 9.0f;  // above the feet
+        constexpr float DropFloor = -0.2f;   // below the feet, where they end
+        constexpr float DropLength = 0.45f;  // streak, metres
+        constexpr float DropWidth = 0.018f;
 
         constexpr int FlakeCount = 160;
         constexpr float FlakeHalfExtent = 16.0f; // metres around the player
@@ -84,6 +94,12 @@ namespace AtomGame
                     std::uint8_t* fog = &pixels[(y * width + x) * 4];
                     fog[3] = static_cast<std::uint8_t>(puff * 255.0f);
 
+                    // Streak: a soft vertical line, thin, fading at both ends.
+                    const float across = std::clamp(1.0f - std::abs(u), 0.0f, 1.0f);
+                    const float along = std::clamp(1.0f - v * v * v * v, 0.0f, 1.0f);
+                    std::uint8_t* streak = &pixels[(y * width + x + 2 * CellSize) * 4];
+                    streak[3] = static_cast<std::uint8_t>(across * across * along * 255.0f);
+
                     std::uint8_t* leafPixel = &pixels[(y * width + x + CellSize) * 4];
                     const auto shade = static_cast<std::uint8_t>(255.0f * rib);
                     leafPixel[0] = shade;
@@ -109,7 +125,7 @@ namespace AtomGame
 
         m_flakes.resize(FlakeCount);
         m_banks.resize(BankCount);
-        m_particles.reserve(FlakeCount + BankCount);
+        m_particles.reserve(FlakeCount + BankCount + MoteCount + DropCount);
         return true;
     }
 
@@ -178,6 +194,15 @@ namespace AtomGame
                     (unit(m_random) * 2 - 1) * MoteHalfExtent };
                 mote.size = 0.02f + 0.025f * unit(m_random);
                 mote.phase = glm::two_pi<float>() * unit(m_random);
+            }
+            m_drops.resize(DropCount);
+            for (Drop& drop : m_drops)
+            {
+                drop.position = center + glm::vec3{
+                    (unit(m_random) * 2 - 1) * DropHalfExtent,
+                    DropFloor + unit(m_random) * (DropCeiling - DropFloor),
+                    (unit(m_random) * 2 - 1) * DropHalfExtent };
+                drop.speed = 7.0f + 2.0f * unit(m_random);
             }
             m_seeded = true;
         }
@@ -264,6 +289,31 @@ namespace AtomGame
             m_particles.push_back(particle);
         }
 
+        // Rain: the first `rain` share of the drops, falling with the wind.
+        const int drops = static_cast<int>(std::round(std::clamp(m_rain, 0.0f, 1.0f) * DropCount));
+        for (int i = 0; i < drops; ++i)
+        {
+            Drop& drop = m_drops[i];
+            drop.position += (m_wind * 1.6f - glm::vec3{ 0.0f, drop.speed, 0.0f }) * deltaSeconds;
+            glm::vec3 offset = drop.position - center;
+            for (int axis : { 0, 2 })
+            {
+                if (offset[axis] > DropHalfExtent) { offset[axis] -= 2 * DropHalfExtent; }
+                if (offset[axis] < -DropHalfExtent) { offset[axis] += 2 * DropHalfExtent; }
+            }
+            if (offset.y < DropFloor) { offset.y += DropCeiling - DropFloor; }
+            if (offset.y > DropCeiling) { offset.y -= DropCeiling - DropFloor; } // the player dropped
+            drop.position = center + offset;
+
+            Atom::Particle particle{};
+            particle.position = drop.position;
+            particle.size = DropWidth;
+            particle.color = glm::vec4{ m_rainColor, 0.45f };
+            particle.atlasCell = StreakCell;
+            particle.stretch = DropLength;
+            m_particles.push_back(particle);
+        }
+
         for (Bank& bank : m_banks)
         {
             if (!m_fogBanks)
@@ -302,10 +352,16 @@ namespace AtomGame
         }
     }
 
+    glm::vec3 Atmosphere::GetRainDirection() const
+    {
+        return glm::normalize(m_wind * 1.6f - glm::vec3{ 0.0f, 8.0f, 0.0f });
+    }
+
     void Atmosphere::Submit(Atom::Renderer& renderer) const
     {
         if (m_enabled)
         {
+            renderer.SetParticleStreak(GetRainDirection());
             renderer.SubmitParticles(m_particles);
         }
     }

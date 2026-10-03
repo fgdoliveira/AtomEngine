@@ -1,0 +1,22 @@
+{
+  "_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit",
+  "entities": {},
+  "spawns": {
+    "jetty_end": {
+      "position": [
+        0.0,
+        0.5,
+        -17.0
+      ],
+      "yaw": 0.0
+    },
+    "start": {
+      "position": [
+        0.0,
+        0.25,
+        6.0
+      ],
+      "yaw": 0.0
+    }
+  }
+}

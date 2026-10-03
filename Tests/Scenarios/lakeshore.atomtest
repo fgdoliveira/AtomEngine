@@ -1,0 +1,29 @@
+# The lakeshore lab (M48): a lake with stylized water under a day sky. From
+# the meadow, the water is drawn; along the jetty, out over the lake, it's
+# wood underfoot; the shore walls keep the player out of the water.
+goto_level lakeshore
+wait_for_level lakeshore
+expect_level lakeshore
+wait 0.3
+expect_water 1
+expect_surface dirt
+
+# Onto the jetty and out to its end (game Z is Blender's -Y).
+teleport 0 0.5 -4 0
+wait 0.2
+expect_surface wood
+teleport 0 0.5 -12 0
+hold_action jog on
+hold_action move_forward on
+wait 3.0
+hold_action move_forward off
+hold_action jog off
+expect_near 0 0.5 -17.8 0.6        # stopped at the end
+expect_water 1
+
+# Back on the beach, walking at the lake: the shore stops the player.
+teleport 8 0.25 -2 0
+hold_action move_forward on
+wait 3.5
+hold_action move_forward off
+expect_near 8 0.25 -5.7 1.0

@@ -3,6 +3,7 @@
 #include "Character/Animator.h"
 #include "Interaction/Actions.h"
 #include "Interaction/Sequence.h"
+#include "Level/Environment.h"
 #include "World/GameWorld.h"
 
 #include <glm/vec2.hpp>
@@ -31,13 +32,10 @@ namespace AtomGame
         float yawDegrees = 0.0f; // 0 looks down -Z, 90 looks down +X
     };
 
-    struct LevelLighting
+    // A level's light: the environment (sun, ambient, fog, sky - what
+    // weather and time of day change, M47) plus what stays the level's own.
+    struct LevelLighting : EnvironmentState
     {
-        glm::vec3 sunDirection{ 0.35f, 0.6f, -0.55f };
-        glm::vec3 sunColor{ 0.45f };
-        glm::vec3 skyColor{ 0.75f, 0.77f, 0.80f };
-        glm::vec3 groundColor{ 0.20f, 0.19f, 0.17f };
-        glm::vec3 fogColor{ 0.46f, 0.47f, 0.47f };
         bool shadows = true;
         float bakedLight = 1.0f; // weight of the vertex-colour bake (M15)
         float glowStrength = 0.35f; // M23: 0 = no glow
@@ -49,6 +47,14 @@ namespace AtomGame
     {
         std::string panorama; // relative to Assets/
         float intensity = 1.0f;
+    };
+
+    // Weather and time of day (M49): the presets a level offers
+    // (Assets/Environments/<name>.json) and the one it starts in.
+    struct LevelEnvironment
+    {
+        std::string defaultPreset;
+        std::vector<std::string> presets;
     };
 
     struct AudioBed
@@ -272,6 +278,7 @@ namespace AtomGame
         std::optional<LevelLab> lab; // M36: opens in the model viewer
         std::vector<EntityData> entities;
         std::optional<LevelSky> sky;
+        std::optional<LevelEnvironment> environment; // M49
         std::vector<HaloData> halos;
         std::vector<ImpostorData> impostors;
         std::vector<LiveLightData> lights;
@@ -295,6 +302,12 @@ namespace AtomGame
     // Pointer ("/entities/3/interactable/action/type: ...") for content.
     // `markers` is the optional <level>.markers.json written from Blender.
     LevelParseResult ParseLevel(std::string_view json, std::string_view markers = {});
+
+    // An environment preset (M49): the same keys as a level's "lighting"
+    // environment (sun, ambient, fog, skyGradient, water), each optional;
+    // what it leaves out keeps its value in `state`, which is changed only
+    // when the whole preset is valid. Returns the error, or "".
+    std::string ApplyEnvironmentPreset(std::string_view json, EnvironmentState& state);
 
     // Reads the file and its markers file beside it, if any; errors are
     // prefixed with the file name.

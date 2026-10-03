@@ -92,6 +92,8 @@ namespace Atom
         std::uint32_t msaaSamples = 0;
         std::uint32_t renderTextures = 0;  // M27: drawn into this frame
         std::uint32_t renderTextureDraws = 0; // scene draws sampling one
+        std::uint32_t waterDraws = 0;      // M48: water surfaces drawn
+        std::uint32_t reflectionDrawn = 0; // M51: draws in the reflection pass
     };
 
     class Renderer
@@ -206,6 +208,13 @@ namespace Atom
             m_spotActive = true;
         }
         void SetParticleAtlas(const Texture* atlas, std::uint32_t columns);
+        // M50: which way streak particles (rain) stretch, for this frame.
+        void SetParticleStreak(const glm::vec3& direction) { m_particleStreak = direction; }
+        // M51: skip water surfaces (to measure what they cost).
+        void SetWaterEnabled(bool enabled) { m_waterEnabled = enabled; }
+        // M51: allow the planar reflection where the water asks for it
+        // (on by default; off to measure it).
+        void SetReflectionEnabled(bool enabled) { m_reflectionEnabled = enabled; }
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
         void SetSettings(const RenderSettings& settings);
@@ -269,8 +278,12 @@ namespace Atom
         // Decals: alpha blending, no depth writes, a depth bias toward the
         // camera so they win against the surface they lie on.
         SDL_GPUGraphicsPipeline* GetDecalPipeline(std::uint32_t samples, bool skinned = false);
+        // Water (M48): blended like a decal but without its depth bias,
+        // shaded by Water.frag.
+        SDL_GPUGraphicsPipeline* GetWaterPipeline(std::uint32_t samples);
         SDL_GPUGraphicsPipeline* CreateScenePipeline(
-            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned);
+            std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned,
+            bool water = false, bool rain = false);
         SDL_GPUGraphicsPipeline* CreateShadowPipeline(bool skinned);
         SDL_GPUGraphicsPipeline* GetShadowPipeline(bool skinned)
         {
@@ -304,7 +317,8 @@ namespace Atom
             SDL_GPUCommandBuffer* commandBuffer,
             const glm::mat4& viewProjection,
             std::uint32_t sceneSamples,
-            bool spotPass = false
+            bool spotPass = false,
+            bool reflection = false // M51: opaque near-layer draws only, not counted
         );
 
         bool RenderShadowPass(
@@ -334,8 +348,9 @@ namespace Atom
 
         // Indexed by log2(samples): 1x, 2x, 4x.
         // [skinned][samples slot][double-sided][alpha-to-coverage]
-        std::array<SDL_GPUGraphicsPipeline*, 24> m_scenePipelines{};
-        std::array<SDL_GPUGraphicsPipeline*, 6> m_decalPipelines{}; // [skinned][samples slot]
+        std::array<SDL_GPUGraphicsPipeline*, 48> m_scenePipelines{}; // [rain][skinned][samples][sides][a2c]
+        std::array<SDL_GPUGraphicsPipeline*, 12> m_decalPipelines{}; // [rain][skinned][samples slot]
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_waterPipelines{}; // [samples slot]
         glm::vec4 m_wind{ 0.0f };
         SDL_GPUGraphicsPipeline* m_postPipeline = nullptr;
         std::array<SDL_GPUGraphicsPipeline*, 2> m_shadowPipelines{}; // [skinned]
@@ -353,7 +368,19 @@ namespace Atom
         bool RenderCapture(SDL_GPUCommandBuffer* commandBuffer, std::uint32_t width, std::uint32_t height);
         void FinishCapture(SDL_GPUFence* fence);
         void DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
-                     const glm::mat4& projection);
+                     const glm::mat4& projection, const glm::mat4& view, std::uint32_t samples);
+
+        // Planar reflection (M51): the near scene mirrored in
+        // the water's plane, at half resolution, for the water to sample.
+        bool RenderReflectionPass(SDL_GPUCommandBuffer* commandBuffer,
+                                  const glm::mat4& lightViewProjection, const glm::mat4& spotViewProjection);
+        bool EnsureReflectionTargets(std::uint32_t width, std::uint32_t height);
+        bool m_reflectionEnabled = true;
+        bool m_reflectionDrawn = false; // this frame
+        SDL_GPUTexture* m_reflectionColor = nullptr;
+        SDL_GPUTexture* m_reflectionDepth = nullptr;
+        std::uint32_t m_reflectionWidth = 0;
+        std::uint32_t m_reflectionHeight = 0;
         Glow m_glow;
         std::vector<Particle> m_halos;
         std::array<LiveLight, MaxLiveLights> m_liveLights{};
@@ -386,6 +413,8 @@ namespace Atom
         RenderSettings m_settings;
         UIRenderer m_ui;
         SceneLighting m_lighting;
+        glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
+        bool m_waterEnabled = true;
         RenderTargets m_targets;
 
         Camera m_camera;

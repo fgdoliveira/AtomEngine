@@ -76,6 +76,33 @@
         "skyColor": { "$ref": "#/definitions/vec3" },
         "groundColor": { "$ref": "#/definitions/vec3" },
         "fogColor": { "$ref": "#/definitions/vec3" },
+        "fogDensity": { "type": "number", "minimum": 0, "description": "The level's fog (M47), used while the player's fog setting is \"level\": ~3/density metres until fully fogged." },
+        "rain": { "type": "number", "minimum": 0, "maximum": 1, "default": 0, "description": "Rain (M50): 0 dry .. 1 downpour; outdoors only." },
+        "wind": { "$ref": "#/definitions/vec3", "description": "Wind (M50), m/s: sway, leaves, the rain's slant." },
+        "water": {
+          "type": "object",
+          "description": "How the level's water looks (M48): authored colours; the sky shows at grazing angles.",
+          "additionalProperties": false,
+          "properties": {
+            "shallow": { "$ref": "#/definitions/vec3" },
+            "deep": { "$ref": "#/definitions/vec3" },
+            "skyReflection": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.85 },
+            "ripple": { "type": "number", "minimum": 0, "default": 1.0 },
+            "glint": { "type": "number", "minimum": 0, "default": 1.0, "description": "The sun's highlight on the water." },
+            "reflection": { "type": "boolean", "default": false, "description": "Mirror the near scene in the water (M51): a half-resolution render pass, ~0.2 ms." }
+          }
+        },
+        "skyGradient": {
+          "type": "object",
+          "description": "Day sky (M47): horizon to zenith, with the sun. Without fogColor, the fog takes the horizon's colour.",
+          "additionalProperties": false,
+          "properties": {
+            "zenith": { "$ref": "#/definitions/vec3" },
+            "horizon": { "$ref": "#/definitions/vec3" },
+            "sunSize": { "type": "number", "minimum": 0, "maximum": 20, "default": 1.5, "description": "Degrees: the sun disc's radius." },
+            "sunGlow": { "type": "number", "minimum": 0, "default": 0.4 }
+          }
+        },
         "shadows": { "type": "boolean" },
         "bakedLight": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weight of the vertex-colour bake (M15)." },
         "glow": {
@@ -87,6 +114,16 @@
             "threshold": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
           }
         }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "Weather and time of day (M49): presets from Assets/Environments over this level's lighting.",
+      "required": ["default"],
+      "additionalProperties": false,
+      "properties": {
+        "default": { "type": "string", "description": "The preset the level starts in." },
+        "presets": { "type": "array", "items": { "type": "string" }, "description": "The ones it offers (all, if left out)." }
       }
     },
     "sky": {

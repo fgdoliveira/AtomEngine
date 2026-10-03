@@ -22,7 +22,28 @@ cbuffer SceneUniforms : register(b1, space3)
     float4 u_spotCone;             // x: cos outer, y: cos inner
     float4x4 u_spotViewProjection; // M43: its shadow map
     float4 u_spotShadow;           // x: on, y: texel size (uv), z: normal offset per metre
+    float4 u_skyZenith;            // M48: rgb, w: 1 = gradient sky
+    float4 u_skyHorizon;           // rgb, w: cosine of the sun disc's radius
+    float4 u_skySun;               // x: halo strength, y: water glint (M49)
+    float4 u_waterShallow;         // rgb, w: sky reflection
+    float4 u_waterDeep;            // rgb, w: ripple
+    float4 u_weather;              // M50: x rain 0..1
 };
+
+// Value noise in [0, 1] (M25): a hash per lattice point, smoothly blended.
+float Hash(float2 p)
+{
+    return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+
+float ValueNoise(float2 p)
+{
+    const float2 i = floor(p);
+    const float2 f = frac(p);
+    const float2 s = f * f * (3.0 - 2.0 * f);
+    return lerp(lerp(Hash(i), Hash(i + float2(1, 0)), s.x),
+                lerp(Hash(i + float2(0, 1)), Hash(i + float2(1, 1)), s.x), s.y);
+}
 
 // How much of the spot light (M42) reaches a point, before the surface's
 // angle: the cone times the windowed inverse-square falloff, 0 when off.

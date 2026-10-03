@@ -9,6 +9,7 @@
 #include "Dialogue/Dialogue.h"
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
+#include "Environment/EnvironmentController.h"
 #include "Flashlight.h"
 #include "Interaction/InteractionSystem.h"
 #include "Interaction/MessageFeed.h"
@@ -30,6 +31,7 @@
 #include <array>
 #include <cstddef>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -140,6 +142,14 @@ namespace AtomGame
         std::string SurfaceName() const override;
         float ZoneLevel(const std::string& cell) const override;
         std::pair<std::uint32_t, std::uint32_t> ScreenStats() const override;
+        std::uint32_t ParticleCount() const override
+        {
+            return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().particles;
+        }
+        std::uint32_t WaterDraws() const override
+        {
+            return const_cast<DemoApp*>(this)->GetRenderer().GetLastFrameStats().waterDraws;
+        }
         std::string Capture(const std::string& stem, bool includeUi) override;
         bool CapturePending() const override;
         bool Set(const std::string& what, const std::string& value) override;
@@ -178,6 +188,21 @@ namespace AtomGame
         FileWatcher m_dialogueFiles;
         FileWatcher m_dataFiles; // M46: Assets/Data (the flashlight)
         void LoadFlashlightSettings();
+
+        // Weather and time of day (M49): presets over the level's own light.
+        EnvironmentController m_environment;
+        std::map<std::string, std::string> m_presets; // name -> file text (Assets/Environments)
+        std::string m_environmentName;                // showing or heading for; "" = the level's own
+        float m_environmentSeconds = 3.0f;            // dev tools: how long a switch blends
+        std::optional<float> m_rainOverride;          // M51: "set rain" for benchmarks
+        FileWatcher m_environmentFiles;
+        void LoadEnvironmentPresets();
+        EnvironmentState ResolveEnvironment(const std::string& name) const;
+        std::vector<std::string> OfferedPresets() const;
+        void ResetEnvironment();   // the level's default, at once
+        void RefreshEnvironment(); // the same preset over an edited or reloaded level, at once
+        bool SetEnvironment(const std::string& name, float seconds) override;
+        std::string EnvironmentName() const override;
         std::unique_ptr<TestRunner> m_testRunner;
         ModelCache m_modelCache; // declared before the levels: outlives them
         std::unique_ptr<LevelManager> m_levels;

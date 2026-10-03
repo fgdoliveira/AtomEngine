@@ -172,6 +172,34 @@ namespace AtomGame::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle Rain(float seconds)
+    {
+        // A wash of filtered noise - drops too many to hear one by one -
+        // with sparse nearer ticks on top, swelling slightly.
+        std::vector<float> out(Frames(seconds));
+        Noise noise(301);
+        Noise ticks(302);
+        Wander swell(303, 0.3f);
+        OnePoleLowpass low;
+        Biquad high = Biquad::Highpass(350.0f);
+        Biquad tickBand = Biquad::Bandpass(3200.0f, 1.5f);
+        float tick = 0.0f;
+        for (float& sample : out)
+        {
+            const float wash = high.Process(low.Process(noise(), 4200.0f));
+            if (ticks() > 0.9985f)
+            {
+                tick = 1.0f; // a drop close by
+            }
+            tick *= 0.996f;
+            const float drop = tickBand.Process(noise()) * tick;
+            sample = wash * (0.75f + 0.25f * swell.Next()) + drop * 0.8f;
+        }
+        MakeLoop(out, 1.0f);
+        Normalize(out, 0.7f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle CicadaBed(float seconds)
     {
         // Two distant choruses: a dense sizzle and a pulsing buzz, each

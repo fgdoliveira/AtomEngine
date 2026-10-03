@@ -22,6 +22,7 @@ namespace AtomGame
         };
 
         Atom::SoundHandle Wind(float seconds = 24.0f);
+        Atom::SoundHandle Rain(float seconds = 12.0f); // M50: a steady downpour
         Atom::SoundHandle CicadaBed(float seconds = 16.0f);
         Atom::SoundHandle Drone(float seconds = 20.0f);
         Atom::SoundHandle VendingHum();

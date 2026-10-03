@@ -67,6 +67,8 @@ namespace AtomGame
         staticParams.loop = true;
         staticParams.gain = 0.0f;
         m_staticVoice = audio.Play(m_library["static"], staticParams);
+        // Rain (M50): played while it rains (SetRainLevel).
+        m_library["rain"] = SoundSynth::Rain();
 
         std::cout << "AudioScape: " << m_library.size() << " library sounds synthesised\n";
     }
@@ -159,6 +161,31 @@ namespace AtomGame
         if (m_audio && m_staticVoice)
         {
             m_audio->SetVoiceGain(m_staticVoice, 0.45f * level);
+        }
+    }
+
+    void AudioScape::SetRainLevel(float level)
+    {
+        // A voice only while it rains: dry, there's nothing to mix.
+        if (!m_audio)
+        {
+            return;
+        }
+        if (level > 0.0f && !m_rainVoice)
+        {
+            Atom::PlayParams params{};
+            params.loop = true;
+            params.gain = 0.0f;
+            m_rainVoice = m_audio->Play(m_library["rain"], params);
+        }
+        else if (level <= 0.0f && m_rainVoice)
+        {
+            m_audio->Stop(m_rainVoice);
+            m_rainVoice = 0;
+        }
+        if (m_rainVoice)
+        {
+            m_audio->SetVoiceGain(m_rainVoice, 0.55f * level);
         }
     }
 
