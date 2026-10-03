@@ -1,5 +1,7 @@
 # AtomEngine
 
+[![CI](https://github.com/fgdoliveira/AtomEngine/actions/workflows/ci.yml/badge.svg)](https://github.com/fgdoliveira/AtomEngine/actions/workflows/ci.yml)
+
 A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)**. Its demo is a first-person walk
 through a foggy rural Japanese street in the spirit of 2000s horror (Silent
@@ -198,6 +200,13 @@ ctest --test-dir build -C Release              # everything
 ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
 ```
+
+**CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every push and
+pull request: a fresh Windows machine clones with submodules, configures
+with `-DATOM_BUILD_GAME=OFF` (no shader compiler), builds `AtomTests` in
+Release and runs them. It answers "does a clean clone build and pass?".
+The in-game scenarios and every performance measurement stay local: they
+need a real GPU, and hosted machines time things too noisily.
 
 Every scenario also checks, on each level change, that the new level is
 first drawn from its spawn. The asset build has its own check: it refuses
