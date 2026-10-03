@@ -15,7 +15,8 @@ namespace Atom
         float rotation = 0.0f;          // radians, in screen plane
         float atlasCell = 0.0f;         // column in the particle atlas
         float beamLit = 0.0f;           // M45: 1 = seen only where the spot reaches (dust)
-        float padding = 0.0f;
+        float stretch = 0.0f;           // M50: > 0, a streak this long (m) along the renderer's
+                                        // streak direction, `size` wide (rain)
     };
 
     static_assert(sizeof(Particle) == 48, "Particle must match the GPU layout");

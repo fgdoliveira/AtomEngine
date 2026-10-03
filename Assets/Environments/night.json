@@ -1,0 +1,23 @@
+{
+  "$schema": "../Schemas/environment.schema.json",
+  "name": "night",
+  "sunDirection": [0.4, 0.5, -0.75],
+  "sunColor": [0.12, 0.15, 0.24],
+  "skyColor": [0.1, 0.13, 0.22],
+  "groundColor": [0.03, 0.04, 0.05],
+  "fogColor": [0.04, 0.06, 0.1],
+  "fogDensity": 0.01,
+  "wind": [0.25, 0.0, 0.1],
+  "skyGradient": {
+    "zenith": [0.01, 0.02, 0.06],
+    "horizon": [0.05, 0.08, 0.15],
+    "sunSize": 1.0,
+    "sunGlow": 0.3
+  },
+  "water": {
+    "shallow": [0.1, 0.16, 0.22],
+    "deep": [0.01, 0.02, 0.05],
+    "skyReflection": 0.9,
+    "ripple": 0.7
+  }
+}

@@ -100,6 +100,67 @@ namespace AtomGame
             return *found;
         }
 
+        // The environment's keys (M47-M49), shared by a level's "lighting"
+        // and an environment preset: what's absent keeps its value in `e`.
+        void ReadEnvironment(const Json& object, const std::string& at, EnvironmentState& e)
+        {
+            e.sunDirection = Vec3(object, "sunDirection", e.sunDirection, at);
+            e.sunColor = Vec3(object, "sunColor", e.sunColor, at);
+            e.skyColor = Vec3(object, "skyColor", e.skyColor, at);
+            e.groundColor = Vec3(object, "groundColor", e.groundColor, at);
+            e.fogColor = Vec3(object, "fogColor", e.fogColor, at);
+            if (object.contains("fogDensity"))
+            {
+                const float density = Number(object, "fogDensity", at, 0.0f);
+                if (density < 0.0f)
+                {
+                    throw LevelError(at + "/fogDensity", "must be >= 0");
+                }
+                e.fogDensity = density;
+            }
+            e.rain = Number(object, "rain", at, e.rain);
+            if (e.rain < 0.0f || e.rain > 1.0f)
+            {
+                throw LevelError(at + "/rain", "must be 0..1");
+            }
+            e.wind = Vec3(object, "wind", e.wind, at);
+            if (const auto water = object.find("water"); water != object.end())
+            {
+                const std::string waterAt = at + "/water";
+                WaterLook& w = e.water;
+                w.shallow = Vec3(*water, "shallow", w.shallow, waterAt);
+                w.deep = Vec3(*water, "deep", w.deep, waterAt);
+                w.skyReflection = Number(*water, "skyReflection", waterAt, w.skyReflection);
+                w.ripple = Number(*water, "ripple", waterAt, w.ripple);
+                w.glint = Number(*water, "glint", waterAt, w.glint);
+                w.reflection = Bool(*water, "reflection", waterAt, w.reflection);
+                if (w.skyReflection < 0.0f || w.skyReflection > 1.0f || w.ripple < 0.0f || w.glint < 0.0f)
+                {
+                    throw LevelError(waterAt, "skyReflection must be 0..1, ripple and glint >= 0");
+                }
+            }
+            if (const auto sky = object.find("skyGradient"); sky != object.end())
+            {
+                const std::string skyAt = at + "/skyGradient";
+                SkyGradient g = e.sky.value_or(SkyGradient{});
+                g.zenith = Vec3(*sky, "zenith", g.zenith, skyAt);
+                g.horizon = Vec3(*sky, "horizon", g.horizon, skyAt);
+                g.sunSize = Number(*sky, "sunSize", skyAt, g.sunSize);
+                g.sunGlow = Number(*sky, "sunGlow", skyAt, g.sunGlow);
+                if (g.sunSize < 0.0f || g.sunSize > 20.0f || g.sunGlow < 0.0f)
+                {
+                    throw LevelError(skyAt, "sunSize must be 0..20 degrees and sunGlow >= 0");
+                }
+                e.sky = g;
+                // The ground melts into the sky: unless it says otherwise,
+                // the fog is the horizon's colour.
+                if (!object.contains("fogColor"))
+                {
+                    e.fogColor = g.horizon;
+                }
+            }
+        }
+
         Action ParseAction(const Json& json, const std::string& path)
         {
             const std::string type = String(json, "type", path);
@@ -535,11 +596,7 @@ namespace AtomGame
             {
                 const std::string at = "/lighting";
                 LevelLighting& l = level.lighting;
-                l.sunDirection = Vec3(*light, "sunDirection", l.sunDirection, at);
-                l.sunColor = Vec3(*light, "sunColor", l.sunColor, at);
-                l.skyColor = Vec3(*light, "skyColor", l.skyColor, at);
-                l.groundColor = Vec3(*light, "groundColor", l.groundColor, at);
-                l.fogColor = Vec3(*light, "fogColor", l.fogColor, at);
+                ReadEnvironment(*light, at, l);
                 l.shadows = Bool(*light, "shadows", at, l.shadows);
                 l.bakedLight = Number(*light, "bakedLight", at, l.bakedLight);
                 if (const auto glow = light->find("glow"); glow != light->end())
@@ -673,6 +730,32 @@ namespace AtomGame
                 l.yawDegrees = Number(*lab, "yaw", "/lab", l.yawDegrees);
                 l.pitchDegrees = Number(*lab, "pitch", "/lab", l.pitchDegrees);
                 level.lab = l;
+            }
+
+            if (const auto env = root.find("environment"); env != root.end())
+            {
+                LevelEnvironment e;
+                e.defaultPreset = String(*env, "default", "/environment");
+                std::size_t index = 0;
+                for (const Json& preset : Array(*env, "presets", "/environment"))
+                {
+                    if (!preset.is_string())
+                    {
+                        throw LevelError(JsonPath("/environment/presets", index), "must be a preset name");
+                    }
+                    e.presets.push_back(preset.get<std::string>());
+                    ++index;
+                }
+                if (e.defaultPreset.empty())
+                {
+                    throw LevelError("/environment/default", "names the preset the level starts in");
+                }
+                if (!e.presets.empty()
+                    && std::find(e.presets.begin(), e.presets.end(), e.defaultPreset) == e.presets.end())
+                {
+                    throw LevelError("/environment/default", "'" + e.defaultPreset + "' is not one of the presets");
+                }
+                level.environment = e;
             }
 
             if (const auto sky = root.find("sky"); sky != root.end())
@@ -1085,6 +1168,34 @@ namespace AtomGame
         catch (const Json::exception& error)
         {
             return { std::nullopt, error.what() };
+        }
+    }
+
+    std::string ApplyEnvironmentPreset(std::string_view text, EnvironmentState& state)
+    {
+        Json root;
+        if (std::string error = ParseJsonText(text, root); !error.empty())
+        {
+            return error;
+        }
+        try
+        {
+            if (!root.is_object())
+            {
+                throw LevelError("", "a preset is an object");
+            }
+            EnvironmentState result = state;
+            ReadEnvironment(root, "", result);
+            state = result;
+            return {};
+        }
+        catch (const LevelError& error)
+        {
+            return error.what();
+        }
+        catch (const Json::exception& error)
+        {
+            return error.what();
         }
     }
 

@@ -143,6 +143,7 @@ namespace Atom
                 read("\"atom_wet\"", material.wet);
                 read("\"atom_specular\"", material.specular);
                 read("\"atom_reveal\"", material.reveal);
+                read("\"atom_water\"", material.water);
             }
             material.doubleSided = source.double_sided != 0;
             if (source.alpha_mode == cgltf_alpha_mode_mask)
@@ -153,6 +154,10 @@ namespace Atom
             else if (source.alpha_mode == cgltf_alpha_mode_blend)
             {
                 material.alphaMode = AlphaMode::Blend;
+            }
+            if (material.water > 0.0f)
+            {
+                material.alphaMode = AlphaMode::Blend; // drawn with the blended draws
             }
         }
 

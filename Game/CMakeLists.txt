@@ -13,6 +13,8 @@ add_library(
     DemoApp.cpp
     DemoApp.h
     Flashlight.cpp
+    Environment/EnvironmentController.cpp
+    Environment/EnvironmentController.h
     Flashlight.h
     DemoAppLab.cpp
     DemoAppDevTools.cpp
@@ -38,6 +40,8 @@ add_library(
     Dialogue/DialogueView.cpp
     Dialogue/DialogueView.h
     Interaction/Actions.h
+    Level/Environment.cpp
+    Level/Environment.h
     Level/Level.cpp
     Level/Level.h
     Level/LevelData.cpp

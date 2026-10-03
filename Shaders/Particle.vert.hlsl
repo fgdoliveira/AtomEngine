@@ -4,6 +4,7 @@ cbuffer ParticleUniforms : register(b0, space1)
     float4x4 u_viewProjection;
     float4 u_cameraRight; // xyz, w: atlas columns
     float4 u_cameraUp;
+    float4 u_streak; // M50: xyz, the direction streaks stretch along
 };
 
 struct VSInput
@@ -11,7 +12,7 @@ struct VSInput
     uint vertexId       : SV_VertexID;
     float4 positionSize : TEXCOORD0; // per instance
     float4 color        : TEXCOORD1;
-    float4 params       : TEXCOORD2; // x: rotation, y: atlas cell
+    float4 params       : TEXCOORD2; // x: rotation, y: atlas cell, z: beam-lit, w: streak length
 };
 
 struct VSOutput
@@ -39,8 +40,18 @@ VSOutput main(VSInput input)
         corner.x * sinR + corner.y * cosR);
 
     const float halfSize = input.positionSize.w * 0.5;
-    const float3 world = input.positionSize.xyz
+    float3 world = input.positionSize.xyz
         + (u_cameraRight.xyz * rotated.x + u_cameraUp.xyz * rotated.y) * halfSize;
+    // Streaks (M50, rain): a thin quad along the fall direction, turned
+    // about it to face the camera as well as it can.
+    if (input.params.w > 0.0)
+    {
+        const float3 axis = u_streak.xyz;
+        const float3 forward = cross(u_cameraUp.xyz, u_cameraRight.xyz);
+        float3 side = cross(axis, forward);
+        side = dot(side, side) > 1e-6 ? normalize(side) : u_cameraRight.xyz;
+        world = input.positionSize.xyz + side * corner.x * halfSize + axis * corner.y * input.params.w * 0.5;
+    }
 
     const float columns = u_cameraRight.w;
     const float2 local = float2(corner.x * 0.5 + 0.5, 0.5 - corner.y * 0.5);

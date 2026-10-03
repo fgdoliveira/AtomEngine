@@ -151,6 +151,7 @@ namespace Atom
             glm::mat4 viewProjection;
             glm::vec4 cameraRight; // w: atlas columns
             glm::vec4 cameraUp;
+            glm::vec4 streak;      // M50: xyz, the direction streaks (rain) stretch along
         };
 
         std::size_t SampleSlot(std::uint32_t samples)
@@ -192,6 +193,12 @@ namespace Atom
             glm::vec4 spotCone;      // x: cos outer, y: cos inner
             glm::mat4 spotViewProjection; // M43: its shadow map
             glm::vec4 spotShadow;    // x: on, y: texel size (uv), z: normal offset per metre
+            glm::vec4 skyZenith;     // M48: rgb, w: 1 = gradient sky
+            glm::vec4 skyHorizon;    // rgb, w: cosine of the sun disc's radius
+            glm::vec4 skySun;        // x: halo strength, y: water glint (M49)
+            glm::vec4 waterShallow;  // rgb, w: sky reflection
+            glm::vec4 waterDeep;     // rgb, w: ripple
+            glm::vec4 weather;       // M50: x rain; M51: y reflection drawn, zw 1 / scene size
         };
 
         SceneUniforms MakeSceneUniforms(
@@ -253,6 +260,13 @@ namespace Atom
                 uniforms.spotPosition = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
                 uniforms.spotCone = glm::vec4{ 0.0f, 1.0f, 0.0f, 0.0f };
             }
+            // What the water reflects and how it looks (M48).
+            uniforms.skyZenith = glm::vec4{ lighting.skyZenith, lighting.skyGradient ? 1.0f : 0.0f };
+            uniforms.skyHorizon = glm::vec4{ lighting.skyHorizon, std::cos(glm::radians(lighting.sunSize)) };
+            uniforms.skySun = glm::vec4{ lighting.sunGlow, lighting.waterGlint, 0.0f, 0.0f };
+            uniforms.waterShallow = glm::vec4{ lighting.waterShallow, lighting.waterSkyReflection };
+            uniforms.waterDeep = glm::vec4{ lighting.waterDeep, lighting.waterRipple };
+            uniforms.weather = glm::vec4{ lighting.rain, 0.0f, 0.0f, 0.0f };
             return uniforms;
         }
 
@@ -515,11 +529,13 @@ namespace Atom
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
         alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
-        const std::size_t index = (skinned ? 12 : 0) + slot * 4
+        // The rain variant (M50) while it rains.
+        const bool rain = m_lighting.rain > 0.0f;
+        const std::size_t index = (rain ? 24 : 0) + (skinned ? 12 : 0) + slot * 4
             + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
         if (!m_scenePipelines[index])
         {
-            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned);
+            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned, false, rain);
         }
         return m_scenePipelines[index];
     }
@@ -527,12 +543,23 @@ namespace Atom
     SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples, bool skinned)
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
-        const std::size_t index = (skinned ? 3 : 0) + slot;
+        const bool rain = m_lighting.rain > 0.0f;
+        const std::size_t index = (rain ? 6 : 0) + (skinned ? 3 : 0) + slot;
         if (!m_decalPipelines[index])
         {
-            m_decalPipelines[index] = CreateScenePipeline(slot, false, false, true, skinned);
+            m_decalPipelines[index] = CreateScenePipeline(slot, false, false, true, skinned, false, rain);
         }
         return m_decalPipelines[index];
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetWaterPipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        if (!m_waterPipelines[slot])
+        {
+            m_waterPipelines[slot] = CreateScenePipeline(slot, false, false, true, false, true);
+        }
+        return m_waterPipelines[slot];
     }
 
     SDL_GPUGraphicsPipeline* Renderer::CreateScenePipeline(
@@ -540,7 +567,9 @@ namespace Atom
         bool doubleSided,
         bool alphaToCoverage,
         bool decal,
-        bool skinned
+        bool skinned,
+        bool water,
+        bool rain
     )
     {
         // Skinned meshes: the same fragment shading, a vertex shader that
@@ -551,11 +580,12 @@ namespace Atom
             SDL_GPU_SHADERSTAGE_VERTEX,
             ShaderResources{ .uniformBuffers = skinned ? 3u : 2u }
         );
+        // Water binds the same resources as the scene, shading them its own way.
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
-            "Basic.frag",
+            water ? "Water.frag" : rain ? "BasicRain.frag" : "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
-            ShaderResources{ .samplers = 5, .uniformBuffers = 2 }
+            ShaderResources{ .samplers = water ? 6u : 5u, .uniformBuffers = 2 }
         );
 
         if (!vertexShader || !fragmentShader)
@@ -647,7 +677,7 @@ namespace Atom
         createInfo.depth_stencil_state.enable_depth_write = !decal;
         createInfo.depth_stencil_state.compare_op =
             SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
-        if (decal)
+        if (decal && !water)
         {
             // Pulled toward the camera, more on slanted views, so the 2 mm
             // they float above their surface is never lost to precision.
@@ -835,6 +865,7 @@ namespace Atom
             const Material& m = *c.material;
             return std::tuple{
                 m.alphaMode == AlphaMode::Blend,
+                m.water > 0.0f, // water after the decals: they lie on what it covers
                 m.alphaMode == AlphaMode::Mask,
                 m.doubleSided,
                 c.palette >= 0,
@@ -963,6 +994,7 @@ namespace Atom
             && RenderTextures(commandBuffer)
             && RenderShadowPass(commandBuffer, lightViewProjection)
             && RenderSpotShadowPass(commandBuffer, spotViewProjection)
+            && RenderReflectionPass(commandBuffer, lightViewProjection, spotViewProjection)
             && RenderScenePass(commandBuffer, lightViewProjection, spotViewProjection)
             && (!GlowActive()
                 || m_glow.Render(commandBuffer, m_targets.GetSceneTexture(),
@@ -1196,7 +1228,8 @@ namespace Atom
         SDL_GPUCommandBuffer* commandBuffer,
         const glm::mat4& viewProjection,
         std::uint32_t sceneSamples,
-        bool spotPass
+        bool spotPass,
+        bool reflection
     )
     {
         const Frustum frustum = ExtractFrustum(viewProjection);
@@ -1211,8 +1244,9 @@ namespace Atom
         {
             const ChunkInfo& chunk = m_chunks[i];
             chunkVisible[i] = (bindMaterials || chunk.castsShadow)
+                && (!reflection || chunk.layer == RenderLayer::Near)
                 && IsBoxVisible(frustum, chunk.boundsMin, chunk.boundsMax);
-            if (bindMaterials && chunkVisible[i])
+            if (bindMaterials && !reflection && chunkVisible[i])
             {
                 ++m_stats.layers[static_cast<std::size_t>(chunk.layer)].chunksVisible;
             }
@@ -1229,7 +1263,7 @@ namespace Atom
         std::uint32_t drawn = 0;
         // Phase 0: opaque and alpha-tested. Phase 1 (scene only): decals,
         // over the finished surfaces; they cast no shadows.
-        for (int phase = 0; phase < (bindMaterials ? 2 : 1); ++phase)
+        for (int phase = 0; phase < (bindMaterials && !reflection ? 2 : 1); ++phase)
         for (const DrawCommand& command : m_drawCommands)
         {
             const bool isDecal = command.material->alphaMode == AlphaMode::Blend;
@@ -1241,6 +1275,10 @@ namespace Atom
             {
                 continue;
             }
+            if (!m_waterEnabled && command.material->water > 0.0f)
+            {
+                continue;
+            }
             if (!IsVisible(frustum, *command.mesh, command.model))
             {
                 continue;
@@ -1248,7 +1286,11 @@ namespace Atom
             ++drawn;
             LayerStats& layer = m_stats.layers[static_cast<std::size_t>(
                 command.chunk >= 0 ? m_chunks[command.chunk].layer : RenderLayer::Near)];
-            if (bindMaterials)
+            if (reflection)
+            {
+                // counted apart (reflectionDrawn)
+            }
+            else if (bindMaterials)
             {
                 ++layer.drawn;
                 layer.triangles += command.mesh->GetIndexCount() / 3;
@@ -1286,7 +1328,9 @@ namespace Atom
 
             if (bindMaterials)
             {
-                SDL_GPUGraphicsPipeline* pipeline = isDecal
+                SDL_GPUGraphicsPipeline* pipeline = material.water > 0.0f
+                    ? GetWaterPipeline(sceneSamples)
+                    : isDecal
                     ? GetDecalPipeline(sceneSamples, skinned)
                     : GetScenePipeline(sceneSamples, material.doubleSided, masked, skinned);
                 if (!pipeline)
@@ -1299,6 +1343,13 @@ namespace Atom
                     bound = pipeline;
                     boundMaterial = nullptr; // rebind textures with a new pipeline
                     ++m_stats.pipelineBinds;
+                    if (material.water > 0.0f)
+                    {
+                        // M51: what the water reflects (white, unused, without a reflection).
+                        const SDL_GPUTextureSamplerBinding reflectionBinding{
+                            m_reflectionDrawn ? m_reflectionColor : m_whiteTexture->GetGPUTexture(), m_postSampler };
+                        SDL_BindGPUFragmentSamplers(renderPass, 5, &reflectionBinding, 1);
+                    }
                 }
 
                 // Baked meshes blend toward their vertex light; others keep
@@ -1318,8 +1369,12 @@ namespace Atom
                     }
                 }
                 const bool spotReaches = spotOn && IsVisible(spotFrustum, *command.mesh, command.model);
-                m_stats.spotLitDraws += spotReaches ? 1 : 0;
-                m_stats.liveLitDraws += liveBits != 0 ? 1 : 0;
+                if (!reflection)
+                {
+                    m_stats.spotLitDraws += spotReaches ? 1 : 0;
+                    m_stats.liveLitDraws += liveBits != 0 ? 1 : 0;
+                    m_stats.waterDraws += material.water > 0.0f ? 1 : 0;
+                }
 
                 const MaterialUniforms materialUniforms{
                     material.baseColorFactor,
@@ -1508,6 +1563,145 @@ namespace Atom
         return true;
     }
 
+    bool Renderer::EnsureReflectionTargets(std::uint32_t width, std::uint32_t height)
+    {
+        if (m_reflectionColor && m_reflectionWidth == width && m_reflectionHeight == height)
+        {
+            return true;
+        }
+        for (SDL_GPUTexture* texture : { m_reflectionColor, m_reflectionDepth })
+        {
+            if (texture)
+            {
+                SDL_ReleaseGPUTexture(m_device, texture);
+            }
+        }
+        SDL_GPUTextureCreateInfo info{};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = m_targets.GetColorFormat();
+        info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = width;
+        info.height = height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        m_reflectionColor = SDL_CreateGPUTexture(m_device, &info);
+        info.format = RenderTargets::GetDepthFormat();
+        info.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
+        m_reflectionDepth = SDL_CreateGPUTexture(m_device, &info);
+        m_reflectionWidth = width;
+        m_reflectionHeight = height;
+        if (!m_reflectionColor || !m_reflectionDepth)
+        {
+            std::cerr << "Cannot create the reflection targets: " << SDL_GetError() << '\n';
+            return false;
+        }
+        return true;
+    }
+
+    bool Renderer::RenderReflectionPass(
+        SDL_GPUCommandBuffer* commandBuffer,
+        const glm::mat4& lightViewProjection,
+        const glm::mat4& spotViewProjection
+    )
+    {
+        // The near scene seen from below the water's plane (M51), so the
+        // water can show it instead of only the sky. Only where the water's
+        // look asks for it, and only when a water surface is in view.
+        m_reflectionDrawn = false;
+        if (!m_lighting.waterReflection || !m_reflectionEnabled || !m_waterEnabled)
+        {
+            return true;
+        }
+        const float aspect = static_cast<float>(m_targets.GetWidth()) / static_cast<float>(m_targets.GetHeight());
+        const glm::mat4 projection = glm::perspective(
+            m_camera.verticalFov, aspect, m_camera.nearPlane, m_camera.farPlane);
+        const Frustum frustum = ExtractFrustum(projection * m_camera.view);
+        std::optional<float> waterHeight;
+        for (const DrawCommand& command : m_drawCommands)
+        {
+            if (command.material->water > 0.0f && IsVisible(frustum, *command.mesh, command.model))
+            {
+                glm::vec3 center{ 0.0f };
+                glm::vec3 extent{ 0.0f };
+                WorldBox(*command.mesh, command.model, center, extent);
+                waterHeight = center.y; // flat water: its box is its plane
+                break;
+            }
+        }
+        if (!waterHeight)
+        {
+            return true;
+        }
+        const float h = *waterHeight;
+
+        // Mirror the world in the plane y = h. A mirror turns triangles
+        // inside out (their winding flips, and back faces would be drawn);
+        // mirroring the image left-right too turns them back, and the water
+        // reads the texture with u flipped.
+        const glm::mat4 mirror = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, h, 0.0f })
+            * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.0f, -1.0f, 1.0f })
+            * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -h, 0.0f });
+        const glm::mat4 view = m_camera.view * mirror;
+
+        // An oblique near plane on the water (Lengyel): what's below it - the
+        // lake bed, mirrored up into the sky - is clipped by the hardware,
+        // with no clip test in the shaders. A little below the surface, so
+        // the shore doesn't open a seam.
+        glm::mat4 oblique = projection;
+        const glm::vec4 plane = glm::transpose(glm::inverse(view)) * glm::vec4{ 0.0f, 1.0f, 0.0f, -(h - 0.05f) };
+        const glm::vec4 corner = glm::inverse(projection)
+            * glm::vec4{ plane.x > 0.0f ? 1.0f : -1.0f, plane.y > 0.0f ? 1.0f : -1.0f, 1.0f, 1.0f };
+        const glm::vec4 row = plane * (1.0f / glm::dot(plane, corner)); // depth 0..1: z = 0 on the plane
+        oblique[0][2] = row.x;
+        oblique[1][2] = row.y;
+        oblique[2][2] = row.z;
+        oblique[3][2] = row.w;
+        const glm::mat4 flipped = glm::scale(glm::mat4{ 1.0f }, glm::vec3{ -1.0f, 1.0f, 1.0f }) * oblique;
+
+        if (!EnsureReflectionTargets(std::max(1u, m_targets.GetWidth() / 2), std::max(1u, m_targets.GetHeight() / 2)))
+        {
+            return true; // no reflection, still a frame
+        }
+        SDL_GPUColorTargetInfo colorTarget{};
+        colorTarget.texture = m_reflectionColor;
+        colorTarget.clear_color = SDL_FColor{ m_lighting.fogColor.r, m_lighting.fogColor.g, m_lighting.fogColor.b, 1.0f };
+        colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+        colorTarget.cycle = true;
+        SDL_GPUDepthStencilTargetInfo depthTarget{};
+        depthTarget.texture = m_reflectionDepth;
+        depthTarget.clear_depth = 1.0f;
+        depthTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        depthTarget.store_op = SDL_GPU_STOREOP_DONT_CARE;
+        depthTarget.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+        depthTarget.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+        depthTarget.cycle = true;
+        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, &depthTarget);
+        if (!renderPass)
+        {
+            std::cerr << "Failed to begin the reflection pass: " << SDL_GetError() << '\n';
+            return false;
+        }
+
+        SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
+        // Lit as seen from the mirrored camera (fog and highlights follow it).
+        const SceneUniforms sceneUniforms = MakeSceneUniforms(
+            m_lighting, view, lightViewProjection, m_wind.w,
+            std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount),
+            m_spotActive ? &m_spot : nullptr, spotViewProjection);
+        SDL_PushGPUFragmentUniformData(commandBuffer, 1, &sceneUniforms, sizeof(sceneUniforms));
+        const SDL_GPUTextureSamplerBinding shadowBinding{ m_shadowMap, m_shadowSampler };
+        SDL_BindGPUFragmentSamplers(renderPass, 1, &shadowBinding, 1);
+        const SDL_GPUTextureSamplerBinding spotShadowBinding{ m_spotShadowMap, m_shadowSampler };
+        SDL_BindGPUFragmentSamplers(renderPass, 4, &spotShadowBinding, 1);
+
+        DrawSky(renderPass, commandBuffer, flipped, view, 1);
+        m_stats.reflectionDrawn = DrawQueue(renderPass, commandBuffer, flipped * view, 1, false, true);
+        SDL_EndGPURenderPass(renderPass);
+        m_reflectionDrawn = true;
+        return true;
+    }
+
     bool Renderer::RenderScenePass(
         SDL_GPUCommandBuffer* commandBuffer,
         const glm::mat4& lightViewProjection,
@@ -1561,10 +1755,13 @@ namespace Atom
         SDL_PushGPUVertexUniformData(commandBuffer, 1, &m_wind, sizeof(m_wind));
 
         // Once per frame; stays bound for every draw in this command buffer.
-        const SceneUniforms sceneUniforms = MakeSceneUniforms(
+        SceneUniforms sceneUniforms = MakeSceneUniforms(
             m_lighting, m_camera.view, lightViewProjection, m_wind.w,
             std::span<const LiveLight>(m_liveLights.data(), m_liveLightCount),
             m_spotActive ? &m_spot : nullptr, spotViewProjection);
+        sceneUniforms.weather.y = m_reflectionDrawn ? 1.0f : 0.0f;
+        sceneUniforms.weather.z = 1.0f / static_cast<float>(m_targets.GetWidth());
+        sceneUniforms.weather.w = 1.0f / static_cast<float>(m_targets.GetHeight());
         m_stats.liveLights = static_cast<std::uint32_t>(m_liveLightCount);
         SDL_PushGPUFragmentUniformData(
             commandBuffer,
@@ -1586,7 +1783,7 @@ namespace Atom
         };
         SDL_BindGPUFragmentSamplers(renderPass, 4, &spotShadowBinding, 1);
 
-        DrawSky(renderPass, commandBuffer, projection);
+        DrawSky(renderPass, commandBuffer, projection, m_camera.view, m_targets.GetSamples());
 
         m_stats.sceneWidth = m_targets.GetWidth();
         m_stats.sceneHeight = m_targets.GetHeight();
@@ -1816,27 +2013,45 @@ namespace Atom
     }
 
     void Renderer::DrawSky(SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* commandBuffer,
-                           const glm::mat4& projection)
+                           const glm::mat4& projection, const glm::mat4& cameraView, std::uint32_t samples)
     {
-        if (!m_lighting.skyPanorama)
+        const bool panorama = m_lighting.skyPanorama != nullptr;
+        if (!panorama && !m_lighting.skyGradient)
         {
             return; // the pass cleared to the fog colour
         }
-        SDL_GPUGraphicsPipeline* pipeline = GetSkyPipeline(m_targets.GetSamples());
+        SDL_GPUGraphicsPipeline* pipeline = GetSkyPipeline(samples);
         if (!pipeline)
         {
             return;
         }
         // Rotation only: the sky is infinitely far, so moving never changes it.
-        glm::mat4 view = m_camera.view;
+        glm::mat4 view = cameraView;
         view[3] = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
         const glm::mat4 inverse = glm::inverse(projection * view);
-        const glm::vec4 params{ m_lighting.skyIntensity, 0.0f, 0.0f, 0.0f };
+        glm::vec3 sun = m_lighting.sunDirection;
+        sun = glm::length(sun) > 1e-4f ? glm::normalize(sun) : glm::vec3{ 0.0f, 1.0f, 0.0f };
+        struct SkyParams
+        {
+            glm::vec4 sky;
+            glm::vec4 zenith;
+            glm::vec4 horizon;
+            glm::vec4 sunDirection;
+            glm::vec4 sunColor;
+        } const params{
+            { panorama ? m_lighting.skyIntensity : 1.0f, panorama ? 0.0f : 1.0f, 0.0f, 0.0f },
+            { m_lighting.skyZenith, 0.0f },
+            { m_lighting.skyHorizon, std::cos(glm::radians(m_lighting.sunSize)) },
+            { sun, m_lighting.sunGlow },
+            { m_lighting.sunColor, 0.0f },
+        };
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
         SDL_PushGPUVertexUniformData(commandBuffer, 0, &inverse, sizeof(inverse));
         SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
-        const SDL_GPUTextureSamplerBinding binding{ m_lighting.skyPanorama->GetGPUTexture(), m_sampler };
+        // The gradient samples nothing, but the slot must still be bound.
+        const Texture* texture = panorama ? m_lighting.skyPanorama : m_whiteTexture.get();
+        const SDL_GPUTextureSamplerBinding binding{ texture->GetGPUTexture(), m_sampler };
         SDL_BindGPUFragmentSamplers(renderPass, 0, &binding, 1);
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
     }
@@ -2210,7 +2425,8 @@ namespace Atom
         const ParticleUniforms uniforms{
             viewProjection,
             glm::vec4{ glm::vec3(cameraWorld[0]), static_cast<float>(m_particleAtlasColumns) },
-            glm::vec4{ glm::vec3(cameraWorld[1]), 0.0f }
+            glm::vec4{ glm::vec3(cameraWorld[1]), 0.0f },
+            glm::vec4{ m_particleStreak, 0.0f }
         };
 
         SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
@@ -2350,6 +2566,13 @@ namespace Atom
                     SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
                 }
             }
+            for (SDL_GPUGraphicsPipeline* pipeline : m_waterPipelines)
+            {
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
+            }
             for (SDL_GPUGraphicsPipeline* pipeline : m_scenePipelines)
             {
                 if (pipeline)
@@ -2395,6 +2618,13 @@ namespace Atom
             {
                 SDL_ReleaseGPUTexture(m_device, m_spotShadowMap);
             }
+            for (SDL_GPUTexture* texture : { m_reflectionColor, m_reflectionDepth })
+            {
+                if (texture)
+                {
+                    SDL_ReleaseGPUTexture(m_device, texture);
+                }
+            }
 
             if (m_windowClaimed && m_window)
             {
@@ -2406,6 +2636,7 @@ namespace Atom
 
         m_scenePipelines = {};
         m_decalPipelines = {};
+        m_waterPipelines = {};
         m_postPipeline = nullptr;
         m_shadowPipelines = {};
         m_particlePipelines = {};

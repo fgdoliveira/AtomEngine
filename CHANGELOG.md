@@ -1,5 +1,79 @@
 # Changelog
 
+## 0.0.8 — Water and weather
+
+Early-2000s fantasy-game looks on modern hardware: a lake that reads
+through colour, movement and highlights rather than optics, and weather
+as authored state rather than meteorology. A rainy lake isn't the sunny
+lake with rain on top - the sky, fog, sun, ambient light and the water
+itself shift together. Built in a lab level of its own, outside the
+demo's story.
+
+### Added
+- **A day sky (M47):** a procedural gradient from horizon to zenith with
+  a sun disc that blooms and a halo (`lighting.skyGradient`); the fog
+  takes the horizon's colour unless told otherwise. The blendable part of
+  a level's light becomes `EnvironmentState`, which `LevelLighting`
+  extends. The fog setting gains "level" (the default): the level's own
+  density (`lighting.fogDensity`), none for the existing levels.
+- **The lakeshore lab and stylized water (M48):** `ATOM_START_LEVEL=lakeshore`
+  - a round lake in a meadow, a sandy shelf, reeds, rocks, trees, hills
+  and a jetty, lit live (sky occlusion baked only, so presets can move the
+  sun). Water (`atom_water` materials) has its own pipeline and shader: a
+  tint from shallow to deep (the depth baked into the mesh's UV), two
+  drifting noise layers for ripples, Fresnel toward the sky along the
+  rippled reflection, the sun's glint, shore foam, alpha fading out at the
+  waterline. Its look is data (`lighting.water`).
+- **Environment presets (M49):** `Assets/Environments/*.json` - clear day,
+  overcast, rain, fog, sunset, night - with the keys of a level's
+  lighting, each optional (what a preset leaves out is the level's).
+  Levels offer presets and start in one (`"environment"`);
+  `EnvironmentController` switches at once or blends, eased and
+  deterministic. An F10 Environment panel (switch, blend time, live
+  edits, Copy as JSON), hot reload, and the harness's `environment` /
+  `expect_environment`. The water gains a glint control.
+- **Rain and wind (M50):** rain streaks in a box that follows the player
+  (particles stretched along the fall, slanted by the wind), rings on the
+  water, upward surfaces darkened and sheened by the wet, a rain sound
+  that plays only while it rains. The environment's wind drives the sway,
+  the leaves and the rain. Harness `expect_particles`.
+- **Measured, and a planar reflection kept (M51):** `set water|rain|weather|reflection`
+  to benchmark, `timeout` for long scripts, and
+  `Tools/Perf/water_and_weather.atomtest`. The reflection experiment - the
+  opaque near scene mirrored at half resolution, flipped left-right so the
+  mirror's winding comes back, clipped at the water by an oblique near
+  plane - looked worth its cost and stays as a water option
+  (`lighting.water.reflection`), on for the lakeshore.
+
+### Fixed
+- **Solid bands across every grass card:** the grass texture generator
+  painted nearly opaque rows across the card whenever a leaning blade left
+  its left edge (a negative slice end in numpy). Street, shrine, windmill
+  field, the kit's tuft and the lakeshore's reeds were all affected.
+
+### Measured
+Release, uncapped, Iris Xe, 1280×720, plugged in (Balanced power plan),
+the laptop's own screen; medians of 240-frame blocks (`ATOM_PERF_LOG`),
+p95 in brackets, single sessions.
+
+The lakeshore from the beach, per preset: clear day 3.53 ms (4.47),
+overcast 3.53 (4.34), rain 3.90 (4.89), fog 3.53 (4.34), sunset 3.32
+(4.48), night 3.58 (4.62).
+
+What its features cost (in-process paired benches, two runs, beach /
+jetty's end): water +0.34 / +0.68 ms, rain +0.23 / +0.18 ms, both +0.63 /
++0.91 ms, the reflection +0.21 / +0.14 ms.
+
+The demo levels, against v0.0.7 (`Tools/Perf/ab.ps1`, interleaved
+builds, 8 rounds): the first pass found the street 0.26 ms slower. The
+cause was the rain's code in the scene shader: skipped by a branch in
+every dry frame, it still cost the street 0.23 ms (removing it alone gave
+the time back), the same lesson as v0.0.6's weights view. It now lives in
+a shader variant (`BasicRain.frag`) the renderer uses only while it rains.
+After that: street −0.035 ms (range −0.28..+0.21), windmill field
+−0.007 ms (−0.05..+0.01), night street +0.15 ms (−0.28..+0.87, as noisy as
+it was in 0.0.7): within what the method resolves (~0.15 ms).
+
 ## 0.0.7 — Into the dark
 
 The two dead ends written as darkness - the machiya's corridor and the

@@ -59,6 +59,8 @@ namespace AtomGame
 
         // 0..1; radio static for the unease beats.
         void SetStaticLevel(float level);
+        // 0..1; the rain bed (M50), following the weather.
+        void SetRainLevel(float level);
 
         void ToggleMute();
         bool IsMuted() const { return m_muted; }
@@ -76,6 +78,7 @@ namespace AtomGame
 
         std::function<std::string_view(float, float)> m_surfaceAt;
         Atom::VoiceId m_staticVoice = 0;
+        Atom::VoiceId m_rainVoice = 0;
         int m_lastStep = 0;
         float m_higurashiTimer = 6.0f;
         bool m_outdoor = true;

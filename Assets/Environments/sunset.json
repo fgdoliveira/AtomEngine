@@ -1,0 +1,22 @@
+{
+  "$schema": "../Schemas/environment.schema.json",
+  "name": "sunset",
+  "sunDirection": [-0.55, 0.1, -0.83],
+  "sunColor": [1.0, 0.52, 0.26],
+  "skyColor": [0.5, 0.42, 0.52],
+  "groundColor": [0.28, 0.2, 0.16],
+  "fogDensity": 0.006,
+  "wind": [0.3, 0.0, 0.1],
+  "skyGradient": {
+    "zenith": [0.16, 0.18, 0.4],
+    "horizon": [0.95, 0.55, 0.32],
+    "sunSize": 2.0,
+    "sunGlow": 1.2
+  },
+  "water": {
+    "shallow": [0.3, 0.32, 0.36],
+    "deep": [0.08, 0.08, 0.18],
+    "skyReflection": 0.95,
+    "ripple": 0.8
+  }
+}

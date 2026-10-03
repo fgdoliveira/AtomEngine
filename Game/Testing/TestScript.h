@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -60,6 +61,15 @@ namespace AtomGame
             return false;
         }
         virtual std::string AnimatorState(const std::string& /*entity*/) const { return {}; }
+        // M49: switch to an environment preset ("level": the level's own),
+        // blended over seconds; false for an unknown preset. Its name, or
+        // "(blending)" mid-transition.
+        virtual bool SetEnvironment(const std::string& /*name*/, float /*seconds*/) { return false; }
+        virtual std::string EnvironmentName() const { return "level"; }
+        // M50: particles the last frame drew.
+        virtual std::uint32_t ParticleCount() const { return 0; }
+        // M48: water surfaces the last frame drew.
+        virtual std::uint32_t WaterDraws() const { return 0; }
         // M46: the last frame's real duration (ms), for "bench".
         virtual double RealFrameMs() const { return 0.0; }
         // M44: is the entity's focus point lit by the flashlight?
@@ -117,7 +127,18 @@ namespace AtomGame
     {
     public:
         explicit TestRunner(std::vector<TestCommand> commands, float timeoutSeconds = 180.0f)
-            : m_commands(std::move(commands)), m_timeout(timeoutSeconds) {}
+            : m_commands(std::move(commands)), m_timeout(timeoutSeconds)
+        {
+            // M51: "timeout <seconds>" anywhere in the script raises it (long benchmarks).
+            for (const TestCommand& command : m_commands)
+            {
+                if (command.name == "timeout" && !command.args.empty())
+                {
+                    const float seconds = std::strtof(command.args[0].c_str(), nullptr);
+                    m_timeout = seconds > 0.0f ? seconds : m_timeout;
+                }
+            }
+        }
 
         void Update(float deltaSeconds, TestHooks& game);
 

@@ -118,6 +118,11 @@ MATERIALS = {
     "lab_checker": (lambda: tex.lab_checker(), 1.0, 0.5, 0.0),
     "lab_block": (lambda: tex.flat((0.40, 0.48, 0.64), size=16, seed=97, variation=0.04), 1.0, 0.7, 0.0),
     "lab_crate": (lambda: tex.flat((0.86, 0.46, 0.16), size=16, seed=98, variation=0.06), 1.0, 0.6, 0.0),
+    # Lakeshore (M48): sand, meadow, and the water (its look is the
+    # engine's; the texture only colours it in Blender).
+    "sand": (lambda: tex.flat((0.70, 0.62, 0.46), size=32, seed=110, variation=0.12), 2.0, 1.0, 0.0),
+    "meadow": (lambda: tex.flat((0.28, 0.36, 0.16), size=32, seed=111, variation=0.22), 3.0, 1.0, 0.0),
+    "water": (lambda: tex.flat((0.10, 0.28, 0.32), size=16, seed=112, variation=0.0), 1.0, 0.05, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).
@@ -183,6 +188,10 @@ DECALS = {"water_stain", "grime", "shop_sign", "ofuda", "road_diamond", "road_pa
 # reach, so they appear only in the flashlight's beam (glTF extras
 # "atom_reveal").
 REVEAL = {"reveal_marks"}
+
+# Water (M48): drawn by the engine's water shader (glTF extras
+# "atom_water"); the mesh's first UV's u holds the depth below it.
+WATER = {"water"}
 DECAL_OFFSET = 0.002  # metres
 
 # Faces of different pieces closer than this, parallel and overlapping,
@@ -238,6 +247,8 @@ def _make_material(name):
         material["atom_wet"] = WET[name]
     if name in REVEAL:
         material["atom_reveal"] = 1.0
+    if name in WATER:
+        material["atom_water"] = 1.0
 
     if name in MASKED:
         _make_masked(material, texture, bsdf, name, image)

@@ -1,0 +1,22 @@
+{
+  "$schema": "../Schemas/environment.schema.json",
+  "name": "overcast",
+  "sunColor": [0.42, 0.42, 0.43],
+  "skyColor": [0.66, 0.68, 0.72],
+  "groundColor": [0.28, 0.28, 0.25],
+  "fogDensity": 0.012,
+  "wind": [1.0, 0.0, 0.35],
+  "skyGradient": {
+    "zenith": [0.42, 0.45, 0.5],
+    "horizon": [0.6, 0.62, 0.64],
+    "sunSize": 0.0,
+    "sunGlow": 0.15
+  },
+  "water": {
+    "shallow": [0.24, 0.32, 0.3],
+    "deep": [0.08, 0.12, 0.14],
+    "skyReflection": 0.7,
+    "ripple": 0.8,
+    "glint": 0.25
+  }
+}

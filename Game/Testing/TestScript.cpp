@@ -44,6 +44,10 @@ namespace AtomGame
                 { "expect_surface", { 1, 1 } },     // footstep surface name
                 { "expect_zone", { 1, 1 } },        // cell: its ambience has faded in
                 { "expect_screens", { 1, 1 } },     // min scene draws showing a live screen
+                { "expect_water", { 1, 1 } },       // min water surfaces drawn (M48)
+                { "expect_particles", { 2, 2 } },   // op count: particles drawn (M50)
+                { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
+                { "expect_environment", { 1, 1 } }, // preset | level | (blending)
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "clip", { 2, 2 } },               // entity clip: play it (the lab: show it)
@@ -64,6 +68,7 @@ namespace AtomGame
                 { "set_counter", { 2, 2 } },        // name value
                 { "bench", { 5, 6 } },              // setting a b rounds seconds [settle]: A/B in-process
                 { "expect_bench_under", { 1, 1 } }, // ms: the last bench's median B - A is below it
+                { "timeout", { 1, 1 } },            // seconds the whole script may take (default 180)
                 { "log", { 0, 64 } },
                 { "quit", { 0, 0 } },
             };
@@ -652,6 +657,44 @@ namespace AtomGame
             }
             return true;
         }
+        if (name == "environment")
+        {
+            if (!game.SetEnvironment(args[0], number(1, 0.0f)))
+            {
+                Fail(command, "no environment preset '" + args[0] + "'");
+            }
+            return true;
+        }
+        if (name == "expect_environment")
+        {
+            if (game.EnvironmentName() != args[0])
+            {
+                Fail(command, "the environment is " + game.EnvironmentName());
+            }
+            return true;
+        }
+        if (name == "expect_particles")
+        {
+            const float count = static_cast<float>(game.ParticleCount());
+            const std::string& op = args[0];
+            const float value = number(1, 0.0f);
+            const bool ok = op == ">=" ? count >= value : op == "<=" ? count <= value
+                : op == ">" ? count > value : op == "<" ? count < value : count == value;
+            if (!ok)
+            {
+                Fail(command, std::to_string(game.ParticleCount()) + " particles");
+            }
+            return true;
+        }
+        if (name == "expect_water")
+        {
+            const std::uint32_t draws = game.WaterDraws();
+            if (draws < static_cast<std::uint32_t>(number(0, 1.0f)))
+            {
+                Fail(command, std::to_string(draws) + " water draws");
+            }
+            return true;
+        }
         if (name == "expect_zone")
         {
             if (game.ZoneLevel(args[0]) < 0.9f)
@@ -667,6 +710,10 @@ namespace AtomGame
                 Fail(command, "surface is '" + game.SurfaceName() + "'");
             }
             return true;
+        }
+        if (name == "timeout")
+        {
+            return true; // read when the script starts
         }
         if (name == "log")
         {

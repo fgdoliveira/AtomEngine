@@ -448,6 +448,11 @@ def grass(size=128, seed=41, color=(0.36, 0.38, 0.19)):
             x = x0 + lean * y * t
             half = width * (1.0 - t) + 0.3
             lo, hi = int(max(0, x - half)), int(min(size - 1, x + half))
+            if hi < lo:
+                # The blade has leaned off the card. Without this, a negative
+                # hi slices from the row's far end (numpy's -n) and paints
+                # a solid band across the card.
+                continue
             alpha[y, lo:hi + 1] = 1.0
             shade[y, lo:hi + 1] = dry * (0.55 + 0.45 * t)  # darker at the root
     return _with_alpha(_tint(shade, color), alpha)
