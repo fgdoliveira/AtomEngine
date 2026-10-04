@@ -398,6 +398,15 @@ namespace Atom
 
         m_window = window;
         m_activePreference = config.gpuPreference;
+        // Every way to get a device failed. Seen on the hybrid laptop when
+        // Windows' per-app Graphics setting forced one GPU for AtomGame.exe:
+        // Windows then hands that GPU out for *both* preferences, so the
+        // low-power fallback can't reach the adapter that drives the screen.
+        const auto explainNoDevice = [] {
+            std::cerr << "No GPU could present to this window. On a laptop with two GPUs, check Windows Settings > "
+                         "System > Display > Graphics: a GPU forced for AtomGame.exe applies to every request; "
+                         "'Let Windows decide' lets AtomEngine pick the GPU that drives this screen.\n";
+        };
         if (!CreateAndClaimGPUDevice(config.gpuPreference))
         {
             // M63: high-performance is only a preference; if that device
@@ -405,6 +414,7 @@ namespace Atom
             // Nothing has been created on the failed device yet.
             if (config.gpuPreference != GPUPreference::HighPerformance)
             {
+                explainNoDevice();
                 return false;
             }
             std::cerr << "High-performance GPU unavailable; falling back to low-power.\n";
@@ -412,6 +422,7 @@ namespace Atom
             m_fellBackAtCreation = true;
             if (!CreateAndClaimGPUDevice(GPUPreference::LowPower))
             {
+                explainNoDevice();
                 return false;
             }
         }
