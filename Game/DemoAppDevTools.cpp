@@ -274,7 +274,9 @@ namespace AtomGame
         // Settings (M61): the machine-level choices - GPU preference (saved,
         // needs a restart) and quality (applied at once). Saved per user,
         // except in scripted and --no-settings runs.
-        ImGui::SetNextWindowPos({ 20.0f, 600.0f }, ImGuiCond_FirstUseEver);
+        // Top centre: the one place no other panel starts (the left column
+        // holds Frame and Environment, the right Render, Lighting and Spot).
+        ImGui::SetNextWindowPos({ width * 0.5f - 230.0f, 16.0f }, ImGuiCond_FirstUseEver);
         collapse();
         if (ImGui::Begin("Settings"))
         {
