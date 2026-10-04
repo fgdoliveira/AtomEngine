@@ -1,5 +1,84 @@
 # Changelog
 
+## 0.0.10 — Hardware portability
+
+Predictable on other Windows machines, without giving up what's known to
+work here. Until now the low-power adapter was hardcoded and every
+setting lived in F-keys and environment variables. Now the GPU choice
+(a stability matter) and the graphics quality (a look-versus-speed matter)
+are separate, saved, overridable from the command line, and visible.
+Defaults are 0.0.9's: low-power, native resolution, 4× MSAA.
+
+### Added
+- **A settings model (M59):** `GameSettings` - schema version, GPU
+  preference, quality mode, calibration record, pending fallback - read
+  from JSON that never fails (bad input gives the defaults), and a pure
+  `ResolveSettings`: command line > `ATOM_*` > saved > defaults. Quality
+  presets High / Balanced / Low cap render scale, MSAA, shadows, particles
+  and the reflection; anything else is Custom.
+- **A command line (M60):** `--gpu`, `--quality`, `--calibrate`,
+  `--diagnostics <file>`, `--no-settings`, `--reset-settings`, parsed
+  before the device exists (`Application::OnConfigure`, `StartupConfig`).
+  Scenarios, benchmarks and `--no-settings` never read saved settings.
+- **Saved settings and an F10 Settings panel (M61):**
+  `%APPDATA%\AtomEngine\AtomGame\settings.json`; the panel shows the
+  adapter really in use, the preference ("restart required"), the quality
+  and tier, calibration, reset. Scenario `quality_tiers` checks each
+  tier's effect; harness `expect_quality`, `expect_reflection`,
+  `move_window`.
+- **Diagnostics and a doctor (M62):** `--diagnostics <file>` writes SDL
+  versions, adapter, backend, preference and why, present modes, MSAA,
+  scene format, display, power and the effective settings.
+  `Tools/Dev/doctor.ps1` checks the prerequisites and never changes the
+  system; `common.ps1` shares the tool lookup with `check.ps1`. Every PERF
+  log starts with a `PERF context` line (adapter, power, tier).
+- **A high-performance option that falls back (M63):** if the
+  high-performance device can't be created, low-power is used at once and
+  the reason shown. A swapchain lost mid-run saves a low-power fallback for
+  the next launch and exits cleanly with code 3.
+  `ATOM_SIMULATE_SWAPCHAIN_LOSS` and `ATOM_WINDOW_POSITION` reproduce it.
+- **Calibration, opt-in (M64):** `--calibrate`, or *Calibrate now / next
+  launch* in F10: two heavy views, every tier twice (H B L L B H), the
+  highest tier whose worst p95 is ≤ 13.3 ms, saved with its adapter and
+  resolution and used by `auto`. Refused on battery; no result when the
+  display caps the frame rate.
+
+### Changed
+- **Three frames in flight** (SDL's default is two; `ATOM_FRAMES_IN_FLIGHT`
+  overrides). With two, the Iris Xe idled between frames and dropped its
+  clock: 3-second medians swung 3.5↔9.7 ms and calibration flipped between
+  High and Balanced. With three it stays busy (worst p95 7.8–8.0 ms,
+  High every time), for one more frame of input latency.
+- `check.ps1` splits `-Scenario a,b` and fails when a name matches no
+  test; `ab.ps1` warns on battery.
+
+### Fixed
+- **A crash on swapchain loss:** releasing the window or destroying the
+  device after a lost swapchain corrupted the heap (0xC0000374) inside SDL.
+  The device is now abandoned on that path, and the process exits.
+- **The F10 Settings panel** opened under the Environment panel.
+- **No GPU can present:** instead of a bare SDL error, the game explains
+  that Windows' per-app graphics setting may force a GPU that can't reach
+  the screen, and to choose *Let Windows decide*.
+
+### Measured
+Against v0.0.9 at the defaults (`Tools/Perf/ab.ps1`, 8 rounds, plugged in,
+Iris Xe), 0.0.10 is faster: the night street −0.51 ms (range
+−1.11..−0.31), the lakeshore −0.55 ms (−0.67..−0.50). It's the third
+frame in flight: with `ATOM_FRAMES_IN_FLIGHT=2` the street is back within
+noise of v0.0.9 (+0.12 ms, −0.29..+0.22, 6 rounds). So the settings work
+itself costs nothing. Older baselines measured with two frames don't
+compare with 0.0.10's. All scenarios pass at the default in Debug and
+Release. At Low and Balanced, the only failures are the checks that a
+tier turns off on purpose: rain particles at Low, the reflection at both,
+and `quality_tiers`' check that the default is High.
+
+### Known
+- On the development laptop (Iris Xe + RTX 4060), the RTX cannot present
+  to the built-in panel (`DXGI_ERROR_DEVICE_REMOVED`, also in a raw
+  D3D12 probe), so `--gpu high-performance` falls back to the Iris there;
+  it works on an external monitor wired to the RTX. ADR-006.
+
 ## 0.0.9 — Hardening
 
 An architecture audit of 0.0.8 (2026-10-03, kept private) found no correctness
