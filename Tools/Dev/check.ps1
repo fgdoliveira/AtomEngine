@@ -33,6 +33,8 @@ if ($Level -eq "docs") {
     Write-Host "docs: nothing to build or test."
     exit 0
 }
+# "-Scenario a,b" arrives as one string through `pwsh -File`: split it.
+$Scenario = @($Scenario | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($Level -eq "feature" -and $Scenario.Count -eq 0) {
     throw "-Level feature needs -Scenario <name>[,<name>...] (Tests/Scenarios/<name>.atomtest)"
 }
@@ -77,7 +79,8 @@ foreach ($c in $configs) {
     Step "unit and authoring tests, $c" { & $ctest --test-dir $BuildDir -C $c -LE scenario --output-on-failure }
     if ($Level -eq "feature") {
         $pattern = "^Scenario\.(" + ($Scenario -join "|") + ")$"
-        Step "scenarios $($Scenario -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --output-on-failure }
+        # --no-tests=error: a misspelt scenario must fail, not pass by matching nothing.
+        Step "scenarios $($Scenario -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
     }
 }
 Write-Host "PASS ($Level)"

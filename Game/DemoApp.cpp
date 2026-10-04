@@ -44,6 +44,58 @@ namespace AtomGame
         constexpr std::size_t DefaultFogPreset = 4; // level
     }
 
+    Atom::Application::StartupConfig DemoApp::OnConfigure()
+    {
+        // Before the window and GPU exist (M60): command line > ATOM_*
+        // environment > saved settings (M61) > defaults.
+        m_commandLine = ParseCommandLine(m_arguments);
+        for (const std::string& error : m_commandLine.errors)
+        {
+            std::cerr << "Command line: " << error << " (ignored)\n";
+        }
+        EnvironmentOverrides environment;
+        if (const char* gpu = SDL_getenv("ATOM_GPU"); gpu && *gpu)
+        {
+            environment.gpu = ParseGpuPreference(gpu);
+            if (!environment.gpu) std::cerr << "ATOM_GPU: unknown value '" << gpu << "' (ignored)\n";
+        }
+        if (const char* quality = SDL_getenv("ATOM_QUALITY"); quality && *quality)
+        {
+            environment.quality = ParseQualityMode(quality);
+            if (!environment.quality) std::cerr << "ATOM_QUALITY: unknown value '" << quality << "' (ignored)\n";
+        }
+        // Saved settings arrive in M61; scripted tests and benchmarks will
+        // ignore them, so those runs behave the same on every machine.
+        m_resolvedSettings = ResolveSettings(m_commandLine, environment, nullptr);
+        if (m_commandLine.calibrate || m_commandLine.diagnosticsFile)
+        {
+            std::cerr << "--calibrate and --diagnostics arrive in a later milestone (ignored)\n";
+        }
+
+        StartupConfig config;
+        config.gpuPreference = m_resolvedSettings.gpu == GpuPreference::HighPerformance
+            ? Atom::GPUPreference::HighPerformance
+            : Atom::GPUPreference::LowPower;
+        return config;
+    }
+
+    void DemoApp::ApplyQuality(QualityTier tier)
+    {
+        // A tier caps features (M60): High allows what levels ask for (the
+        // reflection is authored per level), Low turns it off.
+        const QualityPreset preset = PresetFor(tier);
+        Atom::Renderer& renderer = GetRenderer();
+        Atom::RenderSettings settings = renderer.GetSettings();
+        settings.renderScale = preset.renderScale;
+        settings.msaaSamples = preset.msaaSamples;
+        renderer.SetSettings(settings);
+        renderer.SetReflectionEnabled(preset.reflection);
+        m_shadowsEnabled = preset.shadows;
+        m_atmosphere.SetEnabled(preset.particles);
+        m_qualityTier = tier;
+        ApplyLighting();
+    }
+
     bool DemoApp::OnInitialize()
     {
         const char* basePath = SDL_GetBasePath();
@@ -68,6 +120,12 @@ namespace AtomGame
         {
             return false;
         }
+
+        // The quality tier (M60), now that the adapter is known.
+        ApplyQuality(TierFor(m_resolvedSettings.quality, std::nullopt, GetRenderer().GetAdapterName()));
+        std::cout << "Quality: " << ToString(m_resolvedSettings.quality) << " -> " << ToString(m_qualityTier)
+                  << "; GPU preference: " << ToString(m_resolvedSettings.gpu) << " (" << m_resolvedSettings.gpuReason
+                  << "), adapter \"" << GetRenderer().GetAdapterName() << "\"\n";
 
         const std::string fontPath = m_assetRoot + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);

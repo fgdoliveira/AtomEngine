@@ -21,6 +21,7 @@
 #include "World/FixedStep.h"
 #include "World/PachinkoAttract.h"
 #include "PlayerController.h"
+#include "Settings/GameSettings.h"
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "Scene/Camera.h"
@@ -36,6 +37,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace AtomGame
 {
@@ -44,7 +46,12 @@ namespace AtomGame
     // lives in the current Level, owned by the LevelManager.
     class DemoApp final : public Atom::Application, private TestHooks
     {
+    public:
+        // The command line's arguments, after the program name (M60).
+        explicit DemoApp(std::vector<std::string> arguments = {}) : m_arguments(std::move(arguments)) {}
+
     protected:
+        StartupConfig OnConfigure() override;
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
         void OnShutdown() override;
@@ -82,6 +89,15 @@ namespace AtomGame
         // Frame-time log, scripted tests and the fixed step (M57: moved out
         // of DemoApp, which keeps the frame order and calls them).
         GameDiagnostics m_diagnostics;
+
+        // Machine-level settings (M60): GPU preference and quality tier,
+        // resolved from the command line, the ATOM_* environment and (M61)
+        // the saved file, before the GPU is created.
+        std::vector<std::string> m_arguments;
+        CommandLine m_commandLine;
+        ResolvedSettings m_resolvedSettings;
+        QualityTier m_qualityTier = QualityTier::High;
+        void ApplyQuality(QualityTier tier);
         double RealFrameMs() const override { return m_diagnostics.RealFrameMs(); }
 
         std::array<float, 240> m_frameHistory{}; // ms, a ring

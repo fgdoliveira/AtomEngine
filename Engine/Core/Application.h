@@ -19,8 +19,17 @@ namespace Atom
         void Shutdown();
 
     protected:
-        // Game hooks. OnInitialize runs after the engine is ready,
-        // OnShutdown before the engine tears down.
+        // What the game decides before the engine starts (M60): which GPU
+        // to prefer must be known when the device is created.
+        struct StartupConfig
+        {
+            GPUPreference gpuPreference = GPUPreference::LowPower;
+        };
+
+        // Game hooks. OnConfigure runs first, before the window and GPU
+        // exist; OnInitialize runs after the engine is ready, OnShutdown
+        // before the engine tears down.
+        virtual StartupConfig OnConfigure() { return {}; }
         virtual bool OnInitialize() { return true; }
         virtual void OnUpdate(float /*deltaSeconds*/) {}
         virtual void OnShutdown() {}

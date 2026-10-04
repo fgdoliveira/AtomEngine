@@ -220,6 +220,11 @@ namespace Atom
         void SetSettings(const RenderSettings& settings);
         const RenderSettings& GetSettings() const { return m_settings; }
 
+        // The adapter SDL actually picked (a preference is only a hint, M60)
+        // and its backend; empty before Initialize.
+        const std::string& GetAdapterName() const { return m_adapterName; }
+        const std::string& GetBackendName() const { return m_backendName; }
+
         // Screenshots (docs): the next frame, as presented (post pass, and
         // the UI overlay if `includeUi`), is written to `path` as a PNG.
         // Nothing extra happens on frames without a request.
@@ -413,6 +418,8 @@ namespace Atom
         RenderSettings m_settings;
         UIRenderer m_ui;
         SceneLighting m_lighting;
+        std::string m_adapterName;
+        std::string m_backendName;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;

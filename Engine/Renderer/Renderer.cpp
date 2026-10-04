@@ -365,10 +365,12 @@ namespace Atom
             SDL_PROP_GPU_DEVICE_NAME_STRING,
             "unavailable"
         );
+        m_backendName = backend ? backend : "unavailable";
+        m_adapterName = adapter;
         std::cout
             << "GPU device: backend="
-            << (backend ? backend : "unavailable")
-            << " adapter=\"" << adapter << '"'
+            << m_backendName
+            << " adapter=\"" << m_adapterName << '"'
             << " preference=" << GetPreferenceName(preference)
             << '\n';
 

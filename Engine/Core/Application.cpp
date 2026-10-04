@@ -9,6 +9,7 @@ namespace Atom
     bool Application::Initialize()
     {
         std::cout << "Starting AtomEngine " ATOM_VERSION "...\n";
+        const StartupConfig startup = OnConfigure();
 
         if (!SDL_Init(SDL_INIT_VIDEO))
         {
@@ -30,7 +31,7 @@ namespace Atom
         }
 
         RendererConfig rendererConfig{};
-        rendererConfig.gpuPreference = GPUPreference::LowPower;
+        rendererConfig.gpuPreference = startup.gpuPreference; // the game's choice (M60)
 
         // ATOM_VSYNC=0 uncaps the frame rate for profiling.
         const char* vsync = SDL_getenv("ATOM_VSYNC");

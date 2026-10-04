@@ -236,7 +236,7 @@ namespace AtomGame
                                      const GameSettings* saved)
     {
         ResolvedSettings resolved;
-        resolved.gpuReason = "default (low-power: the stable choice on hybrid laptops)";
+        resolved.gpuReason = "default: the stable choice on hybrid laptops";
         if (saved && saved->pendingFallback)
         {
             resolved.gpu = *saved->pendingFallback;
