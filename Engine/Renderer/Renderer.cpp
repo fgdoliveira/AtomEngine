@@ -475,6 +475,27 @@ namespace Atom
         m_composition = composition;
         m_initialPresentMode = presentMode;
 
+        // Frames the CPU may record ahead of the GPU (M64). SDL's default 2
+        // let the Iris Xe go idle between frames: its driver lowered the
+        // clock, frames slowed to ~9.7 ms, then it ramped up again - blocks
+        // swinging 3.5 <-> 9.7 ms, and with vsync, missed refreshes. With 3
+        // the GPU stays busy: paired runs gave p95 ~12 -> ~7.3 ms uncapped,
+        // and 13.2/10.9 -> 9.2 ms with vsync at 144 Hz. The cost is up to
+        // one more frame of input delay. ATOM_FRAMES_IN_FLIGHT overrides.
+        Uint32 framesInFlight = 3;
+        if (const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT"); frames && *frames)
+        {
+            framesInFlight = static_cast<Uint32>(SDL_atoi(frames));
+        }
+        if (SDL_SetGPUAllowedFramesInFlight(m_device, framesInFlight))
+        {
+            m_report.framesInFlight = framesInFlight;
+        }
+        else
+        {
+            std::cerr << "Frames in flight " << framesInFlight << " refused: " << SDL_GetError() << '\n';
+        }
+
         return m_targets.Initialize(m_device)
             && CreateDefaultResources()
             && CreatePostPipeline()

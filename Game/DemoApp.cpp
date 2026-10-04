@@ -156,7 +156,8 @@ namespace AtomGame
     {
         Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
         const Atom::Renderer::DeviceReport report = renderer.GetDeviceReport();
-        return "adapter=\"" + report.adapter + "\" present=" + report.presentMode + " power=\"" + PowerStateName()
+        return "adapter=\"" + report.adapter + "\" present=" + report.presentMode
+            + " frames_in_flight=" + std::to_string(report.framesInFlight) + " power=\"" + PowerStateName()
             + "\" quality=" + std::string(ToString(CurrentQualityTier()));
     }
 
@@ -193,6 +194,7 @@ namespace AtomGame
             << "gpu.scene_format: " << r.sceneFormat << "\n"
             << "swapchain.composition: " << r.composition << "\n"
             << "swapchain.present_mode: " << r.presentMode << "\n"
+            << "swapchain.frames_in_flight: " << r.framesInFlight << "\n"
             << "swapchain.supports: vsync=" << (r.supportsVsync ? "yes" : "no")
             << " mailbox=" << (r.supportsMailbox ? "yes" : "no")
             << " immediate=" << (r.supportsImmediate ? "yes" : "no") << "\n"

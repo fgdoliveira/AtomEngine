@@ -258,6 +258,7 @@ namespace Atom
             bool supportsImmediate = false;
             std::string sceneFormat;
             std::uint32_t maxMsaa = 1;
+            std::uint32_t framesInFlight = 2; // M64: how far the CPU may run ahead
         };
         DeviceReport GetDeviceReport() const;
 
