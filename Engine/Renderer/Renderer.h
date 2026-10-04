@@ -123,6 +123,11 @@ namespace Atom
         // Development: make the next frame fail as a lost swapchain does
         // (ATOM_SIMULATE_SWAPCHAIN_LOSS), to exercise the fallback path.
         void SimulateSwapchainLoss() { m_simulateSwapchainLoss = true; }
+
+        // M64: present without waiting for the display (immediate, else
+        // mailbox) while measuring, then back to how it started. False if
+        // the swapchain refused.
+        bool SetUncappedPresentation(bool uncapped);
         void Shutdown();
 
         std::unique_ptr<Mesh> CreateMesh(
@@ -456,6 +461,8 @@ namespace Atom
         GPUPreference m_activePreference = GPUPreference::LowPower;
         bool m_fellBackAtCreation = false;
         bool m_simulateSwapchainLoss = false;
+        SDL_GPUSwapchainComposition m_composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
+        SDL_GPUPresentMode m_initialPresentMode = SDL_GPU_PRESENTMODE_VSYNC;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;

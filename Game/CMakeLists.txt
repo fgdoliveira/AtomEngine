@@ -18,6 +18,9 @@ add_library(
     Flashlight.h
     DemoAppLab.cpp
     DemoAppDevTools.cpp
+    DemoAppCalibration.cpp
+    Settings/Calibration.cpp
+    Settings/Calibration.h
     Character/Animator.cpp
     Character/Animator.h
     Character/LabViewer.cpp

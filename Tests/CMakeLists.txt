@@ -33,6 +33,7 @@ add_executable(
     PairedBenchTests.cpp
     GameDiagnosticsTests.cpp
     GameSettingsTests.cpp
+    CalibrationTests.cpp
     FakeGame.h
 )
 
@@ -87,6 +88,22 @@ add_test(
     NAME Scenario.diagnostics
     COMMAND $<TARGET_FILE:AtomGame> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics.txt"
 )
+# M64: a short calibration runs to its end and reports - which tier it picks
+# depends on the machine, so only completion is checked.
+add_test(
+    NAME Scenario.calibration
+    COMMAND $<TARGET_FILE:AtomGame> --calibrate --no-settings
+)
+set_tests_properties(
+    Scenario.calibration
+    PROPERTIES
+        LABELS scenario
+        ENVIRONMENT "ATOM_CALIBRATE_SECONDS=0.5"
+        PASS_REGULAR_EXPRESSION "Calibration: (high|balanced|low|no result) - "
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        TIMEOUT 180
+)
+
 set_tests_properties(
     Scenario.diagnostics
     PROPERTIES

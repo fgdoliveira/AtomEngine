@@ -21,6 +21,7 @@
 #include "World/FixedStep.h"
 #include "World/PachinkoAttract.h"
 #include "PlayerController.h"
+#include "Settings/Calibration.h"
 #include "Settings/GameSettings.h"
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
@@ -107,6 +108,30 @@ namespace AtomGame
         bool m_settingsPersist = false;
         void LoadSavedSettings();
         void SaveSettings();
+        // Auto calibration (M64, DemoAppCalibration.cpp): fixed views of the
+        // heaviest scenes measured at each tier, uncapped; Auto then uses
+        // the highest tier within budget. Opt-in: --calibrate, "calibrate
+        // next launch" or "Calibrate now" in F10.
+        struct CalibrationRun
+        {
+            enum class Phase { Load, Settle, Measure };
+            bool active = false;
+            bool quitAfter = false; // --calibrate: report, then exit
+            std::size_t scene = 0;
+            std::size_t tier = 0;
+            Phase phase = Phase::Load;
+            float timer = 0.0f;
+            float settleSeconds = 1.0f;
+            float measureSeconds = 3.0f;
+            Atom::FrameStatsWindow window;
+            std::vector<CalibrationSample> samples;
+            std::string returnLevel; // where play resumes afterwards
+        } m_calibration;
+        bool m_calibrateThisRun = false;
+        void StartCalibration(bool quitAfter);
+        void UpdateCalibration(float realSeconds);
+        void FinishCalibration();
+
         // ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds> (M63, development): a lost
         // swapchain that many seconds in, to exercise the fallback.
         std::optional<float> m_simulateLossAt;

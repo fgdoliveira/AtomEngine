@@ -326,9 +326,23 @@ namespace AtomGame
             {
                 ImGui::TextDisabled("Not calibrated (Auto draws High)");
             }
-            if (ImGui::Checkbox("Calibrate next launch", &m_savedSettings.calibrateNextLaunch))
+            if (m_calibration.active)
             {
-                SaveSettings();
+                ImGui::TextColored({ 0.5f, 0.9f, 1.0f, 1.0f }, "Calibrating: view %zu of 2, pass %zu of 6 - hands off",
+                    m_calibration.scene + 1, m_calibration.tier + 1);
+            }
+            else
+            {
+                if (ImGui::Button("Calibrate now"))
+                {
+                    StartCalibration(false);
+                }
+                ImGui::SameLine();
+                if (ImGui::Checkbox("Calibrate next launch", &m_savedSettings.calibrateNextLaunch))
+                {
+                    SaveSettings();
+                }
+                ImGui::TextDisabled("Plugged in, window on the laptop's own screen, about a minute.");
             }
             if (ImGui::Button("Reset to defaults"))
             {

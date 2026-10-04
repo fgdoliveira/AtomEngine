@@ -70,9 +70,13 @@ namespace AtomGame
         LoadSavedSettings();
         const bool useSaved = m_settingsPersist && !m_commandLine.resetSettings;
         m_resolvedSettings = ResolveSettings(m_commandLine, environment, useSaved ? &m_savedSettings : nullptr);
-        if (m_commandLine.calibrate)
+        // Calibration (M64): asked for on the command line or saved as
+        // "calibrate next launch" - never in a scripted test run.
+        const bool scripted = SDL_getenv("ATOM_TEST_SCRIPT") != nullptr;
+        m_calibrateThisRun = !scripted && (m_commandLine.calibrate || (useSaved && m_savedSettings.calibrateNextLaunch));
+        if (scripted && m_commandLine.calibrate)
         {
-            std::cerr << "--calibrate arrives in a later milestone (ignored)\n";
+            std::cerr << "--calibrate is ignored in a scripted test run\n";
         }
 
         StartupConfig config;
@@ -364,6 +368,10 @@ namespace AtomGame
         if (const char* loss = SDL_getenv("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
         {
             m_simulateLossAt = static_cast<float>(SDL_atof(loss));
+        }
+        if (m_calibrateThisRun && !m_commandLine.diagnosticsFile)
+        {
+            StartCalibration(m_commandLine.calibrate); // --calibrate reports and exits
         }
 
         // --diagnostics <file> (M62): what this machine gave us, then exit.
@@ -697,6 +705,10 @@ namespace AtomGame
         }
 
         m_levels->Update(deltaSeconds);
+        if (m_calibration.active)
+        {
+            UpdateCalibration(static_cast<float>(m_diagnostics.RealFrameMs() / 1000.0)); // M64: real time, not a fixed step
+        }
         GetRenderer().SetFade(m_levels->GetFade());
         if (m_environment.IsTransitioning())
         {

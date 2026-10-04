@@ -472,6 +472,8 @@ namespace Atom
                 << '\n';
             return false;
         }
+        m_composition = composition;
+        m_initialPresentMode = presentMode;
 
         return m_targets.Initialize(m_device)
             && CreateDefaultResources()
@@ -2090,6 +2092,37 @@ namespace Atom
         const SDL_GPUTextureSamplerBinding binding{ texture->GetGPUTexture(), m_sampler };
         SDL_BindGPUFragmentSamplers(renderPass, 0, &binding, 1);
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
+    }
+
+    bool Renderer::SetUncappedPresentation(bool uncapped)
+    {
+        if (!m_device || !m_window)
+        {
+            return false;
+        }
+        SDL_GPUPresentMode mode = m_initialPresentMode;
+        if (uncapped)
+        {
+            // Immediate first: on a composited display mailbox can still be
+            // held to the refresh rate (M46), and then nothing is measured.
+            mode = SDL_GPU_PRESENTMODE_VSYNC;
+            for (const SDL_GPUPresentMode candidate : { SDL_GPU_PRESENTMODE_IMMEDIATE, SDL_GPU_PRESENTMODE_MAILBOX })
+            {
+                if (SDL_WindowSupportsGPUPresentMode(m_device, m_window, candidate))
+                {
+                    mode = candidate;
+                    break;
+                }
+            }
+        }
+        if (!SDL_SetGPUSwapchainParameters(m_device, m_window, m_composition, mode))
+        {
+            std::cerr << "Could not change the present mode: " << SDL_GetError() << '\n';
+            return false;
+        }
+        m_report.presentMode = mode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
+            : mode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
+        return true;
     }
 
     Renderer::DeviceReport Renderer::GetDeviceReport() const
