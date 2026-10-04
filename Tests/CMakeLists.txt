@@ -32,6 +32,7 @@ add_executable(
     EnvironmentControllerTests.cpp
     PairedBenchTests.cpp
     GameDiagnosticsTests.cpp
+    GameSettingsTests.cpp
     FakeGame.h
 )
 

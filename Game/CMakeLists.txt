@@ -27,6 +27,8 @@ add_library(
     PlayerController.cpp
     PlayerController.h
     Testing/TestScript.cpp
+    Settings/GameSettings.cpp
+    Settings/GameSettings.h
     Testing/GameDiagnostics.cpp
     Testing/GameDiagnostics.h
     Testing/PairedBench.cpp
