@@ -69,6 +69,7 @@ namespace AtomGame
         // Set when the high-performance adapter lost its swapchain (M63):
         // the next launch uses this preference instead, and says why.
         std::optional<GpuPreference> pendingFallback;
+        bool calibrateNextLaunch = false; // asked for in F10 (M61); run by M64
     };
 
     // Never fails: a missing, malformed or unknown-version file gives the

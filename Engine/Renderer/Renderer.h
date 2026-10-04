@@ -215,6 +215,7 @@ namespace Atom
         // M51: allow the planar reflection where the water asks for it
         // (on by default; off to measure it).
         void SetReflectionEnabled(bool enabled) { m_reflectionEnabled = enabled; }
+        bool IsReflectionEnabled() const { return m_reflectionEnabled; }
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
         void SetSettings(const RenderSettings& settings);

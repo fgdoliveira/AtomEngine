@@ -98,6 +98,20 @@ namespace AtomGame
         ResolvedSettings m_resolvedSettings;
         QualityTier m_qualityTier = QualityTier::High;
         void ApplyQuality(QualityTier tier);
+
+        // Saved per user (M61), under SDL's pref path. Not read or written
+        // by scripted tests, benchmarks or --no-settings runs.
+        GameSettings m_savedSettings;
+        std::string m_settingsPath;
+        bool m_settingsPersist = false;
+        void LoadSavedSettings();
+        void SaveSettings();
+        // A quality mode chosen now (F10, harness): applied at once; saved
+        // when `save` and this run persists settings.
+        void SetQualityMode(QualityMode mode, bool save);
+        // What is drawn right now: a preset's tier, or Custom after F-keys.
+        QualityTier CurrentQualityTier() const;
+        std::string QualityTierName() const override { return std::string(ToString(CurrentQualityTier())); }
         double RealFrameMs() const override { return m_diagnostics.RealFrameMs(); }
 
         std::array<float, 240> m_frameHistory{}; // ms, a ring

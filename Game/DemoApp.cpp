@@ -64,9 +64,11 @@ namespace AtomGame
             environment.quality = ParseQualityMode(quality);
             if (!environment.quality) std::cerr << "ATOM_QUALITY: unknown value '" << quality << "' (ignored)\n";
         }
-        // Saved settings arrive in M61; scripted tests and benchmarks will
-        // ignore them, so those runs behave the same on every machine.
-        m_resolvedSettings = ResolveSettings(m_commandLine, environment, nullptr);
+        // Saved settings (M61) - never for scripted tests, benchmarks or
+        // --no-settings: those runs behave the same on every machine.
+        LoadSavedSettings();
+        const bool useSaved = m_settingsPersist && !m_commandLine.resetSettings;
+        m_resolvedSettings = ResolveSettings(m_commandLine, environment, useSaved ? &m_savedSettings : nullptr);
         if (m_commandLine.calibrate || m_commandLine.diagnosticsFile)
         {
             std::cerr << "--calibrate and --diagnostics arrive in a later milestone (ignored)\n";
@@ -77,6 +79,72 @@ namespace AtomGame
             ? Atom::GPUPreference::HighPerformance
             : Atom::GPUPreference::LowPower;
         return config;
+    }
+
+    void DemoApp::LoadSavedSettings()
+    {
+        if (char* pref = SDL_GetPrefPath("AtomEngine", "AtomGame"))
+        {
+            m_settingsPath = std::string(pref) + "settings.json";
+            SDL_free(pref);
+        }
+        m_settingsPersist = !m_settingsPath.empty() && !SDL_getenv("ATOM_TEST_SCRIPT") && !m_commandLine.noSettings;
+        if (!m_settingsPersist)
+        {
+            return; // defaults and explicit flags only
+        }
+        if (m_commandLine.resetSettings)
+        {
+            m_savedSettings = GameSettings{};
+            SaveSettings();
+            std::cout << "Settings reset: " << m_settingsPath << '\n';
+            return;
+        }
+        std::ifstream file(m_settingsPath, std::ios::binary);
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        SettingsLoad load = ParseSettings(text);
+        if (!load.warning.empty())
+        {
+            std::cerr << m_settingsPath << ": " << load.warning << '\n';
+        }
+        m_savedSettings = std::move(load.settings);
+    }
+
+    void DemoApp::SaveSettings()
+    {
+        if (!m_settingsPersist)
+        {
+            return;
+        }
+        std::ofstream file(m_settingsPath, std::ios::binary | std::ios::trunc);
+        file << WriteSettings(m_savedSettings);
+        if (!file)
+        {
+            std::cerr << "Could not save settings to " << m_settingsPath << '\n';
+        }
+    }
+
+    void DemoApp::SetQualityMode(QualityMode mode, bool save)
+    {
+        m_resolvedSettings.quality = mode;
+        ApplyQuality(TierFor(mode, m_savedSettings.calibration, GetRenderer().GetAdapterName()));
+        if (save)
+        {
+            m_savedSettings.quality = mode;
+            SaveSettings();
+        }
+    }
+
+    QualityTier DemoApp::CurrentQualityTier() const
+    {
+        Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
+        QualityPreset now;
+        now.renderScale = renderer.GetSettings().renderScale;
+        now.msaaSamples = renderer.GetSettings().msaaSamples;
+        now.shadows = m_shadowsEnabled;
+        now.particles = m_atmosphere.IsEnabled();
+        now.reflection = renderer.IsReflectionEnabled();
+        return TierOf(now);
     }
 
     void DemoApp::ApplyQuality(QualityTier tier)
@@ -122,10 +190,10 @@ namespace AtomGame
         }
 
         // The quality tier (M60), now that the adapter is known.
-        ApplyQuality(TierFor(m_resolvedSettings.quality, std::nullopt, GetRenderer().GetAdapterName()));
+        ApplyQuality(TierFor(m_resolvedSettings.quality, m_savedSettings.calibration, GetRenderer().GetAdapterName()));
         std::cout << "Quality: " << ToString(m_resolvedSettings.quality) << " -> " << ToString(m_qualityTier)
                   << "; GPU preference: " << ToString(m_resolvedSettings.gpu) << " (" << m_resolvedSettings.gpuReason
-                  << "), adapter \"" << GetRenderer().GetAdapterName() << "\"\n";
+                  << "), adapter \"" << GetRenderer().GetAdapterName() << '"' << std::endl; // flushed: a start-up record
 
         const std::string fontPath = m_assetRoot + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
@@ -1601,6 +1669,17 @@ namespace AtomGame
                 settings.post.grain = 0.0f;
                 settings.post.vignette = 0.0f;
             }
+        }
+        else if (what == "quality")
+        {
+            // M61: a quality mode for this run (never saved from a script).
+            const std::optional<QualityMode> mode = ParseQualityMode(value);
+            if (!mode)
+            {
+                return false;
+            }
+            SetQualityMode(*mode, false);
+            return true;
         }
         else if (what == "fog")
         {

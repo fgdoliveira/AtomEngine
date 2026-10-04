@@ -142,6 +142,10 @@ namespace AtomGame
         if (auto gpu = ReadEnum<GpuPreference>(root, "gpu", ParseGpuPreference, problem)) s.gpu = *gpu;
         if (auto quality = ReadEnum<QualityMode>(root, "quality", ParseQualityMode, problem)) s.quality = *quality;
         s.pendingFallback = ReadEnum<GpuPreference>(root, "pendingFallback", ParseGpuPreference, problem);
+        if (const auto calibrate = root.find("calibrateNextLaunch"); calibrate != root.end() && calibrate->is_boolean())
+        {
+            s.calibrateNextLaunch = calibrate->get<bool>();
+        }
 
         if (const auto c = root.find("calibration"); c != root.end() && c->is_object())
         {
@@ -176,6 +180,10 @@ namespace AtomGame
         if (s.pendingFallback)
         {
             root["pendingFallback"] = std::string(ToString(*s.pendingFallback));
+        }
+        if (s.calibrateNextLaunch)
+        {
+            root["calibrateNextLaunch"] = true;
         }
         if (s.calibration)
         {

@@ -271,6 +271,81 @@ namespace AtomGame
             ImGui::End(); // always, even when Begin returned false (collapsed)
         }
 
+        // Settings (M61): the machine-level choices - GPU preference (saved,
+        // needs a restart) and quality (applied at once). Saved per user,
+        // except in scripted and --no-settings runs.
+        ImGui::SetNextWindowPos({ 20.0f, 600.0f }, ImGuiCond_FirstUseEver);
+        collapse();
+        if (ImGui::Begin("Settings"))
+        {
+            Atom::Renderer& renderer = GetRenderer();
+            ImGui::Text("Adapter: %s (%s)", renderer.GetAdapterName().c_str(), renderer.GetBackendName().c_str());
+            ImGui::TextDisabled("Running with %s: %s", std::string(ToString(m_resolvedSettings.gpu)).c_str(),
+                m_resolvedSettings.gpuReason.c_str());
+
+            int gpu = m_savedSettings.gpu == GpuPreference::HighPerformance ? 1 : 0;
+            ImGui::TextUnformatted("GPU preference");
+            ImGui::SameLine();
+            bool gpuChanged = ImGui::RadioButton("low-power", &gpu, 0);
+            ImGui::SameLine();
+            gpuChanged |= ImGui::RadioButton("high-performance", &gpu, 1);
+            if (gpuChanged)
+            {
+                m_savedSettings.gpu = gpu == 1 ? GpuPreference::HighPerformance : GpuPreference::LowPower;
+                m_savedSettings.pendingFallback.reset(); // an explicit choice clears a fallback
+                SaveSettings();
+            }
+            if (m_savedSettings.gpu != m_resolvedSettings.gpu)
+            {
+                ImGui::SameLine();
+                ImGui::TextColored({ 1.0f, 0.75f, 0.3f, 1.0f }, "restart required");
+            }
+
+            static constexpr const char* Modes[] = { "auto", "low", "balanced", "high" };
+            int mode = static_cast<int>(m_resolvedSettings.quality);
+            if (ImGui::Combo("Quality", &mode, Modes, IM_ARRAYSIZE(Modes)))
+            {
+                SetQualityMode(static_cast<QualityMode>(mode), true);
+            }
+            ImGui::Text("Drawing: %s", std::string(ToString(CurrentQualityTier())).c_str());
+            if (CurrentQualityTier() == QualityTier::Custom)
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("(switches changed by hand; the presets are unchanged)");
+            }
+
+            if (m_savedSettings.calibration)
+            {
+                const CalibrationRecord& c = *m_savedSettings.calibration;
+                ImGui::Text("Calibrated: %s on %s (worst p95 %.1f ms)%s", std::string(ToString(c.tier)).c_str(),
+                    c.adapter.c_str(), c.p95Ms, IsCalibrationValid(c, renderer.GetAdapterName()) ? "" : " - not for this adapter");
+            }
+            else
+            {
+                ImGui::TextDisabled("Not calibrated (Auto draws High)");
+            }
+            if (ImGui::Checkbox("Calibrate next launch", &m_savedSettings.calibrateNextLaunch))
+            {
+                SaveSettings();
+            }
+            if (ImGui::Button("Reset to defaults"))
+            {
+                m_savedSettings = GameSettings{};
+                SaveSettings();
+                SetQualityMode(QualityMode::High, false);
+            }
+            ImGui::SameLine();
+            if (m_settingsPersist)
+            {
+                ImGui::TextDisabled("%s", m_settingsPath.c_str());
+            }
+            else
+            {
+                ImGui::TextDisabled("not saved this run (test or --no-settings)");
+            }
+        }
+        ImGui::End(); // always, even when Begin returned false (collapsed)
+
         // Environment (M49): switch presets, blended; edit what's showing
         // live; Copy as JSON gives a whole preset file.
         if (level)

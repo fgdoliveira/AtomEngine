@@ -49,6 +49,7 @@ namespace AtomGame
                 { "expect_particles", { 2, 2 } },   // op count: particles drawn (M50)
                 { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
                 { "expect_environment", { 1, 1 } }, // preset | level | (blending)
+                { "expect_quality", { 1, 1 } },     // low | balanced | high | custom (M61)
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "clip", { 2, 2 } },               // entity clip: play it (the lab: show it)
@@ -667,6 +668,14 @@ namespace AtomGame
             if (!game.SetEnvironment(args[0], number(1, 0.0f)))
             {
                 Fail(command, "no environment preset '" + args[0] + "'");
+            }
+            return true;
+        }
+        if (name == "expect_quality")
+        {
+            if (game.QualityTierName() != args[0])
+            {
+                Fail(command, "the quality tier is " + game.QualityTierName());
             }
             return true;
         }

@@ -57,6 +57,7 @@ TEST_CASE("Settings round-trip through their file")
     settings.gpu = GpuPreference::HighPerformance;
     settings.quality = QualityMode::Auto;
     settings.pendingFallback = GpuPreference::LowPower;
+    settings.calibrateNextLaunch = true;
     settings.calibration = CalibrationRecord{ CalibrationRecord::CurrentVersion, "Intel(R) Iris(R) Xe Graphics", "direct3d12",
                                               1280, 720, 4, QualityTier::Balanced, 7.5, 12.1 };
     const SettingsLoad load = ParseSettings(WriteSettings(settings));
@@ -65,6 +66,7 @@ TEST_CASE("Settings round-trip through their file")
     CHECK(load.settings.quality == QualityMode::Auto);
     REQUIRE(load.settings.pendingFallback.has_value());
     CHECK(*load.settings.pendingFallback == GpuPreference::LowPower);
+    CHECK(load.settings.calibrateNextLaunch);
     REQUIRE(load.settings.calibration.has_value());
     CHECK(load.settings.calibration->adapter == "Intel(R) Iris(R) Xe Graphics");
     CHECK(load.settings.calibration->tier == QualityTier::Balanced);
