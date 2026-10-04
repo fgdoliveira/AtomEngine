@@ -52,6 +52,7 @@ namespace AtomGame
 
     protected:
         StartupConfig OnConfigure() override;
+        void OnRenderFailure(Atom::Renderer::Failure failure) override;
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
         void OnShutdown() override;
@@ -106,6 +107,9 @@ namespace AtomGame
         bool m_settingsPersist = false;
         void LoadSavedSettings();
         void SaveSettings();
+        // ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds> (M63, development): a lost
+        // swapchain that many seconds in, to exercise the fallback.
+        std::optional<float> m_simulateLossAt;
         // M62: the machine as the game sees it (--diagnostics), and the
         // short form performance logs carry.
         bool WriteDiagnostics(const std::string& path) const;

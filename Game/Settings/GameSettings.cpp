@@ -272,6 +272,15 @@ namespace AtomGame
         return resolved;
     }
 
+    std::optional<GpuPreference> FallbackAfterFailure(GpuPreference active)
+    {
+        if (active == GpuPreference::HighPerformance)
+        {
+            return GpuPreference::LowPower;
+        }
+        return std::nullopt;
+    }
+
     QualityTier TierFor(QualityMode mode, const std::optional<CalibrationRecord>& calibration,
                         std::string_view adapter)
     {

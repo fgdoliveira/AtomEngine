@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstddef>
 #include <tuple>
+#include <utility>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -396,9 +397,23 @@ namespace Atom
         }
 
         m_window = window;
+        m_activePreference = config.gpuPreference;
         if (!CreateAndClaimGPUDevice(config.gpuPreference))
         {
-            return false;
+            // M63: high-performance is only a preference; if that device
+            // can't be made, the low-power one is the known-good choice.
+            // Nothing has been created on the failed device yet.
+            if (config.gpuPreference != GPUPreference::HighPerformance)
+            {
+                return false;
+            }
+            std::cerr << "High-performance GPU unavailable; falling back to low-power.\n";
+            m_activePreference = GPUPreference::LowPower;
+            m_fellBackAtCreation = true;
+            if (!CreateAndClaimGPUDevice(GPUPreference::LowPower))
+            {
+                return false;
+            }
         }
 
         // Shaders work in linear space (textures are sampled as sRGB), so
@@ -437,6 +452,10 @@ namespace Atom
 
         // For diagnostics (M62): what was chosen, and what the window offers.
         m_report.preference = GetPreferenceName(config.gpuPreference);
+        if (m_fellBackAtCreation)
+        {
+            m_report.preference += " (unavailable: using low_power)";
+        }
         m_report.composition = composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? "sdr-linear" : "sdr";
         m_report.presentMode = presentMode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
             : presentMode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
@@ -934,7 +953,8 @@ namespace Atom
         SDL_GPUTexture* swapchainTexture = nullptr;
         Uint32 swapchainWidth = 0;
         Uint32 swapchainHeight = 0;
-        if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+        const bool simulatedLoss = std::exchange(m_simulateSwapchainLoss, false);
+        if (simulatedLoss || !SDL_WaitAndAcquireGPUSwapchainTexture(
             commandBuffer,
             m_window,
             &swapchainTexture,
@@ -942,7 +962,8 @@ namespace Atom
             &swapchainHeight
         ))
         {
-            const std::string acquisitionError = SDL_GetError();
+            m_lastFailure = Failure::SwapchainLost; // M63: the game may fall back next launch
+            const std::string acquisitionError = simulatedLoss ? std::string("simulated (ATOM_SIMULATE_SWAPCHAIN_LOSS)") : SDL_GetError();
             const bool cancelled = SDL_CancelGPUCommandBuffer(commandBuffer);
             const std::string cancellationError = cancelled
                 ? ""

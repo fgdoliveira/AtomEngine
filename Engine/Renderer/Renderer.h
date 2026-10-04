@@ -110,6 +110,19 @@ namespace Atom
             const RendererConfig& config = {}
         );
         bool Render();
+
+        // Why the last Render() failed (M63): a lost swapchain is what the
+        // high-performance adapter of a hybrid laptop did when the window
+        // crossed to the other adapter's display.
+        enum class Failure { None, SwapchainLost, Other };
+        Failure GetLastFailure() const { return m_lastFailure; }
+        // The preference the device was really created with: low-power if
+        // high-performance failed and Initialize fell back (M63).
+        GPUPreference GetActivePreference() const { return m_activePreference; }
+        bool FellBackAtCreation() const { return m_fellBackAtCreation; }
+        // Development: make the next frame fail as a lost swapchain does
+        // (ATOM_SIMULATE_SWAPCHAIN_LOSS), to exercise the fallback path.
+        void SimulateSwapchainLoss() { m_simulateSwapchainLoss = true; }
         void Shutdown();
 
         std::unique_ptr<Mesh> CreateMesh(
@@ -439,6 +452,10 @@ namespace Atom
         std::string m_adapterName;
         std::string m_backendName;
         DeviceReport m_report; // the swapchain part, filled at Initialize
+        Failure m_lastFailure = Failure::None;
+        GPUPreference m_activePreference = GPUPreference::LowPower;
+        bool m_fellBackAtCreation = false;
+        bool m_simulateSwapchainLoss = false;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;

@@ -82,6 +82,26 @@ namespace AtomGame
         return config;
     }
 
+    void DemoApp::OnRenderFailure(Atom::Renderer::Failure failure)
+    {
+        // M63: the device failed mid-run. If it was the high-performance
+        // adapter, the next launch uses low-power and says why - written
+        // before the clean shutdown. No in-process device rebuild.
+        const GpuPreference active = GetRenderer().GetActivePreference() == Atom::GPUPreference::HighPerformance
+            ? GpuPreference::HighPerformance
+            : GpuPreference::LowPower;
+        const std::optional<GpuPreference> fallback = FallbackAfterFailure(active);
+        if (!fallback)
+        {
+            return; // already on the known-good adapter: nothing safer to try
+        }
+        std::cerr << "The high-performance GPU "
+                  << (failure == Atom::Renderer::Failure::SwapchainLost ? "lost its swapchain" : "failed")
+                  << "; the next launch will use " << ToString(*fallback) << ".\n";
+        m_savedSettings.pendingFallback = fallback;
+        SaveSettings(); // only when this run uses saved settings (not tests)
+    }
+
     void DemoApp::LoadSavedSettings()
     {
         if (char* pref = SDL_GetPrefPath("AtomEngine", "AtomGame"))
@@ -333,6 +353,18 @@ namespace AtomGame
         }
         // Performance logs say what machine state they measured (M62).
         m_diagnostics.SetPerfContext(PerfContext());
+
+        // M63: say so when the high-performance device couldn't be made.
+        if (GetRenderer().FellBackAtCreation())
+        {
+            m_resolvedSettings.gpu = GpuPreference::LowPower;
+            m_resolvedSettings.gpuReason = "fallback: the high-performance GPU was unavailable at start";
+            std::cout << "GPU preference: " << m_resolvedSettings.gpuReason << std::endl;
+        }
+        if (const char* loss = SDL_getenv("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
+        {
+            m_simulateLossAt = static_cast<float>(SDL_atof(loss));
+        }
 
         // --diagnostics <file> (M62): what this machine gave us, then exit.
         if (m_commandLine.diagnosticsFile)
@@ -658,6 +690,11 @@ namespace AtomGame
 
         m_time += deltaSeconds;
         m_messages.Update(deltaSeconds);
+        if (m_simulateLossAt && m_time >= *m_simulateLossAt)
+        {
+            GetRenderer().SimulateSwapchainLoss(); // M63: the next frame fails as a lost swapchain does
+            m_simulateLossAt.reset();
+        }
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());

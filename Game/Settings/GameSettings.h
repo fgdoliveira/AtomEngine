@@ -124,6 +124,11 @@ namespace AtomGame
     QualityTier TierFor(QualityMode mode, const std::optional<CalibrationRecord>& calibration,
                         std::string_view adapter);
 
+    // After the device failed mid-run (M63): the preference to use next
+    // launch, if a safer one exists. Only high-performance has a fallback -
+    // low-power is already the known-good choice.
+    std::optional<GpuPreference> FallbackAfterFailure(GpuPreference active);
+
     // Names as written in files and on the command line.
     std::string_view ToString(GpuPreference value);
     std::string_view ToString(QualityMode value);

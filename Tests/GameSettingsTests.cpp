@@ -157,6 +157,21 @@ TEST_CASE("A pending fallback beats the saved GPU, but not an explicit choice")
     CHECK(ResolveSettings(line, {}, &saved).gpu == GpuPreference::HighPerformance);
 }
 
+TEST_CASE("Only the high-performance adapter falls back after a failure (M63)")
+{
+    CHECK(FallbackAfterFailure(GpuPreference::HighPerformance) == GpuPreference::LowPower);
+    CHECK_FALSE(FallbackAfterFailure(GpuPreference::LowPower).has_value());
+
+    // Recorded, the next launch uses it and says why; an explicit --gpu wins.
+    GameSettings saved;
+    saved.gpu = GpuPreference::HighPerformance;
+    saved.pendingFallback = FallbackAfterFailure(saved.gpu);
+    const SettingsLoad reloaded = ParseSettings(WriteSettings(saved));
+    const ResolvedSettings next = ResolveSettings({}, {}, &reloaded.settings);
+    CHECK(next.gpu == GpuPreference::LowPower);
+    CHECK(next.gpuReason.find("fallback") != std::string::npos);
+}
+
 TEST_CASE("Auto uses a calibration only for the same version and adapter")
 {
     CalibrationRecord record;

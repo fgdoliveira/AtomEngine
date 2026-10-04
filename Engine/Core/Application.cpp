@@ -122,6 +122,8 @@ namespace Atom
                 std::cerr
                     << "Renderer encountered a fatal error. Shutting down.\n";
 
+                OnRenderFailure(m_renderer.GetLastFailure()); // M63
+                m_exitCode = 3; // not a clean exit: scripts and ctest can tell
                 m_running = false;
             }
         }

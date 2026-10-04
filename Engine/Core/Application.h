@@ -30,6 +30,10 @@ namespace Atom
         // exist; OnInitialize runs after the engine is ready, OnShutdown
         // before the engine tears down.
         virtual StartupConfig OnConfigure() { return {}; }
+        // A frame failed beyond recovery (M63): called once, before the
+        // clean shutdown, so the game can remember a safer choice for the
+        // next launch. The engine does not rebuild the device in-process.
+        virtual void OnRenderFailure(Renderer::Failure /*failure*/) {}
         virtual bool OnInitialize() { return true; }
         virtual void OnUpdate(float /*deltaSeconds*/) {}
         virtual void OnShutdown() {}
