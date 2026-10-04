@@ -80,3 +80,18 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
             TIMEOUT 240
     )
 endforeach()
+
+# M62: --diagnostics starts the engine, writes its report and exits (a GPU
+# run like the scenarios, so it carries their label).
+add_test(
+    NAME Scenario.diagnostics
+    COMMAND $<TARGET_FILE:AtomGame> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics.txt"
+)
+set_tests_properties(
+    Scenario.diagnostics
+    PROPERTIES
+        LABELS scenario
+        PASS_REGULAR_EXPRESSION "Diagnostics written"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        TIMEOUT 120
+)

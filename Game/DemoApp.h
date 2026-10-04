@@ -106,6 +106,10 @@ namespace AtomGame
         bool m_settingsPersist = false;
         void LoadSavedSettings();
         void SaveSettings();
+        // M62: the machine as the game sees it (--diagnostics), and the
+        // short form performance logs carry.
+        bool WriteDiagnostics(const std::string& path) const;
+        std::string PerfContext() const;
         // A quality mode chosen now (F10, harness): applied at once; saved
         // when `save` and this run persists settings.
         void SetQualityMode(QualityMode mode, bool save);

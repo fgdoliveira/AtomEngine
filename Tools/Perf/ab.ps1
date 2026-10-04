@@ -36,6 +36,12 @@ foreach ($exe in @($A, $B)) {
 }
 $limit = if ($TimeoutSeconds -gt 0) { $TimeoutSeconds } else { 60 + $Seconds + 30 }
 
+# M62: on battery this laptop ran about 3x slower (M46) - say so up front.
+. "$PSScriptRoot/../Dev/common.ps1"
+if ((Get-PowerSource) -eq "battery") {
+    Write-Host "WARNING: on battery - timings won't compare with plugged-in runs. Plug in and run again." -ForegroundColor Yellow
+}
+
 # One run: the level, idle, then quit; its PERF blocks' median.
 $temp = [System.IO.Path]::GetTempPath()
 $script = Join-Path $temp "atom_ab.atomtest"

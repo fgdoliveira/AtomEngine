@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <string>
 
 namespace AtomGame
@@ -69,9 +70,9 @@ namespace AtomGame
         LoadSavedSettings();
         const bool useSaved = m_settingsPersist && !m_commandLine.resetSettings;
         m_resolvedSettings = ResolveSettings(m_commandLine, environment, useSaved ? &m_savedSettings : nullptr);
-        if (m_commandLine.calibrate || m_commandLine.diagnosticsFile)
+        if (m_commandLine.calibrate)
         {
-            std::cerr << "--calibrate and --diagnostics arrive in a later milestone (ignored)\n";
+            std::cerr << "--calibrate arrives in a later milestone (ignored)\n";
         }
 
         StartupConfig config;
@@ -108,6 +109,94 @@ namespace AtomGame
             std::cerr << m_settingsPath << ": " << load.warning << '\n';
         }
         m_savedSettings = std::move(load.settings);
+    }
+
+    namespace
+    {
+        std::string PowerStateName()
+        {
+            int seconds = -1;
+            int percent = -1;
+            switch (SDL_GetPowerInfo(&seconds, &percent))
+            {
+            case SDL_POWERSTATE_ON_BATTERY: return "battery (" + std::to_string(percent) + "%)";
+            case SDL_POWERSTATE_CHARGING: return "plugged in, charging";
+            case SDL_POWERSTATE_CHARGED: return "plugged in";
+            case SDL_POWERSTATE_NO_BATTERY: return "no battery (mains)";
+            default: return "unknown";
+            }
+        }
+    }
+
+    std::string DemoApp::PerfContext() const
+    {
+        Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
+        const Atom::Renderer::DeviceReport report = renderer.GetDeviceReport();
+        return "adapter=\"" + report.adapter + "\" present=" + report.presentMode + " power=\"" + PowerStateName()
+            + "\" quality=" + std::string(ToString(CurrentQualityTier()));
+    }
+
+    bool DemoApp::WriteDiagnostics(const std::string& path) const
+    {
+        // Facts, one per line, for doctor.ps1 and bug reports. Nothing here
+        // is a performance claim: those need paired measurements.
+        Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
+        SDL_Window* window = const_cast<DemoApp*>(this)->GetWindow().GetSDLWindow();
+        const Atom::Renderer::DeviceReport r = renderer.GetDeviceReport();
+        const Atom::RenderSettings& s = renderer.GetSettings();
+        const int compiled = SDL_VERSION;
+        const int runtime = SDL_GetVersion();
+        const auto version = [](int v) {
+            return std::to_string(SDL_VERSIONNUM_MAJOR(v)) + '.' + std::to_string(SDL_VERSIONNUM_MINOR(v)) + '.'
+                + std::to_string(SDL_VERSIONNUM_MICRO(v));
+        };
+        const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+        const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
+        const char* displayName = SDL_GetDisplayName(display);
+        int windowWidth = 0;
+        int windowHeight = 0;
+        SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+
+        std::ostringstream out;
+        out << "AtomEngine " ATOM_VERSION " diagnostics\n"
+            << "sdl.compiled: " << version(compiled) << "\n"
+            << "sdl.runtime: " << version(runtime) << "\n"
+            << "gpu.adapter: " << r.adapter << "\n"
+            << "gpu.backend: " << r.backend << "\n"
+            << "gpu.preference.requested: " << r.preference << "\n"
+            << "gpu.preference.reason: " << m_resolvedSettings.gpuReason << "\n"
+            << "gpu.max_msaa: " << r.maxMsaa << "x\n"
+            << "gpu.scene_format: " << r.sceneFormat << "\n"
+            << "swapchain.composition: " << r.composition << "\n"
+            << "swapchain.present_mode: " << r.presentMode << "\n"
+            << "swapchain.supports: vsync=" << (r.supportsVsync ? "yes" : "no")
+            << " mailbox=" << (r.supportsMailbox ? "yes" : "no")
+            << " immediate=" << (r.supportsImmediate ? "yes" : "no") << "\n"
+            << "display.name: " << (displayName ? displayName : "unknown") << "\n"
+            << "display.mode: " << (mode ? std::to_string(mode->w) + "x" + std::to_string(mode->h) + " @ "
+                                               + std::to_string(static_cast<int>(mode->refresh_rate + 0.5f)) + " Hz"
+                                         : std::string("unknown")) << "\n"
+            << "display.scale: " << SDL_GetWindowDisplayScale(window) << "\n"
+            << "window.pixels: " << windowWidth << "x" << windowHeight << "\n"
+            << "power: " << PowerStateName() << "\n"
+            << "quality.mode: " << ToString(m_resolvedSettings.quality) << "\n"
+            << "quality.drawing: " << ToString(CurrentQualityTier()) << "\n"
+            << "settings.render_scale: " << s.renderScale << "\n"
+            << "settings.msaa: " << s.msaaSamples << "x\n"
+            << "settings.shadows: " << (m_shadowsEnabled ? "on" : "off") << "\n"
+            << "settings.particles: " << (m_atmosphere.IsEnabled() ? "on" : "off") << "\n"
+            << "settings.reflection: " << (renderer.IsReflectionEnabled() ? "allowed" : "off") << "\n"
+            << "settings.file: " << (m_settingsPersist ? m_settingsPath : std::string("not used this run")) << "\n";
+
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        file << out.str();
+        if (!file)
+        {
+            std::cerr << "Could not write diagnostics to " << path << '\n';
+            return false;
+        }
+        std::cout << "Diagnostics written to " << path << std::endl;
+        return true;
     }
 
     void DemoApp::SaveSettings()
@@ -241,6 +330,15 @@ namespace AtomGame
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
             RequestQuit(*exitCode); // a script that can't run
+        }
+        // Performance logs say what machine state they measured (M62).
+        m_diagnostics.SetPerfContext(PerfContext());
+
+        // --diagnostics <file> (M62): what this machine gave us, then exit.
+        if (m_commandLine.diagnosticsFile)
+        {
+            const bool written = WriteDiagnostics(*m_commandLine.diagnosticsFile);
+            RequestQuit(written ? 0 : 1);
         }
 
         // A scripted run doesn't need the mouse (and may not have focus).

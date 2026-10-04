@@ -39,20 +39,11 @@ if ($Level -eq "feature" -and $Scenario.Count -eq 0) {
     throw "-Level feature needs -Scenario <name>[,<name>...] (Tests/Scenarios/<name>.atomtest)"
 }
 
-# cmake and ctest: on PATH, or the copies inside Visual Studio.
-function Find-Tool([string]$name) {
-    $onPath = Get-Command $name -ErrorAction SilentlyContinue
-    if ($onPath) { return $onPath.Source }
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vswhere) {
-        $vs = & $vswhere -latest -property installationPath
-        $candidate = Join-Path $vs "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\$name.exe"
-        if (Test-Path $candidate) { return $candidate }
-    }
-    throw "$name not found (install CMake or Visual Studio's CMake component)"
-}
-$cmake = Find-Tool "cmake"
-$ctest = Find-Tool "ctest"
+# cmake and ctest: on PATH, or the copies inside Visual Studio (common.ps1).
+. "$PSScriptRoot/common.ps1"
+$cmake = Find-DevTool "cmake"
+$ctest = Find-DevTool "ctest"
+if (-not $cmake -or -not $ctest) { throw "cmake/ctest not found (install CMake or Visual Studio's CMake component); run Tools/Dev/doctor.ps1" }
 
 function Step([string]$what, [scriptblock]$action) {
     Write-Host "== $what"

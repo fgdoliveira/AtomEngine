@@ -435,6 +435,15 @@ namespace Atom
             }
         }
 
+        // For diagnostics (M62): what was chosen, and what the window offers.
+        m_report.preference = GetPreferenceName(config.gpuPreference);
+        m_report.composition = composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? "sdr-linear" : "sdr";
+        m_report.presentMode = presentMode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
+            : presentMode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
+        m_report.supportsVsync = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_VSYNC);
+        m_report.supportsMailbox = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_MAILBOX);
+        m_report.supportsImmediate = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_IMMEDIATE);
+
         if (!SDL_SetGPUSwapchainParameters(
             m_device, m_window, composition, presentMode))
         {
@@ -2060,6 +2069,17 @@ namespace Atom
         const SDL_GPUTextureSamplerBinding binding{ texture->GetGPUTexture(), m_sampler };
         SDL_BindGPUFragmentSamplers(renderPass, 0, &binding, 1);
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
+    }
+
+    Renderer::DeviceReport Renderer::GetDeviceReport() const
+    {
+        DeviceReport report = m_report;
+        report.adapter = m_adapterName;
+        report.backend = m_backendName;
+        report.sceneFormat = m_targets.GetColorFormat() == SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT
+            ? "R11G11B10_UFLOAT" : "R16G16B16A16_FLOAT";
+        report.maxMsaa = m_targets.GetMaxSamples();
+        return report;
     }
 
     void Renderer::SetParticleAtlas(const Texture* atlas, std::uint32_t columns)

@@ -226,6 +226,23 @@ namespace Atom
         const std::string& GetAdapterName() const { return m_adapterName; }
         const std::string& GetBackendName() const { return m_backendName; }
 
+        // What the device and swapchain turned out to be (M62, for
+        // --diagnostics and performance context).
+        struct DeviceReport
+        {
+            std::string adapter;
+            std::string backend;
+            std::string preference;  // what was asked for: a hint, not a choice
+            std::string composition; // the swapchain's colour handling
+            std::string presentMode; // the one in use
+            bool supportsVsync = false;
+            bool supportsMailbox = false;
+            bool supportsImmediate = false;
+            std::string sceneFormat;
+            std::uint32_t maxMsaa = 1;
+        };
+        DeviceReport GetDeviceReport() const;
+
         // Screenshots (docs): the next frame, as presented (post pass, and
         // the UI overlay if `includeUi`), is written to `path` as a PNG.
         // Nothing extra happens on frames without a request.
@@ -421,6 +438,7 @@ namespace Atom
         SceneLighting m_lighting;
         std::string m_adapterName;
         std::string m_backendName;
+        DeviceReport m_report; // the swapchain part, filled at Initialize
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;
