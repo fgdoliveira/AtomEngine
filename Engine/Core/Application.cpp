@@ -29,6 +29,18 @@ namespace Atom
             SDL_Quit();
             return false;
         }
+        // ATOM_WINDOW_POSITION=x,y (M63, development): open on a chosen
+        // display - e.g. the one the high-performance adapter can't present
+        // to - before the GPU claims the window.
+        if (const char* position = SDL_getenv("ATOM_WINDOW_POSITION"); position && *position)
+        {
+            int x = 0;
+            int y = 0;
+            if (SDL_sscanf(position, "%d,%d", &x, &y) == 2)
+            {
+                SDL_SetWindowPosition(m_window.GetSDLWindow(), x, y);
+            }
+        }
 
         RendererConfig rendererConfig{};
         rendererConfig.gpuPreference = startup.gpuPreference; // the game's choice (M60)

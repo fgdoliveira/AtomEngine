@@ -120,6 +120,7 @@ namespace AtomGame
         // What is drawn right now: a preset's tier, or Custom after F-keys.
         QualityTier CurrentQualityTier() const;
         std::string QualityTierName() const override { return std::string(ToString(CurrentQualityTier())); }
+        void MoveWindow(int x, int y) override { SDL_SetWindowPosition(GetWindow().GetSDLWindow(), x, y); }
         double RealFrameMs() const override { return m_diagnostics.RealFrameMs(); }
 
         std::array<float, 240> m_frameHistory{}; // ms, a ring

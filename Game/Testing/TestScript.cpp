@@ -50,6 +50,7 @@ namespace AtomGame
                 { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
                 { "expect_environment", { 1, 1 } }, // preset | level | (blending)
                 { "expect_quality", { 1, 1 } },     // low | balanced | high | custom (M61)
+                { "move_window", { 2, 2 } },        // x y: desktop coordinates (M63)
                 { "expect_animating", { 1, 1 } },   // entity: its clip advances
                 { "wait_for_animation", { 1, 2 } }, // entity [timeout]: one-shot done
                 { "clip", { 2, 2 } },               // entity clip: play it (the lab: show it)
@@ -669,6 +670,11 @@ namespace AtomGame
             {
                 Fail(command, "no environment preset '" + args[0] + "'");
             }
+            return true;
+        }
+        if (name == "move_window")
+        {
+            game.MoveWindow(static_cast<int>(number(0, 0.0f)), static_cast<int>(number(1, 0.0f)));
             return true;
         }
         if (name == "expect_quality")

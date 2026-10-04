@@ -68,6 +68,9 @@ namespace AtomGame
         virtual std::string EnvironmentName() const { return "level"; }
         // M50: particles the last frame drew.
         virtual std::uint32_t ParticleCount() const { return 0; }
+        // M63: move the window (desktop coordinates), e.g. onto the display
+        // of the other adapter of a hybrid laptop.
+        virtual void MoveWindow(int /*x*/, int /*y*/) {}
         // M61: the quality tier being drawn (low, balanced, high, custom).
         virtual std::string QualityTierName() const { return "high"; }
         // M53: draws the last frame's planar reflection pass made (0: none).

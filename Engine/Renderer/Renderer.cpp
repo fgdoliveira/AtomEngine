@@ -2686,12 +2686,26 @@ namespace Atom
             }
             GpuResources::Forget(m_device);
 
-            if (m_windowClaimed && m_window)
+            if (m_lastFailure == Failure::SwapchainLost)
             {
-                SDL_ReleaseWindowFromGPUDevice(m_device, m_window);
+                // M63: after a D3D12 swapchain failed to resize its buffers
+                // (the hybrid-laptop crossing), SDL can neither release the
+                // window from the device nor destroy the device - both free
+                // the broken swapchain and corrupt the heap (0xC0000374,
+                // reproduced on the RTX 4060). Everything else is released
+                // above; the device and its swapchain are abandoned and the
+                // process, which is exiting, returns them to Windows.
+                std::cerr << "Leaving the failed GPU device to the operating system.\n";
             }
+            else
+            {
+                if (m_windowClaimed && m_window)
+                {
+                    SDL_ReleaseWindowFromGPUDevice(m_device, m_window);
+                }
 
-            SDL_DestroyGPUDevice(m_device);
+                SDL_DestroyGPUDevice(m_device);
+            }
         }
 
         m_scenePipelines = {};
