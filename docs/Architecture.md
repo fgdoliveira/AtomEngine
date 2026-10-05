@@ -36,7 +36,7 @@ graph TD
   only its `.cpp` files use (ImGui, JSON, cgltf, stb, the version string).
 - **Build options:** `ATOM_BUILD_GAME` (the executable and shaders, needs
   `dxc`), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. CI builds
-  with the game off (§10).
+  with the game off (§11).
 
 ## 2. Application, engine and game: the real layering
 
@@ -238,7 +238,59 @@ flowchart LR
   `ATOM_FRAMES_IN_FLIGHT` overrides; calibration measures at the player's
   setting.
 
-## 9. Tools
+## 9. Distribution
+
+AtomEngine manufactures a standalone game: a ZIP a player extracts and
+double-clicks, with no repository, compiler, Python or Blender involved.
+
+```mermaid
+flowchart LR
+    Src[Source: C++, HLSL, JSON, Blender scripts] --> Build[build-dist/: Release, ATOM_DISTRIBUTION=ON]
+    Products[Committed products: .glb, .png] --> Install
+    Build --> Install[cmake --install: the install rules]
+    Install --> Stage[Dist/AtomGame/]
+    Stage --> Verify[verify.ps1]
+    Verify --> Zip[AtomGame-v…-win64.zip]
+    Zip --> Player[Player: extract, double-click]
+    Player -.->|writes only| User[%APPDATA%/AtomEngine/AtomGame: settings, logs]
+```
+
+- **One definition of what ships:** the install rules in
+  `Game/CMakeLists.txt` (M68). They install the executable, `SDL3.dll`,
+  the shaders, the shipped asset folders (`ATOM_SHIPPED_ASSETS`; the
+  development-only `ATOM_DEV_ASSETS` stay out), the licences, and a
+  players' README. `verify.ps1` reads its expectations from those same
+  lists. What the machine needs at runtime is §7's table.
+- **Paths:** assets and shaders resolve from the executable's folder
+  (`SDL_GetBasePath`), never the working directory or the repository;
+  `ATOM_ASSET_ROOT` is an explicit development opt-in.
+- **Ownership:** the package is read-only. Everything a run writes goes
+  to the per-user folder: settings, calibration, logs (§8, M67).
+- **Two builds from one source:** `build/` for development (console,
+  Debug and Release, tests) and `build-dist/` for players (windowed,
+  Release, no tests). They differ only in `ATOM_DISTRIBUTION`.
+- **Checked:** locally by `Tools/Dist/package.ps1`, which also starts the
+  package from outside the repository, and on every push by CI's
+  `package` job (M69). A clean-machine run follows
+  [Distribution-Test.md](Distribution-Test.md).
+
+**What ships, and how (M70).** Diagnostics are kept on purpose: on a
+stranger's PC a hidden report is worth more than a few kilobytes saved.
+
+| Facility | Policy |
+|---|---|
+| The log file, `--diagnostics`, the start-failure message box | **always available** |
+| F10 developer panels (Settings, Lighting, Environment, …), F1 overlay, F2–F8 switches | **shipped, as diagnostics**: behind keys a player never needs |
+| `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF logs | **development-enabled**: shipped, inert unless set |
+| Hot reload (`ATOM_ASSET_ROOT`) | **development-enabled**: needs the source tree |
+| Asserts, the D3D12 debug layer | **Debug only**: compiled out of Release |
+| The character lab (`Lab/`, `ThirdParty/`, its level) | **not packaged**: its character's licence isn't recorded |
+| `Tests/`, `PresentationProbe`, `SwapchainMatrix`, `Tools/Perf`, `Tools/Dev`, Blender tools, schemas | **not packaged** |
+
+Nothing is stripped from the Release code: the shipped executable is the
+tested one, with the same code paths.
+
+## 10. Tools
 
 - **Runtime:** Dear ImGui panels (F10) and the F1 overlay - an overlay, not
   an editor framework, and kept out of captures.
@@ -248,7 +300,7 @@ flowchart LR
 - **External:** PIX, Intel GPA, RenderDoc for per-pass GPU timing (SDL GPU
   has no GPU timers).
 
-## 10. Verification layers
+## 11. Verification layers
 
 | Layer | Runs where | Catches |
 |---|---|---|
@@ -256,7 +308,7 @@ flowchart LR
 | In-game scenarios (`ctest -L scenario`) | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
 | Paired benches, `ab.ps1` | locally, plugged in | performance changes - never a CI gate |
 
-## 11. Architecture decision records
+## 12. Architecture decision records
 
 ### ADR-001 — SDL3 GPU is the renderer abstraction
 **Decision:** use SDL GPU types directly; no internal RHI. **Why:** SDL GPU
@@ -325,7 +377,7 @@ high-performance as an opt-in that falls back and says which step failed
 (`GPUDevice`, §4). On this machine the RTX is testable on an external
 monitor wired to it.
 
-## 12. When to add what
+## 13. When to add what
 
 | Architecture or library | Not yet, because | Reconsider when |
 |---|---|---|

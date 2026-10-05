@@ -331,6 +331,22 @@ folder, a shader, a licence), if anything development-only got in
 needs a DLL Windows doesn't have, or if a shader is unsigned. The same
 revision gives the same files.
 
+What ships and what doesn't (diagnostics are kept on purpose), and the
+whole flow, are in [docs/Architecture.md](docs/Architecture.md) §9. A
+release candidate is tested on a clean Windows VM with
+[docs/Distribution-Test.md](docs/Distribution-Test.md).
+
+**Troubleshooting a player's report.** Ask for:
+1. `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log` (and
+   `AtomGame.previous.log` if they started it again since). It holds
+   the version, the folder, SDL, every GPU tried and why it failed, the
+   quality, each level load.
+2. `AtomGame.exe --diagnostics report.txt`, run in the game's folder: the
+   GPU, present modes, display, power and effective settings.
+
+Things they can try: `--gpu low-power` (laptops), `--quality low`,
+`--reset-settings`.
+
 ## Testing
 
 ```sh
