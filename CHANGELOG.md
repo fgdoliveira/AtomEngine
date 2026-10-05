@@ -1,8 +1,55 @@
 # Changelog
 
-## Unreleased
+## 0.0.11 — Distribution
+
+Out of the repository: a person who has never cloned AtomEngine
+downloads a ZIP, extracts it, double-clicks and plays. One command makes
+that package, a check proves what's in it, and CI makes it on every
+push. No new engine feature. Most of the runtime was already ready
+(paths from the executable's folder, settings in `%APPDATA%`, an
+explicit asset list); what stood in the way was a C++ runtime borrowed
+from the development machine, a console window, no log, and an asset
+with unrecorded rights.
+
+### Added
+- **The package command (M68):** `pwsh Tools/Dist/package.ps1` builds
+  the game in `build-dist/`, stages it in `Dist/AtomGame/` with CMake's
+  install rules (the one definition of what ships), verifies it, starts it
+  once from outside the repository, and zips
+  `Dist/AtomGame-v0.0.11-win64.zip`. The package holds `AtomGame.exe`,
+  `SDL3.dll`, the signed shaders, the shipped asset folders, a players'
+  `README.txt`, `LICENSE.txt` and a generated `THIRD_PARTY_NOTICES.txt`.
+- **`Tools/Dist/verify.ps1`:** fails a package that misses a file, an
+  asset folder or a shader; that holds development material (`.blend`,
+  `.py`, `.pdb`, test scripts, schemas, the lab); whose binaries need a
+  DLL Windows doesn't have (`dumpbin`); or whose shaders are unsigned.
+  Its expectations come from the same CMake lists.
+- **CI builds the package (M69):** a second job on every push, keeping
+  the ZIP as the `AtomGame-win64` artifact.
+- **A log for every run (M67):** `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`
+  (the previous run kept as `AtomGame.previous.log`), each line on disk at
+  once. Scripted runs (scenarios, benchmarks) don't write it.
+- **Documentation (M70):** Architecture §9 Distribution (the flow, what
+  ships, a policy table for developer facilities: kept as diagnostics,
+  never stripped), §7's table of what a player's machine needs,
+  `docs/Distribution-Test.md` (the clean-VM procedure), and the README's
+  Distribution and troubleshooting sections.
 
 ### Changed
+- **No machine dependency (M66):** the C++ runtime is linked statically
+  into every target, SDL3.dll included. They had imported `VCRUNTIME140`,
+  `MSVCP140` and the `api-ms-win-crt-*` set, so a PC without the Visual
+  C++ Redistributable couldn't start the game. `SDL3.dll` is the only
+  non-Windows DLL left.
+- **The distributed game is a windowed program (M67):** with
+  `-DATOM_DISTRIBUTION=ON`, which the package command uses, there's no
+  console window on double-click. Development builds (Debug and
+  Release) keep their console. A failed start without a console shows a
+  message box with the reason and the log's path.
+- **The asset list is split:** `ATOM_SHIPPED_ASSETS` and `ATOM_DEV_ASSETS`.
+  The character lab (`Lab/`, `ThirdParty/` and its level) stays in
+  development builds for its scenario and out of the package: its rigged
+  character's source and licence aren't recorded.
 - **`GPUDevice`: device and presentation out of the renderer.** Creating
   the GPU device (which picks the adapter) and claiming the window (which
   creates the swapchain) were one step reporting one result, and the
@@ -23,8 +70,6 @@
   unit tests for the present-mode choice and the fallback wording.
 - **SDL 3.4.18** (from 3.4.16). It doesn't change the hybrid-laptop
   result: the RTX still can't present to the built-in panel.
-
-### Added
 - **`SwapchainMatrix`** (with `ATOM_BUILD_PRESENTATION_PROBE`): every
   swapchain kind (flip and bitblt models, buffer counts, formats) in
   D3D11 and D3D12, on every adapter, with no SDL. On the development
@@ -37,6 +82,48 @@
   game reaches the RTX through NVIDIA's per-game path, which D3D12
   doesn't have. Recorded as an addendum to ADR-006; the README's
   hybrid-laptop notes say what a D3D12 program can and can't use.
+
+### Measured
+| | |
+|---|---|
+| `AtomGame.exe` | 2.0 MB (1.74 MB before the static runtime) |
+| Package, uncompressed | 25.9 MB in 122 files, 1 DLL (`SDL3.dll`) |
+| ZIP | 16.1 MB |
+| Packaging | 6 s with the build up to date; 132 s from a fresh clone (the CI rehearsal) |
+| Same revision twice | identical payload, every file; the ZIP container differs in its own metadata |
+| Dependencies (`dumpbin`) | `AtomGame.exe`: SDL3, kernel32, user32, shell32, imm32; `SDL3.dll`: Windows system DLLs only |
+| Development machine | the package, copied to `%TEMP%` and started from another working directory: runs (Iris Xe), diagnostics written |
+| Speed vs v0.0.10 (`ab.ps1`, 8 rounds, plugged in) | night street +0.07 ms (−0.38..+0.76), lakeshore +0.004 ms (−0.01..+0.03): no cost |
+| Tests | full matrix, 18/18 Debug and Release |
+| Clean VM (`docs/Distribution-Test.md`) | **to be recorded** |
+
+No unexpected runtime dependency was found beyond the C++ runtime that
+M66 removed.
+
+### Known
+- **Rendering on a clean machine isn't verified.** The clean-machine test
+  is a VirtualBox VM, which has no Direct3D 12: it proves dependencies,
+  paths, the log and the failure path, not a play-through.
+- **The character lab isn't in the package** until its character's source
+  and licence are known (or it's replaced by a character with a clear
+  licence).
+- **SmartScreen:** an unsigned executable downloaded from the internet
+  gets Windows' "Windows protected your PC" warning (*More info → Run
+  anyway*). Code signing is a cost and a process, not a code change, so
+  it's left out of this release.
+- **The ZIP isn't bit-for-bit reproducible**, only its contents are.
+
+### Next
+What this release showed is worth a version of its own:
+1. **A play-through on a second real PC.** It's the one gap in the
+   evidence, and the only test that would catch a GPU or driver
+   difference.
+2. **A character with a clear licence for the lab**, so the whole engine
+   ships.
+3. **Input latency, measured.** It was deferred in 0.0.10, and the
+   frames-in-flight decision still rests on reasoning alone.
+4. Code signing only when the game is published somewhere SmartScreen's
+   warning matters.
 
 ## 0.0.10 — Hardware portability
 

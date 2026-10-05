@@ -10,12 +10,14 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.10** — hardware portability: saved settings, a
-command line, quality presets kept separate from the GPU choice, an F10
-Settings panel, a `--diagnostics` report and `Tools/Dev/doctor.ps1`, a
-high-performance GPU option that falls back safely, and opt-in
-calibration. Out of the box it looks and runs as 0.0.9 did. (0.0.9 was
-hardening from an architecture audit; 0.0.8 brought water and weather.)
+Current version: **0.0.11** — distribution: one command
+(`Tools/Dist/package.ps1`) makes a ZIP a player extracts and
+double-clicks, with no repository or development tools involved. The C++
+runtime is linked in, the shipped game is windowed and logs every run,
+the package's contents are verified, and CI builds it on every push.
+(0.0.10 brought hardware portability: settings, quality presets, a safe
+high-performance GPU option; 0.0.9 was hardening from an architecture
+audit.)
 See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
