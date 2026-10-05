@@ -422,6 +422,34 @@ the Iris Xe: to compare *code* against an older build, set
 hardware; the interleaving takes care of that. Timing is never a ctest
 gate: `expect_bench_under` is for local use on known hardware.
 
+**Input latency** (`Tools/Perf/latency.ps1`): how long a click takes,
+per configuration, by injecting clicks into the running game (hands off
+the mouse and keyboard while it runs). Two modes:
+
+| Mode | Measures | Needs | When |
+|---|---|---|---|
+| `-Mode Engine` (default) | click → frame start → swapchain wait → submit → GPU done, from the engine's own timing (`ATOM_LATENCY_LOG=1`) | nothing: never asks for elevation | every iteration, automation |
+| `-Mode PresentMon` | click → frame on screen, end to end, with Intel PresentMon (`-EngineLog` adds the engine's stages) | PresentMon installed, and ETW access | before a milestone's PR; after a change to presentation, display or frame pacing |
+
+PresentMon is installed separately, from Intel or
+github.com/GameTechDev/PresentMon. The script finds it with
+`-PresentMonPath`, `ATOM_PRESENTMON` or the default install path, and
+never downloads anything. Its event tracing needs an administrator or a
+member of Windows' built-in **Performance Log Users** group. Without
+either, the script explains and asks for elevation for that run only;
+`-NoElevate` makes it exit instead, for unattended use. To run PresentMon
+without any prompt, you can join the group yourself. This is optional and
+changes a Windows security group; the script never does it:
+
+```powershell
+# in an administrator PowerShell, once; then sign out and back in
+Add-LocalGroupMember -SID S-1-5-32-559 -Member $env:USERNAME
+```
+
+`ATOM_LATENCY_FLASH=1` turns the frame black on each left click (a
+visible effect of the input). `ATOM_LATENCY_WAIT=late` and
+`ATOM_FRAMES_IN_FLIGHT` restore older frame orders for comparison.
+
 ## Development workflow
 
 Check a change with the cheapest step that can catch its mistakes, and
