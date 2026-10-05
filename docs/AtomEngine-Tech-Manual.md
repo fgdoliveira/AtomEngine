@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.9 / M58**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75).
+A study guide to every concept the engine uses, as of **v0.0.10 / M65**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -84,9 +84,16 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 73. [The runtime asset payload, from evidence (M56)](#73-the-runtime-asset-payload-from-evidence-m56)
 74. [Diagnostics out of the coordinator, and load timings (M57)](#74-diagnostics-out-of-the-coordinator-and-load-timings-m57)
 75. [Writing the architecture down, and tooling that doesn't hang (M58)](#75-writing-the-architecture-down-and-tooling-that-doesnt-hang-m58)
-76. [Anatomy of a frame and what it costs](#76-anatomy-of-a-frame-and-what-it-costs)
-77. [Build system and project layout](#77-build-system-and-project-layout)
-78. [Glossary](#78-glossary)
+76. [A settings model: two decisions, kept apart (M59)](#76-a-settings-model-two-decisions-kept-apart-m59)
+77. [The command line and choosing the GPU before it exists (M60)](#77-the-command-line-and-choosing-the-gpu-before-it-exists-m60)
+78. [Saved settings and the F10 Settings panel (M61)](#78-saved-settings-and-the-f10-settings-panel-m61)
+79. [Diagnostics and a doctor (M62)](#79-diagnostics-and-a-doctor-m62)
+80. [Hybrid laptops and the high-performance fallback (M63)](#80-hybrid-laptops-and-the-high-performance-fallback-m63)
+81. [Calibration, frames in flight and latency (M64)](#81-calibration-frames-in-flight-and-latency-m64)
+82. [Releasing 0.0.10: what the RTX taught (M65)](#82-releasing-0010-what-the-rtx-taught-m65)
+83. [Anatomy of a frame and what it costs](#83-anatomy-of-a-frame-and-what-it-costs)
+84. [Build system and project layout](#84-build-system-and-project-layout)
+85. [Glossary](#85-glossary)
 
 ---
 
@@ -2039,7 +2046,174 @@ Use Debug for asserts and lifetime checks, Release for anything timed. Rebuild a
 
 ---
 
-## 76. Anatomy of a frame and what it costs
+## 76. A settings model: two decisions, kept apart (M59)
+
+**Concept: separate what changes for different reasons.** Two settings look alike but aren't:
+- **The GPU preference** (`low-power` or `high-performance`) decides *which adapter* the game asks for. It's a **stability** choice: on the development laptop, the low-power adapter was hardcoded from the very first demo because the other one lost its swapchain when windows moved between monitors.
+- **The graphics quality** decides *how much is drawn*. It trades looks for speed.
+
+"Fast GPU" and "high quality" sound like one dial, which is the trap. On a hybrid laptop the fast GPU can be the unstable one, and a slow GPU can still afford High.
+
+**Quality presets.** A tier is a bundle of switches the renderer already had:
+
+| Tier | Render scale | MSAA | Shadows, particles | Reflection |
+|---|---|---|---|---|
+| High (default) | 1.0 | 4× | on | the level's choice |
+| Balanced | 0.75 | 2× | on | off |
+| Low | 0.5 | 1× | off | off |
+
+Tiers **cap, they don't force**. The lakeshore's reflection is authored per level (§68), so High *allows* it and lower tiers turn it off. No renderer feature exists for one tier only. If an F-key changes a single switch, the tier becomes **Custom**: the label tells the truth about what's drawn.
+
+**Precedence, as a pure function.** `ResolveSettings(cli, env, saved)` merges four layers, strongest first:
+
+```text
+command line  >  ATOM_* environment  >  settings.json  >  defaults
+```
+
+It's a **pure function**: values in, a value out, no files, no SDL. So it's unit-tested exhaustively, which matters because precedence bugs are the confusing kind ("I set it but nothing changed").
+
+**Never fail on a settings file.** The file is user-owned and may be damaged, hand-edited or from a future version. `ParseSettings` never fails: a bad field gets its default, an unknown schema gets all defaults. A settings file must never stop a game from starting.
+
+**Code.** `Game/Settings/GameSettings.*` (`QualityPreset`, `PresetFor`, `TierOf`, `ResolveSettings`), `Tests/GameSettingsTests.cpp`.
+
+---
+
+## 77. The command line and choosing the GPU before it exists (M60)
+
+**`main` had ignored its arguments.** Now `argv` reaches `DemoApp`, and a pure `ParseCommandLine` turns it into options: `--gpu`, `--quality`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Unknown arguments are reported, not fatal.
+
+**Concept: some decisions must come before construction.** SDL picks the adapter when the GPU device is *created*, and a device can't change adapters afterwards. So the choice has to exist before the renderer does. `Application` gained a hook that runs first:
+
+```cpp
+const StartupConfig startup = OnConfigure(); // the game resolves its settings here
+SDL_Init(SDL_INIT_VIDEO);                    // ... then window, then the renderer
+```
+
+This is the **template method** pattern again (§2): the base class owns the order, and the game fills in a step. Changing the GPU later therefore says **"restart required"**: rebuilding every GPU resource in-process was rejected as too much machinery for a rare choice.
+
+**Concept: tests must not depend on whoever played last.** If a saved Low preset applied during scenarios or benchmarks, results would change depending on the last key someone pressed. The rule: with `ATOM_TEST_SCRIPT` set, or `--no-settings`, the saved file is neither read nor written. `ab.ps1` and every scenario get exactly the old behaviour.
+
+**Code.** `Game/Main.cpp`, `Engine/Core/Application.*` (`StartupConfig`, `OnConfigure`), `ParseCommandLine` in `GameSettings.*`.
+
+---
+
+## 78. Saved settings and the F10 Settings panel (M61)
+
+**Where per-user files go.** `SDL_GetPrefPath("AtomEngine", "AtomGame")` returns the platform's per-user, writable folder: on Windows `%APPDATA%\AtomEngine\AtomGame\`. The install folder may be read-only, and it's shared between users, so it's the wrong place.
+
+**Show what is, not what was asked.** A preference is a *request*. The Settings panel shows both sides:
+- the adapter SDL **actually** picked, next to the preference;
+- the quality mode *and* the tier being drawn (Custom included);
+- the calibration result;
+- *Calibrate now*, *Calibrate next launch*, *Reset*.
+
+Quality applies at once; the GPU radio button is marked "restart required" (§77).
+
+**A smoke test per tier.** Running every scenario at three tiers would triple the test matrix. Instead, one scenario (`quality_tiers`) sets each tier and checks that its switches took effect (`expect_quality`, `expect_reflection`). The full multi-tier run happens once, at release (§82).
+
+A bug worth remembering: the new panel first opened exactly **under** the Environment panel, so it seemed missing. ImGui windows need distinct default positions.
+
+**Code.** `DemoApp::LoadSavedSettings` / `SaveSettings`, `Game/DemoAppDevTools.cpp`, `Tests/Scenarios/quality_tiers.atomtest`.
+
+---
+
+## 79. Diagnostics and a doctor (M62)
+
+**Concept: a bug report needs a machine report.** "It's slow on my PC" is useless without context. `--diagnostics <file>` starts the engine, writes what it found and quits:
+- SDL version, backend, adapter, the requested preference and **why** it was or wasn't honoured;
+- present modes, maximum MSAA, scene format, frames in flight;
+- display size, scale and refresh rate, power source;
+- the quality tier and the effective settings.
+
+**Context on every measurement.** A timing without its conditions misleads (a battery run is ~3× slower, §63). Every PERF log now starts with a `PERF context` line: adapter, power source, tier.
+
+**A doctor script.** `Tools/Dev/doctor.ps1` answers "can this machine build it?": Windows version, CMake ≥ 3.26, Visual Studio's C++ tools, `dxc`, submodules, optionally a trial configure (in a throwaway folder) and the game's own diagnostics. Each check prints PASS, WARN or FAIL **with what to do**. It **only reads**: no drivers, power plans or files are changed. A diagnostic tool that modifies the system is no longer a diagnostic tool. The tool lookup it shares with `check.ps1` moved into `Tools/Dev/common.ps1`.
+
+**Code.** `DemoApp::WriteDiagnostics`, `Renderer::GetDeviceReport`, `GameDiagnostics::SetPerfContext`, `Tools/Dev/doctor.ps1`, `Tools/Dev/common.ps1`.
+
+---
+
+## 80. Hybrid laptops and the high-performance fallback (M63)
+
+**Concept: how a hybrid ("Optimus") laptop shows a picture.** It has two GPUs:
+- an **integrated** GPU (here an Intel Iris Xe), inside the CPU, low power;
+- a **discrete** GPU (here an RTX 4060 Laptop), fast and power-hungry.
+
+The built-in panel's cable usually goes to the **integrated** GPU only. When a game renders on the discrete GPU, Windows copies each finished frame across to the integrated GPU, which scans it out. External ports (often HDMI) may be wired straight to the discrete GPU. So "which GPU" and "which screen" interact: moving a window between screens can mean changing who presents.
+
+**What was measured on this laptop:**
+- With the Iris enabled, Direct3D 12 **refuses** an RTX swapchain for the built-in panel (`DXGI_ERROR_DEVICE_REMOVED`), even in a raw D3D12 probe with no engine code. On the external monitor, wired to the RTX, it works.
+- With the Iris *disabled* in Device Manager, the panel falls back to the "Microsoft Basic Display Driver" (a software driver, 64 Hz): every frame took ~73 ms whatever was drawn. Disabling the integrated GPU doesn't give the panel to the discrete one; it removes the part that drives it.
+- Windows' per-app *Graphics* setting, forced to "High performance", overrides **both** SDL preferences, so no fallback can reach the Iris. The game now explains this and suggests *Let Windows decide*.
+
+**The fallback, in two places:**
+- **At creation:** if a high-performance device or its swapchain fails, retry low-power *before* any resource exists, and show why.
+- **Mid-run:** a lost swapchain calls `OnRenderFailure`; the game saves `pendingFallback = low-power` and exits with code 3. The next launch uses low-power and explains.
+
+**Concept: sometimes the safe cleanup is no cleanup.** After a lost swapchain, releasing the window from the device, or destroying the device, corrupted the heap inside SDL (`0xC0000374`). On that one path the device is **abandoned**: the process is exiting, and the OS reclaims everything a process owns. Leaking deliberately at exit beats crashing during cleanup. `ATOM_SIMULATE_SWAPCHAIN_LOSS` and `ATOM_WINDOW_POSITION` reproduce the failure without unplugging anything.
+
+**Code.** `Renderer::Initialize` (retry, `explainNoDevice`), `Renderer::Failure`, `Application` (exit 3), `DemoApp::OnRenderFailure`, `FallbackAfterFailure`, `Tools/PresentationProbe`.
+
+---
+
+## 81. Calibration, frames in flight and latency (M64)
+
+**Calibration (opt-in)** measures instead of guessing from GPU names. It plays the two heaviest views (the night street; the lakeshore in rain), each tier twice in the order **H B L L B H**, and picks the highest tier whose **worst p95** is ≤ **13.3 ms** (75 fps):
+- **Why p95, not the average:** stutter is felt in the slow frames. A 5 ms average with 20 ms spikes feels worse than a steady 8 ms.
+- **Why twice, keeping the better pass:** background stalls only ever *slow* a pass; the better of two is closer to the machine's real speed. The ABBA order (§63) spreads drift over all tiers.
+- **Refusals:** on battery it refuses. When the display caps presentation (vsync, or a 60 Hz monitor holding frames), frame times measure the *display*, not the GPU, so it reports no result instead of a wrong one. During the run, presentation is uncapped.
+- **Measured as the player plays:** at the player's frames in flight (below). Calibrating with a deeper queue than play would overrate the machine.
+- **The decision is pure** (`DecideCalibration`) and tested with synthetic measurements. The record stores the adapter and resolution, and is ignored when either changes.
+
+**Concept: frames in flight and GPU clocks.** "Frames in flight" is how many frames the CPU may queue before waiting for the GPU. SDL's default is 2. Calibrating with 2, the result flipped between High and Balanced, and 3-second medians swung **3.5 ↔ 9.7 ms**. The cause: with only 2 queued, the Iris finished early and **idled between frames**; its power management saw idle time and **lowered its clock**, so the next frames got slower, then busy again, and so on. With **3** frames queued, the GPU always has work, the clock stays up, and calibration chose High every time (worst p95 7.8–8.0 ms). (A later day, two runs at 2 also chose High: the clock drop comes and goes with the machine's state, which is exactly why it's worth removing.)
+
+**Concept: queue depth is latency.** Each frame waiting in the queue was built from older input. When the player moves the mouse, the result reaches the screen only after the frames already queued ahead of it. How much that costs depends on whether the queue is full:
+- **GPU-bound or vsync:** the CPU runs ahead until the limit, so the queue is full, and each extra slot adds one whole frame. With vsync that's one **refresh**: **+6.9 ms at 144 Hz, +16.7 ms at 60 Hz**. And vsync is the default present mode.
+- **CPU-bound:** the GPU waits on the CPU and the queue is empty, so depth costs nothing.
+
+That argument nearly put the default back to 2: AtomEngine is an engine, and the games it runs may need fast, precise controls. The measurement that settled it was vsync on the 144 Hz panel, 2 vs 3, interleaved:
+
+| Frames in flight | Frame interval | Frame rate |
+|---|---|---|
+| 2 | 13.9 ms | **72 fps** |
+| 3 | 6.95 ms | 144 fps |
+
+**Concept: double vs triple buffering.** In SDL's D3D12 backend, "frames in flight" also sets the **swapchain's buffer count** (2 or 3). With **two buffers** and vsync, one is on screen and the other waits for the next refresh. The game has nowhere to draw until a refresh frees one, so it misses every other refresh even with 3.4 ms of work: the classic double-buffering halving. With **three**, there's always a free buffer. Every release before 0.0.10 ran at 72 fps on this panel.
+
+So the latency reasoning cut the other way. Latency is roughly *queued frames × frame interval*: about 2 × 13.9 ≈ 28 ms with two, against 3 × 6.9 ≈ 21 ms with three. One more queued frame costs less than every frame lasting twice as long. The default is **3**; `ATOM_FRAMES_IN_FLIGHT=1..3` overrides. Calibration measures at the player's setting. Input-to-screen latency itself wasn't measured (that needs timestamps from input to present, or a capture tool), so those 28 and 21 ms are estimates.
+
+The lessons:
+- A GPU is not a constant-speed machine: power management reacts to the workload's *shape*.
+- An API setting can mean more than its name: "frames in flight" here also meant "swapchain buffers".
+- A sound general rule ("deeper queues add latency") still has to meet the measurement on the actual machine.
+
+**Code.** `Game/Settings/Calibration.*`, `Game/DemoAppCalibration.cpp`, `Tests/CalibrationTests.cpp`, `Renderer::SetUncappedPresentation`, `SDL_SetGPUAllowedFramesInFlight` in `Renderer.cpp`.
+
+---
+
+## 82. Releasing 0.0.10: what the RTX taught (M65)
+
+**Documenting a decision with its evidence.** `docs/Architecture.md` gained §8 "Hardware and settings" and **ADR-006**: low-power stays the default, and the GPU choice is not a quality setting. It records the context (the measurements of §80), the rejected options (scoring GPUs by name, a hardware database, continuous adaptive quality, changing the power plan, an in-process device rebuild, a launcher) and when to revisit.
+
+**Assumptions vs measurements.** Three claims made during this release turned out wrong once measured:
+- "The RTX can only present to the external monitor" was a generalization from a test that had the monitor connected. The panel test had to be done separately.
+- "Disable the Iris and the RTX will drive the panel" was disproved by Windows' own `dxdiag`: the panel went to a software driver.
+- "Two frames in flight is lower latency" holds only if the frame rate stays the same. With vsync it halved (§81).
+
+All three were settled by Windows' reports and paired measurements, not by argument.
+
+**The release measurements:**
+- **Full matrix:** Debug and Release, 17/17 each.
+- **Multi-tier run:** every scenario at Low and Balanced. The only failures were checks for what those tiers turn off on purpose (rain particles at Low, the reflection, the default-tier check). The tests caught the tiers *working*.
+- **Against v0.0.9** (`ab.ps1`, 8 rounds): the night street **−0.51 ms**, the lakeshore **−0.55 ms**, every round negative. To attribute it, both levels were repeated with v0.0.10 forced to 2 frames in flight: **−0.006 ms and −0.002 ms**, identical. So the speed-up is entirely the third frame in flight (§81), and the settings machinery costs nothing. With vsync the difference is 72 → 144 fps.
+
+An A/B that finds a difference isn't finished until a second A/B explains it.
+
+**Code.** `docs/Architecture.md` §8 and ADR-006, `CHANGELOG.md`, `README.md` "Settings and hardware".
+
+---
+
+## 83. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2077,11 +2251,12 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.7**, the first measured the M46 way (`ATOM_PERF_LOG` medians of 240-frame blocks, p95 in brackets, plugged in, 144 Hz laptop screen, uncapped): the passage 1.89 ms (4.16) with the flashlight off, 2.32 ms (4.47) on; the machiya interior 2.04 (3.57); the character lab 2.21 (3.38); the pachinko hall 3.04 (9.06); the night street 3.94 (10.38); the street 4.23 (8.88). These are the baseline for later versions; earlier numbers above were averages and aren't directly comparable.
 - **v0.0.8** (same method; Balanced power plan): the lakeshore from the beach per preset - clear day, overcast and fog 3.53 ms, rain 3.90, sunset 3.32, night 3.58. Against v0.0.7, interleaved builds (§69): the street −0.035 ms, the windmill field −0.007, the night street +0.15 (noisy), all within resolution. What the lake's features cost is in §69.
 - **v0.0.9** adds no feature: against v0.0.8 (interleaved builds) the street +0.027 ms and the lakeshore +0.024 ms, within resolution. Level loads now log their own timing (§74), e.g. the night street 173 ms, mostly GPU upload.
+- **v0.0.10**, against v0.0.9 (interleaved builds, §82): the night street −0.51 ms, the lakeshore −0.55 ms, from the third frame in flight (§81); with vsync on the 144 Hz panel, 72 → 144 fps. Baselines measured with two frames in flight don't compare with v0.0.10's.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 77. Build system and project layout
+## 84. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
@@ -2094,9 +2269,11 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value.
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value; in v0.0.10 `expect_quality`, `move_window`, `set quality`.
+- **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json` (§78); exit code 3 means the renderer failed mid-run (§80).
+- **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
-- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73).
+- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
@@ -2109,12 +2286,14 @@ Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Character/ (LabViewer, Animator, SpringArm); DemoAppLab (the lab's modes)
          Flashlight; DemoAppDevTools (the ImGui panels)
          Environment/ (EnvironmentController); Level/Environment (state, Blend)
+         Settings/ (GameSettings, Calibration); DemoAppCalibration
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), benchmark scenarios (lights, water and weather)
-Tools/Dev/  check.ps1 (the validation ladder)
+Tools/Dev/  check.ps1 (the validation ladder), doctor.ps1, common.ps1
+Tools/PresentationProbe/  raw D3D12 swapchain test per adapter (optional)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + lakeshore + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
@@ -2136,7 +2315,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 78. Glossary
+## 85. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -2148,6 +2327,15 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Animation event** — a named moment of a clip (a foot touching down) that fires when playback crosses it.
 - **Animation state machine** — states (clips or blends) and transitions on parameters, as data; gameplay only sets the parameters.
 - **Atlas** — several small images packed into one texture.
+- **Calibration** — measuring the machine on fixed views to choose a quality tier, instead of guessing from hardware names (§81).
+- **Discrete / integrated GPU** — a separate graphics chip with its own memory / one built into the CPU, sharing system memory.
+- **Frames in flight** — how many frames the CPU may queue ahead of the GPU; more keeps the GPU busy, but each full slot delays input by a frame (§81).
+- **Double / triple buffering** — a swapchain of two / three images; with vsync, two can force every other refresh to be missed (§81).
+- **Input latency** — the time from an input (a mouse move) to its result on screen; queue depth, vsync and the display all add to it.
+- **Hybrid graphics (Optimus)** — a laptop with an integrated and a discrete GPU, where the discrete one renders and the integrated one usually drives the built-in screen (§80).
+- **Microsoft Basic Display Driver** — Windows' generic software display driver, used when no vendor driver is active; slow and fixed-mode.
+- **Precedence** — the order in which setting sources override each other: command line > environment > saved > defaults (§76).
+- **Quality tier / preset** — a named bundle of render settings (High, Balanced, Low); Custom when single switches differ (§76).
 - **A/B measurement** — timing the old and the new build alternately on the same machine, so drift between runs cancels out.
 - **Attachment** — a texture a render pass draws into (colour, depth).
 - **Attenuation** — a sound getting quieter with distance.
@@ -2307,6 +2495,8 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Voice** — one playing instance of a sound in a mixer.
 - **Vsync** — syncing presentation to the monitor refresh.
 - **Windowed falloff** — inverse-square attenuation multiplied by a window that reaches exactly zero at the light's range.
+- **Swapchain loss** — the window's presentable images becoming unusable (device removed, display changed); here handled by a fallback for the next launch (§80).
+- **Template method** — a base class fixing the order of steps and letting a subclass fill some in; `Application` and `OnConfigure` / `OnInitialize`.
 - **Use-after-free** — touching memory or a resource after its owner released it; here, a GPU wrapper outliving its device.
 - **Validation ladder** — checking a change with the cheapest step that can catch its mistakes, escalating only on success.
 - **Uber-shader** — one shader covering many features with runtime branches; fewer pipelines, but skipped code can still cost (§57, §69).

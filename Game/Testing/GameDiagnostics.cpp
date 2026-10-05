@@ -98,6 +98,10 @@ namespace AtomGame
         {
             return;
         }
+        if (m_blockIndex == 0 && !m_perfContext.empty())
+        {
+            *m_out << "PERF context " << m_perfContext << std::endl;
+        }
         *m_out << FormatPerfLine(m_blockIndex, m_window, label) << std::endl;
         if (m_csv)
         {

@@ -18,6 +18,9 @@ add_library(
     Flashlight.h
     DemoAppLab.cpp
     DemoAppDevTools.cpp
+    DemoAppCalibration.cpp
+    Settings/Calibration.cpp
+    Settings/Calibration.h
     Character/Animator.cpp
     Character/Animator.h
     Character/LabViewer.cpp
@@ -27,6 +30,8 @@ add_library(
     PlayerController.cpp
     PlayerController.h
     Testing/TestScript.cpp
+    Settings/GameSettings.cpp
+    Settings/GameSettings.h
     Testing/GameDiagnostics.cpp
     Testing/GameDiagnostics.h
     Testing/PairedBench.cpp

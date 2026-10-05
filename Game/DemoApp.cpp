@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <string>
 
 namespace AtomGame
@@ -42,6 +43,240 @@ namespace AtomGame
             { "level", -1.0f }, // M47: the level's own density (none: off)
         };
         constexpr std::size_t DefaultFogPreset = 4; // level
+    }
+
+    Atom::Application::StartupConfig DemoApp::OnConfigure()
+    {
+        // Before the window and GPU exist (M60): command line > ATOM_*
+        // environment > saved settings (M61) > defaults.
+        m_commandLine = ParseCommandLine(m_arguments);
+        for (const std::string& error : m_commandLine.errors)
+        {
+            std::cerr << "Command line: " << error << " (ignored)\n";
+        }
+        EnvironmentOverrides environment;
+        if (const char* gpu = SDL_getenv("ATOM_GPU"); gpu && *gpu)
+        {
+            environment.gpu = ParseGpuPreference(gpu);
+            if (!environment.gpu) std::cerr << "ATOM_GPU: unknown value '" << gpu << "' (ignored)\n";
+        }
+        if (const char* quality = SDL_getenv("ATOM_QUALITY"); quality && *quality)
+        {
+            environment.quality = ParseQualityMode(quality);
+            if (!environment.quality) std::cerr << "ATOM_QUALITY: unknown value '" << quality << "' (ignored)\n";
+        }
+        // Saved settings (M61) - never for scripted tests, benchmarks or
+        // --no-settings: those runs behave the same on every machine.
+        LoadSavedSettings();
+        const bool useSaved = m_settingsPersist && !m_commandLine.resetSettings;
+        m_resolvedSettings = ResolveSettings(m_commandLine, environment, useSaved ? &m_savedSettings : nullptr);
+        // Calibration (M64): asked for on the command line or saved as
+        // "calibrate next launch" - never in a scripted test run.
+        const bool scripted = SDL_getenv("ATOM_TEST_SCRIPT") != nullptr;
+        m_calibrateThisRun = !scripted && (m_commandLine.calibrate || (useSaved && m_savedSettings.calibrateNextLaunch));
+        if (scripted && m_commandLine.calibrate)
+        {
+            std::cerr << "--calibrate is ignored in a scripted test run\n";
+        }
+
+        StartupConfig config;
+        config.gpuPreference = m_resolvedSettings.gpu == GpuPreference::HighPerformance
+            ? Atom::GPUPreference::HighPerformance
+            : Atom::GPUPreference::LowPower;
+        return config;
+    }
+
+    void DemoApp::OnRenderFailure(Atom::Renderer::Failure failure)
+    {
+        // M63: the device failed mid-run. If it was the high-performance
+        // adapter, the next launch uses low-power and says why - written
+        // before the clean shutdown. No in-process device rebuild.
+        const GpuPreference active = GetRenderer().GetActivePreference() == Atom::GPUPreference::HighPerformance
+            ? GpuPreference::HighPerformance
+            : GpuPreference::LowPower;
+        const std::optional<GpuPreference> fallback = FallbackAfterFailure(active);
+        if (!fallback)
+        {
+            return; // already on the known-good adapter: nothing safer to try
+        }
+        std::cerr << "The high-performance GPU "
+                  << (failure == Atom::Renderer::Failure::SwapchainLost ? "lost its swapchain" : "failed")
+                  << "; the next launch will use " << ToString(*fallback) << ".\n";
+        m_savedSettings.pendingFallback = fallback;
+        SaveSettings(); // only when this run uses saved settings (not tests)
+    }
+
+    void DemoApp::LoadSavedSettings()
+    {
+        if (char* pref = SDL_GetPrefPath("AtomEngine", "AtomGame"))
+        {
+            m_settingsPath = std::string(pref) + "settings.json";
+            SDL_free(pref);
+        }
+        m_settingsPersist = !m_settingsPath.empty() && !SDL_getenv("ATOM_TEST_SCRIPT") && !m_commandLine.noSettings;
+        if (!m_settingsPersist)
+        {
+            return; // defaults and explicit flags only
+        }
+        if (m_commandLine.resetSettings)
+        {
+            m_savedSettings = GameSettings{};
+            SaveSettings();
+            std::cout << "Settings reset: " << m_settingsPath << '\n';
+            return;
+        }
+        std::ifstream file(m_settingsPath, std::ios::binary);
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        SettingsLoad load = ParseSettings(text);
+        if (!load.warning.empty())
+        {
+            std::cerr << m_settingsPath << ": " << load.warning << '\n';
+        }
+        m_savedSettings = std::move(load.settings);
+    }
+
+    namespace
+    {
+        std::string PowerStateName()
+        {
+            int seconds = -1;
+            int percent = -1;
+            switch (SDL_GetPowerInfo(&seconds, &percent))
+            {
+            case SDL_POWERSTATE_ON_BATTERY: return "battery (" + std::to_string(percent) + "%)";
+            case SDL_POWERSTATE_CHARGING: return "plugged in, charging";
+            case SDL_POWERSTATE_CHARGED: return "plugged in";
+            case SDL_POWERSTATE_NO_BATTERY: return "no battery (mains)";
+            default: return "unknown";
+            }
+        }
+    }
+
+    std::string DemoApp::PerfContext() const
+    {
+        Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
+        const Atom::Renderer::DeviceReport report = renderer.GetDeviceReport();
+        return "adapter=\"" + report.adapter + "\" present=" + report.presentMode
+            + " frames_in_flight=" + std::to_string(report.framesInFlight) + " power=\"" + PowerStateName()
+            + "\" quality=" + std::string(ToString(CurrentQualityTier()));
+    }
+
+    bool DemoApp::WriteDiagnostics(const std::string& path) const
+    {
+        // Facts, one per line, for doctor.ps1 and bug reports. Nothing here
+        // is a performance claim: those need paired measurements.
+        Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
+        SDL_Window* window = const_cast<DemoApp*>(this)->GetWindow().GetSDLWindow();
+        const Atom::Renderer::DeviceReport r = renderer.GetDeviceReport();
+        const Atom::RenderSettings& s = renderer.GetSettings();
+        const int compiled = SDL_VERSION;
+        const int runtime = SDL_GetVersion();
+        const auto version = [](int v) {
+            return std::to_string(SDL_VERSIONNUM_MAJOR(v)) + '.' + std::to_string(SDL_VERSIONNUM_MINOR(v)) + '.'
+                + std::to_string(SDL_VERSIONNUM_MICRO(v));
+        };
+        const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+        const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
+        const char* displayName = SDL_GetDisplayName(display);
+        int windowWidth = 0;
+        int windowHeight = 0;
+        SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+
+        std::ostringstream out;
+        out << "AtomEngine " ATOM_VERSION " diagnostics\n"
+            << "sdl.compiled: " << version(compiled) << "\n"
+            << "sdl.runtime: " << version(runtime) << "\n"
+            << "gpu.adapter: " << r.adapter << "\n"
+            << "gpu.backend: " << r.backend << "\n"
+            << "gpu.preference.requested: " << r.preference << "\n"
+            << "gpu.preference.reason: " << m_resolvedSettings.gpuReason << "\n"
+            << "gpu.max_msaa: " << r.maxMsaa << "x\n"
+            << "gpu.scene_format: " << r.sceneFormat << "\n"
+            << "swapchain.composition: " << r.composition << "\n"
+            << "swapchain.present_mode: " << r.presentMode << "\n"
+            << "swapchain.frames_in_flight: " << r.framesInFlight << "\n"
+            << "swapchain.supports: vsync=" << (r.supportsVsync ? "yes" : "no")
+            << " mailbox=" << (r.supportsMailbox ? "yes" : "no")
+            << " immediate=" << (r.supportsImmediate ? "yes" : "no") << "\n"
+            << "display.name: " << (displayName ? displayName : "unknown") << "\n"
+            << "display.mode: " << (mode ? std::to_string(mode->w) + "x" + std::to_string(mode->h) + " @ "
+                                               + std::to_string(static_cast<int>(mode->refresh_rate + 0.5f)) + " Hz"
+                                         : std::string("unknown")) << "\n"
+            << "display.scale: " << SDL_GetWindowDisplayScale(window) << "\n"
+            << "window.pixels: " << windowWidth << "x" << windowHeight << "\n"
+            << "power: " << PowerStateName() << "\n"
+            << "quality.mode: " << ToString(m_resolvedSettings.quality) << "\n"
+            << "quality.drawing: " << ToString(CurrentQualityTier()) << "\n"
+            << "settings.render_scale: " << s.renderScale << "\n"
+            << "settings.msaa: " << s.msaaSamples << "x\n"
+            << "settings.shadows: " << (m_shadowsEnabled ? "on" : "off") << "\n"
+            << "settings.particles: " << (m_atmosphere.IsEnabled() ? "on" : "off") << "\n"
+            << "settings.reflection: " << (renderer.IsReflectionEnabled() ? "allowed" : "off") << "\n"
+            << "settings.file: " << (m_settingsPersist ? m_settingsPath : std::string("not used this run")) << "\n";
+
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        file << out.str();
+        if (!file)
+        {
+            std::cerr << "Could not write diagnostics to " << path << '\n';
+            return false;
+        }
+        std::cout << "Diagnostics written to " << path << std::endl;
+        return true;
+    }
+
+    void DemoApp::SaveSettings()
+    {
+        if (!m_settingsPersist)
+        {
+            return;
+        }
+        std::ofstream file(m_settingsPath, std::ios::binary | std::ios::trunc);
+        file << WriteSettings(m_savedSettings);
+        if (!file)
+        {
+            std::cerr << "Could not save settings to " << m_settingsPath << '\n';
+        }
+    }
+
+    void DemoApp::SetQualityMode(QualityMode mode, bool save)
+    {
+        m_resolvedSettings.quality = mode;
+        ApplyQuality(TierFor(mode, m_savedSettings.calibration, GetRenderer().GetAdapterName()));
+        if (save)
+        {
+            m_savedSettings.quality = mode;
+            SaveSettings();
+        }
+    }
+
+    QualityTier DemoApp::CurrentQualityTier() const
+    {
+        Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
+        QualityPreset now;
+        now.renderScale = renderer.GetSettings().renderScale;
+        now.msaaSamples = renderer.GetSettings().msaaSamples;
+        now.shadows = m_shadowsEnabled;
+        now.particles = m_atmosphere.IsEnabled();
+        now.reflection = renderer.IsReflectionEnabled();
+        return TierOf(now);
+    }
+
+    void DemoApp::ApplyQuality(QualityTier tier)
+    {
+        // A tier caps features (M60): High allows what levels ask for (the
+        // reflection is authored per level), Low turns it off.
+        const QualityPreset preset = PresetFor(tier);
+        Atom::Renderer& renderer = GetRenderer();
+        Atom::RenderSettings settings = renderer.GetSettings();
+        settings.renderScale = preset.renderScale;
+        settings.msaaSamples = preset.msaaSamples;
+        renderer.SetSettings(settings);
+        renderer.SetReflectionEnabled(preset.reflection);
+        m_shadowsEnabled = preset.shadows;
+        m_atmosphere.SetEnabled(preset.particles);
+        m_qualityTier = tier;
+        ApplyLighting();
     }
 
     bool DemoApp::OnInitialize()
@@ -68,6 +303,12 @@ namespace AtomGame
         {
             return false;
         }
+
+        // The quality tier (M60), now that the adapter is known.
+        ApplyQuality(TierFor(m_resolvedSettings.quality, m_savedSettings.calibration, GetRenderer().GetAdapterName()));
+        std::cout << "Quality: " << ToString(m_resolvedSettings.quality) << " -> " << ToString(m_qualityTier)
+                  << "; GPU preference: " << ToString(m_resolvedSettings.gpu) << " (" << m_resolvedSettings.gpuReason
+                  << "), adapter \"" << GetRenderer().GetAdapterName() << '"' << std::endl; // flushed: a start-up record
 
         const std::string fontPath = m_assetRoot + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
@@ -115,6 +356,31 @@ namespace AtomGame
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
             RequestQuit(*exitCode); // a script that can't run
+        }
+        // Performance logs say what machine state they measured (M62).
+        m_diagnostics.SetPerfContext(PerfContext());
+
+        // M63: say so when the high-performance device couldn't be made.
+        if (GetRenderer().FellBackAtCreation())
+        {
+            m_resolvedSettings.gpu = GpuPreference::LowPower;
+            m_resolvedSettings.gpuReason = "fallback: the high-performance GPU was unavailable at start";
+            std::cout << "GPU preference: " << m_resolvedSettings.gpuReason << std::endl;
+        }
+        if (const char* loss = SDL_getenv("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
+        {
+            m_simulateLossAt = static_cast<float>(SDL_atof(loss));
+        }
+        if (m_calibrateThisRun && !m_commandLine.diagnosticsFile)
+        {
+            StartCalibration(m_commandLine.calibrate); // --calibrate reports and exits
+        }
+
+        // --diagnostics <file> (M62): what this machine gave us, then exit.
+        if (m_commandLine.diagnosticsFile)
+        {
+            const bool written = WriteDiagnostics(*m_commandLine.diagnosticsFile);
+            RequestQuit(written ? 0 : 1);
         }
 
         // A scripted run doesn't need the mouse (and may not have focus).
@@ -434,8 +700,17 @@ namespace AtomGame
 
         m_time += deltaSeconds;
         m_messages.Update(deltaSeconds);
+        if (m_simulateLossAt && m_time >= *m_simulateLossAt)
+        {
+            GetRenderer().SimulateSwapchainLoss(); // M63: the next frame fails as a lost swapchain does
+            m_simulateLossAt.reset();
+        }
 
         m_levels->Update(deltaSeconds);
+        if (m_calibration.active)
+        {
+            UpdateCalibration(static_cast<float>(m_diagnostics.RealFrameMs() / 1000.0)); // M64: real time, not a fixed step
+        }
         GetRenderer().SetFade(m_levels->GetFade());
         if (m_environment.IsTransitioning())
         {
@@ -1543,6 +1818,17 @@ namespace AtomGame
                 settings.post.grain = 0.0f;
                 settings.post.vignette = 0.0f;
             }
+        }
+        else if (what == "quality")
+        {
+            // M61: a quality mode for this run (never saved from a script).
+            const std::optional<QualityMode> mode = ParseQualityMode(value);
+            if (!mode)
+            {
+                return false;
+            }
+            SetQualityMode(*mode, false);
+            return true;
         }
         else if (what == "fog")
         {

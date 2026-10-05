@@ -39,6 +39,10 @@ namespace AtomGame
         // Explicit set-up (what the environment does; tests use it).
         void ConfigurePerf(const PerfSettings& settings, std::ostream& out, std::ostream* csv = nullptr);
         void SetTestScript(std::vector<TestCommand> commands);
+        // What machine state the log measures (M62: adapter, presentation,
+        // power, quality): printed once, as "PERF context ...", before the
+        // first block. The PERF block lines themselves keep their format.
+        void SetPerfContext(std::string context) { m_perfContext = std::move(context); }
 
         // A real frame time, before any fixed step; `label` names what is
         // measured (the level).
@@ -71,5 +75,6 @@ namespace AtomGame
         float m_fixedStep = 0.0f; // 0 = real time
         std::unique_ptr<TestRunner> m_testRunner;
         bool m_reported = false;
+        std::string m_perfContext;
     };
 }
