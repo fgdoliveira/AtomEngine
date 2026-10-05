@@ -17,6 +17,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # shader compiler (dxc) needed: what CI runs.
 option(ATOM_BUILD_GAME "Build the AtomGame executable and compile its shaders (needs dxc)" ON)
 
+# M67: the game as players get it - a windowed program, no console. Off
+# for development (Debug and Release keep their console); the package
+# command (Tools/Dist) builds its own folder with it on.
+option(ATOM_DISTRIBUTION "Build the game as distributed: a windowed program (no console)" OFF)
+
 option(
     ATOM_BUILD_PRESENTATION_PROBE
     "Build the private D3D12 presentation investigation probe"

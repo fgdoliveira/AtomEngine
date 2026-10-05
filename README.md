@@ -107,6 +107,7 @@ Build options (CMake `-D`):
 |---|---|---|
 | `ATOM_BUILD_GAME` | ON | the `AtomGame` executable and its shaders (needs `dxc`) |
 | `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
+| `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
 
 `-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
@@ -209,8 +210,10 @@ calibration result, and *Calibrate now*, *Calibrate next launch* and
 *Reset*. Choices are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json`;
 a damaged or unknown file is ignored, never fatal.
 
-**Log.** AtomGame is a windowed program (no console window). Each run
-writes its output to `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`,
+**Log.** Development builds open a console with the game; the
+distributed build (`-DATOM_DISTRIBUTION=ON`, which the package command
+uses) is a windowed program with no console. Either way each run writes
+its output to `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`,
 keeping the previous run as `AtomGame.previous.log`. It holds the version,
 folder, SDL, the GPUs tried and why, the quality and every level load.
 Started from a terminal, it prints there too. Scripted runs (scenarios,
