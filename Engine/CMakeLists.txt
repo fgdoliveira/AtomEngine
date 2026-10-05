@@ -16,6 +16,8 @@ target_sources(
         Platform/Input.cpp
         Platform/Window.cpp
         Renderer/Glow.cpp
+        Renderer/GPUDevice.cpp
+        Renderer/GPUDevice.h
         Core/AssetLog.cpp
         Core/AssetLog.h
         Renderer/GpuResources.cpp

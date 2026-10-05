@@ -34,6 +34,7 @@ add_executable(
     GameDiagnosticsTests.cpp
     GameSettingsTests.cpp
     CalibrationTests.cpp
+    GPUDeviceTests.cpp
     FakeGame.h
 )
 
@@ -103,6 +104,22 @@ set_tests_properties(
         PASS_REGULAR_EXPRESSION "Calibration: (high|balanced|low|no result|refused) - "
         FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
         TIMEOUT 180
+)
+
+# A high-performance request reaches a working device, directly or by the
+# fallback, and the report says which. Whatever this machine's GPUs do, so
+# only completion and clean shutdown are checked.
+add_test(
+    NAME Scenario.gpu_fallback
+    COMMAND $<TARGET_FILE:AtomGame> --gpu high-performance --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics_hp.txt"
+)
+set_tests_properties(
+    Scenario.gpu_fallback
+    PROPERTIES
+        LABELS scenario
+        PASS_REGULAR_EXPRESSION "Diagnostics written"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        TIMEOUT 120
 )
 
 set_tests_properties(

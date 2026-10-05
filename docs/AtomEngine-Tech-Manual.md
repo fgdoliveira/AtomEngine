@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.10 / M65**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82).
+A study guide to every concept the engine uses, as of **v0.0.10 / M65**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). Unreleased work after 0.0.10 separates the GPU device from window presentation, so a hybrid laptop's failure is reported at the step where it happens (§83).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -91,9 +91,10 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 80. [Hybrid laptops and the high-performance fallback (M63)](#80-hybrid-laptops-and-the-high-performance-fallback-m63)
 81. [Calibration, frames in flight and latency (M64)](#81-calibration-frames-in-flight-and-latency-m64)
 82. [Releasing 0.0.10: what the RTX taught (M65)](#82-releasing-0010-what-the-rtx-taught-m65)
-83. [Anatomy of a frame and what it costs](#83-anatomy-of-a-frame-and-what-it-costs)
-84. [Build system and project layout](#84-build-system-and-project-layout)
-85. [Glossary](#85-glossary)
+83. [Device vs presentation: GPUDevice (after 0.0.10)](#83-device-vs-presentation-gpudevice-after-0010)
+84. [Anatomy of a frame and what it costs](#84-anatomy-of-a-frame-and-what-it-costs)
+85. [Build system and project layout](#85-build-system-and-project-layout)
+86. [Glossary](#86-glossary)
 
 ---
 
@@ -360,7 +361,7 @@ PNG (sRGB) → texture format *_UNORM_SRGB → sampling decodes to linear
 
 That's why the clear colour is `0.34` in code but looks like ~`0.62` grey: `0.34` linear ≈ `0.62` sRGB.
 
-**Code.** `Texture::Create` (format choice), swapchain setup in `Renderer::Initialize`.
+**Code.** `Texture::Create` (format choice), swapchain setup in `GPUDevice::ConfigurePresentation` (§83).
 
 ---
 
@@ -2152,7 +2153,7 @@ The built-in panel's cable usually goes to the **integrated** GPU only. When a g
 
 **Concept: sometimes the safe cleanup is no cleanup.** After a lost swapchain, releasing the window from the device, or destroying the device, corrupted the heap inside SDL (`0xC0000374`). On that one path the device is **abandoned**: the process is exiting, and the OS reclaims everything a process owns. Leaking deliberately at exit beats crashing during cleanup. `ATOM_SIMULATE_SWAPCHAIN_LOSS` and `ATOM_WINDOW_POSITION` reproduce the failure without unplugging anything.
 
-**Code.** `Renderer::Initialize` (retry, `explainNoDevice`), `Renderer::Failure`, `Application` (exit 3), `DemoApp::OnRenderFailure`, `FallbackAfterFailure`, `Tools/PresentationProbe`.
+**Code.** `GPUDevice::Initialize` (retry, `ExplainNoDevice`; in `Renderer::Initialize` until §83), `Renderer::Failure`, `Application` (exit 3), `DemoApp::OnRenderFailure`, `FallbackAfterFailure`, `Tools/PresentationProbe`.
 
 ---
 
@@ -2213,7 +2214,46 @@ An A/B that finds a difference isn't finished until a second A/B explains it.
 
 ---
 
-## 83. Anatomy of a frame and what it costs
+## 83. Device vs presentation: GPUDevice (after 0.0.10)
+
+**Concept: two steps that can fail separately.** Getting a picture from a GPU onto a window takes two steps:
+1. **Creating the device:** SDL asks DXGI for an adapter (by preference) and creates a Direct3D 12 device on it. This only needs the GPU.
+2. **Claiming the window:** SDL creates the window's **swapchain** for that device (`CreateSwapChainForHwnd`). This needs a path from that GPU to the screen the window is on.
+
+On a hybrid laptop these really do come apart. The RTX 4060 is a perfectly good device, but showing its frames on the built-in panel means **cross-adapter presentation**: the RTX renders, and Windows and the drivers copy each frame to the Iris Xe, which drives the panel. That second path is what fails on the development laptop.
+
+**The flaw it exposed.** `Renderer::CreateAndClaimGPUDevice` ran both steps and returned one boolean, and it logged the adapter only when both succeeded. So the log said the high-performance GPU was "unavailable", and the RTX never appeared in it at all. One boolean hid which step failed.
+
+**The fix is a boundary, not just a message.** Device bootstrap and presentation (adapter preference, the hybrid fallback, the window claim, the swapchain's composition, present mode and frames in flight) form their own subsystem. Scene rendering doesn't need to know any of it. So it moved into **`GPUDevice`**, which the renderer owns:
+
+```text
+Application → Renderer (frames, passes, resources) → GPUDevice (device + presentation) → SDL GPU → D3D12
+```
+
+- `Renderer::Render()` stays the frame coordinator, pass by pass.
+- **No `IGraphicsBackend`, no `D3D12Device`/`VulkanDevice` classes.** SDL already is the backend abstraction (ADR-001); a layer on top would map one to one. This is a responsibility split, not an RHI.
+- The pure decisions moved out as testable functions: `ChoosePresentMode` (vsync, mailbox, immediate, and the M46 `ATOM_PRESENT` rule) and `DescribeFallback` (the wording).
+- Future fullscreen, resize or device-recovery work touches `GPUDevice`, not the pass code.
+
+**Honest diagnostics.** The adapter is logged as soon as the device exists, *before* the claim, and a failed claim says which adapter it failed on:
+
+```text
+GPU device created: backend=direct3d12 adapter="NVIDIA GeForce RTX 4060 Laptop GPU" preference=high_performance
+GPU presentation failed on "NVIDIA GeForce RTX 4060 Laptop GPU": could not claim the window: Could not create swapchain! Error Code: ... (0x00000000)
+GPU device created: backend=direct3d12 adapter="Intel(R) Iris(R) Xe Graphics" preference=low_power
+```
+
+`StartupFallback` records the **stage** (`device` or `presentation`), the adapter and the error; `--diagnostics` prints them as `gpu.fallback.*`. SDL's versions now print first, so the log reads like a bug report.
+
+**Don't trust an error code that says success.** SDL quotes `0x00000000` ("the operation completed successfully") for a swapchain that wasn't created: the real code got lost on the way. The raw D3D12 probe, without SDL, reports `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) for the same call. The failure is therefore **below SDL**, in DXGI or the drivers' cross-adapter path. Updating SDL to 3.4.18 changed nothing, as expected.
+
+**Muxless laptops.** NVIDIA calls the arrangement here **classic Optimus**: no MUX, so the panel is wired to the Iris only, and it can't be switched to the RTX ("Advanced Optimus: No"). On such a machine the Iris must stay enabled (§80 showed what happens without it), and RTX rendering has to work *through* it. Most likely suspect: the Intel and NVIDIA drivers, 14 months apart in age. Until that's resolved, the fallback keeps the game running and the log says exactly why.
+
+**Code.** `Engine/Renderer/GPUDevice.*`, `Renderer::Initialize` / `GetDeviceReport` / `Shutdown`, `DemoApp::WriteDiagnostics`, `Tests/GPUDeviceTests.cpp`, `Scenario.gpu_fallback`, `Tools/PresentationProbe`.
+
+---
+
+## 84. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2256,10 +2296,10 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 84. Build system and project layout
+## 85. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
-- **Dependencies as git submodules, pinned**: SDL 3.4.16, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
+- **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
 - **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73). CMake 3.26 or later.
 - **CI** (§72): `.github/workflows/ci.yml`, unit tests on every push. **Validation ladder** (§75): `Tools/Dev/check.ps1`.
 - **Shader variants** (§69): `BasicRain.frag` includes `Basic.frag` with a define; a change to `Basic.frag` rebuilds both.
@@ -2270,7 +2310,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
 - **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value; in v0.0.10 `expect_quality`, `move_window`, `set quality`.
-- **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json` (§78); exit code 3 means the renderer failed mid-run (§80).
+- **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json` (§78); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
 - **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80).
@@ -2279,6 +2319,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ```
 Engine/  Assets/ Audio/ Core/ Debug/ (ImGui) Physics/ Platform/ Renderer/ Scene/ UI/
+         Renderer/GPUDevice (device, window claim, presentation, fallback)
 Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Atmosphere, UneaseDirector, Main
          World/ Interaction/ Dialogue/ Level/ Testing/
@@ -2315,7 +2356,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 85. Glossary
+## 86. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -2330,6 +2371,8 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Calibration** — measuring the machine on fixed views to choose a quality tier, instead of guessing from hardware names (§81).
 - **Discrete / integrated GPU** — a separate graphics chip with its own memory / one built into the CPU, sharing system memory.
 - **Frames in flight** — how many frames the CPU may queue ahead of the GPU; more keeps the GPU busy, but each full slot delays input by a frame (§81).
+- **Cross-adapter presentation** — one GPU renders and another shows the image; Windows copies each frame between them (hybrid laptops, §83).
+- **MUX (display multiplexer)** — a switch that can wire a laptop's panel to the discrete GPU; *muxless* laptops (classic Optimus) can't, so the integrated GPU always drives the panel (§83).
 - **Double / triple buffering** — a swapchain of two / three images; with vsync, two can force every other refresh to be missed (§81).
 - **Input latency** — the time from an input (a mouse move) to its result on screen; queue depth, vsync and the display all add to it.
 - **Hybrid graphics (Optimus)** — a laptop with an integrated and a discrete GPU, where the discrete one renders and the integrated one usually drives the built-in screen (§80).

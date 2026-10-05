@@ -98,7 +98,7 @@ cmake --build build --config Release
 build/bin/Release/AtomGame.exe
 ```
 
-Dependencies are pinned git submodules: SDL 3.4.16, GLM 1.0.1, cgltf 1.15,
+Dependencies are pinned git submodules: SDL 3.4.18, GLM 1.0.1, cgltf 1.15,
 stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9.
 
 Build options (CMake `-D`):
@@ -228,8 +228,20 @@ results don't depend on what someone last chose.
 built-in screen is usually wired to the integrated GPU. Some machines then
 refuse a high-performance swapchain for that screen, and switching
 monitors between the two GPUs can lose the swapchain. AtomEngine handles
-both: if the high-performance device can't present, it starts on
-low-power and says why. If the swapchain is lost while playing, the game
+both: if the high-performance device can't be created or can't present,
+it starts on low-power and says which step failed, on which adapter, with
+the driver's own error. The log then reads, for instance:
+
+```text
+GPU device created: backend=direct3d12 adapter="NVIDIA GeForce RTX 4060 Laptop GPU" preference=high_performance
+GPU presentation failed on "NVIDIA GeForce RTX 4060 Laptop GPU": could not claim the window: Could not create swapchain! ...
+GPU device created: backend=direct3d12 adapter="Intel(R) Iris(R) Xe Graphics" preference=low_power
+```
+
+`--diagnostics` reports the same as `gpu.fallback.adapter`, `.stage`
+(`device` or `presentation`) and `.error`. A laptop with a hardware MUX
+("NVIDIA GPU only" in the NVIDIA Control Panel's *Manage Display Mode*, or
+the maker's app) can wire the panel to the dGPU itself. If the swapchain is lost while playing, the game
 saves a low-power fallback and quits cleanly (exit 3), and the next launch
 explains it. In Windows' *Settings → Display → Graphics*, leave AtomGame on
 *Let Windows decide*: forcing "High performance" there overrides both
