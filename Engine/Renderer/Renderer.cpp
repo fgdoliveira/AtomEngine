@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstddef>
 #include <tuple>
+#include <utility>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -365,10 +366,12 @@ namespace Atom
             SDL_PROP_GPU_DEVICE_NAME_STRING,
             "unavailable"
         );
+        m_backendName = backend ? backend : "unavailable";
+        m_adapterName = adapter;
         std::cout
             << "GPU device: backend="
-            << (backend ? backend : "unavailable")
-            << " adapter=\"" << adapter << '"'
+            << m_backendName
+            << " adapter=\"" << m_adapterName << '"'
             << " preference=" << GetPreferenceName(preference)
             << '\n';
 
@@ -394,9 +397,34 @@ namespace Atom
         }
 
         m_window = window;
+        m_activePreference = config.gpuPreference;
+        // Every way to get a device failed. Seen on the hybrid laptop when
+        // Windows' per-app Graphics setting forced one GPU for AtomGame.exe:
+        // Windows then hands that GPU out for *both* preferences, so the
+        // low-power fallback can't reach the adapter that drives the screen.
+        const auto explainNoDevice = [] {
+            std::cerr << "No GPU could present to this window. On a laptop with two GPUs, check Windows Settings > "
+                         "System > Display > Graphics: a GPU forced for AtomGame.exe applies to every request; "
+                         "'Let Windows decide' lets AtomEngine pick the GPU that drives this screen.\n";
+        };
         if (!CreateAndClaimGPUDevice(config.gpuPreference))
         {
-            return false;
+            // M63: high-performance is only a preference; if that device
+            // can't be made, the low-power one is the known-good choice.
+            // Nothing has been created on the failed device yet.
+            if (config.gpuPreference != GPUPreference::HighPerformance)
+            {
+                explainNoDevice();
+                return false;
+            }
+            std::cerr << "High-performance GPU unavailable; falling back to low-power.\n";
+            m_activePreference = GPUPreference::LowPower;
+            m_fellBackAtCreation = true;
+            if (!CreateAndClaimGPUDevice(GPUPreference::LowPower))
+            {
+                explainNoDevice();
+                return false;
+            }
         }
 
         // Shaders work in linear space (textures are sampled as sRGB), so
@@ -433,6 +461,19 @@ namespace Atom
             }
         }
 
+        // For diagnostics (M62): what was chosen, and what the window offers.
+        m_report.preference = GetPreferenceName(config.gpuPreference);
+        if (m_fellBackAtCreation)
+        {
+            m_report.preference += " (unavailable: using low_power)";
+        }
+        m_report.composition = composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? "sdr-linear" : "sdr";
+        m_report.presentMode = presentMode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
+            : presentMode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
+        m_report.supportsVsync = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_VSYNC);
+        m_report.supportsMailbox = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_MAILBOX);
+        m_report.supportsImmediate = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_IMMEDIATE);
+
         if (!SDL_SetGPUSwapchainParameters(
             m_device, m_window, composition, presentMode))
         {
@@ -441,6 +482,31 @@ namespace Atom
                 << SDL_GetError()
                 << '\n';
             return false;
+        }
+        m_composition = composition;
+        m_initialPresentMode = presentMode;
+
+        // Frames the CPU may record ahead of the GPU. In SDL's D3D12 backend
+        // this is also the swapchain's buffer count (clamped to 2..3). SDL's
+        // default 2 is double buffering: with vsync the game waits for a
+        // refresh to free a buffer and misses every other one - 72 fps on a
+        // 144 Hz panel with 3.4 ms frames (paired runs: 13.9 ms vs 6.95 ms
+        // with 3). 3 also keeps a clock-dropping iGPU busy (the Iris Xe swung
+        // 3.5 <-> 9.7 ms with 2). A deeper queue can add a frame of input
+        // delay, but at twice the frame rate each frame is half as long.
+        // ATOM_FRAMES_IN_FLIGHT=1..3 overrides.
+        Uint32 framesInFlight = 3;
+        if (const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT"); frames && *frames)
+        {
+            framesInFlight = static_cast<Uint32>(SDL_atoi(frames));
+        }
+        if (SDL_SetGPUAllowedFramesInFlight(m_device, framesInFlight))
+        {
+            m_report.framesInFlight = framesInFlight;
+        }
+        else
+        {
+            std::cerr << "Frames in flight " << framesInFlight << " refused: " << SDL_GetError() << '\n';
         }
 
         return m_targets.Initialize(m_device)
@@ -923,7 +989,8 @@ namespace Atom
         SDL_GPUTexture* swapchainTexture = nullptr;
         Uint32 swapchainWidth = 0;
         Uint32 swapchainHeight = 0;
-        if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+        const bool simulatedLoss = std::exchange(m_simulateSwapchainLoss, false);
+        if (simulatedLoss || !SDL_WaitAndAcquireGPUSwapchainTexture(
             commandBuffer,
             m_window,
             &swapchainTexture,
@@ -931,7 +998,8 @@ namespace Atom
             &swapchainHeight
         ))
         {
-            const std::string acquisitionError = SDL_GetError();
+            m_lastFailure = Failure::SwapchainLost; // M63: the game may fall back next launch
+            const std::string acquisitionError = simulatedLoss ? std::string("simulated (ATOM_SIMULATE_SWAPCHAIN_LOSS)") : SDL_GetError();
             const bool cancelled = SDL_CancelGPUCommandBuffer(commandBuffer);
             const std::string cancellationError = cancelled
                 ? ""
@@ -2060,6 +2128,48 @@ namespace Atom
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
     }
 
+    bool Renderer::SetUncappedPresentation(bool uncapped)
+    {
+        if (!m_device || !m_window)
+        {
+            return false;
+        }
+        SDL_GPUPresentMode mode = m_initialPresentMode;
+        if (uncapped)
+        {
+            // Immediate first: on a composited display mailbox can still be
+            // held to the refresh rate (M46), and then nothing is measured.
+            mode = SDL_GPU_PRESENTMODE_VSYNC;
+            for (const SDL_GPUPresentMode candidate : { SDL_GPU_PRESENTMODE_IMMEDIATE, SDL_GPU_PRESENTMODE_MAILBOX })
+            {
+                if (SDL_WindowSupportsGPUPresentMode(m_device, m_window, candidate))
+                {
+                    mode = candidate;
+                    break;
+                }
+            }
+        }
+        if (!SDL_SetGPUSwapchainParameters(m_device, m_window, m_composition, mode))
+        {
+            std::cerr << "Could not change the present mode: " << SDL_GetError() << '\n';
+            return false;
+        }
+        m_report.presentMode = mode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
+            : mode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
+        return true;
+    }
+
+    Renderer::DeviceReport Renderer::GetDeviceReport() const
+    {
+        DeviceReport report = m_report;
+        report.adapter = m_adapterName;
+        report.backend = m_backendName;
+        report.sceneFormat = m_targets.GetColorFormat() == SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT
+            ? "R11G11B10_UFLOAT" : "R16G16B16A16_FLOAT";
+        report.maxMsaa = m_targets.GetMaxSamples();
+        return report;
+    }
+
     void Renderer::SetParticleAtlas(const Texture* atlas, std::uint32_t columns)
     {
         m_particleAtlas = atlas;
@@ -2643,12 +2753,26 @@ namespace Atom
             }
             GpuResources::Forget(m_device);
 
-            if (m_windowClaimed && m_window)
+            if (m_lastFailure == Failure::SwapchainLost)
             {
-                SDL_ReleaseWindowFromGPUDevice(m_device, m_window);
+                // M63: after a D3D12 swapchain failed to resize its buffers
+                // (the hybrid-laptop crossing), SDL can neither release the
+                // window from the device nor destroy the device - both free
+                // the broken swapchain and corrupt the heap (0xC0000374,
+                // reproduced on the RTX 4060). Everything else is released
+                // above; the device and its swapchain are abandoned and the
+                // process, which is exiting, returns them to Windows.
+                std::cerr << "Leaving the failed GPU device to the operating system.\n";
             }
+            else
+            {
+                if (m_windowClaimed && m_window)
+                {
+                    SDL_ReleaseWindowFromGPUDevice(m_device, m_window);
+                }
 
-            SDL_DestroyGPUDevice(m_device);
+                SDL_DestroyGPUDevice(m_device);
+            }
         }
 
         m_scenePipelines = {};

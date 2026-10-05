@@ -21,6 +21,8 @@
 #include "World/FixedStep.h"
 #include "World/PachinkoAttract.h"
 #include "PlayerController.h"
+#include "Settings/Calibration.h"
+#include "Settings/GameSettings.h"
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "Scene/Camera.h"
@@ -36,6 +38,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace AtomGame
 {
@@ -44,7 +47,13 @@ namespace AtomGame
     // lives in the current Level, owned by the LevelManager.
     class DemoApp final : public Atom::Application, private TestHooks
     {
+    public:
+        // The command line's arguments, after the program name (M60).
+        explicit DemoApp(std::vector<std::string> arguments = {}) : m_arguments(std::move(arguments)) {}
+
     protected:
+        StartupConfig OnConfigure() override;
+        void OnRenderFailure(Atom::Renderer::Failure failure) override;
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
         void OnShutdown() override;
@@ -82,6 +91,61 @@ namespace AtomGame
         // Frame-time log, scripted tests and the fixed step (M57: moved out
         // of DemoApp, which keeps the frame order and calls them).
         GameDiagnostics m_diagnostics;
+
+        // Machine-level settings (M60): GPU preference and quality tier,
+        // resolved from the command line, the ATOM_* environment and (M61)
+        // the saved file, before the GPU is created.
+        std::vector<std::string> m_arguments;
+        CommandLine m_commandLine;
+        ResolvedSettings m_resolvedSettings;
+        QualityTier m_qualityTier = QualityTier::High;
+        void ApplyQuality(QualityTier tier);
+
+        // Saved per user (M61), under SDL's pref path. Not read or written
+        // by scripted tests, benchmarks or --no-settings runs.
+        GameSettings m_savedSettings;
+        std::string m_settingsPath;
+        bool m_settingsPersist = false;
+        void LoadSavedSettings();
+        void SaveSettings();
+        // Auto calibration (M64, DemoAppCalibration.cpp): fixed views of the
+        // heaviest scenes measured at each tier, uncapped; Auto then uses
+        // the highest tier within budget. Opt-in: --calibrate, "calibrate
+        // next launch" or "Calibrate now" in F10.
+        struct CalibrationRun
+        {
+            enum class Phase { Load, Settle, Measure };
+            bool active = false;
+            bool quitAfter = false; // --calibrate: report, then exit
+            std::size_t scene = 0;
+            std::size_t tier = 0;
+            Phase phase = Phase::Load;
+            float timer = 0.0f;
+            float settleSeconds = 1.0f;
+            float measureSeconds = 3.0f;
+            Atom::FrameStatsWindow window;
+            std::vector<CalibrationSample> samples;
+            std::string returnLevel; // where play resumes afterwards
+        } m_calibration;
+        bool m_calibrateThisRun = false;
+        void StartCalibration(bool quitAfter);
+        void UpdateCalibration(float realSeconds);
+        void FinishCalibration();
+
+        // ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds> (M63, development): a lost
+        // swapchain that many seconds in, to exercise the fallback.
+        std::optional<float> m_simulateLossAt;
+        // M62: the machine as the game sees it (--diagnostics), and the
+        // short form performance logs carry.
+        bool WriteDiagnostics(const std::string& path) const;
+        std::string PerfContext() const;
+        // A quality mode chosen now (F10, harness): applied at once; saved
+        // when `save` and this run persists settings.
+        void SetQualityMode(QualityMode mode, bool save);
+        // What is drawn right now: a preset's tier, or Custom after F-keys.
+        QualityTier CurrentQualityTier() const;
+        std::string QualityTierName() const override { return std::string(ToString(CurrentQualityTier())); }
+        void MoveWindow(int x, int y) override { SDL_SetWindowPosition(GetWindow().GetSDLWindow(), x, y); }
         double RealFrameMs() const override { return m_diagnostics.RealFrameMs(); }
 
         std::array<float, 240> m_frameHistory{}; // ms, a ring

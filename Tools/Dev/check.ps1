@@ -33,24 +33,17 @@ if ($Level -eq "docs") {
     Write-Host "docs: nothing to build or test."
     exit 0
 }
+# "-Scenario a,b" arrives as one string through `pwsh -File`: split it.
+$Scenario = @($Scenario | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($Level -eq "feature" -and $Scenario.Count -eq 0) {
     throw "-Level feature needs -Scenario <name>[,<name>...] (Tests/Scenarios/<name>.atomtest)"
 }
 
-# cmake and ctest: on PATH, or the copies inside Visual Studio.
-function Find-Tool([string]$name) {
-    $onPath = Get-Command $name -ErrorAction SilentlyContinue
-    if ($onPath) { return $onPath.Source }
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vswhere) {
-        $vs = & $vswhere -latest -property installationPath
-        $candidate = Join-Path $vs "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\$name.exe"
-        if (Test-Path $candidate) { return $candidate }
-    }
-    throw "$name not found (install CMake or Visual Studio's CMake component)"
-}
-$cmake = Find-Tool "cmake"
-$ctest = Find-Tool "ctest"
+# cmake and ctest: on PATH, or the copies inside Visual Studio (common.ps1).
+. "$PSScriptRoot/common.ps1"
+$cmake = Find-DevTool "cmake"
+$ctest = Find-DevTool "ctest"
+if (-not $cmake -or -not $ctest) { throw "cmake/ctest not found (install CMake or Visual Studio's CMake component); run Tools/Dev/doctor.ps1" }
 
 function Step([string]$what, [scriptblock]$action) {
     Write-Host "== $what"
@@ -77,7 +70,8 @@ foreach ($c in $configs) {
     Step "unit and authoring tests, $c" { & $ctest --test-dir $BuildDir -C $c -LE scenario --output-on-failure }
     if ($Level -eq "feature") {
         $pattern = "^Scenario\.(" + ($Scenario -join "|") + ")$"
-        Step "scenarios $($Scenario -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --output-on-failure }
+        # --no-tests=error: a misspelt scenario must fail, not pass by matching nothing.
+        Step "scenarios $($Scenario -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
     }
 }
 Write-Host "PASS ($Level)"

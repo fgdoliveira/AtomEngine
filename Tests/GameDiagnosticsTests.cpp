@@ -54,6 +54,21 @@ TEST_CASE("The frame-time log warms up, then reports one line (and CSV row) per 
     CHECK(off.RealFrameMs() == doctest::Approx(16.0));
 }
 
+TEST_CASE("A context line comes once, before the first block, and blocks keep their format (M62)")
+{
+    std::ostringstream out;
+    GameDiagnostics diagnostics;
+    diagnostics.ConfigurePerf({ .enabled = true, .block = 2, .warmup = 0 }, out);
+    diagnostics.SetPerfContext("adapter=\"Intel(R) Iris(R) Xe Graphics\" power=\"plugged in\" quality=high");
+    for (int i = 0; i < 4; ++i)
+    {
+        diagnostics.RecordFrameTime(0.004f, "street");
+    }
+    CHECK(out.str() == "PERF context adapter=\"Intel(R) Iris(R) Xe Graphics\" power=\"plugged in\" quality=high\n"
+                       "PERF block 0 samples 2 median 4.000 p95 4.000 mean 4.000 label street\n"
+                       "PERF block 1 samples 2 median 4.000 p95 4.000 mean 4.000 label street\n");
+}
+
 TEST_CASE("The fixed step replaces the real one only when set")
 {
     GameDiagnostics diagnostics;

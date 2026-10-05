@@ -36,7 +36,7 @@ graph TD
   only its `.cpp` files use (ImGui, JSON, cgltf, stb, the version string).
 - **Build options:** `ATOM_BUILD_GAME` (the executable and shaders, needs
   `dxc`), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. CI builds
-  with the game off (§9).
+  with the game off (§10).
 
 ## 2. Application, engine and game: the real layering
 
@@ -66,7 +66,8 @@ graph LR
 
 ## 3. Lifecycles
 
-**Start:** SDL video → window → GPU renderer → audio (optional) → ImGui →
+**Start:** `OnConfigure` (settings resolved, adapter chosen - §8) → SDL
+video → window → GPU renderer → audio (optional) → ImGui →
 `DemoApp::OnInitialize` (asset root, sound library, persistent GPU assets
 and fonts, data libraries, the `LevelManager` and the first level,
 diagnostics).
@@ -153,7 +154,53 @@ Loading is synchronous and fused (`Model::Load` parses, decodes and
 uploads); every level load logs its time and where it went (M57). Split CPU
 from GPU loading only when a measured hitch or a tool needs it.
 
-## 8. Tools
+## 8. Hardware and settings
+
+Two decisions are kept apart: **which adapter** (a stability choice, made
+once before the device exists) and **how much to draw** (a quality tier,
+applied live). Mixing them was the trap: "the fast GPU" is not "high
+quality", and on a hybrid laptop it can be the unstable one.
+
+```mermaid
+flowchart LR
+    CLI[command line] --> R[ResolveSettings]
+    Env[ATOM_* env] --> R
+    Saved[settings.json] -.->|not for tests, benches, --no-settings| R
+    Def[defaults] --> R
+    R -->|gpu preference| Cfg[Application::OnConfigure: StartupConfig]
+    Cfg --> Dev[Renderer: create device + swapchain]
+    Dev -->|high-performance failed| Retry[retry low-power, record why]
+    R -->|quality mode| Tier[TierFor: Auto uses calibration]
+    Tier --> Apply[DemoApp::ApplyQuality: scale, MSAA, shadows, particles, reflection]
+```
+
+- **Precedence:** command line > `ATOM_*` > saved file > defaults
+  (`low-power`, `High`). All of it is pure (`Game/Settings/`) and
+  unit-tested; a bad file yields the defaults.
+- **Before the device:** `Application::OnConfigure()` lets the game fill a
+  `StartupConfig` before the renderer exists - the only point where the
+  adapter can be chosen. Changing it later means a restart; there is no
+  in-process device rebuild.
+- **Tiers cap, they don't force:** a tier only turns existing switches off
+  (the reflection stays a level's choice under High). No renderer feature
+  exists for one tier only.
+- **Failure:** at creation, high-performance falls back to low-power
+  before any resource exists. Mid-run, a lost swapchain calls
+  `OnRenderFailure`; the game saves a low-power fallback, and the device is
+  *abandoned*, not destroyed - releasing it on that path corrupted SDL's
+  heap - and the process exits with code 3.
+- **Calibration** is a measured run over fixed views; its decision
+  (`DecideCalibration`) is pure. Records carry the adapter and resolution
+  and are dropped when those change.
+- **Frames in flight: 3.** In SDL's D3D12 backend this also sets the
+  swapchain's buffer count. SDL's default 2 is double buffering, and with
+  vsync it missed every other refresh: 72 fps on a 144 Hz panel. 3 holds
+  the refresh rate and keeps a clock-dropping iGPU busy. A deeper queue
+  can add a frame of input delay, but each frame is then half as long.
+  `ATOM_FRAMES_IN_FLIGHT` overrides; calibration measures at the player's
+  setting.
+
+## 9. Tools
 
 - **Runtime:** Dear ImGui panels (F10) and the F1 overlay - an overlay, not
   an editor framework, and kept out of captures.
@@ -163,7 +210,7 @@ from GPU loading only when a measured hitch or a tool needs it.
 - **External:** PIX, Intel GPA, RenderDoc for per-pass GPU timing (SDL GPU
   has no GPU timers).
 
-## 9. Verification layers
+## 10. Verification layers
 
 | Layer | Runs where | Catches |
 |---|---|---|
@@ -171,7 +218,7 @@ from GPU loading only when a measured hitch or a tool needs it.
 | In-game scenarios (`ctest -L scenario`) | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
 | Paired benches, `ab.ps1` | locally, plugged in | performance changes - never a CI gate |
 
-## 10. Architecture decision records
+## 11. Architecture decision records
 
 ### ADR-001 — SDL3 GPU is the renderer abstraction
 **Decision:** use SDL GPU types directly; no internal RHI. **Why:** SDL GPU
@@ -199,7 +246,24 @@ problem.
 capability, a baseline, a prototype and a rollback path. **Revisit** per the
 table below, never as a bundle.
 
-## 11. When to add what
+### ADR-006 — Low-power by default; the GPU choice is not a quality setting
+**Context:** every release up to 0.0.9 hardcoded the low-power adapter -
+on the development hybrid laptop (Iris Xe + RTX 4060) moving the window
+between displays wired to different GPUs lost the swapchain. Measured in
+0.0.10: there, Direct3D 12 refuses a swapchain on the RTX for the built-in
+panel (`DXGI_ERROR_DEVICE_REMOVED`, also in a raw D3D12 probe), while the
+RTX presents to an external monitor wired to it. **Decision:** keep
+`low-power` the default; offer `high-performance` as a preference that
+falls back to low-power at creation and, after a mid-run loss, on the next
+launch. Quality is a separate tier, defaulting to `High` (0.0.9's look).
+Calibration is opt-in. **Rejected:** scoring GPUs by name, a hardware
+database, continuous adaptive quality, changing the power plan, rebuilding
+the device in-process, a launcher. **Revisit when** a device rebuild is
+needed for something else (then a live adapter switch costs little), or
+when the default adapter proves wrong on hardware other than hybrid
+laptops.
+
+## 12. When to add what
 
 | Architecture or library | Not yet, because | Reconsider when |
 |---|---|---|

@@ -10,13 +10,12 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.9** — hardening, from an architecture audit: GPU
-resource lifetimes checked at shutdown, honest CMake dependencies and a
-build without the shader compiler, continuous integration on every push,
-an explicit runtime asset payload, diagnostics moved out of the game
-coordinator, level load timings, and an
-[architecture document](docs/Architecture.md). No new feature: the engine
-is the same, and sturdier. (0.0.8 brought water and weather.)
+Current version: **0.0.10** — hardware portability: saved settings, a
+command line, quality presets kept separate from the GPU choice, an F10
+Settings panel, a `--diagnostics` report and `Tools/Dev/doctor.ps1`, a
+high-performance GPU option that falls back safely, and opt-in
+calibration. Out of the box it looks and runs as 0.0.9 did. (0.0.9 was
+hardening from an architecture audit; 0.0.8 brought water and weather.)
 See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
@@ -113,6 +112,12 @@ Build options (CMake `-D`):
 `-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
 tests with no shader compiler - the configuration CI uses.
 
+Something missing or failing? `pwsh Tools/Dev/doctor.ps1` checks the
+prerequisites (Windows, CMake, Visual Studio's C++ tools, `dxc`, the
+submodules) and says what to install. `-Configure` adds a trial configure
+in a throwaway folder; `-GamePath build/bin/Release/AtomGame.exe` adds the
+game's own report. It only reads: no drivers, power plans or files change.
+
 ## Playing
 
 | Key | Action |
@@ -179,6 +184,65 @@ lies on the entry step: with it, the dark corridor leads down into a cellar
 and a tunnel - follow the chalk only the beam shows, unbolt the trapdoor,
 and come up in the windmill field's shed.
 
+## Settings and hardware
+
+Two choices, kept apart on purpose:
+
+- **GPU preference** (`low-power`, the default, or `high-performance`):
+  which graphics adapter the game asks for. It's a *stability* choice, read
+  once at start-up, so changing it takes a restart.
+- **Graphics quality** (`high`, the default, `balanced`, `low`, or `auto`):
+  how much the renderer draws. It applies at once.
+
+| Tier | Render scale | MSAA | Shadows, particles | Water reflection |
+|---|---|---|---|---|
+| High | 1.0 | 4× | on | where the level has one |
+| Balanced | 0.75 | 2× | on | off |
+| Low | 0.5 | off | off | off |
+
+F2–F8 still change single settings; the tier then shows as *Custom*.
+`auto` uses the tier calibration chose, or High if it hasn't run.
+
+**The F10 Settings panel** shows the adapter actually in use, the GPU
+preference ("restart required"), the quality and the tier being drawn, the
+calibration result, and *Calibrate now*, *Calibrate next launch* and
+*Reset*. Choices are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json`;
+a damaged or unknown file is ignored, never fatal.
+
+Command line (it overrides the `ATOM_*` variables, which override the
+saved file, which overrides the defaults):
+
+| Option | Effect |
+|---|---|
+| `--gpu low-power\|high-performance` | the adapter to ask for |
+| `--quality auto\|low\|balanced\|high` | the quality |
+| `--calibrate` | measure the tiers, save the result, quit (exit 0; 2 if no result) |
+| `--diagnostics <file>` | write a report (SDL, adapter, present modes, MSAA, display, power, tier, effective settings) and quit |
+| `--no-settings` | ignore the saved file and don't write it |
+| `--reset-settings` | overwrite the saved file with the defaults |
+
+Scenarios, benchmarks and `ab.ps1` never read the saved file: their
+results don't depend on what someone last chose.
+
+**Hybrid laptops** (an Intel or AMD iGPU plus an NVIDIA or AMD dGPU): the
+built-in screen is usually wired to the integrated GPU. Some machines then
+refuse a high-performance swapchain for that screen, and switching
+monitors between the two GPUs can lose the swapchain. AtomEngine handles
+both: if the high-performance device can't present, it starts on
+low-power and says why. If the swapchain is lost while playing, the game
+saves a low-power fallback and quits cleanly (exit 3), and the next launch
+explains it. In Windows' *Settings → Display → Graphics*, leave AtomGame on
+*Let Windows decide*: forcing "High performance" there overrides both
+preferences, and on such a machine the game can't start.
+
+**Calibration** (opt-in) plays two heavy views - the night street, the
+lakeshore in rain - at each tier twice, and picks the highest tier whose
+worst 95th-percentile frame time is ≤ 13.3 ms (75 fps), then sets quality
+to `auto`. It takes about a minute. It refuses to run on battery, and
+reports no result when the display caps the frame rate. Calibrate plugged
+in, on a cool machine, with the window left alone: the result describes
+that moment.
+
 Developer switches (environment variables):
 
 | Variable | Effect |
@@ -192,6 +256,11 @@ Developer switches (environment variables):
 | `ATOM_AUDIO_CAPTURE=<file.wav>` | record the first minute of audio output |
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 | `ATOM_ASSET_LOG=<file>` | append every asset file the game opens (once each): the evidence for the runtime payload |
+| `ATOM_GPU=low-power\|high-performance` / `ATOM_QUALITY=<tier>` | as `--gpu` / `--quality`, below the command line |
+| `ATOM_FRAMES_IN_FLIGHT=1..3` | frames the CPU may queue ahead of the GPU (default 3; in SDL also the swapchain's buffers - with vsync, 2 halves the frame rate) |
+| `ATOM_WINDOW_POSITION=x,y` | open the window there (e.g. on another monitor) |
+| `ATOM_CALIBRATE_SECONDS=<s>` | shorter calibration windows (tests) |
+| `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` | pretend the swapchain is lost after that many seconds of play, to test the fallback |
 
 ## Testing
 
@@ -253,7 +322,10 @@ AtomEngine compares A and B **close together in time** and reports the
   Intel GPA for per-pass GPU times; SDL_GPU exposes no GPU timers.
 
 Checklist: plugged in, high-performance power plan, the laptop's own screen,
-`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. The
+`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. Builds before
+0.0.10 ran 2 frames in flight, and 3 alone is ~0.5 ms faster uncapped on
+the Iris Xe: to compare *code* against an older build, set
+`ATOM_FRAMES_IN_FLIGHT=2` for the run (older builds ignore it). The
 300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
 hardware; the interleaving takes care of that. Timing is never a ctest
 gate: `expect_bench_under` is for local use on known hardware.

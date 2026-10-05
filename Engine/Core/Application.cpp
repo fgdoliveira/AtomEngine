@@ -9,6 +9,7 @@ namespace Atom
     bool Application::Initialize()
     {
         std::cout << "Starting AtomEngine " ATOM_VERSION "...\n";
+        const StartupConfig startup = OnConfigure();
 
         if (!SDL_Init(SDL_INIT_VIDEO))
         {
@@ -28,9 +29,21 @@ namespace Atom
             SDL_Quit();
             return false;
         }
+        // ATOM_WINDOW_POSITION=x,y (M63, development): open on a chosen
+        // display - e.g. the one the high-performance adapter can't present
+        // to - before the GPU claims the window.
+        if (const char* position = SDL_getenv("ATOM_WINDOW_POSITION"); position && *position)
+        {
+            int x = 0;
+            int y = 0;
+            if (SDL_sscanf(position, "%d,%d", &x, &y) == 2)
+            {
+                SDL_SetWindowPosition(m_window.GetSDLWindow(), x, y);
+            }
+        }
 
         RendererConfig rendererConfig{};
-        rendererConfig.gpuPreference = GPUPreference::LowPower;
+        rendererConfig.gpuPreference = startup.gpuPreference; // the game's choice (M60)
 
         // ATOM_VSYNC=0 uncaps the frame rate for profiling.
         const char* vsync = SDL_getenv("ATOM_VSYNC");
@@ -121,6 +134,8 @@ namespace Atom
                 std::cerr
                     << "Renderer encountered a fatal error. Shutting down.\n";
 
+                OnRenderFailure(m_renderer.GetLastFailure()); // M63
+                m_exitCode = 3; // not a clean exit: scripts and ctest can tell
                 m_running = false;
             }
         }

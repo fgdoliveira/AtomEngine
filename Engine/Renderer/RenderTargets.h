@@ -20,6 +20,7 @@ namespace Atom
 
         // Highest supported count not above `requested` (1, 2 or 4).
         std::uint32_t ClampSampleCount(std::uint32_t requested) const;
+        std::uint32_t GetMaxSamples() const { return m_maxSamples; } // M62: diagnostics
 
         SDL_GPUTextureFormat GetColorFormat() const { return m_colorFormat; }
         static SDL_GPUTextureFormat GetDepthFormat();

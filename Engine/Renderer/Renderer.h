@@ -110,6 +110,24 @@ namespace Atom
             const RendererConfig& config = {}
         );
         bool Render();
+
+        // Why the last Render() failed (M63): a lost swapchain is what the
+        // high-performance adapter of a hybrid laptop did when the window
+        // crossed to the other adapter's display.
+        enum class Failure { None, SwapchainLost, Other };
+        Failure GetLastFailure() const { return m_lastFailure; }
+        // The preference the device was really created with: low-power if
+        // high-performance failed and Initialize fell back (M63).
+        GPUPreference GetActivePreference() const { return m_activePreference; }
+        bool FellBackAtCreation() const { return m_fellBackAtCreation; }
+        // Development: make the next frame fail as a lost swapchain does
+        // (ATOM_SIMULATE_SWAPCHAIN_LOSS), to exercise the fallback path.
+        void SimulateSwapchainLoss() { m_simulateSwapchainLoss = true; }
+
+        // M64: present without waiting for the display (immediate, else
+        // mailbox) while measuring, then back to how it started. False if
+        // the swapchain refused.
+        bool SetUncappedPresentation(bool uncapped);
         void Shutdown();
 
         std::unique_ptr<Mesh> CreateMesh(
@@ -215,10 +233,34 @@ namespace Atom
         // M51: allow the planar reflection where the water asks for it
         // (on by default; off to measure it).
         void SetReflectionEnabled(bool enabled) { m_reflectionEnabled = enabled; }
+        bool IsReflectionEnabled() const { return m_reflectionEnabled; }
 
         // Takes effect on the next Render(); targets are rebuilt as needed.
         void SetSettings(const RenderSettings& settings);
         const RenderSettings& GetSettings() const { return m_settings; }
+
+        // The adapter SDL actually picked (a preference is only a hint, M60)
+        // and its backend; empty before Initialize.
+        const std::string& GetAdapterName() const { return m_adapterName; }
+        const std::string& GetBackendName() const { return m_backendName; }
+
+        // What the device and swapchain turned out to be (M62, for
+        // --diagnostics and performance context).
+        struct DeviceReport
+        {
+            std::string adapter;
+            std::string backend;
+            std::string preference;  // what was asked for: a hint, not a choice
+            std::string composition; // the swapchain's colour handling
+            std::string presentMode; // the one in use
+            bool supportsVsync = false;
+            bool supportsMailbox = false;
+            bool supportsImmediate = false;
+            std::string sceneFormat;
+            std::uint32_t maxMsaa = 1;
+            std::uint32_t framesInFlight = 2; // M64: how far the CPU may run ahead
+        };
+        DeviceReport GetDeviceReport() const;
 
         // Screenshots (docs): the next frame, as presented (post pass, and
         // the UI overlay if `includeUi`), is written to `path` as a PNG.
@@ -413,6 +455,15 @@ namespace Atom
         RenderSettings m_settings;
         UIRenderer m_ui;
         SceneLighting m_lighting;
+        std::string m_adapterName;
+        std::string m_backendName;
+        DeviceReport m_report; // the swapchain part, filled at Initialize
+        Failure m_lastFailure = Failure::None;
+        GPUPreference m_activePreference = GPUPreference::LowPower;
+        bool m_fellBackAtCreation = false;
+        bool m_simulateSwapchainLoss = false;
+        SDL_GPUSwapchainComposition m_composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
+        SDL_GPUPresentMode m_initialPresentMode = SDL_GPU_PRESENTMODE_VSYNC;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;
