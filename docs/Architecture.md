@@ -76,7 +76,8 @@ diagnostics).
 
 ```mermaid
 flowchart TD
-    Events[Poll events] --> Tools[DevTools frame]
+    Wait[Wait for a free swapchain image - M74] --> Events[Poll events]
+    Events --> Tools[DevTools frame]
     Tools --> Diag[Diagnostics: frame time, fixed step, test script]
     Diag --> Context[Input context]
     Context --> Levels[Transitions + level update]
@@ -230,13 +231,18 @@ flowchart LR
 - **Calibration** is a measured run over fixed views; its decision
   (`DecideCalibration`) is pure. Records carry the adapter and resolution
   and are dropped when those change.
-- **Frames in flight: 3.** In SDL's D3D12 backend this also sets the
-  swapchain's buffer count. SDL's default 2 is double buffering, and with
-  vsync it missed every other refresh: 72 fps on a 144 Hz panel. 3 holds
-  the refresh rate and keeps a clock-dropping iGPU busy. A deeper queue
-  can add a frame of input delay, but each frame is then half as long.
-  `ATOM_FRAMES_IN_FLIGHT` overrides; calibration measures at the player's
-  setting.
+- **Frames in flight: 2, and the swapchain wait before input (M74),**
+  decided on measured input latency. Click to display (PresentMon, 144 Hz
+  panel, Iris Xe): 3 frames 36 ms, 2 frames 30 ms, 2 frames with the wait
+  moved before input 24 ms, all at 144 fps. In SDL's D3D12 backend the
+  frames-in-flight limit also sizes the swapchain (`SDL_gpu_d3d12.c`).
+  v0.0.10 chose 3 because 2 then ran at ~72 fps with vsync, under an older
+  Intel driver. So, with vsync and the default 2, the renderer checks the
+  frame interval once after a warm-up and moves to 3 if 2 can't hold the
+  refresh (`NeedsThirdFrame`). `ATOM_FRAMES_IN_FLIGHT` and
+  `ATOM_LATENCY_WAIT=late` override; calibration measures at the player's
+  setting. Latency is measured by `Tools/Perf/latency.ps1`: the engine's
+  stages unprivileged, PresentMon end to end.
 
 ## 9. Distribution
 

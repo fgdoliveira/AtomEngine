@@ -10,15 +10,12 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.11** — distribution: one command
-(`Tools/Dist/package.ps1`) makes a ZIP a player extracts and
-double-clicks, with no repository or development tools involved. The C++
-runtime is linked in, the shipped game is windowed and logs every run,
-the package's contents are verified, and CI checks on every pull
-request that a clean clone can still make it.
-(0.0.10 brought hardware portability: settings, quality presets, a safe
-high-performance GPU option; 0.0.9 was hardening from an architecture
-audit.)
+Current version: **0.0.12** — latency, measured: a click now reaches the
+screen in 24 ms instead of 36, at the same 144 fps. The swapchain wait
+comes before input is read, and the frames-in-flight default went back to
+2, with a safeguard. `Tools/Perf/latency.ps1` measures it, with the
+engine's own timing or end to end with PresentMon. (0.0.11 was
+distribution: a one-command ZIP for players; 0.0.10 hardware portability.)
 See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
@@ -297,7 +294,9 @@ Developer switches (environment variables):
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 | `ATOM_ASSET_LOG=<file>` | append every asset file the game opens (once each): the evidence for the runtime payload |
 | `ATOM_GPU=low-power\|high-performance` / `ATOM_QUALITY=<tier>` | as `--gpu` / `--quality`, below the command line |
-| `ATOM_FRAMES_IN_FLIGHT=1..3` | frames the CPU may queue ahead of the GPU (default 3; in SDL also the swapchain's buffers - with vsync, 2 halves the frame rate) |
+| `ATOM_FRAMES_IN_FLIGHT=1..3` | frames the CPU may queue ahead of the GPU (default 2 for lower input latency, moved to 3 automatically if 2 can't hold the refresh rate; in SDL also the swapchain's buffers) |
+| `ATOM_LATENCY_WAIT=late` | wait for the swapchain inside rendering, after input is read (0.0.11's order; the default waits first) |
+| `ATOM_LATENCY_LOG=1` / `ATOM_LATENCY_FLASH=1` | a `LAT block` line per 20 clicks (click → frame → wait → submit → GPU done) / a black frame on each left click |
 | `ATOM_WINDOW_POSITION=x,y` | open the window there (e.g. on another monitor) |
 | `ATOM_CALIBRATE_SECONDS=<s>` | shorter calibration windows (tests) |
 | `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` | pretend the swapchain is lost after that many seconds of play, to test the fallback |
@@ -414,10 +413,12 @@ AtomEngine compares A and B **close together in time** and reports the
   Intel GPA for per-pass GPU times; SDL_GPU exposes no GPU timers.
 
 Checklist: plugged in, high-performance power plan, the laptop's own screen,
-`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. Builds before
-0.0.10 ran 2 frames in flight, and 3 alone is ~0.5 ms faster uncapped on
-the Iris Xe: to compare *code* against an older build, set
-`ATOM_FRAMES_IN_FLIGHT=2` for the run (older builds ignore it). The
+`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. Frames in
+flight change frame times uncapped (3 was ~0.5 ms faster than 2 on the
+Iris Xe): builds before 0.0.10 and from 0.0.12 default to 2, 0.0.10 and
+0.0.11 to 3. To compare *code* across that line, set
+`ATOM_FRAMES_IN_FLIGHT` the same on both sides (builds before 0.0.10
+ignore it and use 2). The
 300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
 hardware; the interleaving takes care of that. Timing is never a ctest
 gate: `expect_bench_under` is for local use on known hardware.
