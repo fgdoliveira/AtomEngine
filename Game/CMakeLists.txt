@@ -20,6 +20,8 @@ add_library(
     DemoAppDevTools.cpp
     DemoAppCalibration.cpp
     Settings/Calibration.cpp
+    Platform/RunLog.cpp
+    Platform/RunLog.h
     Settings/Calibration.h
     Character/Animator.cpp
     Character/Animator.h
@@ -129,6 +131,15 @@ target_link_libraries(
 
 add_dependencies(AtomGame AtomShaders)
 
+# M67: the distributed game is a windowed program - no console window on
+# double-click. Development builds keep their console. Main.cpp keeps
+# `main` either way (SDL_main.h supplies the Windows entry point); RunLog
+# writes the log file in both and, when windowed, re-attaches to a
+# terminal that started it.
+if(ATOM_DISTRIBUTION)
+    set_target_properties(AtomGame PROPERTIES WIN32_EXECUTABLE ON)
+endif()
+
 # The runtime asset payload (M56, audit ASSET-001): the folders of Assets/
 # the game reads, copied next to the executable. Derived from evidence -
 # every scenario and every level run with ATOM_ASSET_LOG opened 86 files
@@ -139,11 +150,17 @@ add_dependencies(AtomGame AtomShaders)
 # A new folder the game reads goes here; every scenario runs against this
 # copy, so a missing one fails them. ATOM_ASSET_ROOT (hot reload) reads
 # the source tree itself.
-set(ATOM_RUNTIME_ASSETS
-    City Data Dialogue Environments Fields First Fonts Interior Kit Lab
+#
+# M68: split in two. Shipped folders go into the distribution; the
+# development-only ones (the character lab: its rigged character in
+# ThirdParty/ has no recorded licence) stay in the build copy for the
+# scenarios, and out of the package.
+set(ATOM_SHIPPED_ASSETS
+    City Data Dialogue Environments Fields First Fonts Interior Kit
     Lakeshore Levels Machines Night Pachinko Passage Shrine Sky Street
-    ThirdParty
 )
+set(ATOM_DEV_ASSETS Lab ThirdParty)
+set(ATOM_RUNTIME_ASSETS ${ATOM_SHIPPED_ASSETS} ${ATOM_DEV_ASSETS})
 set(ATOM_ASSET_COPY_COMMANDS)
 foreach(folder IN LISTS ATOM_RUNTIME_ASSETS)
     list(APPEND ATOM_ASSET_COPY_COMMANDS
@@ -163,3 +180,52 @@ set_property(
     DIRECTORY ${CMAKE_SOURCE_DIR}
     PROPERTY VS_STARTUP_PROJECT AtomGame
 )
+
+# The distribution (M68): what `cmake --install` puts in a package folder
+# - the one authoritative list. Tools/Dist/package.ps1 installs from a
+# -DATOM_DISTRIBUTION=ON build, verifies and zips it.
+install(TARGETS AtomGame RUNTIME DESTINATION .)
+install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION .) # the only runtime DLL (M66)
+install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION .) # Shaders/ exports the folder
+foreach(folder IN LISTS ATOM_SHIPPED_ASSETS)
+    install(
+        DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/${folder}"
+        DESTINATION Assets
+        PATTERN "character_lab*" EXCLUDE # the lab is development-only
+    )
+endforeach()
+
+# Licences: AtomEngine's, and every third-party component compiled into
+# the executable or shipped beside it (doctest is tests-only, not here).
+set(ATOM_NOTICES "AtomEngine ${PROJECT_VERSION} - third-party notices\n\nAtomGame.exe and SDL3.dll contain the components below. Their licences require these notices to travel with the binaries.\n")
+foreach(entry IN ITEMS
+        "SDL 3|external/SDL/LICENSE.txt"
+        "GLM|external/glm/copying.txt"
+        "nlohmann/json|external/json/LICENSE.MIT"
+        "cgltf|external/cgltf/LICENSE"
+        "stb|external/stb/LICENSE"
+        "Dear ImGui|external/imgui/LICENSE.txt"
+        "Shippori Mincho (font)|Assets/Fonts/OFL.txt")
+    string(REPLACE "|" ";" parts "${entry}")
+    list(GET parts 0 name)
+    list(GET parts 1 file)
+    file(READ "${CMAKE_SOURCE_DIR}/${file}" text)
+    string(APPEND ATOM_NOTICES "\n==============================================================================\n${name}  (${file})\n==============================================================================\n\n${text}\n")
+endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt" "${ATOM_NOTICES}")
+configure_file("${CMAKE_SOURCE_DIR}/Tools/Dist/README.txt.in" "${CMAKE_BINARY_DIR}/dist/README.txt" @ONLY)
+install(
+    FILES
+        "${CMAKE_SOURCE_DIR}/LICENSE.txt"
+        "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt"
+        "${CMAKE_BINARY_DIR}/dist/README.txt"
+    DESTINATION .
+)
+
+# For Tools/Dist/verify.ps1: what this package must hold, from the lists
+# above rather than a hand-kept copy. Removed before zipping.
+string(REPLACE ";" "," ATOM_SHIPPED_LIST "${ATOM_SHIPPED_ASSETS}")
+string(REPLACE ";" "," ATOM_DEV_LIST "${ATOM_DEV_ASSETS}")
+file(WRITE "${CMAKE_BINARY_DIR}/dist/payload.txt"
+    "version=${PROJECT_VERSION}\nshipped=${ATOM_SHIPPED_LIST}\ndevonly=${ATOM_DEV_LIST}\nshaders=${ATOM_SHADER_COUNT}\n")
+install(FILES "${CMAKE_BINARY_DIR}/dist/payload.txt" DESTINATION . RENAME .payload)

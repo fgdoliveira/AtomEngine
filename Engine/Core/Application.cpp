@@ -113,6 +113,7 @@ namespace Atom
     {
         if (!Initialize())
         {
+            m_startFailed = true; // M67: the caller can tell the player why
             return 1;
         }
 
