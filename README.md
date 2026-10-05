@@ -299,6 +299,38 @@ Developer switches (environment variables):
 | `ATOM_CALIBRATE_SECONDS=<s>` | shorter calibration windows (tests) |
 | `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` | pretend the swapchain is lost after that many seconds of play, to test the fallback |
 
+## Distribution
+
+One command makes the Windows package players download:
+
+```sh
+pwsh Tools/Dist/package.ps1          # -NoSmoke on a machine without a GPU
+```
+
+It builds a Release game in its own folder (`build-dist/`, with
+`-DATOM_DISTRIBUTION=ON`: windowed, no console), installs it into
+`Dist/AtomGame/` with the CMake install rules, verifies it
+(`Tools/Dist/verify.ps1`), starts it once from outside the repository,
+and zips `Dist/AtomGame-v<version>-win64.zip`. The install rules in
+`Game/CMakeLists.txt` are the one definition of what ships:
+
+```text
+AtomGame/
+├── AtomGame.exe            C++ runtime linked in: no Visual C++ Redistributable needed
+├── SDL3.dll                the only DLL
+├── shaders/*.dxil          precompiled and signed
+├── Assets/                 the shipped asset folders (the character lab stays out)
+├── README.txt              for players: controls, settings, logs, what to try
+├── LICENSE.txt
+└── THIRD_PARTY_NOTICES.txt SDL, GLM, nlohmann/json, cgltf, stb, Dear ImGui, the font
+```
+
+The check fails the package if anything is missing (a shipped asset
+folder, a shader, a licence), if anything development-only got in
+(`.blend`, `.py`, `.pdb`, test scripts, schemas, the lab), if a binary
+needs a DLL Windows doesn't have, or if a shader is unsigned. The same
+revision gives the same files.
+
 ## Testing
 
 ```sh
