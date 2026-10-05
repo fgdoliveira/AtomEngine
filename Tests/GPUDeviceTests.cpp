@@ -28,6 +28,15 @@ TEST_CASE("Present mode: ATOM_PRESENT=immediate puts immediate first (M46)")
     CHECK(std::string(GetPresentModeName(PresentMode::Immediate)) == "immediate");
 }
 
+TEST_CASE("Frames in flight: a third frame only when 2 can't hold the refresh (M74)")
+{
+    CHECK_FALSE(NeedsThirdFrame(6.94, 144.0));  // 2 frames hold 144 Hz (measured)
+    CHECK(NeedsThirdFrame(13.9, 144.0));        // halved: 72 fps (v0.0.10's driver)
+    CHECK_FALSE(NeedsThirdFrame(16.8, 60.0));   // 60 Hz, held
+    CHECK(NeedsThirdFrame(33.3, 60.0));         // a slow GPU at 30 fps on 60 Hz
+    CHECK_FALSE(NeedsThirdFrame(13.9, 0.0));    // refresh unknown: no basis, keep 2
+}
+
 TEST_CASE("Fallback: presentation and device failures read differently")
 {
     const StartupFallback presentation{ "NVIDIA GeForce RTX 4060 Laptop GPU", StartupFallback::Stage::Presentation,

@@ -304,6 +304,12 @@ namespace AtomGame
             std::cout << "Hot reload on: assets from " << m_assetRoot << '\n';
         }
 
+        if (const char* flash = SDL_getenv("ATOM_LATENCY_FLASH"); flash && SDL_strcmp(flash, "1") == 0)
+        {
+            m_latencyFlash = true;
+            std::cout << "Latency flash on: a left click turns that frame black\n";
+        }
+
         m_fogPreset = DefaultFogPreset;
         m_audioScape.Initialize(GetAudio());
 
@@ -721,6 +727,13 @@ namespace AtomGame
             UpdateCalibration(static_cast<float>(m_diagnostics.RealFrameMs() / 1000.0)); // M64: real time, not a fixed step
         }
         GetRenderer().SetFade(m_levels->GetFade());
+        // ATOM_LATENCY_FLASH=1 (M72): a left click turns this one frame
+        // black - an unmistakable effect of the input, for latency
+        // measurement (Tools/Perf/latency.ps1). Inert unless set.
+        if (m_latencyFlash && GetInput().WasLeftClicked())
+        {
+            GetRenderer().SetFade(1.0f);
+        }
         if (m_environment.IsTransitioning())
         {
             m_environment.Update(deltaSeconds); // game time: fixed steps blend the same way

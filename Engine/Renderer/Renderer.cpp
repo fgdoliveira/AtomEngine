@@ -313,13 +313,30 @@ namespace Atom
         presentation.vsync = config.vsync;
         const char* present = SDL_getenv("ATOM_PRESENT");
         presentation.preferImmediate = present && std::string_view(present) == "immediate";
-        if (const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT"); frames && *frames)
+        const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT");
+        const bool framesChosen = frames && *frames;
+        if (framesChosen)
         {
             presentation.framesInFlight = static_cast<std::uint32_t>(SDL_atoi(frames));
         }
         if (!m_gpu.ConfigurePresentation(presentation))
         {
             return false;
+        }
+        // M74: the swapchain wait happens before input is read (measured:
+        // 30.2 -> 24.1 ms click to display with 2 frames, same 144 fps).
+        // ATOM_LATENCY_WAIT=late restores the old order, for comparison.
+        const char* wait = SDL_getenv("ATOM_LATENCY_WAIT");
+        m_waitEarly = !(wait && SDL_strcmp(wait, "late") == 0);
+        std::cout << "Swapchain wait: " << (m_waitEarly ? "early (before input is read)" : "late (in Render)") << '\n';
+        // M74: 2 frames in flight unless chosen - watched once, with vsync,
+        // in case 2 can't hold the refresh rate here (as on v0.0.10's driver).
+        m_framesGuard = !framesChosen && m_gpu.GetInfo().framesInFlight == 2;
+        // M73: ATOM_LATENCY_LOG=1 times each click through the frame.
+        if (const char* latency = SDL_getenv("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
+        {
+            m_latency.SetEnabled(true, &std::cout);
+            std::cout << "Latency log on: a LAT block every " << LatencyProbe::BlockSamples << " clicks\n";
         }
 
         return m_targets.Initialize(m_device)
@@ -760,12 +777,54 @@ namespace Atom
             [&](const DrawCommand& a, const DrawCommand& b) { return key(a) < key(b); });
     }
 
+    void Renderer::WatchFramesInFlight()
+    {
+        // Only while presenting with vsync (calibration presents uncapped).
+        const Uint64 now = SDL_GetTicksNS();
+        const Uint64 last = std::exchange(m_guardLastNs, now);
+        if (m_gpu.GetInfo().presentMode != "vsync")
+        {
+            return;
+        }
+        // Skip the first frames: the first level loads and pipelines build.
+        constexpr std::uint32_t WarmUp = 120;
+        constexpr std::size_t Measured = 240;
+        if (++m_guardFrames <= WarmUp || last == 0)
+        {
+            return;
+        }
+        m_guardIntervals.AddSample(static_cast<double>(now - last) / 1.0e6);
+        if (m_guardIntervals.Count() < Measured)
+        {
+            return;
+        }
+        m_framesGuard = false; // decided once
+        const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(m_window));
+        const double refresh = mode ? mode->refresh_rate : 0.0;
+        const double median = m_guardIntervals.Median();
+        if (NeedsThirdFrame(median, refresh))
+        {
+            std::cout << "Frames in flight: 2 can't hold the " << refresh << " Hz refresh here (median frame "
+                      << median << " ms); using 3\n";
+            m_gpu.SetFramesInFlight(3);
+        }
+        else
+        {
+            std::cout << "Frames in flight: 2 hold the " << refresh << " Hz refresh (median frame " << median << " ms)\n";
+        }
+        m_guardIntervals.Clear();
+    }
+
     bool Renderer::Render()
     {
         if (!m_device || !m_window || !m_gpu.IsWindowClaimed())
         {
             std::cerr << "Cannot render before the renderer is initialized.\n";
             return false;
+        }
+        if (m_framesGuard)
+        {
+            WatchFramesInFlight();
         }
 
         // Draws are only valid for the frame they were submitted in.
@@ -803,13 +862,26 @@ namespace Atom
         Uint32 swapchainWidth = 0;
         Uint32 swapchainHeight = 0;
         const bool simulatedLoss = std::exchange(m_simulateSwapchainLoss, false);
-        if (simulatedLoss || !SDL_WaitAndAcquireGPUSwapchainTexture(
+        const bool timing = m_latency.IsEnabled(); // M73: off, no clock reads
+        const Uint64 waitStart = timing ? SDL_GetTicksNS() : 0;
+        if (timing)
+        {
+            m_latency.Poll(m_device, waitStart);
+        }
+        const bool acquired = !simulatedLoss && SDL_WaitAndAcquireGPUSwapchainTexture(
             commandBuffer,
             m_window,
             &swapchainTexture,
             &swapchainWidth,
             &swapchainHeight
-        ))
+        );
+        if (timing)
+        {
+            const Uint64 waitEnd = SDL_GetTicksNS();
+            m_latency.SetWait(waitEnd - waitStart);
+            m_latency.Poll(m_device, waitEnd);
+        }
+        if (!acquired)
         {
             m_lastFailure = Failure::SwapchainLost; // M63: the game may fall back next launch
             const std::string acquisitionError = simulatedLoss ? std::string("simulated (ATOM_SIMULATE_SWAPCHAIN_LOSS)") : SDL_GetError();
@@ -909,6 +981,20 @@ namespace Atom
                 return false;
             }
             FinishCapture(fence);
+            return ok;
+        }
+        // M73: a frame carrying a click is fenced, to see when its GPU work
+        // ends; every other frame submits as always.
+        if (m_latency.WantsFence())
+        {
+            const Uint64 submitNs = SDL_GetTicksNS();
+            SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+            if (!fence)
+            {
+                std::cerr << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                return false;
+            }
+            m_latency.Submitted(submitNs, fence);
             return ok;
         }
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
@@ -2529,6 +2615,8 @@ namespace Atom
                     SDL_ReleaseGPUTexture(m_device, texture);
                 }
             }
+
+            m_latency.ReleaseAll(m_device); // M73: fences still pending
 
             // M53 (audit CPP-001): everything that frees itself through this
             // device must be gone before it is destroyed. Reported always (a

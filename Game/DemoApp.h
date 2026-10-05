@@ -236,6 +236,7 @@ namespace AtomGame
 
         // Hot reload (M20), on when ATOM_ASSET_ROOT points at the source tree.
         bool m_hotReload = false;
+        bool m_latencyFlash = false; // ATOM_LATENCY_FLASH=1 (M72)
         float m_reloadTimer = 0.0f;
         FileWatcher m_levelFiles;
         FileWatcher m_dialogueFiles;

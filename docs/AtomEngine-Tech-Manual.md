@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.11 / M71**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89).
+A study guide to every concept the engine uses, as of **v0.0.12 / M75**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -98,9 +98,14 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 87. [CI as a check, not a release channel (M69)](#87-ci-as-a-check-not-a-release-channel-m69)
 88. [What ships, and the clean-machine test (M70)](#88-what-ships-and-the-clean-machine-test-m70)
 89. [Releasing 0.0.11 (M71)](#89-releasing-0011-m71)
-90. [Anatomy of a frame and what it costs](#90-anatomy-of-a-frame-and-what-it-costs)
-91. [Build system and project layout](#91-build-system-and-project-layout)
-92. [Glossary](#92-glossary)
+90. [Measuring input latency with PresentMon (M72)](#90-measuring-input-latency-with-presentmon-m72)
+91. [Where a click's time goes, inside the engine (M73)](#91-where-a-clicks-time-goes-inside-the-engine-m73)
+92. [Wait first, then read input (M74)](#92-wait-first-then-read-input-m74)
+93. [Measuring without administrator rights](#93-measuring-without-administrator-rights)
+94. [Releasing 0.0.12 (M75)](#94-releasing-0012-m75)
+95. [Anatomy of a frame and what it costs](#95-anatomy-of-a-frame-and-what-it-costs)
+96. [Build system and project layout](#96-build-system-and-project-layout)
+97. [Glossary](#97-glossary)
 
 ---
 
@@ -2187,7 +2192,7 @@ That argument nearly put the default back to 2: AtomEngine is an engine, and the
 
 **Concept: double vs triple buffering.** In SDL's D3D12 backend, "frames in flight" also sets the **swapchain's buffer count** (2 or 3). With **two buffers** and vsync, one is on screen and the other waits for the next refresh. The game has nowhere to draw until a refresh frees one, so it misses every other refresh even with 3.4 ms of work: the classic double-buffering halving. With **three**, there's always a free buffer. Every release before 0.0.10 ran at 72 fps on this panel.
 
-So the latency reasoning cut the other way. Latency is roughly *queued frames × frame interval*: about 2 × 13.9 ≈ 28 ms with two, against 3 × 6.9 ≈ 21 ms with three. One more queued frame costs less than every frame lasting twice as long. The default is **3**; `ATOM_FRAMES_IN_FLIGHT=1..3` overrides. Calibration measures at the player's setting. Input-to-screen latency itself wasn't measured (that needs timestamps from input to present, or a capture tool), so those 28 and 21 ms are estimates.
+So the latency reasoning cut the other way. Latency is roughly *queued frames × frame interval*: about 2 × 13.9 ≈ 28 ms with two, against 3 × 6.9 ≈ 21 ms with three. One more queued frame costs less than every frame lasting twice as long. The default is **3**; `ATOM_FRAMES_IN_FLIGHT=1..3` overrides. Calibration measures at the player's setting. Input-to-screen latency itself wasn't measured (that needs timestamps from input to present, or a capture tool), so those 28 and 21 ms are estimates. *v0.0.12 measured them, and they were wrong (§90–§92): 3 frames gave 36 ms, and the default is now 2 frames with the wait before input, at 24 ms.*
 
 The lessons:
 - A GPU is not a constant-speed machine: power management reacts to the workload's *shape*.
@@ -2427,7 +2432,110 @@ The workflow runs on **pull requests, pushes to master, and on demand**, not on 
 
 ---
 
-## 90. Anatomy of a frame and what it costs
+## 90. Measuring input latency with PresentMon (M72)
+
+**Concept: input latency.** The time from an action (a click, a key) to its result on screen. Frame time says how *often* frames come; latency says how *late* each one is. Two settings can have the same 144 fps and very different latency, which is exactly what this version found.
+
+**Concept: measuring it in software.** Without a high-speed camera, the standard tool is **Intel PresentMon**. It reads Windows' own event tracing (ETW), which records when Windows received each input and when each frame was actually displayed, and pairs them: `MsAllInputToPhotonLatency`. It doesn't include the mouse's own delay or the panel's response time; it's from "Windows has it" to "on screen".
+
+**Concept: synthetic input.** A human can't click 190 times identically. `latency.ps1` injects left clicks with Windows' `SendInput`, every 120–250 ms at random, so clicks don't line up with the 144 Hz refresh and bias the result.
+
+**Concept: always do a spike first.** Before building the tool, a 15-minute experiment checked the assumption it rests on. It held, with a twist: injected clicks appear in PresentMon's *all-input* column but never in its *click* column (that one apparently needs a hardware mouse button). Had the assumption failed, the plan said to stop. Building a tool around an unchecked assumption is how measurements end up meaningless.
+
+**Concept: a visible effect.** `ATOM_LATENCY_FLASH=1` turns the frame black on each click, so the input has an unmistakable consequence.
+
+**Concept: trust the tool first.** Measuring a configuration against itself gave −0.06 ms, so the method resolves differences far below the effects being studied.
+
+**The first table** (144 Hz, Iris Xe): 3 frames in flight with vsync, the then-default, took **36 ms**; 2 frames 30 ms; uncapped 23–26 ms.
+
+**And a surprise:** 2 frames now held 144 fps, where v0.0.10 measured 72. The engine's frame loop hadn't changed in that respect; the Intel driver had. The reason for v0.0.10's default was gone, which only a measurement could show.
+
+**Code.** `Tools/Perf/latency.ps1`, `Input::WasLeftClicked`, `ATOM_LATENCY_FLASH` in `DemoApp`.
+
+---
+
+## 91. Where a click's time goes, inside the engine (M73)
+
+**Concept: total vs breakdown.** PresentMon gives one number from outside. The engine can time the stages it controls, per click:
+1. click → the start of the frame that reads it;
+2. that frame's wait for a swapchain image;
+3. → submit (the CPU's work done);
+4. → GPU done.
+
+The click's time comes from SDL's event timestamp, which on Windows is the OS's own receive time, on the same clock as `SDL_GetTicksNS`.
+
+**Concept: fences.** To know when the GPU finished a frame, the engine submits it with a **fence**: a flag the GPU sets when it's done. Fencing every frame would cost something, so `LatencyProbe` fences only frames carrying a click, and only with `ATOM_LATENCY_LOG=1`. It polls them twice a frame, which makes "GPU done" an upper bound accurate to within one frame. The code says so.
+
+**Concept: the observer effect.** Instrumentation can change what it measures. Checked both ways:
+- with the log on, PresentMon's numbers were unchanged;
+- with it off, the game was as fast as v0.0.11.
+
+**Concept: don't subtract unrelated measurements.** PresentMon's total minus the engine's "GPU done" is *not* the display stage. Their clocks differ, and PresentMon credits an input to the next frame shown *after* Windows saw it, not to the frame that read it. The difference of two medians isn't the median of the differences either. So the two are compared as trends only.
+
+**What it showed:**
+- **With 3 frames,** the acquire hardly waited (0.04 ms). The latency sat in the GPU and presentation queue *after* submit, behind earlier frames.
+- **With 2 frames,** the CPU waited ~6 ms at the acquire, after having read the input.
+
+The same symptom ("too much latency") turned out to have two different mechanisms, and only the second could be fixed by moving the wait.
+
+**Code.** `Engine/Core/LatencyProbe.*` (owned by the renderer), `Renderer::Render` (timing, the fenced submit), `Application::Run`, `Tests/LatencyProbeTests.cpp`.
+
+---
+
+## 92. Wait first, then read input (M74)
+
+**The idea.** Every frame read input, updated the game, *then* waited inside rendering for a free swapchain image. An input arriving during that wait was read only by the *next* frame. Moving the wait to the top of the frame, before input, means input is read as late as possible, right before the work that uses it.
+
+**Concept: check the API's real semantics.** SDL documents `SDL_WaitForGPUSwapchain` as waiting until "all presenting command buffers are finished", which sounds like a full drain that would destroy the pipeline's overlap. SDL 3.4.18's D3D12 source shows it waits on one fence: the next swapchain slot's, the same one the blocking acquire uses. A review of the plan raised exactly this, so it was treated as an experiment with a throughput check, not an assumed fix. The wait itself didn't change; only what came after it did.
+
+**The result** (click to display, 144 Hz):
+
+| | 3 frames | 2 frames |
+|---|---|---|
+| wait late | 36.1 ms | 30.2 ms |
+| wait first | 36.0 ms | **24.1 ms** |
+
+As M73 predicted, with 3 frames there was nothing to move. With 2 frames the 6 ms wait vanished from the input's path. All configurations stayed at 144 fps, and uncapped frame times didn't depend on the wait's place.
+
+**The decision: 2 frames in flight + wait first** became the default, 12 ms (a third) quicker than v0.0.11.
+
+**Concept: a safeguard for the old failure.** On v0.0.10's driver, 2 frames halved the frame rate. A machine like that would make the new default worse. So with vsync and the default 2, the renderer checks the frame interval once, after a warm-up. If the median exceeds 1.6 refresh periods (`NeedsThirdFrame`, unit-tested), it switches to 3 frames (`SDL_SetGPUAllowedFramesInFlight` at runtime: one stall) and logs why. A default chosen from one machine's data should defend itself on others.
+
+**Code.** `GPUDevice::WaitForPresentSlot` and `SetFramesInFlight`, `NeedsThirdFrame`, `Renderer::WatchFramesInFlight`, the top of `Application::Run`'s loop; `ATOM_LATENCY_WAIT`, `ATOM_FRAMES_IN_FLIGHT`.
+
+---
+
+## 93. Measuring without administrator rights
+
+**The problem.** PresentMon's event tracing needs elevated rights, so every run stopped at a Windows UAC prompt, which makes unattended measurement impossible.
+
+**Concept: least privilege.** Grant only what's needed, and only where it's needed:
+- **`-Mode Engine` (the default)** measures the engine's stages with no rights at all. It's the everyday and automation path. It doesn't see the display stage, which is fine for most changes.
+- **`-Mode PresentMon`** is an explicit developer operation (before a milestone's PR, after presentation changes). It runs directly for an administrator or a member of Windows' **Performance Log Users** group, which exists precisely to allow tracing without being an administrator. Otherwise it explains, then asks for elevation *for that run only*. `-NoElevate` makes it exit instead, so automation never meets a dialog.
+
+**Concept: well-known SIDs.** Group names are translated ("Usuarios del registro de rendimiento" on a Spanish Windows), but the group's security ID, `S-1-5-32-559`, is the same everywhere. Check identities by SID, not name.
+
+**Concept: what a public tool must never do.** A script in a public repository shouldn't change a machine's security configuration, so it never adds anyone to a group (the README documents it as an optional manual step). It shouldn't fetch and run software with elevation either (a supply-chain risk), so it only *finds* an installed PresentMon. And it shouldn't over-diagnose: an empty latency column could mean injection, targeting, permissions or a metric change, so it lists those instead of claiming "you need administrator".
+
+**Code.** `Tools/Perf/latency.ps1` (modes, `-NoElevate`, `-PresentMonPath`); README, Measuring performance.
+
+---
+
+## 94. Releasing 0.0.12 (M75)
+
+**The release check, end to end:** with PresentMon, the new default **23.7 ms** against v0.0.11's **36.1 ms** (−12.4 ms paired), both 144 fps.
+
+**Concept: attributing an A/B difference.** Uncapped, v0.0.12 measured +0.32 ms slower than v0.0.11 on the lakeshore (a tight range, so real). Repeated with both builds forced to 3 frames and the old wait order, the difference was −0.004 ms. So the new *code* costs nothing, and the +0.3 ms is the frames-in-flight default trading a little uncapped throughput for 12 ms of responsiveness at vsync. As in §82, an A/B that finds a difference isn't finished until a second one explains it.
+
+**Correcting the record.** v0.0.10's estimate ("about 28 ms with 2 frames vs 21 ms with 3") was reasoning, and measured it was backwards: 3 frames was the slowest configuration. The CHANGELOG says so, and the old "not measured" note now points to 0.0.12. Reasoning about queues is a good way to find what to measure, not a substitute for measuring.
+
+**Limits:** software measurement only, one machine, and PresentMon's input association. All of them are written down.
+
+**Code.** `CHANGELOG.md` 0.0.12, Architecture §3 (the frame now starts with the wait) and §8.
+
+---
+
+## 95. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2467,11 +2575,12 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.9** adds no feature: against v0.0.8 (interleaved builds) the street +0.027 ms and the lakeshore +0.024 ms, within resolution. Level loads now log their own timing (§74), e.g. the night street 173 ms, mostly GPU upload.
 - **v0.0.10**, against v0.0.9 (interleaved builds, §82): the night street −0.51 ms, the lakeshore −0.55 ms, from the third frame in flight (§81); with vsync on the 144 Hz panel, 72 → 144 fps. Baselines measured with two frames in flight don't compare with v0.0.10's.
 - **v0.0.11** adds no rendering work: against v0.0.10 (interleaved builds, §89) the night street +0.07 ms and the lakeshore +0.004 ms, within noise. The static C++ runtime and the new log cost nothing measurable.
+- **v0.0.12** (§94): click to display 36 → 24 ms at 144 fps. Uncapped, the 2-frame default is ~0.3 ms slower per frame than 0.0.11's 3 (the code alone: −0.004 ms). Baselines across 0.0.10–0.0.11 and 0.0.12 differ in frames in flight; set `ATOM_FRAMES_IN_FLIGHT` alike to compare code.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 91. Build system and project layout
+## 96. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
@@ -2489,7 +2598,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json` (§78); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
 - **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
-- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80).
+- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
@@ -2509,7 +2618,8 @@ Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
-Tools/Perf/  ab.ps1 (build A/B, hang guard), benchmark scenarios (lights, water and weather)
+Tools/Perf/  ab.ps1 (build A/B, hang guard), latency.ps1 (input latency: Engine / PresentMon),
+             benchmark scenarios (lights, water and weather)
 Tools/Dev/  check.ps1 (the validation ladder), doctor.ps1, common.ps1
 Tools/Dist/  package.ps1 (the package), verify.ps1 (its check), README.txt.in (players' README)
 Tools/PresentationProbe/  PresentationProbe (SDL or raw D3D12, window moves),
@@ -2535,7 +2645,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 92. Glossary
+## 97. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -2563,6 +2673,13 @@ external/ SDL glm cgltf stb json doctest imgui
 - **LUID** — a locally unique ID Windows gives each adapter; GPU performance counters name adapters by it.
 - **Optimus profile** — an NVIDIA driver setting that sends a known D3D9–D3D11 or OpenGL program to the dGPU behind the Intel adapter; D3D12 has no equivalent (§83).
 - **MUX (display multiplexer)** — a switch that can wire a laptop's panel to the discrete GPU; *muxless* laptops (classic Optimus) can't, so the integrated GPU always drives the panel (§83).
+- **ETW (Event Tracing for Windows)** — the operating system's built-in event recording, which tools like PresentMon read; starting a trace needs an administrator or a Performance Log Users member (§93).
+- **Fence (GPU)** — a flag the GPU sets when the work submitted before it is done; how the CPU learns that a frame finished (§91).
+- **Least privilege** — granting only the rights a task needs, only where it needs them (§93).
+- **PresentMon** — Intel's open-source tool that reports, from ETW, when frames are presented and displayed, and input-to-display latency (§90).
+- **SID (security identifier)** — the fixed ID of a Windows account or group, the same in every language (e.g. `S-1-5-32-559`, §93).
+- **Spike** — a short experiment that checks the assumption a larger piece of work rests on, before building it (§90).
+- **Synthetic input** — input injected by a program (`SendInput`) instead of a person, so measurements are repeatable (§90).
 - **Double / triple buffering** — a swapchain of two / three images; with vsync, two can force every other refresh to be missed (§81).
 - **Input latency** — the time from an input (a mouse move) to its result on screen; queue depth, vsync and the display all add to it.
 - **Hybrid graphics (Optimus)** — a laptop with an integrated and a discrete GPU, where the discrete one renders and the integrated one usually drives the built-in screen (§80).
