@@ -321,6 +321,12 @@ namespace Atom
         {
             return false;
         }
+        // M73: ATOM_LATENCY_LOG=1 times each click through the frame.
+        if (const char* latency = SDL_getenv("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
+        {
+            m_latency.SetEnabled(true, &std::cout);
+            std::cout << "Latency log on: a LAT block every " << LatencyProbe::BlockSamples << " clicks\n";
+        }
 
         return m_targets.Initialize(m_device)
             && CreateDefaultResources()
@@ -803,13 +809,26 @@ namespace Atom
         Uint32 swapchainWidth = 0;
         Uint32 swapchainHeight = 0;
         const bool simulatedLoss = std::exchange(m_simulateSwapchainLoss, false);
-        if (simulatedLoss || !SDL_WaitAndAcquireGPUSwapchainTexture(
+        const bool timing = m_latency.IsEnabled(); // M73: off, no clock reads
+        const Uint64 waitStart = timing ? SDL_GetTicksNS() : 0;
+        if (timing)
+        {
+            m_latency.Poll(m_device, waitStart);
+        }
+        const bool acquired = !simulatedLoss && SDL_WaitAndAcquireGPUSwapchainTexture(
             commandBuffer,
             m_window,
             &swapchainTexture,
             &swapchainWidth,
             &swapchainHeight
-        ))
+        );
+        if (timing)
+        {
+            const Uint64 waitEnd = SDL_GetTicksNS();
+            m_latency.SetWait(waitEnd - waitStart);
+            m_latency.Poll(m_device, waitEnd);
+        }
+        if (!acquired)
         {
             m_lastFailure = Failure::SwapchainLost; // M63: the game may fall back next launch
             const std::string acquisitionError = simulatedLoss ? std::string("simulated (ATOM_SIMULATE_SWAPCHAIN_LOSS)") : SDL_GetError();
@@ -909,6 +928,20 @@ namespace Atom
                 return false;
             }
             FinishCapture(fence);
+            return ok;
+        }
+        // M73: a frame carrying a click is fenced, to see when its GPU work
+        // ends; every other frame submits as always.
+        if (m_latency.WantsFence())
+        {
+            const Uint64 submitNs = SDL_GetTicksNS();
+            SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+            if (!fence)
+            {
+                std::cerr << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                return false;
+            }
+            m_latency.Submitted(submitNs, fence);
             return ok;
         }
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
@@ -2529,6 +2562,8 @@ namespace Atom
                     SDL_ReleaseGPUTexture(m_device, texture);
                 }
             }
+
+            m_latency.ReleaseAll(m_device); // M73: fences still pending
 
             // M53 (audit CPP-001): everything that frees itself through this
             // device must be gone before it is destroyed. Reported always (a

@@ -33,6 +33,7 @@ param(
     [string]$Level = "street",
     [string]$Game = "build/bin/Release/AtomGame.exe",
     [string]$PresentMon = "C:\Program Files\Intel\PresentMon\PresentMonConsoleApplication\PresentMon-2.6.0-x64.exe",
+    [switch]$EngineLog, # M73: also ATOM_LATENCY_LOG=1, and the engine's own stages per configuration
     [string]$Transcript = ""
 )
 $ErrorActionPreference = "Stop"
@@ -61,6 +62,7 @@ if (-not $admin) {
     $arguments = @("-NoProfile", "-File", "`"$PSCommandPath`"", "-Configs", ($Configs -join ","), "-Rounds", $Rounds,
         "-Seconds", $Seconds, "-Level", $Level, "-Game", "`"$((Resolve-Path $Game).Path)`"",
         "-PresentMon", "`"$PresentMon`"", "-Transcript", "`"$log`"")
+    if ($EngineLog) { $arguments += "-EngineLog" }
     Write-Host "Asking for administrator rights (PresentMon needs them)..."
     $elevated = Start-Process pwsh -ArgumentList $arguments -Verb RunAs -PassThru -WindowStyle Minimized
     $elevated.WaitForExit()
@@ -104,7 +106,7 @@ $temp = [System.IO.Path]::GetTempPath()
 $script = Join-Path $temp "atom_latency.atomtest"
 $warmup = 4.0
 "wait $($warmup + $Seconds + 2)`nquit`n" | Set-Content -NoNewline -Path $script
-$variables = @("ATOM_TEST_SCRIPT", "ATOM_START_LEVEL", "ATOM_LATENCY_FLASH", "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT")
+$variables = @("ATOM_TEST_SCRIPT", "ATOM_START_LEVEL", "ATOM_LATENCY_FLASH", "ATOM_LATENCY_LOG", "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT")
 $saved = @{}
 foreach ($name in $variables) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
 
@@ -126,10 +128,12 @@ function Invoke-Run([string]$config) {
     [Environment]::SetEnvironmentVariable("ATOM_TEST_SCRIPT", $script)
     [Environment]::SetEnvironmentVariable("ATOM_START_LEVEL", $Level)
     [Environment]::SetEnvironmentVariable("ATOM_LATENCY_FLASH", "1")
+    [Environment]::SetEnvironmentVariable("ATOM_LATENCY_LOG", $(if ($EngineLog) { "1" } else { $null }))
 
     $csv = Join-Path $temp "atom_latency_run.csv"
     if (Test-Path $csv) { Remove-Item $csv }
-    $game = Start-Process $Game -ArgumentList "--no-settings" -PassThru -WindowStyle Normal
+    $gameOut = Join-Path $temp "atom_latency_game.txt"
+    $game = Start-Process $Game -ArgumentList "--no-settings" -PassThru -WindowStyle Normal -RedirectStandardOutput $gameOut
     Start-Sleep -Seconds $warmup
     $pm = Start-Process $PresentMon -ArgumentList "--process_name AtomGame.exe --output_file `"$csv`" --timed $Seconds --terminate_after_timed --no_console_stats --stop_existing_session" -PassThru -WindowStyle Hidden
     Start-Sleep -Milliseconds 500
@@ -161,7 +165,18 @@ function Invoke-Run([string]$config) {
     if (-not ($rows[0].PSObject.Properties.Name -contains $column)) { throw "PresentMon CSV has no $column column" }
     $latency = [double[]]@($rows | ForEach-Object { $_.$column } | Where-Object { $_ -and $_ -ne "NA" } | ForEach-Object { [double]$_ })
     $display = [double[]]@($rows | ForEach-Object { $_.MsBetweenDisplayChange } | Where-Object { $_ -and $_ -ne "NA" } | ForEach-Object { [double]$_ } | Where-Object { $_ -gt 0 })
-    return [pscustomobject]@{ Clicks = $clicks; Latency = $latency; Display = $display }
+    # The engine's LAT blocks (M73), when asked for: each stage's block medians.
+    $stages = @{}
+    if ($EngineLog -and (Test-Path $gameOut)) {
+        foreach ($match in [regex]::Matches((Get-Content $gameOut -Raw),
+                'LAT block \d+ samples \d+ input_to_frame ([\d.]+) p95 [\d.]+ wait ([\d.]+) p95 [\d.]+ input_to_submit ([\d.]+) p95 [\d.]+ input_to_gpu ([\d.]+)')) {
+            foreach ($stage in @(@("toFrame", 1), @("wait", 2), @("toSubmit", 3), @("toGpu", 4))) {
+                if (-not $stages.ContainsKey($stage[0])) { $stages[$stage[0]] = [System.Collections.Generic.List[double]]::new() }
+                $stages[$stage[0]].Add([double]$match.Groups[$stage[1]].Value)
+            }
+        }
+    }
+    return [pscustomobject]@{ Clicks = $clicks; Latency = $latency; Display = $display; Stages = $stages }
 }
 
 Write-Host ("Latency: {0}, {1} rounds of {2} s, level {3}. Hands off the mouse and keyboard." -f ($Configs -join " / "), $Rounds, $Seconds, $Level)
@@ -192,6 +207,18 @@ for ($i = 0; $i -lt $Configs.Count; $i++) {
     $interval = Get-Median $display
     Write-Host ("{0,-16} {1,7}  {2,8:N2} ms  {3,6:N2} ms  {4,6:N2} ms ({5:N0} fps)" -f $Configs[$i], $latency.Count,
         (Get-Median $latency), (Get-P95 $latency), $interval, (1000 / $interval))
+}
+if ($EngineLog) {
+    # Medians of the engine's block medians: where the time goes before the
+    # GPU is done. Not subtracted from PresentMon's (different clocks, and
+    # PresentMon credits input to the next present, not the frame that read it).
+    Write-Host ""
+    Write-Host "Engine (ATOM_LATENCY_LOG)  input->frame   wait   input->submit   input->GPU done"
+    for ($i = 0; $i -lt $Configs.Count; $i++) {
+        $stage = { param($name) Get-Median ([double[]]@($results[$i] | ForEach-Object { if ($_.Stages[$name]) { $_.Stages[$name] } })) }
+        Write-Host ("{0,-24} {1,9:N2} ms {2,6:N2} ms {3,10:N2} ms {4,12:N2} ms" -f $Configs[$i],
+            (& $stage "toFrame"), (& $stage "wait"), (& $stage "toSubmit"), (& $stage "toGpu"))
+    }
 }
 # Paired per round against the first configuration: each round's median
 # difference, then the median of those (as ab.ps1 reports builds).

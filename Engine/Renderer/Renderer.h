@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/LatencyProbe.h"
 #include "Renderer/GPUDevice.h"
 #include "Renderer/Glow.h"
 #include "Renderer/Lighting.h"
@@ -120,6 +121,8 @@ namespace Atom
         // Development: make the next frame fail as a lost swapchain does
         // (ATOM_SIMULATE_SWAPCHAIN_LOSS), to exercise the fallback path.
         void SimulateSwapchainLoss() { m_simulateSwapchainLoss = true; }
+        // M73: where a click's latency goes, with ATOM_LATENCY_LOG=1.
+        LatencyProbe& GetLatencyProbe() { return m_latency; }
 
         // M64: present without waiting for the display (immediate, else
         // mailbox) while measuring, then back to how it started. False if
@@ -456,6 +459,7 @@ namespace Atom
         SceneLighting m_lighting;
         Failure m_lastFailure = Failure::None;
         bool m_simulateSwapchainLoss = false;
+        LatencyProbe m_latency;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;

@@ -3,6 +3,7 @@
 #include <SDL3/SDL_scancode.h>
 
 #include <array>
+#include <cstdint>
 
 union SDL_Event;
 struct SDL_Window;
@@ -48,6 +49,12 @@ namespace Atom
         {
             return m_leftClicked;
         }
+        // When that click happened (M73): SDL's event timestamp, in
+        // SDL_GetTicksNS nanoseconds; 0 without a click.
+        std::uint64_t GetLeftClickTimeNS() const
+        {
+            return m_leftClickNs;
+        }
 
     private:
         std::array<bool, SDL_SCANCODE_COUNT> m_keysDown{};
@@ -57,6 +64,7 @@ namespace Atom
         float m_mouseDeltaY = 0.0f;
         float m_wheelDelta = 0.0f;
         bool m_leftClicked = false;
+        std::uint64_t m_leftClickNs = 0;
         bool m_mouseCaptured = false;
     };
 }

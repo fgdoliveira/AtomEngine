@@ -119,7 +119,10 @@ namespace Atom
 
         while (m_running)
         {
+            // M73 (ATOM_LATENCY_LOG): when the frame began, and the click it read.
+            const std::uint64_t frameStartNs = SDL_GetTicksNS();
             ProcessEvents();
+            m_renderer.GetLatencyProbe().BeginFrame(frameStartNs, m_input.GetLeftClickTimeNS());
             m_devTools.BeginFrame();
 
             OnUpdate(m_time.Tick());
