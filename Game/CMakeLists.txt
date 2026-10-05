@@ -20,6 +20,8 @@ add_library(
     DemoAppDevTools.cpp
     DemoAppCalibration.cpp
     Settings/Calibration.cpp
+    Platform/RunLog.cpp
+    Platform/RunLog.h
     Settings/Calibration.h
     Character/Animator.cpp
     Character/Animator.h
@@ -128,6 +130,11 @@ target_link_libraries(
 )
 
 add_dependencies(AtomGame AtomShaders)
+
+# M67: a windowed program - no console window on double-click. Main.cpp
+# keeps `main` (SDL_main.h supplies the Windows entry point); RunLog
+# re-attaches to a terminal that started it and writes the log file.
+set_target_properties(AtomGame PROPERTIES WIN32_EXECUTABLE ON)
 
 # The runtime asset payload (M56, audit ASSET-001): the folders of Assets/
 # the game reads, copied next to the executable. Derived from evidence -

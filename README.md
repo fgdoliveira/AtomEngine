@@ -209,6 +209,15 @@ calibration result, and *Calibrate now*, *Calibrate next launch* and
 *Reset*. Choices are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json`;
 a damaged or unknown file is ignored, never fatal.
 
+**Log.** AtomGame is a windowed program (no console window). Each run
+writes its output to `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`,
+keeping the previous run as `AtomGame.previous.log`. It holds the version,
+folder, SDL, the GPUs tried and why, the quality and every level load.
+Started from a terminal, it prints there too. Scripted runs (scenarios,
+benchmarks) print only, so they never overwrite the player's log. If the
+game can't start when double-clicked, a message box gives the reason and
+the log's path.
+
 Command line (it overrides the `ATOM_*` variables, which override the
 saved file, which overrides the defaults):
 
