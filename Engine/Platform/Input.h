@@ -42,6 +42,13 @@ namespace Atom
             return m_wheelDelta;
         }
 
+        // The left mouse button went down this frame (M72: the latency
+        // measurement's input).
+        bool WasLeftClicked() const
+        {
+            return m_leftClicked;
+        }
+
     private:
         std::array<bool, SDL_SCANCODE_COUNT> m_keysDown{};
         std::array<bool, SDL_SCANCODE_COUNT> m_keysPressed{};
@@ -49,6 +56,7 @@ namespace Atom
         float m_mouseDeltaX = 0.0f;
         float m_mouseDeltaY = 0.0f;
         float m_wheelDelta = 0.0f;
+        bool m_leftClicked = false;
         bool m_mouseCaptured = false;
     };
 }

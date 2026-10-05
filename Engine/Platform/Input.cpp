@@ -12,6 +12,7 @@ namespace Atom
         m_mouseDeltaX = 0.0f;
         m_mouseDeltaY = 0.0f;
         m_wheelDelta = 0.0f;
+        m_leftClicked = false;
     }
 
     void Input::HandleEvent(const SDL_Event& event)
@@ -41,6 +42,13 @@ namespace Atom
             {
                 m_mouseDeltaX += event.motion.xrel;
                 m_mouseDeltaY += event.motion.yrel;
+            }
+            break;
+
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            if (event.button.button == SDL_BUTTON_LEFT)
+            {
+                m_leftClicked = true;
             }
             break;
 
