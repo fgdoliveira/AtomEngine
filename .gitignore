@@ -30,3 +30,7 @@ __pycache__/
 
 # Personal/local audit notes
 audits/
+
+# Distribution (M68): its build folder and the staged package
+/build-dist/
+/Dist/

@@ -17,6 +17,9 @@ namespace Atom
         bool Initialize();
         int Run();
         void Shutdown();
+        // Run() returned because Initialize failed (M67): the process never
+        // reached its first frame, and the player deserves to know why.
+        bool StartFailed() const { return m_startFailed; }
 
     protected:
         // What the game decides before the engine starts (M60): which GPU
@@ -57,6 +60,7 @@ namespace Atom
 
         bool m_running = false;
         int m_exitCode = 0;
+        bool m_startFailed = false;
         bool m_initialized = false;
 
         Window m_window;

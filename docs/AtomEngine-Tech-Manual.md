@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.10 / M65**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). Unreleased work after 0.0.10 separates the GPU device from window presentation, so a hybrid laptop's failure is reported at the step where it happens (§83).
+A study guide to every concept the engine uses, as of **v0.0.11 / M71**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -91,10 +91,16 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 80. [Hybrid laptops and the high-performance fallback (M63)](#80-hybrid-laptops-and-the-high-performance-fallback-m63)
 81. [Calibration, frames in flight and latency (M64)](#81-calibration-frames-in-flight-and-latency-m64)
 82. [Releasing 0.0.10: what the RTX taught (M65)](#82-releasing-0010-what-the-rtx-taught-m65)
-83. [Device vs presentation: GPUDevice (after 0.0.10)](#83-device-vs-presentation-gpudevice-after-0010)
-84. [Anatomy of a frame and what it costs](#84-anatomy-of-a-frame-and-what-it-costs)
-85. [Build system and project layout](#85-build-system-and-project-layout)
-86. [Glossary](#86-glossary)
+83. [Device vs presentation: GPUDevice](#83-device-vs-presentation-gpudevice)
+84. [The C++ runtime: from a DLL to linked in (M66)](#84-the-c-runtime-from-a-dll-to-linked-in-m66)
+85. [Console or window, and a log (M67)](#85-console-or-window-and-a-log-m67)
+86. [One package command, from one definition (M68)](#86-one-package-command-from-one-definition-m68)
+87. [CI as a check, not a release channel (M69)](#87-ci-as-a-check-not-a-release-channel-m69)
+88. [What ships, and the clean-machine test (M70)](#88-what-ships-and-the-clean-machine-test-m70)
+89. [Releasing 0.0.11 (M71)](#89-releasing-0011-m71)
+90. [Anatomy of a frame and what it costs](#90-anatomy-of-a-frame-and-what-it-costs)
+91. [Build system and project layout](#91-build-system-and-project-layout)
+92. [Glossary](#92-glossary)
 
 ---
 
@@ -2214,7 +2220,7 @@ An A/B that finds a difference isn't finished until a second A/B explains it.
 
 ---
 
-## 83. Device vs presentation: GPUDevice (after 0.0.10)
+## 83. Device vs presentation: GPUDevice
 
 **Concept: two steps that can fail separately.** Getting a picture from a GPU onto a window takes two steps:
 1. **Creating the device:** SDL asks DXGI for an adapter (by preference) and creates a Direct3D 12 device on it. This only needs the GPU.
@@ -2275,7 +2281,153 @@ Windows' own counters showed which GPU each process used (`\GPU Engine(pid_*_eng
 
 ---
 
-## 84. Anatomy of a frame and what it costs
+## 84. The C++ runtime: from a DLL to linked in (M66)
+
+**Concept: a program's invisible dependencies.** C++ code calls a runtime library for things like `new`, `std::string`, exceptions and `printf`. MSVC offers it two ways:
+- **as DLLs** (`/MD`, the default): `VCRUNTIME140.dll`, `MSVCP140.dll` and the `api-ms-win-crt-*` set, which Microsoft ships as the *Visual C++ Redistributable*;
+- **statically** (`/MT`): the parts the program uses are copied into the `.exe` at link time.
+
+Visual Studio installs the Redistributable, so on a development machine the DLL version always works. On a fresh PC it may not be there at all, and the game then fails with "VCRUNTIME140.dll was not found" before a single line of AtomEngine runs. `dumpbin /dependents` showed both `AtomGame.exe` and `SDL3.dll` depending on it.
+
+**The fix is one CMake line**, set before the first target:
+
+```cmake
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+```
+
+**Why every target, SDL included:** each static runtime has its own heap. Memory allocated by one module and freed by another, using a different runtime, corrupts memory. Using one choice everywhere rules that out.
+
+**The cost:** the exe grew from 1.74 MB to 2.08 MB, and SDL3.dll from 2.75 MB to 3.00 MB. After the change, the binaries load only Windows' own DLLs and SDL3.dll.
+
+**Concept: classifying dependencies.** A git submodule isn't a runtime dependency. GLM, nlohmann/json, cgltf and stb are headers or compiled-in sources, and Dear ImGui is a static library; all of them disappear into the exe. Only SDL3 remains a DLL. Blender, Python and dxc are *authoring* tools whose products are committed or built. CMake, doctest, the probes and the perf tools are *development* tools. Architecture §7 keeps the table.
+
+**Code.** The top `CMakeLists.txt`; Architecture §7.
+
+---
+
+## 85. Console or window, and a log (M67)
+
+**Concept: the subsystem.** Every Windows executable declares a *subsystem* in its header:
+- **console** (`Windows CUI`): Windows gives it a console window, and `stdout`/`stderr` write there;
+- **windows** (`Windows GUI`): no console; started by double-click, its output goes nowhere.
+
+A game for players should be GUI: a black terminal behind the game looks broken. A developer wants the console. So the subsystem is a **build choice**: `ATOM_DISTRIBUTION=ON` sets CMake's `WIN32_EXECUTABLE`, and development builds stay console.
+
+The first version made every build windowed, and development lost its console. The lesson: a distribution concern belongs to the distribution build.
+
+**The entry point.** A GUI program starts at `WinMain`, not `main`. Including `SDL3/SDL_main.h` lets SDL supply `WinMain` and call our `main`, so one source serves both subsystems.
+
+**Concept: standard handles.** A process inherits three handles (input, output, error) from whoever started it:
+- **ctest and `ab.ps1`** redirect them into pipes, so even a GUI program's output reaches them;
+- **a terminal** gives a GUI program none, but it can `AttachConsole(ATTACH_PARENT_PROCESS)` and reopen `CONOUT$`;
+- **a double-click** leaves nothing to attach to.
+
+`RunLog` checks which case applies.
+
+**A tee for the log.** `TeeBuffer` is a small `std::streambuf` that forwards every write to two buffers: the console's and the log file's. Installed into `std::cout` and `std::cerr`, it makes every existing message reach `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log` without touching a single call site.
+- **Crash-safe:** each finished line is flushed, so a crash keeps everything before it.
+- **Rotation:** the previous run is kept as `AtomGame.previous.log`.
+- **Scripted runs skip the file,** so tests never overwrite a player's last real session.
+
+**Failing visibly.** If start-up fails with no console (a real double-click), `main` shows `SDL_ShowSimpleMessageBox` with the last error line and the log's path. It's never shown with a console, so it can't block ctest.
+
+**Code.** `Game/Platform/RunLog.*`, `Game/Main.cpp`, `Application::StartFailed`, `Tests/RunLogTests.cpp`, `ATOM_DISTRIBUTION`.
+
+---
+
+## 86. One package command, from one definition (M68)
+
+**Concept: install rules.** CMake can describe not just how to build, but what to *install*:
+- `install(TARGETS …)`, `install(FILES …)` and `install(DIRECTORY …)` list what goes where;
+- `cmake --install <build> --prefix <folder>` copies exactly that into a folder;
+- so they're the natural single definition of a package.
+
+The rules in `Game/CMakeLists.txt` install:
+- the exe, `SDL3.dll` and the shaders;
+- the **shipped** asset folders. The asset list was split into `ATOM_SHIPPED_ASSETS` and `ATOM_DEV_ASSETS`: the character lab stays in development builds (its scenario) and out of the package, because its character's licence is unknown;
+- `LICENSE.txt`, a generated `THIRD_PARTY_NOTICES.txt` (the MIT, zlib and OFL licences require their text to travel with binaries), and a players' `README.txt`.
+
+**Staging, then verifying.** `Tools/Dist/package.ps1` runs: build `build-dist/` → install into `Dist/AtomGame/` (deleted first, so nothing stale survives) → verify → start it from `%TEMP%` with another working directory → zip.
+
+`verify.ps1` takes its expectations from a `.payload` file the same install rules write, not from a second, hand-kept list. A package fails when:
+- something is **missing** (a folder, the 21 shaders, a licence);
+- something is **extra** (`.blend`, `.py`, `.pdb`, test scripts, schemas, the lab);
+- a binary **needs a DLL** Windows doesn't have (`dumpbin`);
+- a shader is **unsigned**.
+
+**Concept: DXIL signing.** A compiled shader container starts with `DXBC` and a 16-byte digest. dxc fills the digest only when it finds `dxil.dll` (the validator) beside it. Unsigned shaders run on a developer's machine, but release drivers refuse them, so the check reads the digest.
+
+**Concept: reproducibility.** The same revision must give the same package. Every file is identical between runs. The ZIP container isn't, because the writer stores its own metadata, so the guarantee is stated as "same contents". Stamping entries with the commit's time (`--mtime`) at least removes the build time.
+
+Two practical bugs taught their own lessons:
+- **`dumpbin`'s header** "Dump of file …SDL3.dll" looked like a dependency.
+- **`.gitignore` is case-insensitive on Windows,** so `Dist/` also hid `Tools/Dist/`. Anchored patterns (`/Dist/`) fixed it.
+
+**Code.** `Game/CMakeLists.txt` (install rules), `Shaders/CMakeLists.txt` (exports the shader folder and count), `Tools/Dist/package.ps1`, `verify.ps1`, `README.txt.in`.
+
+---
+
+## 87. CI as a check, not a release channel (M69)
+
+A second CI job builds the game and its shaders on a fresh runner (dxc from the Windows SDK), then runs `package.ps1 -NoSmoke`. There's no GPU on hosted runners, so it doesn't start the game. Its value is the **red or green**: a change that breaks the package (a missing file, a new DLL dependency, an unsigned shader) fails a pull request.
+
+**Concept: artifacts vs releases.**
+- **An artifact** is a file a CI run keeps. It's downloadable only when signed in to GitHub, found on that run's page, wrapped in another ZIP, and gone after 90 days. That's useful to a developer, not to a player.
+- **A release** (a GitHub Release page, an itch.io upload) is for players.
+
+The first version uploaded the 16 MB ZIP on every run, and nobody would ever download it, so the upload was removed. Packages for players are made with the package command and published by hand, which at this pace is a minute a few times a year. Automate (a manual "publish" job, itch.io's butler) only when publishing becomes frequent.
+
+The workflow runs on **pull requests, pushes to master, and on demand**, not on every push. The docs had said otherwise since 0.0.9.
+
+**Code.** `.github/workflows/ci.yml`.
+
+---
+
+## 88. What ships, and the clean-machine test (M70)
+
+**Concept: keep diagnostics, don't strip.** It's tempting to remove developer features from a release. But the shipped executable should be the *tested* one, and on a stranger's PC a hidden diagnostic is priceless. Architecture §9's policy:
+- **Always available:** the log, `--diagnostics`, the start-failure box.
+- **Shipped as diagnostics:** F10, F1, F2–F8, behind keys a player never needs.
+- **Development-enabled:** `ATOM_*` switches, the harness, `bench`, `screenshot`. They ship but stay inert unless set.
+- **Debug only:** asserts, the D3D12 debug layer.
+- **Not packaged:** the lab, the tests, the probes, the tools, the schemas.
+
+**Two builds, one source:**
+
+| | `build/` | `build-dist/` |
+|---|---|---|
+| For | development | players |
+| Program | console | windowed (`ATOM_DISTRIBUTION=ON`) |
+| Configurations | Debug, Release | Release |
+| Tests | yes | no |
+
+**Concept: a clean machine.** "Works on my machine" hides dependencies the developer installed long ago. The decisive test is a Windows with nothing on it: a **VirtualBox VM** restored from a "clean" snapshot each time. Windows containers can't do this: they need Windows Pro or Server, have no desktop and no real GPU. VirtualBox has no Direct3D 12 either, so the VM proves everything up to the GPU (DLLs, paths, log, settings, the failure message), but not a play-through. `docs/Distribution-Test.md` holds the procedure and its expected results.
+
+**Code.** `docs/Architecture.md` §9, `docs/Distribution-Test.md`, the README's Distribution and troubleshooting sections.
+
+---
+
+## 89. Releasing 0.0.11 (M71)
+
+**The numbers:**
+- **Exe:** 2.0 MB.
+- **Package:** 25.9 MB in 122 files, one DLL; the ZIP is 16.1 MB.
+- **Packaging:** 6 s when up to date, 132 s from a fresh clone.
+- **Speed vs v0.0.10:** night street +0.07 ms, lakeshore +0.004 ms. The static runtime and the subsystem cost nothing.
+- **Unexpected runtime dependencies:** none, beyond the C++ runtime.
+
+**What distribution pressure revealed:**
+- **The runtime was mostly ready.** Paths from the executable's folder, settings in `%APPDATA%` and an explicit asset list were all earlier decisions that paid off here.
+- **The blockers were outside the code:** a borrowed C++ runtime, a console, no log, and an asset whose **rights** weren't recorded. Licences are part of engineering once something ships.
+- **SmartScreen.** Windows warns about unsigned executables downloaded from the internet ("Windows protected your PC" → *More info → Run anyway*). Removing the warning takes **code signing**, a certificate bought and a signing step added. That's a cost and a process, deferred until publishing makes it worth it.
+
+**Next, from the evidence:** a play-through on a second real PC, a lab character with a clear licence, and input latency measured.
+
+**Code.** `CHANGELOG.md` 0.0.11.
+
+---
+
+## 90. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2314,16 +2466,18 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.8** (same method; Balanced power plan): the lakeshore from the beach per preset - clear day, overcast and fog 3.53 ms, rain 3.90, sunset 3.32, night 3.58. Against v0.0.7, interleaved builds (§69): the street −0.035 ms, the windmill field −0.007, the night street +0.15 (noisy), all within resolution. What the lake's features cost is in §69.
 - **v0.0.9** adds no feature: against v0.0.8 (interleaved builds) the street +0.027 ms and the lakeshore +0.024 ms, within resolution. Level loads now log their own timing (§74), e.g. the night street 173 ms, mostly GPU upload.
 - **v0.0.10**, against v0.0.9 (interleaved builds, §82): the night street −0.51 ms, the lakeshore −0.55 ms, from the third frame in flight (§81); with vsync on the 144 Hz panel, 72 → 144 fps. Baselines measured with two frames in flight don't compare with v0.0.10's.
+- **v0.0.11** adds no rendering work: against v0.0.10 (interleaved builds, §89) the night street +0.07 ms and the lakeshore +0.004 ms, within noise. The static C++ runtime and the new log cost nothing measurable.
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 85. Build system and project layout
+## 91. Build system and project layout
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83). The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73). CMake 3.26 or later.
-- **CI** (§72): `.github/workflows/ci.yml`, unit tests on every push. **Validation ladder** (§75): `Tools/Dev/check.ps1`.
+- **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85). The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73), split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
+- **Distribution** (§86): `pwsh Tools/Dist/package.ps1` builds `build-dist/`, stages `Dist/AtomGame/` with `cmake --install`, verifies it and zips `Dist/AtomGame-v<version>-win64.zip`.
+- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, and the package check (no artifact kept). **Validation ladder** (§75): `Tools/Dev/check.ps1`.
 - **Shader variants** (§69): `BasicRain.frag` includes `Basic.frag` with a define; a change to `Basic.frag` rebuilds both.
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
@@ -2350,12 +2504,14 @@ Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Flashlight; DemoAppDevTools (the ImGui panels)
          Environment/ (EnvironmentController); Level/Environment (state, Blend)
          Settings/ (GameSettings, Calibration); DemoAppCalibration
+         Platform/RunLog (the log, console attach)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), benchmark scenarios (lights, water and weather)
 Tools/Dev/  check.ps1 (the validation ladder), doctor.ps1, common.ps1
+Tools/Dist/  package.ps1 (the package), verify.ps1 (its check), README.txt.in (players' README)
 Tools/PresentationProbe/  PresentationProbe (SDL or raw D3D12, window moves),
                           SwapchainMatrix (every swapchain kind, D3D11/D3D12, every adapter)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
@@ -2379,7 +2535,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 86. Glossary
+## 92. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -2394,6 +2550,14 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Calibration** — measuring the machine on fixed views to choose a quality tier, instead of guessing from hardware names (§81).
 - **Discrete / integrated GPU** — a separate graphics chip with its own memory / one built into the CPU, sharing system memory.
 - **Frames in flight** — how many frames the CPU may queue ahead of the GPU; more keeps the GPU busy, but each full slot delays input by a frame (§81).
+- **Artifact (CI)** — a file a CI run keeps for a while; for developers, not players (compare release, §87).
+- **Clean machine** — a computer with none of the developer's tools or runtimes, the only honest test of a package (§88).
+- **Code signing** — a certificate-backed signature on an executable; without it, Windows SmartScreen warns about downloads (§89).
+- **Install rules** — CMake's description of what a build installs and where; `cmake --install` copies exactly that (§86).
+- **Staging** — assembling a package in a fresh folder before verifying and archiving it.
+- **Static / dynamic linking (C++ runtime)** — copying the runtime into the executable (`/MT`) versus loading it from DLLs a machine must have (`/MD`, §84).
+- **Subsystem (Windows)** — an executable's declared kind: console (gets a console window) or windows (no console, starts at `WinMain`, §85).
+- **Tee** — duplicating one output stream into two destinations, like the plumbing T (§85).
 - **Cross-adapter presentation** — one GPU renders and another shows the image; Windows copies each frame between them (hybrid laptops, §83).
 - **Flip model / bitblt model** — the two kinds of DXGI swapchain: flip hands whole buffers to the compositor (required by D3D12, modern D3D11); bitblt has the compositor copy from one buffer (old D3D11 games).
 - **LUID** — a locally unique ID Windows gives each adapter; GPU performance counters name adapters by it.

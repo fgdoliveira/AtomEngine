@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.10
+    VERSION 0.0.11
     LANGUAGES CXX
 )
 
@@ -17,11 +17,21 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # shader compiler (dxc) needed: what CI runs.
 option(ATOM_BUILD_GAME "Build the AtomGame executable and compile its shaders (needs dxc)" ON)
 
+# M67: the game as players get it - a windowed program, no console. Off
+# for development (Debug and Release keep their console); the package
+# command (Tools/Dist) builds its own folder with it on.
+option(ATOM_DISTRIBUTION "Build the game as distributed: a windowed program (no console)" OFF)
+
 option(
     ATOM_BUILD_PRESENTATION_PROBE
     "Build the private D3D12 presentation investigation probe"
     OFF
 )
+
+# M66: the C++ runtime is linked statically into every target (SDL3.dll
+# included), so a PC without the Visual C++ Redistributable can start the
+# game. Set before the first target, so nothing mixes runtimes.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # third party libraries
 add_subdirectory(external/SDL)

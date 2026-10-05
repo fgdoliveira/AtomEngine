@@ -10,12 +10,15 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.10** — hardware portability: saved settings, a
-command line, quality presets kept separate from the GPU choice, an F10
-Settings panel, a `--diagnostics` report and `Tools/Dev/doctor.ps1`, a
-high-performance GPU option that falls back safely, and opt-in
-calibration. Out of the box it looks and runs as 0.0.9 did. (0.0.9 was
-hardening from an architecture audit; 0.0.8 brought water and weather.)
+Current version: **0.0.11** — distribution: one command
+(`Tools/Dist/package.ps1`) makes a ZIP a player extracts and
+double-clicks, with no repository or development tools involved. The C++
+runtime is linked in, the shipped game is windowed and logs every run,
+the package's contents are verified, and CI checks on every pull
+request that a clean clone can still make it.
+(0.0.10 brought hardware portability: settings, quality presets, a safe
+high-performance GPU option; 0.0.9 was hardening from an architecture
+audit.)
 See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
@@ -107,6 +110,7 @@ Build options (CMake `-D`):
 |---|---|---|
 | `ATOM_BUILD_GAME` | ON | the `AtomGame` executable and its shaders (needs `dxc`) |
 | `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
+| `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
 
 `-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
@@ -209,6 +213,17 @@ calibration result, and *Calibrate now*, *Calibrate next launch* and
 *Reset*. Choices are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json`;
 a damaged or unknown file is ignored, never fatal.
 
+**Log.** Development builds open a console with the game; the
+distributed build (`-DATOM_DISTRIBUTION=ON`, which the package command
+uses) is a windowed program with no console. Either way each run writes
+its output to `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`,
+keeping the previous run as `AtomGame.previous.log`. It holds the version,
+folder, SDL, the GPUs tried and why, the quality and every level load.
+Started from a terminal, it prints there too. Scripted runs (scenarios,
+benchmarks) print only, so they never overwrite the player's log. If the
+game can't start when double-clicked, a message box gives the reason and
+the log's path.
+
 Command line (it overrides the `ATOM_*` variables, which override the
 saved file, which overrides the defaults):
 
@@ -287,6 +302,54 @@ Developer switches (environment variables):
 | `ATOM_CALIBRATE_SECONDS=<s>` | shorter calibration windows (tests) |
 | `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` | pretend the swapchain is lost after that many seconds of play, to test the fallback |
 
+## Distribution
+
+One command makes the Windows package players download:
+
+```sh
+pwsh Tools/Dist/package.ps1          # -NoSmoke on a machine without a GPU
+```
+
+It builds a Release game in its own folder (`build-dist/`, with
+`-DATOM_DISTRIBUTION=ON`: windowed, no console), installs it into
+`Dist/AtomGame/` with the CMake install rules, verifies it
+(`Tools/Dist/verify.ps1`), starts it once from outside the repository,
+and zips `Dist/AtomGame-v<version>-win64.zip`. The install rules in
+`Game/CMakeLists.txt` are the one definition of what ships:
+
+```text
+AtomGame/
+├── AtomGame.exe            C++ runtime linked in: no Visual C++ Redistributable needed
+├── SDL3.dll                the only DLL
+├── shaders/*.dxil          precompiled and signed
+├── Assets/                 the shipped asset folders (the character lab stays out)
+├── README.txt              for players: controls, settings, logs, what to try
+├── LICENSE.txt
+└── THIRD_PARTY_NOTICES.txt SDL, GLM, nlohmann/json, cgltf, stb, Dear ImGui, the font
+```
+
+The check fails the package if anything is missing (a shipped asset
+folder, a shader, a licence), if anything development-only got in
+(`.blend`, `.py`, `.pdb`, test scripts, schemas, the lab), if a binary
+needs a DLL Windows doesn't have, or if a shader is unsigned. The same
+revision gives the same files.
+
+What ships and what doesn't (diagnostics are kept on purpose), and the
+whole flow, are in [docs/Architecture.md](docs/Architecture.md) §9. A
+release candidate is tested on a clean Windows VM with
+[docs/Distribution-Test.md](docs/Distribution-Test.md).
+
+**Troubleshooting a player's report.** Ask for:
+1. `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log` (and
+   `AtomGame.previous.log` if they started it again since). It holds
+   the version, the folder, SDL, every GPU tried and why it failed, the
+   quality, each level load.
+2. `AtomGame.exe --diagnostics report.txt`, run in the game's folder: the
+   GPU, present modes, display, power and effective settings.
+
+Things they can try: `--gpu low-power` (laptops), `--quality low`,
+`--reset-settings`.
+
 ## Testing
 
 ```sh
@@ -295,11 +358,15 @@ ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
 ```
 
-**CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every push and
-pull request: a fresh Windows machine clones with submodules, configures
-with `-DATOM_BUILD_GAME=OFF` (no shader compiler), builds `AtomTests` in
-Release and runs them. It answers "does a clean clone build and pass?".
-The in-game scenarios and every performance measurement stay local: they
+**CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every pull
+request and every push to master (and on demand): a fresh Windows machine
+clones with submodules, configures with `-DATOM_BUILD_GAME=OFF` (no
+shader compiler), builds `AtomTests` in Release and runs them. It answers
+"does a clean clone build and pass?". A second job runs
+`Tools/Dist/package.ps1 -NoSmoke`: it builds the game and its shaders,
+then stages, verifies and zips the distribution. It's a check, not a
+release channel: the ZIP isn't kept, and packages for players are made
+and published by hand. The in-game scenarios and every performance measurement stay local: they
 need a real GPU, and hosted machines time things too noisily.
 
 Every scenario also checks, on each level change, that the new level is
@@ -374,8 +441,8 @@ touches: rendering and shaders → `first_render`, `lakeshore`,
 `night_street`; levels and transitions → `levels_roundtrip`, `hot_reload`;
 developer tools → `devtools`; weather → `environment`; otherwise the
 level's own scenario. Rebuild assets only when Blender scripts or content
-products change. CI runs the unit tests on every push; scenarios are
-always a local job.
+products change. CI runs the unit tests and the package check on pull
+requests and pushes to master; scenarios are always a local job.
 
 ## Content pipeline
 
