@@ -128,6 +128,20 @@ namespace Atom
         // mailbox) while measuring, then back to how it started. False if
         // the swapchain refused.
         bool SetUncappedPresentation(bool uncapped) { return m_gpu.SetUncappedPresentation(uncapped); }
+
+        // M74: wait for the swapchain at the top of the frame, before input
+        // is read, instead of inside Render() after it (the default;
+        // ATOM_LATENCY_WAIT=late for the old order). The wait itself doesn't
+        // change; what it delays does: an input arriving during it is read
+        // by this frame.
+        bool WaitsEarly() const { return m_waitEarly; }
+        void WaitForPresentSlot()
+        {
+            if (m_waitEarly)
+            {
+                m_gpu.WaitForPresentSlot();
+            }
+        }
         void Shutdown();
 
         std::unique_ptr<Mesh> CreateMesh(
@@ -460,6 +474,13 @@ namespace Atom
         Failure m_lastFailure = Failure::None;
         bool m_simulateSwapchainLoss = false;
         LatencyProbe m_latency;
+        bool m_waitEarly = true; // M74
+        // M74: the one-time check that 2 frames in flight hold the refresh.
+        void WatchFramesInFlight();
+        bool m_framesGuard = false;
+        std::uint32_t m_guardFrames = 0;
+        std::uint64_t m_guardLastNs = 0;
+        FrameStatsWindow m_guardIntervals;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;

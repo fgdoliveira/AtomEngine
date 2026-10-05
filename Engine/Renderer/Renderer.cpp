@@ -313,7 +313,9 @@ namespace Atom
         presentation.vsync = config.vsync;
         const char* present = SDL_getenv("ATOM_PRESENT");
         presentation.preferImmediate = present && std::string_view(present) == "immediate";
-        if (const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT"); frames && *frames)
+        const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT");
+        const bool framesChosen = frames && *frames;
+        if (framesChosen)
         {
             presentation.framesInFlight = static_cast<std::uint32_t>(SDL_atoi(frames));
         }
@@ -321,6 +323,15 @@ namespace Atom
         {
             return false;
         }
+        // M74: the swapchain wait happens before input is read (measured:
+        // 30.2 -> 24.1 ms click to display with 2 frames, same 144 fps).
+        // ATOM_LATENCY_WAIT=late restores the old order, for comparison.
+        const char* wait = SDL_getenv("ATOM_LATENCY_WAIT");
+        m_waitEarly = !(wait && SDL_strcmp(wait, "late") == 0);
+        std::cout << "Swapchain wait: " << (m_waitEarly ? "early (before input is read)" : "late (in Render)") << '\n';
+        // M74: 2 frames in flight unless chosen - watched once, with vsync,
+        // in case 2 can't hold the refresh rate here (as on v0.0.10's driver).
+        m_framesGuard = !framesChosen && m_gpu.GetInfo().framesInFlight == 2;
         // M73: ATOM_LATENCY_LOG=1 times each click through the frame.
         if (const char* latency = SDL_getenv("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
         {
@@ -766,12 +777,54 @@ namespace Atom
             [&](const DrawCommand& a, const DrawCommand& b) { return key(a) < key(b); });
     }
 
+    void Renderer::WatchFramesInFlight()
+    {
+        // Only while presenting with vsync (calibration presents uncapped).
+        const Uint64 now = SDL_GetTicksNS();
+        const Uint64 last = std::exchange(m_guardLastNs, now);
+        if (m_gpu.GetInfo().presentMode != "vsync")
+        {
+            return;
+        }
+        // Skip the first frames: the first level loads and pipelines build.
+        constexpr std::uint32_t WarmUp = 120;
+        constexpr std::size_t Measured = 240;
+        if (++m_guardFrames <= WarmUp || last == 0)
+        {
+            return;
+        }
+        m_guardIntervals.AddSample(static_cast<double>(now - last) / 1.0e6);
+        if (m_guardIntervals.Count() < Measured)
+        {
+            return;
+        }
+        m_framesGuard = false; // decided once
+        const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(m_window));
+        const double refresh = mode ? mode->refresh_rate : 0.0;
+        const double median = m_guardIntervals.Median();
+        if (NeedsThirdFrame(median, refresh))
+        {
+            std::cout << "Frames in flight: 2 can't hold the " << refresh << " Hz refresh here (median frame "
+                      << median << " ms); using 3\n";
+            m_gpu.SetFramesInFlight(3);
+        }
+        else
+        {
+            std::cout << "Frames in flight: 2 hold the " << refresh << " Hz refresh (median frame " << median << " ms)\n";
+        }
+        m_guardIntervals.Clear();
+    }
+
     bool Renderer::Render()
     {
         if (!m_device || !m_window || !m_gpu.IsWindowClaimed())
         {
             std::cerr << "Cannot render before the renderer is initialized.\n";
             return false;
+        }
+        if (m_framesGuard)
+        {
+            WatchFramesInFlight();
         }
 
         // Draws are only valid for the frame they were submitted in.

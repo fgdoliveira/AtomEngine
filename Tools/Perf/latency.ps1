@@ -5,8 +5,11 @@
 #
 # Configurations (any list, repeats allowed - the same twice is the trust
 # check):
-#   fif2-vsync, fif3-vsync           ATOM_FRAMES_IN_FLIGHT 2 / 3, vsync (the default mode)
+#   default                          nothing set: the build's own defaults
+#   fif2-vsync, fif3-vsync           ATOM_FRAMES_IN_FLIGHT 2 / 3, vsync, the wait late (v0.0.11's order)
 #   fif2-immediate, fif3-immediate   the same, uncapped (ATOM_VSYNC=0 ATOM_PRESENT=immediate)
+#   fif2-vsync-early, fif3-vsync-early, fif2-immediate-early
+#                                    the swapchain wait before input (ATOM_LATENCY_WAIT=early, M74)
 #
 # Each run starts the game in the level (an idle script, ATOM_LATENCY_FLASH
 # on: each click turns that frame black), records it with PresentMon, and
@@ -44,10 +47,16 @@ Set-Location $root
 $Configs = @($Configs | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
 $known = @{
-    "fif2-vsync"     = @{ ATOM_FRAMES_IN_FLIGHT = "2" }
-    "fif3-vsync"     = @{ ATOM_FRAMES_IN_FLIGHT = "3" }
-    "fif2-immediate" = @{ ATOM_FRAMES_IN_FLIGHT = "2"; ATOM_VSYNC = "0"; ATOM_PRESENT = "immediate" }
-    "fif3-immediate" = @{ ATOM_FRAMES_IN_FLIGHT = "3"; ATOM_VSYNC = "0"; ATOM_PRESENT = "immediate" }
+    "fif2-vsync"     = @{ ATOM_FRAMES_IN_FLIGHT = "2"; ATOM_LATENCY_WAIT = "late" }
+    "fif3-vsync"     = @{ ATOM_FRAMES_IN_FLIGHT = "3"; ATOM_LATENCY_WAIT = "late" }
+    "fif2-immediate" = @{ ATOM_FRAMES_IN_FLIGHT = "2"; ATOM_VSYNC = "0"; ATOM_PRESENT = "immediate"; ATOM_LATENCY_WAIT = "late" }
+    "fif3-immediate" = @{ ATOM_FRAMES_IN_FLIGHT = "3"; ATOM_VSYNC = "0"; ATOM_PRESENT = "immediate"; ATOM_LATENCY_WAIT = "late" }
+    # Nothing set: whatever this build does by default.
+    "default"        = @{}
+    # M74: the swapchain wait moved before input (ATOM_LATENCY_WAIT=early).
+    "fif2-vsync-early"     = @{ ATOM_FRAMES_IN_FLIGHT = "2"; ATOM_LATENCY_WAIT = "early" }
+    "fif3-vsync-early"     = @{ ATOM_FRAMES_IN_FLIGHT = "3"; ATOM_LATENCY_WAIT = "early" }
+    "fif2-immediate-early" = @{ ATOM_FRAMES_IN_FLIGHT = "2"; ATOM_VSYNC = "0"; ATOM_PRESENT = "immediate"; ATOM_LATENCY_WAIT = "early" }
 }
 foreach ($config in $Configs) { if (-not $known.ContainsKey($config)) { throw "Unknown configuration '$config' (known: $($known.Keys -join ', '))" } }
 if (-not (Test-Path $Game)) { throw "No game at $Game (build Release first)" }
@@ -106,7 +115,7 @@ $temp = [System.IO.Path]::GetTempPath()
 $script = Join-Path $temp "atom_latency.atomtest"
 $warmup = 4.0
 "wait $($warmup + $Seconds + 2)`nquit`n" | Set-Content -NoNewline -Path $script
-$variables = @("ATOM_TEST_SCRIPT", "ATOM_START_LEVEL", "ATOM_LATENCY_FLASH", "ATOM_LATENCY_LOG", "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT")
+$variables = @("ATOM_TEST_SCRIPT", "ATOM_START_LEVEL", "ATOM_LATENCY_FLASH", "ATOM_LATENCY_LOG", "ATOM_LATENCY_WAIT", "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT")
 $saved = @{}
 foreach ($name in $variables) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
 
@@ -123,7 +132,7 @@ function Get-P95([double[]]$values) {
 
 # One run: returns its latency samples and displayed-frame intervals, or $null.
 function Invoke-Run([string]$config) {
-    foreach ($name in "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT") { [Environment]::SetEnvironmentVariable($name, $null) }
+    foreach ($name in "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT", "ATOM_LATENCY_WAIT") { [Environment]::SetEnvironmentVariable($name, $null) }
     foreach ($entry in $known[$config].GetEnumerator()) { [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value) }
     [Environment]::SetEnvironmentVariable("ATOM_TEST_SCRIPT", $script)
     [Environment]::SetEnvironmentVariable("ATOM_START_LEVEL", $Level)

@@ -28,7 +28,7 @@ namespace Atom
     {
         bool vsync = true;
         bool preferImmediate = false; // ATOM_PRESENT=immediate (M46)
-        std::uint32_t framesInFlight = 3;
+        std::uint32_t framesInFlight = 2; // M74: measured lower latency (see GPUDevice.cpp)
     };
 
     // Why the requested adapter isn't the one in use. Two different steps
@@ -67,6 +67,11 @@ namespace Atom
     PresentMode ChoosePresentMode(const PresentationConfig& config, bool supportsMailbox, bool supportsImmediate);
     const char* GetPresentModeName(PresentMode mode);
 
+    // Pure (M74): with vsync and 2 frames in flight, does the frame interval
+    // show that 2 can't hold the display's refresh (median > 1.6 refresh
+    // periods - a halved rate, or a GPU too slow for it)? Then 3 is needed.
+    bool NeedsThirdFrame(double medianIntervalMs, double refreshHz);
+
     // Pure: the requested preference and why it wasn't honoured, e.g.
     // `high_performance (fell back: "NVIDIA ..." could not present to this window)`.
     std::string DescribePreference(GPUPreference requested, const std::optional<StartupFallback>& fallback);
@@ -94,6 +99,14 @@ namespace Atom
         // M64: present without waiting for the display while measuring,
         // then back to the configured mode. False if the swapchain refused.
         bool SetUncappedPresentation(bool uncapped);
+        // M74: block until the swapchain can take the next frame, so the
+        // frame's acquire won't (SDL_WaitForGPUSwapchain; in SDL 3.4.18's
+        // D3D12 backend, the fence of the next swapchain slot - the same
+        // one the acquire waits on).
+        bool WaitForPresentSlot();
+        // M74: change frames in flight while running (SDL waits for the GPU
+        // and rebuilds the swapchain: a one-off stall).
+        bool SetFramesInFlight(std::uint32_t frames);
         // abandon: leave the device to the OS (see the .cpp, M63).
         void Shutdown(bool abandon = false);
 

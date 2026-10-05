@@ -119,6 +119,9 @@ namespace Atom
 
         while (m_running)
         {
+            // M74 (ATOM_LATENCY_WAIT=early): wait for the swapchain first, so
+            // input is read after the wait rather than before it.
+            m_renderer.WaitForPresentSlot();
             // M73 (ATOM_LATENCY_LOG): when the frame began, and the click it read.
             const std::uint64_t frameStartNs = SDL_GetTicksNS();
             ProcessEvents();
