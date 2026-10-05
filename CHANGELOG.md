@@ -4,8 +4,8 @@
 
 Out of the repository: a person who has never cloned AtomEngine
 downloads a ZIP, extracts it, double-clicks and plays. One command makes
-that package, a check proves what's in it, and CI makes it on every
-push. No new engine feature. Most of the runtime was already ready
+that package, a check proves what's in it, and CI checks on every pull
+request that a clean clone can still make it. No new engine feature. Most of the runtime was already ready
 (paths from the executable's folder, settings in `%APPDATA%`, an
 explicit asset list); what stood in the way was a C++ runtime borrowed
 from the development machine, a console window, no log, and an asset
@@ -24,8 +24,11 @@ with unrecorded rights.
   `.py`, `.pdb`, test scripts, schemas, the lab); whose binaries need a
   DLL Windows doesn't have (`dumpbin`); or whose shaders are unsigned.
   Its expectations come from the same CMake lists.
-- **CI builds the package (M69):** a second job on every push, keeping
-  the ZIP as the `AtomGame-win64` artifact.
+- **CI checks the package (M69):** a second job, on pull requests and
+  pushes to master, builds, stages and verifies the distribution from a
+  clean clone. It's a check, not a release channel: the ZIP isn't kept
+  (16 MB per run, never downloaded). Packages for players are made with
+  the package command and published by hand.
 - **A log for every run (M67):** `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`
   (the previous run kept as `AtomGame.previous.log`), each line on disk at
   once. Scripted runs (scenarios, benchmarks) don't write it.

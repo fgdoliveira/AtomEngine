@@ -31,8 +31,7 @@ then play).
 
 ## Run the test
 
-1. On the development machine: `pwsh Tools/Dist/package.ps1`, or take
-   the `AtomGame-win64` artifact from the CI run of the commit.
+1. On the development machine: `pwsh Tools/Dist/package.ps1`.
 2. Copy `AtomGame-v<version>-win64.zip` into the VM (drag and drop, or a
    shared folder), and **extract** it to `C:\Games\` (right-click →
    Extract All).

@@ -14,7 +14,8 @@ Current version: **0.0.11** — distribution: one command
 (`Tools/Dist/package.ps1`) makes a ZIP a player extracts and
 double-clicks, with no repository or development tools involved. The C++
 runtime is linked in, the shipped game is windowed and logs every run,
-the package's contents are verified, and CI builds it on every push.
+the package's contents are verified, and CI checks on every pull
+request that a clean clone can still make it.
 (0.0.10 brought hardware portability: settings, quality presets, a safe
 high-performance GPU option; 0.0.9 was hardening from an architecture
 audit.)
@@ -357,14 +358,15 @@ ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
 ```
 
-**CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every push and
-pull request: a fresh Windows machine clones with submodules, configures
-with `-DATOM_BUILD_GAME=OFF` (no shader compiler), builds `AtomTests` in
-Release and runs them. It answers "does a clean clone build and pass?".
-A second job runs `Tools/Dist/package.ps1 -NoSmoke`: it builds the game
-and its shaders, then stages, verifies and zips the distribution. The ZIP
-is kept as the run's `AtomGame-win64` artifact, so every push shows that
-the package can be made from a clean clone. The in-game scenarios and every performance measurement stay local: they
+**CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every pull
+request and every push to master (and on demand): a fresh Windows machine
+clones with submodules, configures with `-DATOM_BUILD_GAME=OFF` (no
+shader compiler), builds `AtomTests` in Release and runs them. It answers
+"does a clean clone build and pass?". A second job runs
+`Tools/Dist/package.ps1 -NoSmoke`: it builds the game and its shaders,
+then stages, verifies and zips the distribution. It's a check, not a
+release channel: the ZIP isn't kept, and packages for players are made
+and published by hand. The in-game scenarios and every performance measurement stay local: they
 need a real GPU, and hosted machines time things too noisily.
 
 Every scenario also checks, on each level change, that the new level is
@@ -439,8 +441,8 @@ touches: rendering and shaders → `first_render`, `lakeshore`,
 `night_street`; levels and transitions → `levels_roundtrip`, `hot_reload`;
 developer tools → `devtools`; weather → `environment`; otherwise the
 level's own scenario. Rebuild assets only when Blender scripts or content
-products change. CI runs the unit tests on every push; scenarios are
-always a local job.
+products change. CI runs the unit tests and the package check on pull
+requests and pushes to master; scenarios are always a local job.
 
 ## Content pipeline
 

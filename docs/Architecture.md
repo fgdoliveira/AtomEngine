@@ -270,8 +270,8 @@ flowchart LR
   Debug and Release, tests) and `build-dist/` for players (windowed,
   Release, no tests). They differ only in `ATOM_DISTRIBUTION`.
 - **Checked:** locally by `Tools/Dist/package.ps1`, which also starts the
-  package from outside the repository, and on every push by CI's
-  `package` job (M69). A clean-machine run follows
+  package from outside the repository, and on pull requests and pushes to
+  master by CI's `package` job (M69), a check that keeps no ZIP. A clean-machine run follows
   [Distribution-Test.md](Distribution-Test.md).
 
 **What ships, and how (M70).** Diagnostics are kept on purpose: on a
@@ -304,7 +304,7 @@ tested one, with the same code paths.
 
 | Layer | Runs where | Catches |
 |---|---|---|
-| Unit and authoring tests (`ctest -LE scenario`) | locally and in **CI** on every push | logic, parsing, content errors; a clean clone that doesn't build |
+| Unit and authoring tests (`ctest -LE scenario`) | locally and in **CI** on pull requests and pushes to master | logic, parsing, content errors; a clean clone that doesn't build |
 | In-game scenarios (`ctest -L scenario`) | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
 | Paired benches, `ab.ps1` | locally, plugged in | performance changes - never a CI gate |
 
