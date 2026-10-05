@@ -23,6 +23,11 @@ option(
     OFF
 )
 
+# M66: the C++ runtime is linked statically into every target (SDL3.dll
+# included), so a PC without the Visual C++ Redistributable can start the
+# game. Set before the first target, so nothing mixes runtimes.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 # third party libraries
 add_subdirectory(external/SDL)
 add_subdirectory(external/glm)

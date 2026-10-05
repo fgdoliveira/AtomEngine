@@ -169,6 +169,25 @@ Loading is synchronous and fused (`Model::Load` parses, decodes and
 uploads); every level load logs its time and where it went (M57). Split CPU
 from GPU loading only when a measured hitch or a tool needs it.
 
+**What a player's machine needs (M66).** A git submodule is not a
+runtime dependency; most of them disappear into the executable:
+
+| Class | What | Reaches the player as |
+|---|---|---|
+| **Compile-time only** | GLM, nlohmann/json, cgltf, stb (headers or compiled-in sources), Dear ImGui (a static library), the MSVC C++ runtime (linked statically) | code inside `AtomGame.exe` |
+| **Runtime library** | SDL3 | `SDL3.dll`, the only DLL shipped |
+| **Operating system** | Direct3D 12, DXGI, Win32 (kernel32, user32, gdi32, shell32, winmm, imm32, ole32, …) | already on Windows 10/11 |
+| **Runtime asset** | the shipped asset folders, DXIL shaders | files beside the executable |
+| **Authoring tool** | Blender and `Tools/Blender`, Python, `dxc` | nothing: their products are committed or built |
+| **Development tool** | CMake, Visual Studio, doctest, `PresentationProbe`, `SwapchainMatrix`, `Tools/Perf`, `Tools/Dev`, PIX / RenderDoc | nothing |
+| **Distribution metadata** | `LICENSE.txt`, the third-party notices (MIT, zlib, OFL) | text files in the package |
+
+The C++ runtime used to be a DLL dependency (`VCRUNTIME140`, `MSVCP140`,
+and the `api-ms-win-crt-*` set) that a PC without the Visual C++
+Redistributable doesn't have. Since M66 every target links it statically
+(`CMAKE_MSVC_RUNTIME_LIBRARY`, set before the first target so nothing mixes
+runtimes), SDL3.dll included.
+
 ## 8. Hardware and settings
 
 Two decisions are kept apart: **which adapter** (a stability choice, made
