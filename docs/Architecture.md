@@ -282,6 +282,30 @@ needed for something else (then a live adapter switch costs little), or
 when the default adapter proves wrong on hardware other than hybrid
 laptops.
 
+**Addendum (after 0.0.10): the RTX can't present to the panel at all.**
+On the development laptop (HP, muxless Optimus: the panel is wired to
+the Iris Xe only), no program can put an RTX image on the built-in panel
+through Windows' hybrid path. Each possible cause was ruled out in turn
+(`Tools/PresentationProbe/SwapchainMatrix.cpp` reproduces it):
+
+| Ruled out | Evidence |
+|---|---|
+| AtomEngine's code | a raw D3D12 probe, without SDL, fails the same way |
+| SDL | 3.4.16 and 3.4.18 alike; SDL's error says "success (0x00000000)", the probe gets `0x887A0005` |
+| The swapchain kind | flip discard and sequential, bitblt, 2 or 3 buffers, BGRA or RGBA: all fail on the RTX, all work on the Iris |
+| The API | D3D11 fails too when the RTX is chosen explicitly |
+| NVIDIA's opt-ins | the `NvOptimusEnablement` export, and a per-program NVIDIA profile: no effect on D3D12 |
+| The launching session | the same from the user's own terminal |
+| The Intel driver | 32.0.101.6790 → 7092 (the newest for this chip; Intel's main driver no longer lists it): no change |
+
+A D3D11 game (*The Evil Within*) does render on the RTX and show on the
+panel, through NVIDIA's older per-game Optimus path, which D3D12 lacks.
+So this is the laptop's hybrid-display stack, not something an engine
+can work around. It confirms the decision: low-power by default,
+high-performance as an opt-in that falls back and says which step failed
+(`GPUDevice`, §4). On this machine the RTX is testable on an external
+monitor wired to it.
+
 ## 12. When to add what
 
 | Architecture or library | Not yet, because | Reconsider when |
