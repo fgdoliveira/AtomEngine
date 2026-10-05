@@ -343,7 +343,10 @@ ctest --test-dir build -C Release -L scenario  # in-game scenarios
 pull request: a fresh Windows machine clones with submodules, configures
 with `-DATOM_BUILD_GAME=OFF` (no shader compiler), builds `AtomTests` in
 Release and runs them. It answers "does a clean clone build and pass?".
-The in-game scenarios and every performance measurement stay local: they
+A second job runs `Tools/Dist/package.ps1 -NoSmoke`: it builds the game
+and its shaders, then stages, verifies and zips the distribution. The ZIP
+is kept as the run's `AtomGame-win64` artifact, so every push shows that
+the package can be made from a clean clone. The in-game scenarios and every performance measurement stay local: they
 need a real GPU, and hosted machines time things too noisily.
 
 Every scenario also checks, on each level change, that the new level is

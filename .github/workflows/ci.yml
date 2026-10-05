@@ -3,6 +3,9 @@
 # submodules, configures without the game (ATOM_BUILD_GAME=OFF: no shader
 # compiler needed), builds the unit tests in Release and runs them.
 #
+# A second job (M69) builds the distribution and keeps its ZIP as an
+# artifact: the proof that the package can be made from a clean clone.
+#
 # What stays local, on a machine with a GPU: the in-game scenarios
 # (Tests/Scenarios) and every performance measurement - hosted runners
 # have no real GPU, and their timings are too noisy to judge by.
@@ -47,3 +50,30 @@ jobs:
           name: test-log
           path: build/Testing/Temporary/LastTest.log
           if-no-files-found: ignore
+
+  # M69: can a clean machine assemble the distribution? The game and its
+  # shaders build here (dxc from the runner's Windows SDK), the package
+  # command stages and verifies it - files present and absent, DLL
+  # dependencies, signed shaders - and zips it. No smoke run (-NoSmoke):
+  # hosted runners have no GPU to start the game on.
+  package:
+    name: Package (Windows, distribution)
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build, stage, verify and zip
+        shell: pwsh
+        run: pwsh Tools/Dist/package.ps1 -NoSmoke
+
+      - name: Keep the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AtomGame-win64
+          path: Dist/AtomGame-*-win64.zip
+          if-no-files-found: error
