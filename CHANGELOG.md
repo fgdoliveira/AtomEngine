@@ -24,6 +24,20 @@
 - **SDL 3.4.18** (from 3.4.16). It doesn't change the hybrid-laptop
   result: the RTX still can't present to the built-in panel.
 
+### Added
+- **`SwapchainMatrix`** (with `ATOM_BUILD_PRESENTATION_PROBE`): every
+  swapchain kind (flip and bitblt models, buffer counts, formats) in
+  D3D11 and D3D12, on every adapter, with no SDL. On the development
+  laptop every RTX 4060 line fails and every Iris Xe line works.
+
+### Investigated
+- **Why the RTX can't present to the laptop panel:** not the engine, SDL,
+  the swapchain kind, the API, NVIDIA's opt-ins or the Intel driver (all
+  ruled out). It's this muxless laptop's hybrid-display stack: a D3D11
+  game reaches the RTX through NVIDIA's per-game path, which D3D12
+  doesn't have. Recorded as an addendum to ADR-006; the README's
+  hybrid-laptop notes say what a D3D12 program can and can't use.
+
 ## 0.0.10 — Hardware portability
 
 Predictable on other Windows machines, without giving up what's known to

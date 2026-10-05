@@ -107,7 +107,7 @@ Build options (CMake `-D`):
 |---|---|---|
 | `ATOM_BUILD_GAME` | ON | the `AtomGame` executable and its shaders (needs `dxc`) |
 | `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
-| `ATOM_BUILD_PRESENTATION_PROBE` | OFF | a private D3D12 diagnostic tool |
+| `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
 
 `-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
 tests with no shader compiler - the configuration CI uses.
@@ -241,7 +241,20 @@ GPU device created: backend=direct3d12 adapter="Intel(R) Iris(R) Xe Graphics" pr
 `--diagnostics` reports the same as `gpu.fallback.adapter`, `.stage`
 (`device` or `presentation`) and `.error`. A laptop with a hardware MUX
 ("NVIDIA GPU only" in the NVIDIA Control Panel's *Manage Display Mode*, or
-the maker's app) can wire the panel to the dGPU itself. If the swapchain is lost while playing, the game
+the maker's app) can wire the panel to the dGPU itself.
+
+A Direct3D 12 program (AtomEngine is one) reaches the dGPU only through
+Windows' hybrid path. NVIDIA's per-program profile, which is how many
+older D3D11 games end up on the dGPU on these laptops, doesn't apply to
+D3D12, and neither does the `NvOptimusEnablement` export. Some muxless
+laptops can't present a D3D12 dGPU image on their built-in panel at all;
+the development laptop is one of them (ADR-006). There, use the dGPU on
+an external monitor wired to it, or stay on low-power.
+`SwapchainMatrix` (built with `-DATOM_BUILD_PRESENTATION_PROBE=ON`)
+checks a machine in seconds: every swapchain kind, D3D11 and D3D12, on
+every adapter.
+
+If the swapchain is lost while playing, the game
 saves a low-power fallback and quits cleanly (exit 3), and the next launch
 explains it. In Windows' *Settings → Display → Graphics*, leave AtomGame on
 *Let Windows decide*: forcing "High performance" there overrides both

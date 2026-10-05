@@ -23,3 +23,10 @@ set_target_properties(
     PROPERTIES
         FOLDER "Diagnostic Tools"
 )
+
+# Every swapchain kind on every adapter, D3D11 and D3D12, no SDL: the
+# hybrid-laptop reproduction behind ADR-006.
+add_executable(SwapchainMatrix SwapchainMatrix.cpp)
+target_link_libraries(SwapchainMatrix PRIVATE d3d11 d3d12 dxgi user32)
+target_compile_features(SwapchainMatrix PRIVATE cxx_std_20)
+set_target_properties(SwapchainMatrix PROPERTIES FOLDER "Diagnostic Tools")

@@ -2247,9 +2247,31 @@ GPU device created: backend=direct3d12 adapter="Intel(R) Iris(R) Xe Graphics" pr
 
 **Don't trust an error code that says success.** SDL quotes `0x00000000` ("the operation completed successfully") for a swapchain that wasn't created: the real code got lost on the way. The raw D3D12 probe, without SDL, reports `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) for the same call. The failure is therefore **below SDL**, in DXGI or the drivers' cross-adapter path. Updating SDL to 3.4.18 changed nothing, as expected.
 
-**Muxless laptops.** NVIDIA calls the arrangement here **classic Optimus**: no MUX, so the panel is wired to the Iris only, and it can't be switched to the RTX ("Advanced Optimus: No"). On such a machine the Iris must stay enabled (§80 showed what happens without it), and RTX rendering has to work *through* it. Most likely suspect: the Intel and NVIDIA drivers, 14 months apart in age. Until that's resolved, the fallback keeps the game running and the log says exactly why.
+**Muxless laptops.** NVIDIA calls the arrangement here **classic Optimus**: no MUX, so the panel is wired to the Iris only, and it can't be switched to the RTX ("Advanced Optimus: No"). On such a machine the Iris must stay enabled (§80 showed what happens without it), and RTX rendering has to work *through* it.
 
-**Code.** `Engine/Renderer/GPUDevice.*`, `Renderer::Initialize` / `GetDeviceReport` / `Shutdown`, `DemoApp::WriteDiagnostics`, `Tests/GPUDeviceTests.cpp`, `Scenario.gpu_fallback`, `Tools/PresentationProbe`.
+**Concept: an investigation by elimination.** "The RTX can't present" has many possible causes, and each one was turned into a test that rules it in or out:
+
+| Suspect | Test | Result |
+|---|---|---|
+| AtomEngine's code | raw D3D12, no SDL, no engine | fails the same way |
+| SDL | 3.4.16 vs 3.4.18 | no change |
+| The swapchain kind | flip discard and sequential, bitblt, 2 or 3 buffers, BGRA or RGBA | all fail on the RTX, all work on the Iris |
+| Direct3D 12 itself | the same matrix in D3D11, RTX chosen explicitly | fails too |
+| NVIDIA's opt-ins | the `NvOptimusEnablement` export; a per-program NVIDIA profile | no effect |
+| The launching session | run from the user's own terminal | same result |
+| The Intel driver | 32.0.101.6790 → 7092 | no change |
+
+The driver update had a lesson of its own. Intel's newest main driver (32.0.101.9034) no longer lists this chip (device `A7A0`, 13th gen); 11th–14th gen Iris Xe now get a separate, slower driver branch. The installer's "No supported devices" was the chip missing from the INF's device list, not a broken install.
+
+**Concept: two roads to the dGPU.** One clue didn't fit: *The Evil Within* renders on the RTX and shows on the same panel. That's because muxless laptops have two paths:
+- **Windows' hybrid path:** a program picks the high-performance adapter itself (as SDL does), and Windows copies its frames to the iGPU. This is the path that fails on this laptop.
+- **NVIDIA's older Optimus path:** a driver profile recognizes the game, the game sees the Intel adapter, and the driver quietly renders on the RTX. It serves **D3D9–D3D11 and OpenGL** only. **D3D12 has no such path**, so a D3D12 program depends entirely on Windows'.
+
+Windows' own counters showed which GPU each process used (`\GPU Engine(pid_*_engtype_3D)`, matched to the adapters' LUIDs). AtomEngine, even with an NVIDIA profile, rendered on the Iris.
+
+**The conclusion is ADR-006's addendum.** On this machine no D3D12 program can show an RTX image on the built-in panel. It's the laptop's hybrid-display stack, beyond any engine's reach. Low-power stays the default, high-performance stays an opt-in that falls back and says why, and the RTX is tested on an external monitor wired to it. `SwapchainMatrix` checks any machine in seconds.
+
+**Code.** `Engine/Renderer/GPUDevice.*`, `Renderer::Initialize` / `GetDeviceReport` / `Shutdown`, `DemoApp::WriteDiagnostics`, `Tests/GPUDeviceTests.cpp`, `Scenario.gpu_fallback`, `Tools/PresentationProbe` (`PresentationProbe`, `SwapchainMatrix`), ADR-006 addendum in `docs/Architecture.md`.
 
 ---
 
@@ -2300,7 +2322,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 - **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73). CMake 3.26 or later.
+- **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83). The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73). CMake 3.26 or later.
 - **CI** (§72): `.github/workflows/ci.yml`, unit tests on every push. **Validation ladder** (§75): `Tools/Dev/check.ps1`.
 - **Shader variants** (§69): `BasicRain.frag` includes `Basic.frag` with a define; a change to `Basic.frag` rebuilds both.
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
@@ -2334,7 +2356,8 @@ Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), benchmark scenarios (lights, water and weather)
 Tools/Dev/  check.ps1 (the validation ladder), doctor.ps1, common.ps1
-Tools/PresentationProbe/  raw D3D12 swapchain test per adapter (optional)
+Tools/PresentationProbe/  PresentationProbe (SDL or raw D3D12, window moves),
+                          SwapchainMatrix (every swapchain kind, D3D11/D3D12, every adapter)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + lakeshore + bakes (vertex, lightmap, cached) + impostors + markers
                 + export
@@ -2372,6 +2395,9 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Discrete / integrated GPU** — a separate graphics chip with its own memory / one built into the CPU, sharing system memory.
 - **Frames in flight** — how many frames the CPU may queue ahead of the GPU; more keeps the GPU busy, but each full slot delays input by a frame (§81).
 - **Cross-adapter presentation** — one GPU renders and another shows the image; Windows copies each frame between them (hybrid laptops, §83).
+- **Flip model / bitblt model** — the two kinds of DXGI swapchain: flip hands whole buffers to the compositor (required by D3D12, modern D3D11); bitblt has the compositor copy from one buffer (old D3D11 games).
+- **LUID** — a locally unique ID Windows gives each adapter; GPU performance counters name adapters by it.
+- **Optimus profile** — an NVIDIA driver setting that sends a known D3D9–D3D11 or OpenGL program to the dGPU behind the Intel adapter; D3D12 has no equivalent (§83).
 - **MUX (display multiplexer)** — a switch that can wire a laptop's panel to the discrete GPU; *muxless* laptops (classic Optimus) can't, so the integrated GPU always drives the panel (§83).
 - **Double / triple buffering** — a swapchain of two / three images; with vsync, two can force every other refresh to be missed (§81).
 - **Input latency** — the time from an input (a mouse move) to its result on screen; queue depth, vsync and the display all add to it.
