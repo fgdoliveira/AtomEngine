@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Renderer/GPUDevice.h"
 #include "Renderer/Glow.h"
 #include "Renderer/Lighting.h"
 #include "Renderer/Material.h"
@@ -33,12 +34,6 @@ struct SDL_GPUTexture;
 
 namespace Atom
 {
-    enum class GPUPreference
-    {
-        LowPower,
-        HighPerformance
-    };
-
     struct RendererConfig
     {
         GPUPreference gpuPreference = GPUPreference::LowPower;
@@ -117,9 +112,11 @@ namespace Atom
         enum class Failure { None, SwapchainLost, Other };
         Failure GetLastFailure() const { return m_lastFailure; }
         // The preference the device was really created with: low-power if
-        // high-performance failed and Initialize fell back (M63).
-        GPUPreference GetActivePreference() const { return m_activePreference; }
-        bool FellBackAtCreation() const { return m_fellBackAtCreation; }
+        // high-performance failed and Initialize fell back (M63), and why -
+        // the device couldn't be created, or couldn't present to the window.
+        GPUPreference GetActivePreference() const { return m_gpu.GetInfo().activePreference; }
+        bool FellBackAtStartup() const { return m_gpu.GetInfo().fallback.has_value(); }
+        const std::optional<StartupFallback>& GetStartupFallback() const { return m_gpu.GetInfo().fallback; }
         // Development: make the next frame fail as a lost swapchain does
         // (ATOM_SIMULATE_SWAPCHAIN_LOSS), to exercise the fallback path.
         void SimulateSwapchainLoss() { m_simulateSwapchainLoss = true; }
@@ -127,7 +124,7 @@ namespace Atom
         // M64: present without waiting for the display (immediate, else
         // mailbox) while measuring, then back to how it started. False if
         // the swapchain refused.
-        bool SetUncappedPresentation(bool uncapped);
+        bool SetUncappedPresentation(bool uncapped) { return m_gpu.SetUncappedPresentation(uncapped); }
         void Shutdown();
 
         std::unique_ptr<Mesh> CreateMesh(
@@ -241,8 +238,8 @@ namespace Atom
 
         // The adapter SDL actually picked (a preference is only a hint, M60)
         // and its backend; empty before Initialize.
-        const std::string& GetAdapterName() const { return m_adapterName; }
-        const std::string& GetBackendName() const { return m_backendName; }
+        const std::string& GetAdapterName() const { return m_gpu.GetInfo().adapter; }
+        const std::string& GetBackendName() const { return m_gpu.GetInfo().backend; }
 
         // What the device and swapchain turned out to be (M62, for
         // --diagnostics and performance context).
@@ -295,7 +292,6 @@ namespace Atom
             float farPlane = 100.0f;
         };
 
-        bool CreateAndClaimGPUDevice(GPUPreference preference);
         bool CreateDefaultResources();
         bool CreatePostPipeline();
         bool CreateShadowResources();
@@ -384,9 +380,12 @@ namespace Atom
             std::uint32_t outputHeight
         );
 
+        // The device and the window it presents to, with the adapter choice
+        // and the swapchain's settings. m_device and m_window are non-owning
+        // copies of m_gpu's, for the many calls that take them.
+        GPUDevice m_gpu;
         SDL_GPUDevice* m_device = nullptr;
         SDL_Window* m_window = nullptr;
-        bool m_windowClaimed = false;
 
         // Indexed by log2(samples): 1x, 2x, 4x.
         // [skinned][samples slot][double-sided][alpha-to-coverage]
@@ -455,15 +454,8 @@ namespace Atom
         RenderSettings m_settings;
         UIRenderer m_ui;
         SceneLighting m_lighting;
-        std::string m_adapterName;
-        std::string m_backendName;
-        DeviceReport m_report; // the swapchain part, filled at Initialize
         Failure m_lastFailure = Failure::None;
-        GPUPreference m_activePreference = GPUPreference::LowPower;
-        bool m_fellBackAtCreation = false;
         bool m_simulateSwapchainLoss = false;
-        SDL_GPUSwapchainComposition m_composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
-        SDL_GPUPresentMode m_initialPresentMode = SDL_GPU_PRESENTMODE_VSYNC;
         glm::vec3 m_particleStreak{ 0.0f, -1.0f, 0.0f };
         bool m_waterEnabled = true;
         RenderTargets m_targets;

@@ -9,6 +9,28 @@ namespace Atom
     bool Application::Initialize()
     {
         std::cout << "Starting AtomEngine " ATOM_VERSION "...\n";
+
+        // SDL's versions first, so a GPU failure below reads as a report:
+        // version, device, presentation, fallback.
+        const int compiledVersion = SDL_VERSION;
+        const int runtimeVersion = SDL_GetVersion();
+        std::cout
+            << "SDL compiled version: "
+            << SDL_VERSIONNUM_MAJOR(compiledVersion) << '.'
+            << SDL_VERSIONNUM_MINOR(compiledVersion) << '.'
+            << SDL_VERSIONNUM_MICRO(compiledVersion)
+            << '\n';
+        std::cout
+            << "SDL runtime version: "
+            << SDL_VERSIONNUM_MAJOR(runtimeVersion) << '.'
+            << SDL_VERSIONNUM_MINOR(runtimeVersion) << '.'
+            << SDL_VERSIONNUM_MICRO(runtimeVersion)
+            << '\n';
+        std::cout
+            << "SDL revision: "
+            << SDL_GetRevision()
+            << '\n';
+
         const StartupConfig startup = OnConfigure();
 
         if (!SDL_Init(SDL_INIT_VIDEO))
@@ -75,29 +97,6 @@ namespace Atom
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
-
-		// Print SDL version information
-        const int compiledVersion = SDL_VERSION;
-        const int runtimeVersion = SDL_GetVersion();
-
-        std::cout
-            << "SDL compiled version: "
-            << SDL_VERSIONNUM_MAJOR(compiledVersion) << '.'
-            << SDL_VERSIONNUM_MINOR(compiledVersion) << '.'
-            << SDL_VERSIONNUM_MICRO(compiledVersion)
-            << '\n';
-
-        std::cout
-            << "SDL runtime version: "
-            << SDL_VERSIONNUM_MAJOR(runtimeVersion) << '.'
-            << SDL_VERSIONNUM_MINOR(runtimeVersion) << '.'
-            << SDL_VERSIONNUM_MICRO(runtimeVersion)
-            << '\n';
-
-        std::cout
-            << "SDL revision: "
-            << SDL_GetRevision()
-            << '\n';
 
         if (!OnInitialize())
         {
