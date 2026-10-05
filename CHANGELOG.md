@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **`GPUDevice`: device and presentation out of the renderer.** Creating
+  the GPU device (which picks the adapter) and claiming the window (which
+  creates the swapchain) were one step reporting one result, and the
+  adapter was logged only when both worked. On the development laptop the
+  RTX 4060 device *is* created and only its swapchain for the built-in
+  panel is refused, yet every message said the high-performance GPU was
+  "unavailable". `GPUDevice` now owns the device, the window claim, the
+  fallback, and the swapchain's composition, present mode and frames in
+  flight; the renderer owns one and stays the frame coordinator. No
+  backend interface: SDL is that abstraction (ADR-001).
+- **Honest start-up diagnostics:** the adapter is logged as soon as the
+  device exists, before the window claim. A failed claim says which
+  adapter it failed on, with SDL's error verbatim (on this laptop:
+  "Could not create swapchain! ... (0x00000000)", a success code that
+  hides the real failure). `--diagnostics` adds `gpu.fallback.adapter`,
+  `.stage` (`device` or `presentation`) and `.error`, and SDL's versions
+  now print before the renderer starts. New `Scenario.gpu_fallback`;
+  unit tests for the present-mode choice and the fallback wording.
+- **SDL 3.4.18** (from 3.4.16). It doesn't change the hybrid-laptop
+  result: the RTX still can't present to the built-in panel.
+
 ## 0.0.10 — Hardware portability
 
 Predictable on other Windows machines, without giving up what's known to

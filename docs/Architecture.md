@@ -97,8 +97,23 @@ one, so shared models are reused.
 
 ## 4. Renderer
 
-A concrete façade over SDL GPU: device owner, resource factory, frame
-queue and pass orchestrator.
+A concrete façade over SDL GPU: resource factory, frame queue and pass
+orchestrator. The device itself is a `GPUDevice` the renderer owns:
+
+```text
+Application → Renderer (frames, passes, resources) → GPUDevice (device + presentation) → SDL GPU → D3D12
+```
+
+- **`GPUDevice`** owns the SDL device and the window it presents to: the
+  adapter choice and the low-power fallback, the window claim, the
+  swapchain's composition, present mode and frames in flight, uncapped
+  presentation for measuring, and the lost-swapchain abandon path (§8).
+  These are device and window concerns, not scene rendering, and they're
+  what a future fullscreen, resize or device-recovery change would touch.
+  There's no backend interface behind it: SDL is that abstraction
+  (ADR-001).
+- **`Render()`** stays the frame coordinator: render textures, shadows,
+  reflection, scene, glow, post, UI, capture, present.
 
 ```mermaid
 flowchart TD
@@ -184,8 +199,12 @@ flowchart LR
 - **Tiers cap, they don't force:** a tier only turns existing switches off
   (the reflection stays a level's choice under High). No renderer feature
   exists for one tier only.
-- **Failure:** at creation, high-performance falls back to low-power
-  before any resource exists. Mid-run, a lost swapchain calls
+- **Failure:** at start-up two steps can fail separately - creating the
+  device (which picks the adapter) and claiming the window (which creates
+  the swapchain). On the development laptop the RTX device is created and
+  only its swapchain for the built-in panel is refused. Either way,
+  high-performance falls back to low-power before any resource exists,
+  and `StartupFallback` records the stage, adapter and error. Mid-run, a lost swapchain calls
   `OnRenderFailure`; the game saves a low-power fallback, and the device is
   *abandoned*, not destroyed - releasing it on that path corrupted SDL's
   heap - and the process exits with code 3.
