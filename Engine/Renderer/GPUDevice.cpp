@@ -70,6 +70,15 @@ namespace Atom
         return GetModeName(ToSDL(mode));
     }
 
+    bool NeedsThirdFrame(double medianIntervalMs, double refreshHz)
+    {
+        if (refreshHz <= 0.0 || medianIntervalMs <= 0.0)
+        {
+            return false; // unknown refresh: no basis to decide
+        }
+        return medianIntervalMs > 1.6 * (1000.0 / refreshHz);
+    }
+
     std::string DescribeFallback(const StartupFallback& fallback)
     {
         const std::string who = fallback.adapter.empty() ? std::string("the device")
@@ -223,14 +232,14 @@ namespace Atom
         m_info.composition = composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? "sdr-linear" : "sdr";
         m_info.presentMode = GetModeName(mode);
 
-        // Frames the CPU may record ahead of the GPU. In SDL's D3D12 backend
-        // this is also the swapchain's buffer count (clamped to 2..3). SDL's
-        // default 2 is double buffering: with vsync the game waits for a
-        // refresh to free a buffer and misses every other one - 72 fps on a
-        // 144 Hz panel with 3.4 ms frames (paired runs: 13.9 ms vs 6.95 ms
-        // with 3). 3 also keeps a clock-dropping iGPU busy (the Iris Xe swung
-        // 3.5 <-> 9.7 ms with 2). A deeper queue can add a frame of input
-        // delay, but at twice the frame rate each frame is half as long.
+        // Frames the CPU may record ahead of the GPU; in SDL's D3D12 backend
+        // also the swapchain's buffer count (clamped to 2..3, SDL_gpu_d3d12.c).
+        // Measured (M72-M74, click to display, 144 Hz panel, Iris Xe): 3 with
+        // vsync 36.1 ms; 2 with vsync 30.2 ms; 2 with the swapchain wait moved
+        // before input (Renderer, ATOM_LATENCY_WAIT) 24.1 ms - all at 144 fps.
+        // So 2. v0.0.10 chose 3 because 2 then halved the frame rate (72 fps,
+        // older Intel driver); the Renderer still watches for that and moves
+        // to 3 if 2 can't hold the refresh rate.
         if (SDL_SetGPUAllowedFramesInFlight(m_device, config.framesInFlight))
         {
             m_info.framesInFlight = config.framesInFlight;
@@ -263,6 +272,22 @@ namespace Atom
         }
         m_info.presentMode = GetModeName(mode);
         return true;
+    }
+
+    bool GPUDevice::SetFramesInFlight(std::uint32_t frames)
+    {
+        if (!m_device || !SDL_SetGPUAllowedFramesInFlight(m_device, frames))
+        {
+            std::cerr << "Frames in flight " << frames << " refused: " << SDL_GetError() << '\n';
+            return false;
+        }
+        m_info.framesInFlight = frames;
+        return true;
+    }
+
+    bool GPUDevice::WaitForPresentSlot()
+    {
+        return m_device && m_windowClaimed && SDL_WaitForGPUSwapchain(m_device, m_window);
     }
 
     void GPUDevice::Shutdown(bool abandon)

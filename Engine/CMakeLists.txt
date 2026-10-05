@@ -10,6 +10,7 @@ target_sources(
         Assets/ThirdParty.cpp
         Core/Application.cpp
         Core/FrameStatsWindow.cpp
+        Core/LatencyProbe.cpp
         Core/Time.cpp
         Debug/DevTools.cpp
         Physics/CollisionWorld.cpp
@@ -39,6 +40,7 @@ target_sources(
         Audio/AudioSystem.h
         Core/Application.h
         Core/FrameStatsWindow.h
+        Core/LatencyProbe.h
         Core/Time.h
         Debug/DevTools.h
         Physics/CollisionWorld.h

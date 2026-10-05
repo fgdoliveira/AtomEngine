@@ -12,6 +12,8 @@ namespace Atom
         m_mouseDeltaX = 0.0f;
         m_mouseDeltaY = 0.0f;
         m_wheelDelta = 0.0f;
+        m_leftClicked = false;
+        m_leftClickNs = 0;
     }
 
     void Input::HandleEvent(const SDL_Event& event)
@@ -41,6 +43,17 @@ namespace Atom
             {
                 m_mouseDeltaX += event.motion.xrel;
                 m_mouseDeltaY += event.motion.yrel;
+            }
+            break;
+
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            if (event.button.button == SDL_BUTTON_LEFT)
+            {
+                if (!m_leftClicked)
+                {
+                    m_leftClickNs = event.button.timestamp; // the first click of the frame (M73)
+                }
+                m_leftClicked = true;
             }
             break;
 

@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.0.12 — Latency
+
+Measured first, then changed. 0.0.10 kept 3 frames in flight on frame
+times alone, and its latency reasoning ("a frame twice as long costs more
+than one more queued frame") went unmeasured. This version measures how
+long a click takes to reach the screen, finds where the time goes, and
+cuts it by a third: **36 → 24 ms at the same 144 fps.**
+
+### Added
+- **`Tools/Perf/latency.ps1` (M72):** injects left clicks (`SendInput`,
+  every 120–250 ms) into the running game and measures them per
+  configuration, interleaved ABBA, with paired per-round differences.
+  - `-Mode Engine` (the default) uses the engine's own timing and needs
+    no rights: the routine and automation path.
+  - `-Mode PresentMon` measures end to end with Intel PresentMon (installed
+    separately, found, never downloaded). It needs an administrator or a
+    member of Performance Log Users (checked by SID); otherwise it asks
+    for elevation for that run only, and `-NoElevate` exits instead. It
+    never changes group membership.
+  - **Trust check,** the same configuration against itself: −0.06 ms
+    (−0.37..+0.07).
+- **The engine's latency log (M73):** `ATOM_LATENCY_LOG=1` times each
+  click from the OS's timestamp to the start of the frame that reads it,
+  that frame's swapchain wait, its submit and its GPU completion (a
+  fenced submit only for frames carrying a click, polled, so an upper
+  bound within a frame). A `LAT block` line per 20 clicks. Off, nothing
+  is timed or fenced. With it on, PresentMon's numbers are unchanged.
+- `ATOM_LATENCY_FLASH=1`: a black frame on each left click (a visible
+  effect of the input); `Input::WasLeftClicked` and its timestamp.
+
+### Changed
+- **The swapchain wait comes before input (M74).** The frame used to read
+  input, update, then wait for a free swapchain image inside rendering.
+  The wait now happens at the top of the frame (`SDL_WaitForGPUSwapchain`;
+  in SDL 3.4.18's D3D12 backend, the same next-slot fence the acquire
+  waits on), so an input arriving during it is read by this frame.
+  `ATOM_LATENCY_WAIT=late` restores the old order.
+- **2 frames in flight by default** (0.0.10–0.0.11: 3). With vsync on
+  this machine 2 now holds 144 fps; 0.0.10 measured ~72 under the older
+  Intel driver (6790, now 7092), the likeliest cause. **A safeguard:**
+  with vsync and the default 2, the renderer checks the frame interval
+  once after a warm-up and moves to 3 if 2 can't hold the refresh
+  (median above 1.6 periods, `NeedsThirdFrame`, unit-tested).
+  `ATOM_FRAMES_IN_FLIGHT` overrides.
+
+### Measured
+Street, 144 Hz panel, Iris Xe, plugged in, 4 rounds × 10 s, ~190 clicks
+per configuration. PresentMon: Windows receiving the click → the frame
+displayed. Engine: the click → that frame's GPU completion.
+
+| Configuration | PresentMon median (p95) | Engine: swapchain wait | Engine: click → GPU done | fps |
+|---|---|---|---|---|
+| 3 frames, vsync (0.0.11) | 36.1 ms (37.9) | 0.04 ms | 24.6 ms | 144 |
+| 2 frames, vsync | 30.2 ms (32.0) | 5.9 ms | 23.9 ms | 144 |
+| **2 frames, vsync, wait first (0.0.12)** | **24.1 ms (25.9)** | **0.03 ms** | **17.4 ms** | **144** |
+| 3 frames, vsync, wait first | 36.0 ms (37.8) | 0.03 ms | 24.6 ms | 144 |
+| 2 frames, uncapped, wait first | 19.0 ms (23.0) | 0.03 ms | 9.7 ms | 144 shown |
+
+- **The new default against 0.0.11's: −12.1 ms** (−12.8..−12.0), paired.
+- **Where it came from:**
+  - with 3 frames the CPU hardly waits; the latency sits in the GPU and
+    presentation queue after submit, so moving the wait changes nothing
+    there;
+  - with 2 frames the CPU waited ~6 ms after reading input, which the
+    early wait removes.
+- **No throughput cost:** uncapped frame times don't depend on the wait's
+  place (2 frames: 3.06–3.71 vs 2.89–3.61 ms).
+- **This corrects 0.0.10's estimate** ("about 28 ms with 2 vs 21 ms with
+  3"), which was reasoning only: measured, 3 frames was the slowest
+  configuration, at 36 ms. The 72 Hz cadence 0.0.10 saw with 2 frames was
+  real: AtomEngine blocked in `SDL_WaitAndAcquireGPUSwapchainTexture`, and
+  SDL's D3D12 backend sizes the swapchain from the frames-in-flight limit.
+- **Speed against 0.0.11** (`ab.ps1`, uncapped, 8 rounds): at the
+  defaults, the night street +0.59 ms (−0.19..+1.40) and the lakeshore
+  +0.32 ms (+0.26..+0.37). That's the frames-in-flight default, not the
+  code: with both builds on 3 frames and the wait late, the lakeshore is
+  −0.004 ms (−0.026..+0.008). Uncapped, 2 frames give up ~0.3 ms of
+  frame time; with vsync, the default, both hold 144 fps and 2 frames
+  are 12 ms quicker to respond.
+
+### Known
+- **Software measurement only:** from Windows receiving the input to the
+  frame on screen. No mouse hardware or panel response time, no camera.
+- **One machine:** Iris Xe, 144 Hz panel. The 2-frame default relies on
+  this driver's behaviour; the safeguard covers a machine where 2 can't
+  hold the refresh.
+- **PresentMon's input association:** it credits an input to the next
+  present after Windows saw it, which may not be the frame that read it.
+  That's why the engine's per-click timing complements it and is never
+  subtracted from it.
+
 ## 0.0.11 — Distribution
 
 Out of the repository: a person who has never cloned AtomEngine
@@ -218,7 +309,8 @@ and `quality_tiers`' check that the default is High.
   it works on an external monitor wired to the RTX. ADR-006.
 - Input-to-screen latency isn't measured: the frames-in-flight choice
   rests on frame times, and on the reasoning that a frame twice as long
-  costs more than one more queued frame.
+  costs more than one more queued frame. *(Measured in 0.0.12, which
+  found the reasoning wrong and changed the default.)*
 
 ## 0.0.9 — Hardening
 

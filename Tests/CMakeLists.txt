@@ -36,6 +36,7 @@ add_executable(
     CalibrationTests.cpp
     GPUDeviceTests.cpp
     RunLogTests.cpp
+    LatencyProbeTests.cpp
     FakeGame.h
 )
 
