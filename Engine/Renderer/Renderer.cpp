@@ -273,109 +273,6 @@ namespace Atom
             uniforms.weather = glm::vec4{ lighting.rain, 0.0f, 0.0f, 0.0f };
             return uniforms;
         }
-
-        const char* GetPreferenceName(GPUPreference preference)
-        {
-            return preference == GPUPreference::LowPower
-                ? "low_power"
-                : "high_performance";
-        }
-    }
-
-    bool Renderer::CreateAndClaimGPUDevice(GPUPreference preference)
-    {
-#ifndef NDEBUG
-        constexpr bool enableDebug = true;
-#else
-        constexpr bool enableDebug = false;
-#endif
-
-        const SDL_PropertiesID properties = SDL_CreateProperties();
-        if (!properties)
-        {
-            std::cerr
-                << "Failed to create GPU device properties: "
-                << SDL_GetError()
-                << '\n';
-            return false;
-        }
-
-        const bool propertiesConfigured =
-            SDL_SetStringProperty(
-                properties,
-                SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING,
-                "direct3d12"
-            ) &&
-            SDL_SetBooleanProperty(
-                properties,
-                SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN,
-                true
-            ) &&
-            SDL_SetBooleanProperty(
-                properties,
-                SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN,
-                enableDebug
-            ) &&
-            SDL_SetBooleanProperty(
-                properties,
-                SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN,
-                preference == GPUPreference::LowPower
-            );
-
-        if (!propertiesConfigured)
-        {
-            const std::string error = SDL_GetError();
-            SDL_DestroyProperties(properties);
-            std::cerr
-                << "Failed to configure GPU device properties: "
-                << error
-                << '\n';
-            return false;
-        }
-
-        m_device = SDL_CreateGPUDeviceWithProperties(properties);
-        const std::string creationError = m_device ? "" : SDL_GetError();
-        SDL_DestroyProperties(properties);
-
-        if (!m_device)
-        {
-            std::cerr
-                << "Failed to create Direct3D 12 GPU device: "
-                << creationError
-                << '\n';
-            return false;
-        }
-
-        if (!SDL_ClaimWindowForGPUDevice(m_device, m_window))
-        {
-            const std::string error = SDL_GetError();
-            std::cerr
-                << "Failed to claim window for GPU device: "
-                << error
-                << '\n';
-            SDL_DestroyGPUDevice(m_device);
-            m_device = nullptr;
-            return false;
-        }
-
-        m_windowClaimed = true;
-
-        const char* backend = SDL_GetGPUDeviceDriver(m_device);
-        const char* adapter = SDL_GetStringProperty(
-            SDL_GetGPUDeviceProperties(m_device),
-            SDL_PROP_GPU_DEVICE_NAME_STRING,
-            "unavailable"
-        );
-        m_backendName = backend ? backend : "unavailable";
-        m_adapterName = adapter;
-        std::cout
-            << "GPU device: backend="
-            << m_backendName
-            << " adapter=\"" << m_adapterName << '"'
-            << " preference=" << GetPreferenceName(preference)
-            << '\n';
-
-        return true;
     }
 
     Renderer::~Renderer()
@@ -396,117 +293,33 @@ namespace Atom
             return false;
         }
 
-        m_window = window;
-        m_activePreference = config.gpuPreference;
-        // Every way to get a device failed. Seen on the hybrid laptop when
-        // Windows' per-app Graphics setting forced one GPU for AtomGame.exe:
-        // Windows then hands that GPU out for *both* preferences, so the
-        // low-power fallback can't reach the adapter that drives the screen.
-        const auto explainNoDevice = [] {
-            std::cerr << "No GPU could present to this window. On a laptop with two GPUs, check Windows Settings > "
-                         "System > Display > Graphics: a GPU forced for AtomGame.exe applies to every request; "
-                         "'Let Windows decide' lets AtomEngine pick the GPU that drives this screen.\n";
-        };
-        if (!CreateAndClaimGPUDevice(config.gpuPreference))
+#ifndef NDEBUG
+        constexpr bool debugMode = true;
+#else
+        constexpr bool debugMode = false;
+#endif
+        // The device and its presentation are GPUDevice's: adapter choice
+        // and the hybrid-laptop fallback, the window claim, the swapchain.
+        if (!m_gpu.Initialize(window, { config.gpuPreference, debugMode }))
         {
-            // M63: high-performance is only a preference; if that device
-            // can't be made, the low-power one is the known-good choice.
-            // Nothing has been created on the failed device yet.
-            if (config.gpuPreference != GPUPreference::HighPerformance)
-            {
-                explainNoDevice();
-                return false;
-            }
-            std::cerr << "High-performance GPU unavailable; falling back to low-power.\n";
-            m_activePreference = GPUPreference::LowPower;
-            m_fellBackAtCreation = true;
-            if (!CreateAndClaimGPUDevice(GPUPreference::LowPower))
-            {
-                explainNoDevice();
-                return false;
-            }
-        }
-
-        // Shaders work in linear space (textures are sampled as sRGB), so
-        // let the swapchain do the linear -> sRGB encode on write.
-        SDL_GPUSwapchainComposition composition =
-            SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
-        if (!SDL_WindowSupportsGPUSwapchainComposition(
-            m_device, m_window, composition))
-        {
-            std::cerr
-                << "sRGB swapchain unsupported; colors will look dark.\n";
-            composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
-        }
-
-        // Without vsync prefer tearing-free MAILBOX, else IMMEDIATE.
-        SDL_GPUPresentMode presentMode = SDL_GPU_PRESENTMODE_VSYNC;
-        if (!config.vsync)
-        {
-            // ATOM_PRESENT=immediate (M46): tearing allowed, never waits.
-            // MAILBOX is tear-free, but a composited display (an external
-            // monitor, here) can still hold it to its refresh rate, which
-            // makes frame times unmeasurable.
-            const char* present = SDL_getenv("ATOM_PRESENT");
-            const bool immediateFirst = present && std::string_view(present) == "immediate";
-            for (const SDL_GPUPresentMode mode : {
-                immediateFirst ? SDL_GPU_PRESENTMODE_IMMEDIATE : SDL_GPU_PRESENTMODE_MAILBOX,
-                immediateFirst ? SDL_GPU_PRESENTMODE_MAILBOX : SDL_GPU_PRESENTMODE_IMMEDIATE })
-            {
-                if (SDL_WindowSupportsGPUPresentMode(m_device, m_window, mode))
-                {
-                    presentMode = mode;
-                    break;
-                }
-            }
-        }
-
-        // For diagnostics (M62): what was chosen, and what the window offers.
-        m_report.preference = GetPreferenceName(config.gpuPreference);
-        if (m_fellBackAtCreation)
-        {
-            m_report.preference += " (unavailable: using low_power)";
-        }
-        m_report.composition = composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? "sdr-linear" : "sdr";
-        m_report.presentMode = presentMode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
-            : presentMode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
-        m_report.supportsVsync = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_VSYNC);
-        m_report.supportsMailbox = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_MAILBOX);
-        m_report.supportsImmediate = SDL_WindowSupportsGPUPresentMode(m_device, m_window, SDL_GPU_PRESENTMODE_IMMEDIATE);
-
-        if (!SDL_SetGPUSwapchainParameters(
-            m_device, m_window, composition, presentMode))
-        {
-            std::cerr
-                << "Failed to set swapchain parameters: "
-                << SDL_GetError()
-                << '\n';
             return false;
         }
-        m_composition = composition;
-        m_initialPresentMode = presentMode;
+        m_device = m_gpu.Get();
+        m_window = m_gpu.GetWindow();
 
-        // Frames the CPU may record ahead of the GPU. In SDL's D3D12 backend
-        // this is also the swapchain's buffer count (clamped to 2..3). SDL's
-        // default 2 is double buffering: with vsync the game waits for a
-        // refresh to free a buffer and misses every other one - 72 fps on a
-        // 144 Hz panel with 3.4 ms frames (paired runs: 13.9 ms vs 6.95 ms
-        // with 3). 3 also keeps a clock-dropping iGPU busy (the Iris Xe swung
-        // 3.5 <-> 9.7 ms with 2). A deeper queue can add a frame of input
-        // delay, but at twice the frame rate each frame is half as long.
-        // ATOM_FRAMES_IN_FLIGHT=1..3 overrides.
-        Uint32 framesInFlight = 3;
+        // The environment's say (M46, M64): ATOM_PRESENT=immediate with
+        // vsync off; ATOM_FRAMES_IN_FLIGHT=1..3 (default 3: see GPUDevice).
+        PresentationConfig presentation;
+        presentation.vsync = config.vsync;
+        const char* present = SDL_getenv("ATOM_PRESENT");
+        presentation.preferImmediate = present && std::string_view(present) == "immediate";
         if (const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT"); frames && *frames)
         {
-            framesInFlight = static_cast<Uint32>(SDL_atoi(frames));
+            presentation.framesInFlight = static_cast<std::uint32_t>(SDL_atoi(frames));
         }
-        if (SDL_SetGPUAllowedFramesInFlight(m_device, framesInFlight))
+        if (!m_gpu.ConfigurePresentation(presentation))
         {
-            m_report.framesInFlight = framesInFlight;
-        }
-        else
-        {
-            std::cerr << "Frames in flight " << framesInFlight << " refused: " << SDL_GetError() << '\n';
+            return false;
         }
 
         return m_targets.Initialize(m_device)
@@ -949,7 +762,7 @@ namespace Atom
 
     bool Renderer::Render()
     {
-        if (!m_device || !m_window || !m_windowClaimed)
+        if (!m_device || !m_window || !m_gpu.IsWindowClaimed())
         {
             std::cerr << "Cannot render before the renderer is initialized.\n";
             return false;
@@ -2128,42 +1941,19 @@ namespace Atom
         SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
     }
 
-    bool Renderer::SetUncappedPresentation(bool uncapped)
-    {
-        if (!m_device || !m_window)
-        {
-            return false;
-        }
-        SDL_GPUPresentMode mode = m_initialPresentMode;
-        if (uncapped)
-        {
-            // Immediate first: on a composited display mailbox can still be
-            // held to the refresh rate (M46), and then nothing is measured.
-            mode = SDL_GPU_PRESENTMODE_VSYNC;
-            for (const SDL_GPUPresentMode candidate : { SDL_GPU_PRESENTMODE_IMMEDIATE, SDL_GPU_PRESENTMODE_MAILBOX })
-            {
-                if (SDL_WindowSupportsGPUPresentMode(m_device, m_window, candidate))
-                {
-                    mode = candidate;
-                    break;
-                }
-            }
-        }
-        if (!SDL_SetGPUSwapchainParameters(m_device, m_window, m_composition, mode))
-        {
-            std::cerr << "Could not change the present mode: " << SDL_GetError() << '\n';
-            return false;
-        }
-        m_report.presentMode = mode == SDL_GPU_PRESENTMODE_IMMEDIATE ? "immediate"
-            : mode == SDL_GPU_PRESENTMODE_MAILBOX ? "mailbox" : "vsync";
-        return true;
-    }
-
     Renderer::DeviceReport Renderer::GetDeviceReport() const
     {
-        DeviceReport report = m_report;
-        report.adapter = m_adapterName;
-        report.backend = m_backendName;
+        const GPUDeviceInfo& info = m_gpu.GetInfo();
+        DeviceReport report;
+        report.adapter = info.adapter;
+        report.backend = info.backend;
+        report.preference = DescribePreference(info.requestedPreference, info.fallback);
+        report.composition = info.composition;
+        report.presentMode = info.presentMode;
+        report.supportsVsync = info.supportsVsync;
+        report.supportsMailbox = info.supportsMailbox;
+        report.supportsImmediate = info.supportsImmediate;
+        report.framesInFlight = info.framesInFlight;
         report.sceneFormat = m_targets.GetColorFormat() == SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT
             ? "R11G11B10_UFLOAT" : "R16G16B16A16_FLOAT";
         report.maxMsaa = m_targets.GetMaxSamples();
@@ -2752,28 +2542,9 @@ namespace Atom
                 assert(false && "GPU resources outlive the renderer (see the log)");
             }
             GpuResources::Forget(m_device);
-
-            if (m_lastFailure == Failure::SwapchainLost)
-            {
-                // M63: after a D3D12 swapchain failed to resize its buffers
-                // (the hybrid-laptop crossing), SDL can neither release the
-                // window from the device nor destroy the device - both free
-                // the broken swapchain and corrupt the heap (0xC0000374,
-                // reproduced on the RTX 4060). Everything else is released
-                // above; the device and its swapchain are abandoned and the
-                // process, which is exiting, returns them to Windows.
-                std::cerr << "Leaving the failed GPU device to the operating system.\n";
-            }
-            else
-            {
-                if (m_windowClaimed && m_window)
-                {
-                    SDL_ReleaseWindowFromGPUDevice(m_device, m_window);
-                }
-
-                SDL_DestroyGPUDevice(m_device);
-            }
         }
+        // M63: a lost swapchain can't be released safely - abandoned.
+        m_gpu.Shutdown(m_lastFailure == Failure::SwapchainLost);
 
         m_scenePipelines = {};
         m_decalPipelines = {};
@@ -2795,6 +2566,5 @@ namespace Atom
         m_pixelSampler = nullptr;
         m_device = nullptr;
         m_window = nullptr;
-        m_windowClaimed = false;
     }
 }

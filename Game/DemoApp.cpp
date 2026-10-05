@@ -189,7 +189,15 @@ namespace AtomGame
             << "gpu.adapter: " << r.adapter << "\n"
             << "gpu.backend: " << r.backend << "\n"
             << "gpu.preference.requested: " << r.preference << "\n"
-            << "gpu.preference.reason: " << m_resolvedSettings.gpuReason << "\n"
+            << "gpu.preference.reason: " << m_resolvedSettings.gpuReason << "\n";
+        if (const auto& fallback = renderer.GetStartupFallback())
+        {
+            out << "gpu.fallback.adapter: " << (fallback->adapter.empty() ? "none created" : fallback->adapter) << "\n"
+                << "gpu.fallback.stage: "
+                << (fallback->stage == Atom::StartupFallback::Stage::Presentation ? "presentation" : "device") << "\n"
+                << "gpu.fallback.error: " << fallback->error << "\n";
+        }
+        out
             << "gpu.max_msaa: " << r.maxMsaa << "x\n"
             << "gpu.scene_format: " << r.sceneFormat << "\n"
             << "swapchain.composition: " << r.composition << "\n"
@@ -360,11 +368,12 @@ namespace AtomGame
         // Performance logs say what machine state they measured (M62).
         m_diagnostics.SetPerfContext(PerfContext());
 
-        // M63: say so when the high-performance device couldn't be made.
-        if (GetRenderer().FellBackAtCreation())
+        // M63: say so when the high-performance device couldn't be made or
+        // couldn't present to this window - which of the two, and on what.
+        if (const auto& fallback = GetRenderer().GetStartupFallback())
         {
             m_resolvedSettings.gpu = GpuPreference::LowPower;
-            m_resolvedSettings.gpuReason = "fallback: the high-performance GPU was unavailable at start";
+            m_resolvedSettings.gpuReason = "fallback: " + Atom::DescribeFallback(*fallback);
             std::cout << "GPU preference: " << m_resolvedSettings.gpuReason << std::endl;
         }
         if (const char* loss = SDL_getenv("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
