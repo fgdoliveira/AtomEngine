@@ -486,13 +486,15 @@ namespace Atom
         m_composition = composition;
         m_initialPresentMode = presentMode;
 
-        // Frames the CPU may record ahead of the GPU (M64). SDL's default 2
-        // let the Iris Xe go idle between frames: its driver lowered the
-        // clock, frames slowed to ~9.7 ms, then it ramped up again - blocks
-        // swinging 3.5 <-> 9.7 ms, and with vsync, missed refreshes. With 3
-        // the GPU stays busy: paired runs gave p95 ~12 -> ~7.3 ms uncapped,
-        // and 13.2/10.9 -> 9.2 ms with vsync at 144 Hz. The cost is up to
-        // one more frame of input delay. ATOM_FRAMES_IN_FLIGHT overrides.
+        // Frames the CPU may record ahead of the GPU. In SDL's D3D12 backend
+        // this is also the swapchain's buffer count (clamped to 2..3). SDL's
+        // default 2 is double buffering: with vsync the game waits for a
+        // refresh to free a buffer and misses every other one - 72 fps on a
+        // 144 Hz panel with 3.4 ms frames (paired runs: 13.9 ms vs 6.95 ms
+        // with 3). 3 also keeps a clock-dropping iGPU busy (the Iris Xe swung
+        // 3.5 <-> 9.7 ms with 2). A deeper queue can add a frame of input
+        // delay, but at twice the frame rate each frame is half as long.
+        // ATOM_FRAMES_IN_FLIGHT=1..3 overrides.
         Uint32 framesInFlight = 3;
         if (const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT"); frames && *frames)
         {

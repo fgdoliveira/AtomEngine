@@ -76,7 +76,10 @@ namespace AtomGame
             m_calibration.settleSeconds = std::min(1.0f, m_calibration.measureSeconds / 3.0f);
         }
         GetRenderer().SetUncappedPresentation(true);
-        std::cout << "Calibration: started (" << Views.size() << " views x 3 tiers, each twice"
+        // Measured at the frames in flight the player runs: calibrating with
+        // a deeper queue than play would overrate the machine.
+        std::cout << "Calibration: started (" << Views.size() << " views x 3 tiers, each twice, "
+                  << GetRenderer().GetDeviceReport().framesInFlight << " frames in flight"
                   << "; keep the window on this screen and don't touch it)" << std::endl;
         m_messages.Show("Calibrating... hands off for about a minute.");
     }

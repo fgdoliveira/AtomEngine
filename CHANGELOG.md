@@ -44,11 +44,16 @@ Defaults are 0.0.9's: low-power, native resolution, 4× MSAA.
   display caps the frame rate.
 
 ### Changed
-- **Three frames in flight** (SDL's default is two; `ATOM_FRAMES_IN_FLIGHT`
-  overrides). With two, the Iris Xe idled between frames and dropped its
-  clock: 3-second medians swung 3.5↔9.7 ms and calibration flipped between
-  High and Balanced. With three it stays busy (worst p95 7.8–8.0 ms,
-  High every time), for one more frame of input latency.
+- **Three frames in flight** (SDL's default is two; `ATOM_FRAMES_IN_FLIGHT=1..3`
+  overrides, reported in diagnostics and the PERF context). In SDL's D3D12
+  backend this also sets the swapchain's buffer count, and two is double
+  buffering: with vsync, every release until now missed every other
+  refresh - **72 fps on the 144 Hz panel**, 13.9 ms per frame against
+  6.95 ms with three (paired, 3 rounds). Three also keeps the Iris Xe from
+  idling and lowering its clock (3-second medians had swung 3.5↔9.7 ms).
+  A deeper queue can add a frame of input delay, but at twice the frame
+  rate each frame is half as long. Calibration measures at the player's
+  setting.
 - `check.ps1` splits `-Scenario a,b` and fails when a name matches no
   test; `ab.ps1` warns on battery.
 
@@ -62,13 +67,18 @@ Defaults are 0.0.9's: low-power, native resolution, 4× MSAA.
   the screen, and to choose *Let Windows decide*.
 
 ### Measured
-Against v0.0.9 at the defaults (`Tools/Perf/ab.ps1`, 8 rounds, plugged in,
-Iris Xe), 0.0.10 is faster: the night street −0.51 ms (range
-−1.11..−0.31), the lakeshore −0.55 ms (−0.67..−0.50). It's the third
-frame in flight: with `ATOM_FRAMES_IN_FLIGHT=2` the street is back within
-noise of v0.0.9 (+0.12 ms, −0.29..+0.22, 6 rounds). So the settings work
-itself costs nothing. Older baselines measured with two frames don't
-compare with 0.0.10's. All scenarios pass at the default in Debug and
+Plugged in, Iris Xe, `Tools/Perf/ab.ps1` against v0.0.9, 8 rounds,
+uncapped:
+- **at the defaults**, 0.0.10 is faster: the night street −0.51 ms (range
+  −1.11..−0.31), the lakeshore −0.55 ms (−0.67..−0.50);
+- **with `ATOM_FRAMES_IN_FLIGHT=2`** (v0.0.9's setting) it's identical:
+  −0.006 ms (−0.20..+0.16) and −0.002 ms (−0.13..+0.12).
+
+So the speed-up is the third frame in flight, and the settings work costs
+nothing. With vsync (the default present mode) the difference is larger:
+72 → 144 fps on the 144 Hz panel. Older baselines measured with two frames
+don't compare with 0.0.10's. Calibration chose High every time, at three
+frames in flight and, twice, at two. All scenarios pass at the default in Debug and
 Release. At Low and Balanced, the only failures are the checks that a
 tier turns off on purpose: rain particles at Low, the reflection at both,
 and `quality_tiers`' check that the default is High.
@@ -78,6 +88,9 @@ and `quality_tiers`' check that the default is High.
   to the built-in panel (`DXGI_ERROR_DEVICE_REMOVED`, also in a raw
   D3D12 probe), so `--gpu high-performance` falls back to the Iris there;
   it works on an external monitor wired to the RTX. ADR-006.
+- Input-to-screen latency isn't measured: the frames-in-flight choice
+  rests on frame times, and on the reasoning that a frame twice as long
+  costs more than one more queued frame.
 
 ## 0.0.9 — Hardening
 

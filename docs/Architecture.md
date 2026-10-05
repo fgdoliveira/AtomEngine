@@ -192,9 +192,13 @@ flowchart LR
 - **Calibration** is a measured run over fixed views; its decision
   (`DecideCalibration`) is pure. Records carry the adapter and resolution
   and are dropped when those change.
-- **Frames in flight: 3.** With SDL's default of 2 the integrated GPU idled
-  between frames, dropped its clock and swung p95 by ~2.5×; a third
-  queued frame keeps it busy, at one frame of extra latency.
+- **Frames in flight: 3.** In SDL's D3D12 backend this also sets the
+  swapchain's buffer count. SDL's default 2 is double buffering, and with
+  vsync it missed every other refresh: 72 fps on a 144 Hz panel. 3 holds
+  the refresh rate and keeps a clock-dropping iGPU busy. A deeper queue
+  can add a frame of input delay, but each frame is then half as long.
+  `ATOM_FRAMES_IN_FLIGHT` overrides; calibration measures at the player's
+  setting.
 
 ## 9. Tools
 

@@ -257,7 +257,7 @@ Developer switches (environment variables):
 | `ATOM_ASSET_ROOT=<repo>` | read assets from the source tree and hot-reload the level and dialogue when their files change |
 | `ATOM_ASSET_LOG=<file>` | append every asset file the game opens (once each): the evidence for the runtime payload |
 | `ATOM_GPU=low-power\|high-performance` / `ATOM_QUALITY=<tier>` | as `--gpu` / `--quality`, below the command line |
-| `ATOM_FRAMES_IN_FLIGHT=1..3` | frames the CPU may queue ahead of the GPU (default 3) |
+| `ATOM_FRAMES_IN_FLIGHT=1..3` | frames the CPU may queue ahead of the GPU (default 3; in SDL also the swapchain's buffers - with vsync, 2 halves the frame rate) |
 | `ATOM_WINDOW_POSITION=x,y` | open the window there (e.g. on another monitor) |
 | `ATOM_CALIBRATE_SECONDS=<s>` | shorter calibration windows (tests) |
 | `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` | pretend the swapchain is lost after that many seconds of play, to test the fallback |
@@ -322,7 +322,10 @@ AtomEngine compares A and B **close together in time** and reports the
   Intel GPA for per-pass GPU times; SDL_GPU exposes no GPU timers.
 
 Checklist: plugged in, high-performance power plan, the laptop's own screen,
-`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. The
+`ATOM_VSYNC=0` (or `ATOM_PRESENT=immediate`), a short idle first. Builds before
+0.0.10 ran 2 frames in flight, and 3 alone is ~0.5 ms faster uncapped on
+the Iris Xe: to compare *code* against an older build, set
+`ATOM_FRAMES_IN_FLIGHT=2` for the run (older builds ignore it). The
 300-frame warm-up in `ATOM_PERF_LOG` warms pipelines and caches, not the
 hardware; the interleaving takes care of that. Timing is never a ctest
 gate: `expect_bench_under` is for local use on known hardware.

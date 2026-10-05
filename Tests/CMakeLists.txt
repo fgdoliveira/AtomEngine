@@ -89,7 +89,8 @@ add_test(
     COMMAND $<TARGET_FILE:AtomGame> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics.txt"
 )
 # M64: a short calibration runs to its end and reports - which tier it picks
-# depends on the machine, so only completion is checked.
+# depends on the machine, so only completion is checked. On battery it
+# refuses, which is also a correct end.
 add_test(
     NAME Scenario.calibration
     COMMAND $<TARGET_FILE:AtomGame> --calibrate --no-settings
@@ -99,7 +100,7 @@ set_tests_properties(
     PROPERTIES
         LABELS scenario
         ENVIRONMENT "ATOM_CALIBRATE_SECONDS=0.5"
-        PASS_REGULAR_EXPRESSION "Calibration: (high|balanced|low|no result) - "
+        PASS_REGULAR_EXPRESSION "Calibration: (high|balanced|low|no result|refused) - "
         FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
         TIMEOUT 180
 )
