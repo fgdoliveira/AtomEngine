@@ -57,22 +57,44 @@ namespace Drift
         const char* base = SDL_GetBasePath();
         m_assetRoot = std::string(base ? base : "") + "Assets/Drift/";
 
-        m_ship = Atom::Model::Load(GetRenderer(), m_assetRoot + "ship.glb");
-        if (!m_ship)
+        Atom::Renderer& renderer = GetRenderer();
+        m_ship = Atom::Model::Load(renderer, m_assetRoot + "ship.glb");
+        m_ring = Atom::Model::Load(renderer, m_assetRoot + "ring.glb");
+        m_orb = Atom::Model::Load(renderer, m_assetRoot + "orb.glb");
+        m_rock = Atom::Model::Load(renderer, m_assetRoot + "rock.glb");
+        const std::string font = m_assetRoot + "Fonts/SpaceGrotesk.ttf";
+        m_titleFont = Atom::Font::Load(renderer, font, 88.0f);
+        m_comboFont = Atom::Font::Load(renderer, font, 42.0f);
+        m_smallFont = Atom::Font::Load(renderer, font, 12.0f);
+        if (!m_ship || !m_ring || !m_orb || !m_rock || !m_titleFont || !m_comboFont || !m_smallFont)
         {
-            std::cerr << "Missing " << m_assetRoot << "ship.glb\n";
+            std::cerr << "Missing DRIFT assets in " << m_assetRoot << '\n';
             return false;
         }
 
         if (const char* seconds = SDL_getenv("ATOM_DRIFT_SECONDS"); seconds && *seconds)
         {
             m_autopilotSeconds = static_cast<float>(SDL_atof(seconds));
+            // Straight into the run - unless ATOM_DRIFT_TITLE=1 keeps the
+            // title screen up (to check it in an automated run).
+            const char* title = SDL_getenv("ATOM_DRIFT_TITLE");
+            if (!(title && SDL_strcmp(title, "1") == 0))
+            {
+                m_running = true;
+                m_titleFade = 0.0f;
+            }
         }
         if (const char* capture = SDL_getenv("ATOM_DRIFT_CAPTURE"); capture && *capture)
         {
             m_capturePath = capture;
         }
-        std::cout << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << '\n';
+        std::uint32_t seed = static_cast<std::uint32_t>(SDL_GetTicksNS());
+        if (const char* fixed = SDL_getenv("ATOM_DRIFT_SEED"); fixed && *fixed)
+        {
+            seed = static_cast<std::uint32_t>(SDL_atoi(fixed));
+        }
+        m_world = std::make_unique<World>(seed);
+        std::cout << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << ", course seed " << seed << '\n';
         return true;
     }
 
@@ -80,8 +102,12 @@ namespace Drift
     {
         if (m_autopilotSeconds)
         {
-            // A fixed weave, so automated runs exercise steering and boost.
-            return { std::sin(m_time * 0.9f), std::sin(m_time * 0.6f) * 0.6f, std::fmod(m_time, 4.0f) > 3.0f };
+            // A simple pilot: aim at the path 20 m ahead (through the gates),
+            // with a little weave and a boost now and then.
+            const glm::vec3& p = m_flight.position;
+            const glm::vec2 c = Path(p.z - 20.0f);
+            return { std::clamp((c.x - p.x) / 2.5f + std::sin(m_time * 0.9f) * 0.2f, -1.0f, 1.0f),
+                     std::clamp((c.y - p.y) / 2.5f, -1.0f, 1.0f), std::fmod(m_time, 4.0f) > 3.0f };
         }
         const Atom::Input& input = const_cast<DriftApp*>(this)->GetInput();
         const auto down = [&](SDL_Scancode a, SDL_Scancode b) { return input.IsKeyDown(a) || input.IsKeyDown(b); };
@@ -148,14 +174,42 @@ namespace Drift
             return;
         }
 
-        const float forward = m_flight.Update(dt, m_flow, ReadInput());
-        ApplyAtmosphere(m_flow);
+        // The title screen: a click launches (the original's start overlay).
+        if (!m_running && GetInput().WasLeftClicked())
+        {
+            m_running = true;
+        }
+        if (m_running)
+        {
+            m_titleFade = std::max(0.0f, m_titleFade - dt / 0.6f);
+        }
+
+        // Behind the title the ship glides idle (flow 0.2, no controls).
+        const float previousZ = m_flight.position.z;
+        const float forward = m_running ? m_flight.Update(dt, m_flow.value, ReadInput())
+                                        : m_flight.Update(dt, 0.2f, ShipInput{});
+        m_world->Update(dt, m_time, m_flight.position.z);
+        if (m_running)
+        {
+            const FlowEvents events = m_flow.Check(*m_world, m_flight.position, previousZ, dt);
+            if (events.orbs > 0 || events.rockHit)
+            {
+                m_chainPop = 1.0f; // the counter changed: pop it
+            }
+            if (events.rockHit)
+            {
+                m_flight.shake = 1.0f;
+            }
+        }
+        ApplyAtmosphere(m_flow.value);
 
         Atom::Renderer& renderer = GetRenderer();
         const CameraPose& camera = m_flight.Camera();
         renderer.SetCamera(camera.View(), glm::radians(camera.fovDegrees), 0.1f, 2000.0f);
         const glm::mat4 model = m_flight.ModelMatrix();
         m_ship->Submit(renderer, model);
+        SubmitWorld();
+        DrawHud(dt);
 
         // The engine's glow: PointLight(0xffa050, 4 + boost*10 + sin(30t)*0.8,
         // distance 8) at the ship's tail (local 0, 0, 2).
@@ -175,14 +229,86 @@ namespace Drift
             if (m_time >= *m_autopilotSeconds)
             {
                 std::cout << "DRIFT autopilot: flew " << static_cast<int>(-m_flight.position.z) << " m at "
-                          << static_cast<int>(forward) << " m/s\n";
+                          << static_cast<int>(forward) << " m/s; rings " << m_flow.ringsPassed << " passed, "
+                          << m_flow.ringsMissed << " missed; orbs " << m_flow.orbsCollected << "; rocks "
+                          << m_flow.rocksHit << "; flow " << static_cast<int>(m_flow.value * 100.0f) << "%\n";
                 RequestQuit(0);
             }
         }
     }
 
+    void DriftApp::SubmitWorld()
+    {
+        Atom::Renderer& renderer = GetRenderer();
+        for (const Thing& t : m_world->Things())
+        {
+            if (!t.visible)
+            {
+                continue;
+            }
+            const Atom::Model& model = t.kind == Kind::Ring ? *m_ring : t.kind == Kind::Orb ? *m_orb : *m_rock;
+            model.Submit(renderer, t.Matrix());
+        }
+    }
+
+    void DriftApp::DrawHud(float dt)
+    {
+        // The original's HUD (index.html): sRGB colours, window pixels.
+        const glm::vec4 ink{ 243 / 255.0f, 233 / 255.0f, 216 / 255.0f, 1.0f };
+        const glm::vec4 dim{ ink.r, ink.g, ink.b, 0.35f };
+        const glm::vec4 hot{ 1.0f, 138 / 255.0f, 92 / 255.0f, 1.0f };
+        Atom::UIRenderer& ui = GetRenderer().GetUI();
+        const glm::vec2 screen = ui.GetScreenSize();
+        if (screen.x <= 0.0f)
+        {
+            return;
+        }
+
+        // Top left: the controls.
+        ui.DrawText(*m_smallFont, "WASD / ARROWS  -  STEER\nSHIFT  -  BOOST\nM  -  MUTE", { 32.0f, 32.0f }, dim);
+
+        // Top right: the chain, popping (scale 1.25, hot) when it changes.
+        m_chainPop = std::max(0.0f, m_chainPop - dt / 0.25f);
+        const std::string chain = std::to_string(m_flow.chain);
+        const float scale = 1.0f + 0.25f * m_chainPop;
+        const glm::vec2 chainSize = ui.MeasureText(*m_comboFont, chain, scale);
+        ui.DrawText(*m_comboFont, chain, { screen.x - 32.0f - chainSize.x, 28.0f }, ink + (hot - ink) * m_chainPop, scale);
+        const glm::vec2 label = ui.MeasureText(*m_smallFont, "C H A I N");
+        ui.DrawText(*m_smallFont, "C H A I N", { screen.x - 32.0f - label.x, 28.0f + chainSize.y }, dim);
+
+        // Bottom centre: the flow bar.
+        const float width = std::min(320.0f, screen.x * 0.6f);
+        const float left = (screen.x - width) * 0.5f;
+        const float bar = screen.y - 36.0f;
+        const std::string percent = std::to_string(static_cast<int>(std::lround(m_flow.value * 100.0f))) + "%";
+        ui.DrawText(*m_smallFont, "F L O W", { left, bar - 22.0f }, dim);
+        const glm::vec2 pct = ui.MeasureText(*m_smallFont, percent);
+        ui.DrawText(*m_smallFont, percent, { left + width - pct.x, bar - 22.0f }, dim);
+        ui.DrawRect({ left, bar }, { width, 2.0f }, dim);
+        ui.DrawRect({ left, bar }, { width * m_flow.value, 2.0f }, hot);
+
+        // The title over the idle glide, fading out once launched.
+        if (m_titleFade > 0.0f)
+        {
+            ui.DrawRect({ 0.0f, 0.0f }, screen, { 13 / 255.0f, 11 / 255.0f, 28 / 255.0f, 0.72f * m_titleFade });
+            const char* title = "D R I F T";
+            const glm::vec2 t = ui.MeasureText(*m_titleFont, title);
+            ui.DrawText(*m_titleFont, title, { (screen.x - t.x) * 0.5f, screen.y * 0.5f - t.y }, { ink.r, ink.g, ink.b, m_titleFade });
+            const char* prompt = "C L I C K   T O   L A U N C H";
+            const glm::vec2 p = ui.MeasureText(*m_smallFont, prompt);
+            ui.DrawText(*m_smallFont, prompt, { (screen.x - p.x) * 0.5f, screen.y * 0.5f + 12.0f }, { dim.r, dim.g, dim.b, dim.a * m_titleFade });
+        }
+    }
+
     void DriftApp::OnShutdown()
     {
-        m_ship.reset(); // before the renderer goes (M53)
+        // GPU objects go before the renderer (M53).
+        m_ship.reset();
+        m_ring.reset();
+        m_orb.reset();
+        m_rock.reset();
+        m_titleFont.reset();
+        m_comboFont.reset();
+        m_smallFont.reset();
     }
 }

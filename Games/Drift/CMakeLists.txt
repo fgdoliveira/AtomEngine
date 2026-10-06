@@ -8,6 +8,8 @@ add_library(
     STATIC
     Flight.cpp
     Flight.h
+    World.cpp
+    World.h
 )
 target_include_directories(DriftLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(DriftLib PUBLIC glm::glm)

@@ -38,6 +38,7 @@ add_executable(
     RunLogTests.cpp
     LatencyProbeTests.cpp
     DriftFlightTests.cpp
+    DriftWorldTests.cpp
     FakeGame.h
 )
 
@@ -143,8 +144,8 @@ if(TARGET Drift)
         Scenario.drift_fly
         PROPERTIES
             LABELS scenario
-            ENVIRONMENT "ATOM_DRIFT_SECONDS=6"
-            PASS_REGULAR_EXPRESSION "DRIFT autopilot: flew [0-9]+ m"
+            ENVIRONMENT "ATOM_DRIFT_SECONDS=20;ATOM_DRIFT_SEED=7"
+            PASS_REGULAR_EXPRESSION "DRIFT autopilot: flew [0-9]+ m .* rings [1-9][0-9]* passed"
             FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
             TIMEOUT 120
     )
