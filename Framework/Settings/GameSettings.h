@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace AtomGame
+namespace AtomFramework // M76: shared by every game
 {
     // The player's machine-level choices (M59, v0.0.10 hardware
     // portability), kept apart on purpose:

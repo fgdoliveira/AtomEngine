@@ -59,6 +59,7 @@ if(ATOM_BUILD_GAME)
     add_subdirectory(Shaders)
 endif()
 add_subdirectory(Engine)
+add_subdirectory(Framework) # M76: shared by every game
 add_subdirectory(Game)
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-using namespace AtomGame;
+using namespace AtomFramework;
 
 namespace
 {

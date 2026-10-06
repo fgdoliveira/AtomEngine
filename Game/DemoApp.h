@@ -42,6 +42,10 @@
 
 namespace AtomGame
 {
+    // M76: the settings model and calibration decision live in the shared
+    // framework now; the demo uses them as before, unqualified.
+    using namespace AtomFramework;
+
     // The game. It owns only what persists for the whole session (player,
     // camera, progress, systems, UI); everything that belongs to a place
     // lives in the current Level, owned by the LevelManager.

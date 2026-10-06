@@ -2,7 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace AtomGame
+namespace AtomFramework
 {
     using Json = nlohmann::json;
 

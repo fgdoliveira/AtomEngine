@@ -2,7 +2,7 @@
 
 #include <doctest/doctest.h>
 
-using namespace AtomGame;
+using namespace AtomFramework;
 using Outcome = CalibrationDecision::Outcome;
 
 namespace

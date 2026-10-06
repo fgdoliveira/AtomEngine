@@ -12,7 +12,7 @@
 #include <windows.h>
 #endif
 
-namespace AtomGame
+namespace AtomFramework
 {
     TeeBuffer::int_type TeeBuffer::overflow(int_type character)
     {
@@ -69,7 +69,7 @@ namespace AtomGame
         }
     }
 
-    RunLog::RunLog()
+    RunLog::RunLog(const std::string& app)
     {
 #ifdef _WIN32
         // Output already goes somewhere (a pipe, a file): keep it. Else try
@@ -97,14 +97,14 @@ namespace AtomGame
         // only: the log file belongs to the player's last real session.
         if (!SDL_getenv("ATOM_TEST_SCRIPT"))
         {
-            if (char* pref = SDL_GetPrefPath("AtomEngine", "AtomGame"))
+            if (char* pref = SDL_GetPrefPath("AtomEngine", app.c_str()))
             {
                 const std::filesystem::path folder = std::filesystem::path(pref) / "logs";
                 SDL_free(pref);
                 std::error_code error;
                 std::filesystem::create_directories(folder, error);
-                const std::filesystem::path current = folder / "AtomGame.log";
-                std::filesystem::rename(current, folder / "AtomGame.previous.log", error);
+                const std::filesystem::path current = folder / (app + ".log");
+                std::filesystem::rename(current, folder / (app + ".previous.log"), error);
                 m_file.open(current, std::ios::trunc);
                 if (m_file)
                 {

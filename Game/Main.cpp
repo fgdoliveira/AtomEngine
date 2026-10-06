@@ -11,7 +11,7 @@
 int main(int argc, char** argv)
 {
     // First: where this run's output goes (the terminal, a pipe, the log).
-    AtomGame::RunLog log;
+    AtomFramework::RunLog log("AtomGame"); // M76: the framework's, named for this game
     const char* basePath = SDL_GetBasePath();
     std::cout << "Executable folder: " << (basePath ? basePath : "unknown") << '\n'
               << "Log: " << (log.GetPath().empty() ? std::string("none (scripted run)") : log.GetPath()) << '\n';

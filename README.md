@@ -306,7 +306,7 @@ Developer switches (environment variables):
 One command makes the Windows package players download:
 
 ```sh
-pwsh Tools/Dist/package.ps1          # -NoSmoke on a machine without a GPU
+pwsh Tools/Dist/package.ps1          # -NoSmoke on a machine without a GPU; -Game <name> for another game
 ```
 
 It builds a Release game in its own folder (`build-dist/`, with

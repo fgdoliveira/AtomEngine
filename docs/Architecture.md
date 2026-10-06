@@ -8,7 +8,9 @@ when a change alters a diagram or a rule here, the change updates this page.
 ## 1. Targets and dependency direction
 
 ```text
-AtomGame (exe) ──→ AtomGameLib ──→ AtomEngine ──→ SDL3, GLM
+AtomGame (exe) ──→ AtomGameLib ──→ AtomFramework ──→ SDL3
+                        │
+                        └────────→ AtomEngine ──→ SDL3, GLM
 AtomTests ───────→ AtomGameLib
 ```
 
@@ -17,6 +19,9 @@ graph TD
     Exe[AtomGame executable] --> Game[AtomGameLib]
     Tests[AtomTests] --> Game
     Game --> Engine[AtomEngine]
+    Game --> Framework[AtomFramework]
+    Framework --> SDL
+    Framework -.->|private| JSON
     Game -.->|private| JSON[nlohmann/json]
     Game -.->|private| ImGui
     Engine --> SDL[SDL3]
@@ -29,6 +34,13 @@ graph TD
 - **The one rule that matters most:** the engine never includes game code.
   `Engine/` (namespace `Atom`) is reusable; `Game/` (namespace `AtomGame`)
   is the concrete demo.
+- **The framework (M76):** `Framework/` (namespace `AtomFramework`) is what
+  every game made with AtomEngine shares but the engine doesn't own: the
+  run's log (`RunLog`, named per game), the settings model and command
+  line (`GameSettings`), the calibration decision. Games link it; they never
+  share each other's code. Install rules are per game (a CMake component
+  named like the game), so `Tools/Dist/package.ps1 -Game <name>` packages
+  any of them.
 - **Static libraries** let the tests exercise exactly the game code the
   executable runs.
 - **Usage requirements are honest** (M54): PUBLIC only for what a target's
