@@ -61,6 +61,7 @@ endif()
 add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
 add_subdirectory(Game)
+add_subdirectory(Games/Drift) # M77: a second game
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)

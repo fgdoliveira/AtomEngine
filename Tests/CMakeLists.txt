@@ -37,6 +37,7 @@ add_executable(
     GPUDeviceTests.cpp
     RunLogTests.cpp
     LatencyProbeTests.cpp
+    DriftFlightTests.cpp
     FakeGame.h
 )
 
@@ -44,6 +45,7 @@ target_link_libraries(
     AtomTests
     PRIVATE
         AtomGameLib
+        DriftLib # M77: the second game's pure logic
         nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 
@@ -132,3 +134,18 @@ set_tests_properties(
         FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
         TIMEOUT 120
 )
+
+# M77: DRIFT flies on autopilot for a few seconds and reports the distance:
+# the second game starts, loads its assets, renders and shuts down clean.
+if(TARGET Drift)
+    add_test(NAME Scenario.drift_fly COMMAND $<TARGET_FILE:Drift>)
+    set_tests_properties(
+        Scenario.drift_fly
+        PROPERTIES
+            LABELS scenario
+            ENVIRONMENT "ATOM_DRIFT_SECONDS=6"
+            PASS_REGULAR_EXPRESSION "DRIFT autopilot: flew [0-9]+ m"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+            TIMEOUT 120
+    )
+endif()
