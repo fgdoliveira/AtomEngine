@@ -26,6 +26,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A public repository must not expose personal data: no local user paths,
+  # personal email addresses or keys in tracked files, and on a pull request
+  # no commit signed with a personal address (Tools/Dev/privacy.ps1).
+  privacy:
+    name: Privacy (no personal data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out (full history, no submodules)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan tracked files, and a pull request's commits
+        shell: pwsh
+        run: |
+          $range = if ('${{ github.event_name }}' -eq 'pull_request') { '${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}' } else { '' }
+          pwsh Tools/Dev/privacy.ps1 -Range $range
+
   unit-tests:
     name: Unit tests (Windows, Release)
     runs-on: windows-latest

@@ -1,14 +1,23 @@
 # AtomEngine
 
 [![CI](https://github.com/fgdoliveira/AtomEngine/actions/workflows/ci.yml/badge.svg)](https://github.com/fgdoliveira/AtomEngine/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
+
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/20)
+[![CMake 3.26+](https://img.shields.io/badge/CMake-3.26%2B-064F8C?logo=cmake&logoColor=white)](https://cmake.org/)
+[![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)](#building)
+[![Graphics: Direct3D 12](https://img.shields.io/badge/graphics-Direct3D%2012%20%28SDL%20GPU%29-555555)](https://wiki.libsdl.org/SDL3/CategoryGPU)
+[![Shaders: HLSL to DXIL](https://img.shields.io/badge/shaders-HLSL%20%E2%86%92%20DXIL-555555)](#building)
+
+[![SDL 3.4.18](https://img.shields.io/badge/SDL-3.4.18-1D4F8C)](https://github.com/libsdl-org/SDL/releases/tag/release-3.4.18)
+[![GLM 1.0.1](https://img.shields.io/badge/GLM-1.0.1-2E7D32)](https://github.com/g-truc/glm/releases/tag/1.0.1)
+[![Dear ImGui 1.92.9](https://img.shields.io/badge/Dear%20ImGui-1.92.9-7B3FA0)](https://github.com/ocornut/imgui/releases/tag/v1.92.9)
+[![cgltf 1.15](https://img.shields.io/badge/cgltf-1.15-E65100)](https://github.com/jkuhlmann/cgltf/releases/tag/v1.15)
+[![nlohmann/json 3.12.0](https://img.shields.io/badge/nlohmann%2Fjson-3.12.0-C62828)](https://github.com/nlohmann/json/releases/tag/v3.12.0)
+[![doctest 2.5.3](https://img.shields.io/badge/doctest-2.5.3-00838F)](https://github.com/doctest/doctest/releases/tag/v2.5.3)
 
 A small C++20 game engine built step by step as a learning and portfolio
-project, on **SDL3's GPU API (Direct3D 12)**. Its demo is a first-person walk
-through a foggy rural Japanese street in the spirit of 2000s horror (Silent
-Hill 2's daytime town, Siren) — and, a night bus ride away, one street of a
-neon city that implies a whole one — *2000s-inspired art direction on a
-modern, resolution-independent renderer*. A separate character lab, a
-2000s model-viewer studio, shows how the engine animates characters.
+project, on **SDL3's GPU API (Direct3D 12)**.
 
 Current version: **0.0.13 "Drift"** — a second game. **DRIFT** is a
 faithful port of a three.js web game: fly an endless path at dusk through
@@ -92,14 +101,27 @@ Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.26, and
 `dxc` (found automatically in the Windows SDK or the Vulkan SDK).
 
 ```sh
-git clone --recursive <repo-url>
+git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cmake -B build -S .
 cmake --build build --config Release
 build/bin/Release/AtomGame.exe
 ```
 
-Dependencies are pinned git submodules: SDL 3.4.18, GLM 1.0.1, cgltf 1.15,
-stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9.
+Dependencies are git submodules in `external/`, each pinned to one commit
+(`git submodule status` shows them):
+
+| Library | Version | Licence | Used for | Ships in packages |
+|---|---|---|---|---|
+| [SDL](https://github.com/libsdl-org/SDL) | 3.4.18 | zlib | window, input, audio, the GPU API (Direct3D 12) | yes (`SDL3.dll`) |
+| [GLM](https://github.com/g-truc/glm) | 1.0.1 | MIT (or Happy Bunny) | vector and matrix maths | yes (header-only) |
+| [Dear ImGui](https://github.com/ocornut/imgui) | 1.92.9 | MIT | developer panels and the F1 overlay | linked, never started (development builds only) |
+| [cgltf](https://github.com/jkuhlmann/cgltf) | 1.15 | MIT | loading glTF / `.glb` models | yes |
+| [nlohmann/json](https://github.com/nlohmann/json) | 3.12.0 | MIT | levels, dialogue, settings | yes |
+| [doctest](https://github.com/doctest/doctest) | 2.5.3 | MIT | unit tests | no (tests only) |
+
+Fonts: Shippori Mincho (the demo) and Space Grotesk (DRIFT), both under the
+SIL Open Font License 1.1. Every shipped licence travels in a package's
+`THIRD_PARTY_NOTICES.txt`.
 
 Build options (CMake `-D`):
 
@@ -485,6 +507,14 @@ and lifetime checks, Release for anything timed). Rebuild assets only when
 Blender scripts or content products change. CI runs the unit tests and the package check on pull
 requests and pushes to master; scenarios are always a local job.
 
+**Privacy.** The repository is public, so nothing personal goes in it:
+`pwsh Tools/Dev/privacy.ps1` fails on a local user path (`C:\Users\<name>`),
+an email address or a key in any tracked file, binaries included. With
+`-Range origin/master..HEAD` it also checks that each commit is signed with
+a noreply address. Set it once per clone:
+`git config user.email <id>+<user>@users.noreply.github.com` (GitHub,
+Settings > Emails). CI runs the check on every pull request.
+
 ## Content pipeline
 
 Pachinko machines are JSON files in `Assets/Machines/` (schema in
@@ -563,7 +593,9 @@ external/ pinned dependencies
 
 ## Licence
 
-Code: see [LICENSE.txt](LICENSE.txt). The bundled font is a Latin subset of
-Shippori Mincho (SIL Open Font License 1.1, see `Assets/Fonts/`).
+Code: MIT, see [LICENSE.txt](LICENSE.txt). Third-party libraries keep their
+own licences (the table in [Building](#building)). Fonts: a Latin subset of
+Shippori Mincho for the demo (`Assets/Fonts/`) and Space Grotesk for DRIFT
+(`Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
 Third-party assets used as they came (the lab's character) are credited in
 [Assets/ThirdParty/README.md](Assets/ThirdParty/README.md).
