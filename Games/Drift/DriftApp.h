@@ -49,9 +49,9 @@ namespace Drift
         std::unique_ptr<Atom::Model> m_ring;
         std::unique_ptr<Atom::Model> m_orb;
         std::unique_ptr<Atom::Model> m_rock;
-        std::unique_ptr<Atom::Font> m_titleFont; // 88 px: DRIFT
-        std::unique_ptr<Atom::Font> m_comboFont; // 42 px: the chain
-        std::unique_ptr<Atom::Font> m_smallFont; // 12 px: labels
+        std::unique_ptr<Atom::Font> m_titleFont; // 92 px: DRIFT
+        std::unique_ptr<Atom::Font> m_comboFont; // 46 px: the chain
+        std::unique_ptr<Atom::Font> m_smallFont; // 16 px: labels
         Ship m_flight;
         std::unique_ptr<World> m_world;
         Flow m_flow;

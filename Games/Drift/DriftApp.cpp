@@ -83,9 +83,9 @@ namespace Drift
         m_orb = Atom::Model::Load(renderer, m_assetRoot + "orb.glb");
         m_rock = Atom::Model::Load(renderer, m_assetRoot + "rock.glb");
         const std::string font = m_assetRoot + "Fonts/SpaceGrotesk.ttf";
-        m_titleFont = Atom::Font::Load(renderer, font, 88.0f);
-        m_comboFont = Atom::Font::Load(renderer, font, 42.0f);
-        m_smallFont = Atom::Font::Load(renderer, font, 12.0f);
+        m_titleFont = Atom::Font::Load(renderer, font, 92.0f);
+        m_comboFont = Atom::Font::Load(renderer, font, 46.0f);
+        m_smallFont = Atom::Font::Load(renderer, font, 16.0f);
         if (!m_ship || !m_ring || !m_orb || !m_rock || !m_titleFont || !m_comboFont || !m_smallFont)
         {
             std::cerr << "Missing DRIFT assets in " << m_assetRoot << '\n';
@@ -145,6 +145,11 @@ namespace Drift
             return true;
         }
         std::cout << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << ", course seed " << seed << '\n';
+
+        // No cursor over the game, as in the demo: relative mouse mode hides
+        // it and keeps it in the window; clicks still arrive (the title's
+        // "click to launch"). Not fatal - an automated run may lack focus.
+        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
         return true;
     }
 
@@ -434,9 +439,9 @@ namespace Drift
         const float left = (screen.x - width) * 0.5f;
         const float bar = screen.y - 36.0f;
         const std::string percent = std::to_string(static_cast<int>(std::lround(m_flow.value * 100.0f))) + "%";
-        ui.DrawText(*m_smallFont, "F L O W", { left, bar - 22.0f }, dim);
+        ui.DrawText(*m_smallFont, "F L O W", { left, bar - 26.0f }, dim);
         const glm::vec2 pct = ui.MeasureText(*m_smallFont, percent);
-        ui.DrawText(*m_smallFont, percent, { left + width - pct.x, bar - 22.0f }, dim);
+        ui.DrawText(*m_smallFont, percent, { left + width - pct.x, bar - 26.0f }, dim);
         ui.DrawRect({ left, bar }, { width, 2.0f }, dim);
         ui.DrawRect({ left, bar }, { width * m_flow.value, 2.0f }, hot);
 
