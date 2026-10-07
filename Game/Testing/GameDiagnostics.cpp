@@ -1,4 +1,5 @@
 #include "Testing/GameDiagnostics.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 
 #include <SDL3/SDL.h>
 
@@ -17,19 +18,19 @@ namespace AtomGame
     std::optional<int> GameDiagnostics::InitializeFromEnvironment()
     {
         PerfSettings perf;
-        const char* enabled = SDL_getenv("ATOM_PERF_LOG");
+        const char* enabled = Atom::DevSwitch("ATOM_PERF_LOG");
         perf.enabled = enabled && *enabled && std::string_view(enabled) != "0";
-        if (const char* block = SDL_getenv("ATOM_PERF_BLOCK"))
+        if (const char* block = Atom::DevSwitch("ATOM_PERF_BLOCK"))
         {
             perf.block = static_cast<std::size_t>(std::max(30, std::atoi(block)));
         }
-        if (const char* path = SDL_getenv("ATOM_PERF_CSV"); perf.enabled && path && *path)
+        if (const char* path = Atom::DevSwitch("ATOM_PERF_CSV"); perf.enabled && path && *path)
         {
             m_csvFile = std::make_unique<std::ofstream>(path);
         }
         ConfigurePerf(perf, std::cout, m_csvFile.get());
 
-        const char* path = SDL_getenv("ATOM_TEST_SCRIPT");
+        const char* path = Atom::DevSwitch("ATOM_TEST_SCRIPT");
         if (!path)
         {
             return std::nullopt;

@@ -1,4 +1,5 @@
 #include "Renderer/Renderer.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/AssetLog.h"
 
 #include "Renderer/GpuResources.h"
@@ -311,9 +312,9 @@ namespace Atom
         // vsync off; ATOM_FRAMES_IN_FLIGHT=1..3 (default 3: see GPUDevice).
         PresentationConfig presentation;
         presentation.vsync = config.vsync;
-        const char* present = SDL_getenv("ATOM_PRESENT");
+        const char* present = Atom::DevSwitch("ATOM_PRESENT");
         presentation.preferImmediate = present && std::string_view(present) == "immediate";
-        const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT");
+        const char* frames = Atom::DevSwitch("ATOM_FRAMES_IN_FLIGHT");
         const bool framesChosen = frames && *frames;
         if (framesChosen)
         {
@@ -326,14 +327,14 @@ namespace Atom
         // M74: the swapchain wait happens before input is read (measured:
         // 30.2 -> 24.1 ms click to display with 2 frames, same 144 fps).
         // ATOM_LATENCY_WAIT=late restores the old order, for comparison.
-        const char* wait = SDL_getenv("ATOM_LATENCY_WAIT");
+        const char* wait = Atom::DevSwitch("ATOM_LATENCY_WAIT");
         m_waitEarly = !(wait && SDL_strcmp(wait, "late") == 0);
         std::cout << "Swapchain wait: " << (m_waitEarly ? "early (before input is read)" : "late (in Render)") << '\n';
         // M74: 2 frames in flight unless chosen - watched once, with vsync,
         // in case 2 can't hold the refresh rate here (as on v0.0.10's driver).
         m_framesGuard = !framesChosen && m_gpu.GetInfo().framesInFlight == 2;
         // M73: ATOM_LATENCY_LOG=1 times each click through the frame.
-        if (const char* latency = SDL_getenv("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
+        if (const char* latency = Atom::DevSwitch("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
         {
             m_latency.SetEnabled(true, &std::cout);
             std::cout << "Latency log on: a LAT block every " << LatencyProbe::BlockSamples << " clicks\n";

@@ -39,7 +39,9 @@ namespace AtomGame
     {
         m_frameHistory[m_frameHistoryNext] = deltaSeconds * 1000.0f;
         m_frameHistoryNext = (m_frameHistoryNext + 1) % m_frameHistory.size();
-        if (!GetDevTools().IsFrameActive())
+        // M82: an ImGui frame also runs for the F1 overlay alone; the panels
+        // are F10's.
+        if (!GetDevTools().IsFrameActive() || !GetDevTools().IsVisible())
         {
             return;
         }
@@ -157,7 +159,7 @@ namespace AtomGame
             toggle("Unease", "unease", m_unease.IsEnabled());
             toggle("World", "world", m_drawWorld);
             toggle("HUD", "hud", m_showHud);
-            toggle("F1 overlay", "overlay", m_showDebugOverlay);
+            toggle("F1 overlay", "overlay", GetDevTools().IsOverlayVisible());
             if (ImGui::Checkbox("Baked light (F3)", &m_bakedLightEnabled))
             {
                 ApplyLighting();

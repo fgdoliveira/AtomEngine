@@ -43,6 +43,8 @@ namespace Atom
         void Poll(SDL_GPUDevice* device, std::uint64_t nowNs);
         // Before the device goes: releases every fence still pending.
         void ReleaseAll(SDL_GPUDevice* device);
+        // M82: the latest LAT line (empty until a block is full), for F1.
+        const std::string& LastLine() const { return m_lastLine; }
 
         // Pure (unit-tested): one LAT line - medians and p95s in ms.
         static std::string FormatLine(int block, const FrameStatsWindow& toFrame, const FrameStatsWindow& wait,
@@ -69,5 +71,6 @@ namespace Atom
         FrameStatsWindow m_toSubmit;
         FrameStatsWindow m_toGpu;
         int m_block = 0;
+        std::string m_lastLine;
     };
 }

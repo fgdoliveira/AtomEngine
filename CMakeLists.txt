@@ -21,6 +21,14 @@ option(ATOM_BUILD_GAME "Build the AtomGame executable and compile its shaders (n
 # for development (Debug and Release keep their console); the package
 # command (Tools/Dist) builds its own folder with it on.
 option(ATOM_DISTRIBUTION "Build the game as distributed: a windowed program (no console)" OFF)
+# M82: the packaged game has no developer tools - F1/F10, the ATOM_*
+# switches (Engine/Core/DevSwitch.h), the test harness, benches and hot
+# reload are compiled out. It keeps the log and --diagnostics.
+if(ATOM_DISTRIBUTION)
+    add_compile_definitions(ATOM_DEV_TOOLS=0)
+else()
+    add_compile_definitions(ATOM_DEV_TOOLS=1)
+endif()
 
 option(
     ATOM_BUILD_PRESENTATION_PROBE

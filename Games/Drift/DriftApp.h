@@ -9,6 +9,7 @@
 
 #include "Assets/Model.h"
 #include "Core/Application.h"
+#include "Settings/GameSettings.h"
 #include "Renderer/Particles.h"
 #include "Renderer/Texture.h"
 #include "UI/Font.h"
@@ -28,6 +29,7 @@ namespace Drift
         explicit DriftApp(std::vector<std::string> arguments);
 
     protected:
+        StartupConfig OnConfigure() override;
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
         void OnShutdown() override;
@@ -40,6 +42,8 @@ namespace Drift
         void DrawHud(float dt);
 
         std::vector<std::string> m_arguments;
+        AtomFramework::CommandLine m_commandLine;          // M82: --gpu, --diagnostics
+        AtomFramework::ResolvedSettings m_resolvedSettings;
         std::string m_assetRoot;
         std::unique_ptr<Atom::Model> m_ship;
         std::unique_ptr<Atom::Model> m_ring;

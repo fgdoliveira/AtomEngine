@@ -280,7 +280,9 @@ reports no result when the display caps the frame rate. Calibrate plugged
 in, on a cool machine, with the window left alone: the result describes
 that moment.
 
-Developer switches (environment variables):
+Developer switches (environment variables). Development builds only: a
+package (`ATOM_DISTRIBUTION=ON`, M82) compiles them out and ignores them,
+as it does F1 and F10.
 
 | Variable | Effect |
 |---|---|

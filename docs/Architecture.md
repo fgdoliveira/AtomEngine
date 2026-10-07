@@ -292,25 +292,30 @@ flowchart LR
   master by CI's `package` job (M69), a check that keeps no ZIP. A clean-machine run follows
   [Distribution-Test.md](Distribution-Test.md).
 
-**What ships, and how (M70).** Diagnostics are kept on purpose: on a
-stranger's PC a hidden report is worth more than a few kilobytes saved.
+**What ships, and how (M70, revised in M82).** The player keeps what helps a
+stranger report a problem; every developer facility is compiled out.
 
 | Facility | Policy |
 |---|---|
 | The log file, `--diagnostics`, the start-failure message box | **always available** |
-| F10 developer panels (Settings, Lighting, Environment, …), F1 overlay, F2–F8 switches | **shipped, as diagnostics**: behind keys a player never needs |
-| `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF logs | **development-enabled**: shipped, inert unless set |
-| Hot reload (`ATOM_ASSET_ROOT`) | **development-enabled**: needs the source tree |
+| F10 developer panels, the shared F1 overlay (every game) | **development only**: compiled out (`ATOM_DEV_TOOLS=0`) |
+| The demo's F2–F8 display toggles | **shipped**: plain game keys |
+| `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF and LAT logs, DRIFT's autopilot | **development only**: `Atom::DevSwitch` reads nothing in a package |
+| Hot reload (`ATOM_ASSET_ROOT`) | **development only**: needs the source tree |
 | Asserts, the D3D12 debug layer | **Debug only**: compiled out of Release |
 | The character lab (`Lab/`, `ThirdParty/`, its level) | **not packaged**: its character's licence isn't recorded |
 | `Tests/`, `PresentationProbe`, `SwapchainMatrix`, `Tools/Perf`, `Tools/Dev`, Blender tools, schemas | **not packaged** |
 
-Nothing is stripped from the Release code: the shipped executable is the
-tested one, with the same code paths.
+M82 reverses M70's "nothing stripped": `-DATOM_DISTRIBUTION=ON` also defines
+`ATOM_DEV_TOOLS=0`. The cost is that the shipped executable is not byte for
+byte the tested one; the switch gates only entry points (environment reads,
+ImGui start-up), so game code paths are the same. The log says which:
+"Developer tools: off (distribution build)", and `package.ps1` refuses a
+package that says "on".
 
 ## 10. Tools
 
-- **Runtime:** Dear ImGui panels (F10) and the F1 overlay - an overlay, not
+- **Runtime:** Dear ImGui panels (F10) and the F1 overlay (M82: shared by every game, engine lines first, then the game's) - an overlay, not
   an editor framework, and kept out of captures.
 - **Scripted:** `.atomtest` scenarios, paired benches, captures - compiled
   in, switched on by the environment.

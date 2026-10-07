@@ -69,7 +69,13 @@ if (-not $NoSmoke) {
         Write-Host "FAILED: the staged game didn't start outside the repository (exit $($process.ExitCode)); see $out" -ForegroundColor Red
         exit 1
     }
-    Write-Host ("   ok: {0}" -f ((Get-Content $report | Select-String "gpu.adapter:").Line))
+    # M82: a package is a distribution build - no developer tools. A
+    # development build staged by mistake says "on" here and is refused.
+    if (-not (Select-String -Path $out -Pattern "Developer tools: off" -Quiet)) {
+        Write-Host "FAILED: the packaged game has developer tools compiled in (not a distribution build); see $out" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host ("   ok: {0}; developer tools off" -f ((Get-Content $report | Select-String "gpu.adapter:").Line))
     Remove-Item $smoke -Recurse -Force
 }
 

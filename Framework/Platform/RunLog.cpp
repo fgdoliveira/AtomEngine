@@ -1,4 +1,5 @@
 #include "Platform/RunLog.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 
 #include <SDL3/SDL.h>
 
@@ -95,7 +96,7 @@ namespace AtomFramework
 
         // Scripted runs (tests, benchmarks) keep their output on the console
         // only: the log file belongs to the player's last real session.
-        if (!SDL_getenv("ATOM_TEST_SCRIPT"))
+        if (!Atom::DevSwitch("ATOM_TEST_SCRIPT"))
         {
             if (char* pref = SDL_GetPrefPath("AtomEngine", app.c_str()))
             {

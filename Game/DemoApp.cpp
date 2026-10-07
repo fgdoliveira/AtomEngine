@@ -1,5 +1,7 @@
 #include "DemoApp.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/AssetLog.h"
+#include "Diagnostics/DiagnosticsReport.h"
 
 #include "Pachinko/PixelDraw.h"
 
@@ -55,12 +57,12 @@ namespace AtomGame
             std::cerr << "Command line: " << error << " (ignored)\n";
         }
         EnvironmentOverrides environment;
-        if (const char* gpu = SDL_getenv("ATOM_GPU"); gpu && *gpu)
+        if (const char* gpu = Atom::DevSwitch("ATOM_GPU"); gpu && *gpu)
         {
             environment.gpu = ParseGpuPreference(gpu);
             if (!environment.gpu) std::cerr << "ATOM_GPU: unknown value '" << gpu << "' (ignored)\n";
         }
-        if (const char* quality = SDL_getenv("ATOM_QUALITY"); quality && *quality)
+        if (const char* quality = Atom::DevSwitch("ATOM_QUALITY"); quality && *quality)
         {
             environment.quality = ParseQualityMode(quality);
             if (!environment.quality) std::cerr << "ATOM_QUALITY: unknown value '" << quality << "' (ignored)\n";
@@ -72,7 +74,7 @@ namespace AtomGame
         m_resolvedSettings = ResolveSettings(m_commandLine, environment, useSaved ? &m_savedSettings : nullptr);
         // Calibration (M64): asked for on the command line or saved as
         // "calibrate next launch" - never in a scripted test run.
-        const bool scripted = SDL_getenv("ATOM_TEST_SCRIPT") != nullptr;
+        const bool scripted = Atom::DevSwitch("ATOM_TEST_SCRIPT") != nullptr;
         m_calibrateThisRun = !scripted && (m_commandLine.calibrate || (useSaved && m_savedSettings.calibrateNextLaunch));
         if (scripted && m_commandLine.calibrate)
         {
@@ -113,7 +115,7 @@ namespace AtomGame
             m_settingsPath = std::string(pref) + "settings.json";
             SDL_free(pref);
         }
-        m_settingsPersist = !m_settingsPath.empty() && !SDL_getenv("ATOM_TEST_SCRIPT") && !m_commandLine.noSettings;
+        m_settingsPersist = !m_settingsPath.empty() && !Atom::DevSwitch("ATOM_TEST_SCRIPT") && !m_commandLine.noSettings;
         if (!m_settingsPersist)
         {
             return; // defaults and explicit flags only
@@ -135,84 +137,25 @@ namespace AtomGame
         m_savedSettings = std::move(load.settings);
     }
 
-    namespace
-    {
-        std::string PowerStateName()
-        {
-            int seconds = -1;
-            int percent = -1;
-            switch (SDL_GetPowerInfo(&seconds, &percent))
-            {
-            case SDL_POWERSTATE_ON_BATTERY: return "battery (" + std::to_string(percent) + "%)";
-            case SDL_POWERSTATE_CHARGING: return "plugged in, charging";
-            case SDL_POWERSTATE_CHARGED: return "plugged in";
-            case SDL_POWERSTATE_NO_BATTERY: return "no battery (mains)";
-            default: return "unknown";
-            }
-        }
-    }
-
     std::string DemoApp::PerfContext() const
     {
         Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
         const Atom::Renderer::DeviceReport report = renderer.GetDeviceReport();
         return "adapter=\"" + report.adapter + "\" present=" + report.presentMode
-            + " frames_in_flight=" + std::to_string(report.framesInFlight) + " power=\"" + PowerStateName()
+            + " frames_in_flight=" + std::to_string(report.framesInFlight) + " power=\"" + AtomFramework::PowerStateName()
             + "\" quality=" + std::string(ToString(CurrentQualityTier()));
     }
 
     bool DemoApp::WriteDiagnostics(const std::string& path) const
     {
-        // Facts, one per line, for doctor.ps1 and bug reports. Nothing here
-        // is a performance claim: those need paired measurements.
+        // The shared report (M82, the framework), then the demo's own lines.
         Atom::Renderer& renderer = const_cast<DemoApp*>(this)->GetRenderer();
         SDL_Window* window = const_cast<DemoApp*>(this)->GetWindow().GetSDLWindow();
-        const Atom::Renderer::DeviceReport r = renderer.GetDeviceReport();
         const Atom::RenderSettings& s = renderer.GetSettings();
-        const int compiled = SDL_VERSION;
-        const int runtime = SDL_GetVersion();
-        const auto version = [](int v) {
-            return std::to_string(SDL_VERSIONNUM_MAJOR(v)) + '.' + std::to_string(SDL_VERSIONNUM_MINOR(v)) + '.'
-                + std::to_string(SDL_VERSIONNUM_MICRO(v));
-        };
-        const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
-        const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
-        const char* displayName = SDL_GetDisplayName(display);
-        int windowWidth = 0;
-        int windowHeight = 0;
-        SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
 
         std::ostringstream out;
-        out << "AtomEngine " ATOM_VERSION " diagnostics\n"
-            << "sdl.compiled: " << version(compiled) << "\n"
-            << "sdl.runtime: " << version(runtime) << "\n"
-            << "gpu.adapter: " << r.adapter << "\n"
-            << "gpu.backend: " << r.backend << "\n"
-            << "gpu.preference.requested: " << r.preference << "\n"
-            << "gpu.preference.reason: " << m_resolvedSettings.gpuReason << "\n";
-        if (const auto& fallback = renderer.GetStartupFallback())
-        {
-            out << "gpu.fallback.adapter: " << (fallback->adapter.empty() ? "none created" : fallback->adapter) << "\n"
-                << "gpu.fallback.stage: "
-                << (fallback->stage == Atom::StartupFallback::Stage::Presentation ? "presentation" : "device") << "\n"
-                << "gpu.fallback.error: " << fallback->error << "\n";
-        }
-        out
-            << "gpu.max_msaa: " << r.maxMsaa << "x\n"
-            << "gpu.scene_format: " << r.sceneFormat << "\n"
-            << "swapchain.composition: " << r.composition << "\n"
-            << "swapchain.present_mode: " << r.presentMode << "\n"
-            << "swapchain.frames_in_flight: " << r.framesInFlight << "\n"
-            << "swapchain.supports: vsync=" << (r.supportsVsync ? "yes" : "no")
-            << " mailbox=" << (r.supportsMailbox ? "yes" : "no")
-            << " immediate=" << (r.supportsImmediate ? "yes" : "no") << "\n"
-            << "display.name: " << (displayName ? displayName : "unknown") << "\n"
-            << "display.mode: " << (mode ? std::to_string(mode->w) + "x" + std::to_string(mode->h) + " @ "
-                                               + std::to_string(static_cast<int>(mode->refresh_rate + 0.5f)) + " Hz"
-                                         : std::string("unknown")) << "\n"
-            << "display.scale: " << SDL_GetWindowDisplayScale(window) << "\n"
-            << "window.pixels: " << windowWidth << "x" << windowHeight << "\n"
-            << "power: " << PowerStateName() << "\n"
+        out << AtomFramework::DiagnosticsReport("AtomEngine " ATOM_VERSION " diagnostics", renderer, window,
+                                                m_resolvedSettings.gpuReason)
             << "quality.mode: " << ToString(m_resolvedSettings.quality) << "\n"
             << "quality.drawing: " << ToString(CurrentQualityTier()) << "\n"
             << "settings.render_scale: " << s.renderScale << "\n"
@@ -221,16 +164,7 @@ namespace AtomGame
             << "settings.particles: " << (m_atmosphere.IsEnabled() ? "on" : "off") << "\n"
             << "settings.reflection: " << (renderer.IsReflectionEnabled() ? "allowed" : "off") << "\n"
             << "settings.file: " << (m_settingsPersist ? m_settingsPath : std::string("not used this run")) << "\n";
-
-        std::ofstream file(path, std::ios::binary | std::ios::trunc);
-        file << out.str();
-        if (!file)
-        {
-            std::cerr << "Could not write diagnostics to " << path << '\n';
-            return false;
-        }
-        std::cout << "Diagnostics written to " << path << std::endl;
-        return true;
+        return AtomFramework::WriteDiagnosticsFile(path, out.str());
     }
 
     void DemoApp::SaveSettings()
@@ -293,7 +227,7 @@ namespace AtomGame
         m_assetRoot = basePath ? basePath : "";
         // ATOM_ASSET_ROOT=<folder containing Assets/> reads the source tree
         // instead of the build's copy, and turns on hot reload.
-        if (const char* root = SDL_getenv("ATOM_ASSET_ROOT"); root && *root)
+        if (const char* root = Atom::DevSwitch("ATOM_ASSET_ROOT"); root && *root)
         {
             m_assetRoot = root;
             if (m_assetRoot.back() != '/' && m_assetRoot.back() != '\\')
@@ -304,7 +238,7 @@ namespace AtomGame
             std::cout << "Hot reload on: assets from " << m_assetRoot << '\n';
         }
 
-        if (const char* flash = SDL_getenv("ATOM_LATENCY_FLASH"); flash && SDL_strcmp(flash, "1") == 0)
+        if (const char* flash = Atom::DevSwitch("ATOM_LATENCY_FLASH"); flash && SDL_strcmp(flash, "1") == 0)
         {
             m_latencyFlash = true;
             std::cout << "Latency flash on: a left click turns that frame black\n";
@@ -350,7 +284,7 @@ namespace AtomGame
         std::string startLevel = "street";
         std::string startSpawn;
 
-        if (const char* start = SDL_getenv("ATOM_START_LEVEL"))
+        if (const char* start = Atom::DevSwitch("ATOM_START_LEVEL"))
         {
             const std::string value = start;
             const std::size_t colon = value.find(':');
@@ -382,7 +316,7 @@ namespace AtomGame
             m_resolvedSettings.gpuReason = "fallback: " + Atom::DescribeFallback(*fallback);
             std::cout << "GPU preference: " << m_resolvedSettings.gpuReason << std::endl;
         }
-        if (const char* loss = SDL_getenv("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
+        if (const char* loss = Atom::DevSwitch("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
         {
             m_simulateLossAt = static_cast<float>(SDL_atof(loss));
         }
@@ -1031,69 +965,50 @@ namespace AtomGame
             }
         }
 
-        // Frame time, smoothed so the numbers are readable.
+        // Frame time, smoothed so the numbers are readable (the title bar).
         const float frameMs = deltaSeconds * 1000.0f;
         m_smoothedFrameMs += (frameMs - m_smoothedFrameMs) * 0.05f;
 
-        if (!m_showDebugOverlay)
+        // M82: F1 is the engine's shared overlay; the demo appends its own
+        // lines after the engine's (frame, scene, draws, device).
+        Atom::DevTools& tools = GetDevTools();
+        if (!tools.IsOverlayVisible())
         {
             return;
         }
-
         const Atom::FrameStats& stats = GetRenderer().GetLastFrameStats();
         const Atom::RenderSettings& settings = GetRenderer().GetSettings();
         const glm::vec3& feet = m_player.GetFeetPosition();
+        char line[256];
 
         // Per distance layer (M22): chunks in view, draw calls, triangles,
         // and shadow-pass draws - mid and far should show none.
-        char layers[320];
         const char* layerNames[] = { "Near", "Mid ", "Far " };
-        int written = 0;
         for (std::size_t i = 0; i < Atom::RenderLayerCount; ++i)
         {
             const Atom::LayerStats& l = stats.layers[i];
-            written += std::snprintf(layers + written, sizeof(layers) - written,
-                "%s  chunks %u/%u  draws %u  tris %.1fk  shadow %u\n",
-                layerNames[i], l.chunksVisible, l.chunks, l.drawn, l.triangles / 1000.0f, l.shadowDrawn);
+            std::snprintf(line, sizeof(line), "%s  chunks %u/%u  draws %u  tris %.1fk  shadow %u", layerNames[i],
+                          l.chunksVisible, l.chunks, l.drawn, l.triangles / 1000.0f, l.shadowDrawn);
+            tools.AddOverlayLine(line);
         }
-
-        char text[1024];
-        std::snprintf(text, sizeof(text),
-            "%.2f ms  (%.0f fps)\n"
-            "Scene %ux%u  (%.0f%%)  MSAA %ux\n"
-            "Draws %u / %u   shadow casters %u\n"
-            "%s"
-            "Binds: pipelines %u  materials %u   Models loaded %zu, shared %zu\n"
-            "Particles %u\n"
-            "Fog %s   Shadows %s   Baked light %s   Post %s\n"
-            "Particles %s   Unease %s   Audio %s\n"
-            "Position %.1f  %.2f  %.1f\n"
-            "Level %s   voices %zu   flags %zu",
-            m_smoothedFrameMs,
-            m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f,
-            stats.sceneWidth, stats.sceneHeight, settings.renderScale * 100.0f, stats.msaaSamples,
-            stats.drawn, stats.submitted, stats.shadowDrawn,
-            layers,
-            stats.pipelineBinds, stats.materialBinds, m_modelCache.GetLoads(), m_modelCache.GetHits(),
-            stats.particles,
-            FogPresets[m_fogPreset].name,
-            GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
-            m_bakedLightEnabled ? "on" : "off",
-            m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
-            m_atmosphere.IsEnabled() ? "on" : "off",
-            m_unease.IsEnabled() ? "on" : "off",
-            m_audioScape.IsMuted() ? "muted" : "on",
-            feet.x, feet.y, feet.z,
-            m_levels->GetLevel() ? m_levels->GetLevel()->GetName().c_str() : "-",
-            GetAudio().GetVoiceCount(),
-            m_gameState.FlagCount());
-
-        const float padding = 10.0f * scale;
-        const glm::vec2 size = ui.MeasureText(*m_smallFont, text, scale);
-        ui.DrawRect({ 12.0f * scale, 12.0f * scale }, size + glm::vec2{ 2.0f * padding },
-            { 0.04f, 0.04f, 0.05f, 0.85f });
-        ui.DrawText(*m_smallFont, text,
-            glm::vec2{ 12.0f * scale + padding }, { 0.88f, 0.90f, 0.86f, 1.0f }, scale);
+        std::snprintf(line, sizeof(line), "Render scale %.0f%%   models loaded %zu, shared %zu", settings.renderScale * 100.0f,
+                      m_modelCache.GetLoads(), m_modelCache.GetHits());
+        tools.AddOverlayLine(line);
+        std::snprintf(line, sizeof(line), "Fog %s   Shadows %s   Baked light %s   Post %s", FogPresets[m_fogPreset].name,
+                      GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
+                      m_bakedLightEnabled ? "on" : "off", m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off");
+        tools.AddOverlayLine(line);
+        std::snprintf(line, sizeof(line), "Particles %s   Unease %s   Audio %s", m_atmosphere.IsEnabled() ? "on" : "off",
+                      m_unease.IsEnabled() ? "on" : "off", m_audioScape.IsMuted() ? "muted" : "on");
+        tools.AddOverlayLine(line);
+        std::snprintf(line, sizeof(line), "Position %.1f  %.2f  %.1f", feet.x, feet.y, feet.z);
+        tools.AddOverlayLine(line);
+        std::snprintf(line, sizeof(line), "Level %s   voices %zu   flags %zu",
+                      m_levels->GetLevel() ? m_levels->GetLevel()->GetName().c_str() : "-", GetAudio().GetVoiceCount(),
+                      m_gameState.FlagCount());
+        tools.AddOverlayLine(line);
+        (void)ui;
+        (void)scale;
     }
 
     bool DemoApp::BeginDialogue(const std::string& dialogueId)
@@ -1319,11 +1234,7 @@ namespace AtomGame
             renderer.SetSettings(settings);
         }
 
-        // F1: debug overlay.
-        if (input.WasKeyPressed(SDL_SCANCODE_F1))
-        {
-            m_showDebugOverlay = !m_showDebugOverlay;
-        }
+        // F1: the debug overlay is the engine's shared one now (M82, DevTools).
 
         // F8: particles (leaves, ash, fog banks) on/off.
         if (input.WasKeyPressed(SDL_SCANCODE_F8))
@@ -1878,7 +1789,7 @@ namespace AtomGame
         else if (what == "unease" && onOff) m_unease.SetEnabled(on);
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
-        else if (what == "overlay" && onOff) m_showDebugOverlay = on;
+        else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on); // M82: the shared F1 overlay
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
         else if (what == "devtools_collapsed" && onOff) m_devToolsCollapse = on; // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera

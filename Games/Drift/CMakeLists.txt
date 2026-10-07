@@ -35,6 +35,7 @@ target_link_libraries(
         AtomEngine
         AtomFramework
 )
+target_compile_definitions(Drift PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M82: the diagnostics title
 add_dependencies(Drift AtomShaders) # the engine's shaders, shared with every game
 if(ATOM_DISTRIBUTION)
     set_target_properties(Drift PROPERTIES WIN32_EXECUTABLE ON) # M67: no console for players

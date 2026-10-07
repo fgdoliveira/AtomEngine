@@ -13,14 +13,14 @@
         @{ Pattern = '^(docs/|NoTrack/|audits/)|\.md$|^CHANGELOG|^LICENSE|^\.gitignore$|^\.gitattributes$|^\.github/'; Build = $false; Scenarios = @() }
 
         # DRIFT
-        @{ Pattern = '^Games/Drift/'; Scenarios = @('drift_fly') }
+        @{ Pattern = '^Games/Drift/'; Scenarios = @('drift_fly', 'drift_diagnostics') }
 
         # The engine
         @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Scenarios = @('first_render', 'lakeshore', 'night_street', 'drift_fly') }
         @{ Pattern = '^Engine/Audio/'; Scenarios = @('drift_fly', 'pachinko_session') }
         @{ Pattern = '^Engine/Debug/'; Scenarios = @('devtools') }
         @{ Pattern = '^Engine/Assets/'; Scenarios = @('first_render', 'character_lab', 'drift_fly') }
-        @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('first_render', 'diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly') }
+        @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('first_render', 'diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics') }
 
         # The demo, by system
         @{ Pattern = '^Game/Pachinko/'; Scenarios = @('pachinko_session') }

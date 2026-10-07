@@ -55,9 +55,10 @@ namespace Atom
 
             if (m_toGpu.Count() >= BlockSamples)
             {
+                m_lastLine = FormatLine(m_block, m_toFrame, m_wait, m_toSubmit, m_toGpu);
                 if (m_out)
                 {
-                    *m_out << FormatLine(m_block, m_toFrame, m_wait, m_toSubmit, m_toGpu) << std::endl;
+                    *m_out << m_lastLine << std::endl;
                 }
                 ++m_block;
                 m_toFrame.Clear();

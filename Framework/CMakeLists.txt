@@ -11,6 +11,8 @@ add_library(
     Settings/GameSettings.h
     Settings/Calibration.cpp
     Settings/Calibration.h
+    Diagnostics/DiagnosticsReport.cpp
+    Diagnostics/DiagnosticsReport.h
 )
 
 target_include_directories(
@@ -24,6 +26,7 @@ target_link_libraries(
     AtomFramework
     PUBLIC
         SDL3::SDL3
+        AtomEngine # M82: the developer switches, and the renderer the diagnostics report reads
     PRIVATE
         nlohmann_json::nlohmann_json
 )

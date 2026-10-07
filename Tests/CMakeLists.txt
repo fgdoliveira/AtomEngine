@@ -150,4 +150,17 @@ if(TARGET Drift)
             FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
             TIMEOUT 120
     )
+    # M82: DRIFT's --diagnostics, the framework's shared report.
+    add_test(
+        NAME Scenario.drift_diagnostics
+        COMMAND $<TARGET_FILE:Drift> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/drift_diagnostics.txt"
+    )
+    set_tests_properties(
+        Scenario.drift_diagnostics
+        PROPERTIES
+            LABELS scenario
+            PASS_REGULAR_EXPRESSION "Diagnostics written"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+            TIMEOUT 120
+    )
 endif()

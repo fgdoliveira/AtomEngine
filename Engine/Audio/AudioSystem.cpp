@@ -1,4 +1,5 @@
 #include "Audio/AudioSystem.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/AssetLog.h"
 
 #include <SDL3/SDL.h>
@@ -72,7 +73,7 @@ namespace Atom
             return false;
         }
 
-        if (const char* capture = SDL_getenv("ATOM_AUDIO_CAPTURE"))
+        if (const char* capture = Atom::DevSwitch("ATOM_AUDIO_CAPTURE"))
         {
             m_capturePath = capture;
             m_capture.reserve(static_cast<std::size_t>(SampleRate) * 2 * 60);

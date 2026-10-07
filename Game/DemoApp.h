@@ -339,7 +339,7 @@ namespace AtomGame
 
         std::unique_ptr<Atom::Font> m_font;      // prompts, hints, dialogue
         std::unique_ptr<Atom::Font> m_smallFont; // debug overlay, speaker names
-        bool m_showDebugOverlay = false;
+
         float m_hintTime = 0.0f;
         float m_smoothedFrameMs = 0.0f;
 

@@ -1,4 +1,6 @@
 #include "DriftApp.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Diagnostics/DiagnosticsReport.h"
 
 #include "Platform/Input.h"
 #include "Platform/Window.h"
@@ -10,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <iostream>
 
 namespace Drift
@@ -49,6 +52,23 @@ namespace Drift
 
     DriftApp::DriftApp(std::vector<std::string> arguments) : m_arguments(std::move(arguments))
     {
+    }
+
+    Atom::Application::StartupConfig DriftApp::OnConfigure()
+    {
+        // The framework's command line (M82): --gpu and --diagnostics for
+        // players. DRIFT keeps no saved settings, so nothing else counts.
+        m_commandLine = AtomFramework::ParseCommandLine(m_arguments);
+        for (const std::string& error : m_commandLine.errors)
+        {
+            std::cerr << "Command line: " << error << " (ignored)\n";
+        }
+        m_resolvedSettings = AtomFramework::ResolveSettings(m_commandLine, {}, nullptr);
+        StartupConfig config;
+        config.gpuPreference = m_resolvedSettings.gpu == AtomFramework::GpuPreference::HighPerformance
+            ? Atom::GPUPreference::HighPerformance
+            : Atom::GPUPreference::LowPower;
+        return config;
     }
 
     bool DriftApp::OnInitialize()
@@ -91,28 +111,39 @@ namespace Drift
         m_white = renderer.CreateTexture(1, 1, white, false);
         renderer.SetParticleAtlas(m_white.get(), 1);
 
-        if (const char* seconds = SDL_getenv("ATOM_DRIFT_SECONDS"); seconds && *seconds)
+        if (const char* seconds = Atom::DevSwitch("ATOM_DRIFT_SECONDS"); seconds && *seconds)
         {
             m_autopilotSeconds = static_cast<float>(SDL_atof(seconds));
             // Straight into the run - unless ATOM_DRIFT_TITLE=1 keeps the
             // title screen up (to check it in an automated run).
-            const char* title = SDL_getenv("ATOM_DRIFT_TITLE");
+            const char* title = Atom::DevSwitch("ATOM_DRIFT_TITLE");
             if (!(title && SDL_strcmp(title, "1") == 0))
             {
                 m_running = true;
                 m_titleFade = 0.0f;
             }
         }
-        if (const char* capture = SDL_getenv("ATOM_DRIFT_CAPTURE"); capture && *capture)
+        if (const char* capture = Atom::DevSwitch("ATOM_DRIFT_CAPTURE"); capture && *capture)
         {
             m_capturePath = capture;
         }
         std::uint32_t seed = static_cast<std::uint32_t>(SDL_GetTicksNS());
-        if (const char* fixed = SDL_getenv("ATOM_DRIFT_SEED"); fixed && *fixed)
+        if (const char* fixed = Atom::DevSwitch("ATOM_DRIFT_SEED"); fixed && *fixed)
         {
             seed = static_cast<std::uint32_t>(SDL_atoi(fixed));
         }
         m_world = std::make_unique<World>(seed);
+
+        // --diagnostics <file> (M82, the framework's report): this machine's
+        // facts, then exit - the same report as the demo's, for players.
+        if (m_commandLine.diagnosticsFile)
+        {
+            const std::string report = AtomFramework::DiagnosticsReport(
+                "DRIFT on AtomEngine " ATOM_VERSION " diagnostics", renderer, GetWindow().GetSDLWindow(),
+                m_resolvedSettings.gpuReason);
+            RequestQuit(AtomFramework::WriteDiagnosticsFile(*m_commandLine.diagnosticsFile, report) ? 0 : 1);
+            return true;
+        }
         std::cout << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << ", course seed " << seed << '\n';
         return true;
     }
@@ -229,6 +260,20 @@ namespace Drift
         const float previousZ = m_flight.position.z;
         const float forward = m_running ? m_flight.Update(dt, m_flow.value, ReadInput())
                                         : m_flight.Update(dt, 0.2f, ShipInput{});
+        // M82: DRIFT's lines on the shared F1 overlay, after the engine's.
+        if (GetDevTools().IsOverlayVisible())
+        {
+            char line[160];
+            std::snprintf(line, sizeof(line), "Speed %.0f m/s   boost %.2f   z %.0f m", forward, m_flight.boost,
+                          -m_flight.position.z);
+            GetDevTools().AddOverlayLine(line);
+            std::snprintf(line, sizeof(line), "Flow %.2f   chain %d   segments %d", m_flow.value, m_flow.chain,
+                          m_world->Segments());
+            GetDevTools().AddOverlayLine(line);
+            std::snprintf(line, sizeof(line), "Rings %d passed, %d missed   orbs %d   rocks %d", m_flow.ringsPassed,
+                          m_flow.ringsMissed, m_flow.orbsCollected, m_flow.rocksHit);
+            GetDevTools().AddOverlayLine(line);
+        }
         m_world->Update(dt, m_time, m_flight.position.z);
         if (m_running)
         {

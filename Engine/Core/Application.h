@@ -57,6 +57,9 @@ namespace Atom
 
     private:
         void ProcessEvents();
+        // M82: the F1 overlay's engine section (frame, renderer, device).
+        void AddEngineOverlayLines(float deltaSeconds);
+        float m_smoothedFrameMs = 0.0f;
 
         bool m_running = false;
         int m_exitCode = 0;

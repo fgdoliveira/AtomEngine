@@ -63,6 +63,11 @@ namespace Atom
             m_visible = !m_visible;
             return true;
         }
+        if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_F1 && !event.key.repeat)
+        {
+            m_overlayVisible = !m_overlayVisible; // M82: the shared overlay
+            return true;
+        }
         if (!m_visible)
         {
             return false;
@@ -101,7 +106,8 @@ namespace Atom
             ImGui::EndFrame();
             m_frameActive = false;
         }
-        if (!m_visible)
+        m_overlayLines.clear();
+        if (!m_visible && !m_overlayVisible)
         {
             return;
         }
@@ -111,6 +117,25 @@ namespace Atom
         m_frameActive = true;
     }
 
+    void DevTools::DrawOverlay()
+    {
+        // A text panel in the top-left corner that never takes the mouse or
+        // keyboard: a readout, not a window to use.
+        ImGui::SetNextWindowPos({ 12.0f, 12.0f }, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.85f);
+        constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs
+            | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+        if (ImGui::Begin("##AtomOverlay", nullptr, flags))
+        {
+            for (const std::string& line : m_overlayLines)
+            {
+                ImGui::TextUnformatted(line.c_str());
+            }
+        }
+        ImGui::End(); // always, even when Begin returned false
+    }
+
     void DevTools::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target)
     {
         if (!m_frameActive)
@@ -118,6 +143,10 @@ namespace Atom
             return;
         }
         m_frameActive = false;
+        if (m_overlayVisible)
+        {
+            DrawOverlay();
+        }
         ImGui::Render();
         ImDrawData* drawData = ImGui::GetDrawData();
         if (!drawData || drawData->DisplaySize.x <= 0.0f || drawData->DisplaySize.y <= 0.0f)

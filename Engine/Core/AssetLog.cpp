@@ -1,4 +1,5 @@
 #include "Core/AssetLog.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 
 #include <SDL3/SDL.h>
 
@@ -12,7 +13,7 @@ namespace Atom
     {
         void Opened(const std::string& path)
         {
-            static const char* target = SDL_getenv("ATOM_ASSET_LOG");
+            static const char* target = Atom::DevSwitch("ATOM_ASSET_LOG");
             if (!target || !*target)
             {
                 return;
