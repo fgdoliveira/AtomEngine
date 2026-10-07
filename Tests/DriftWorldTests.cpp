@@ -1,6 +1,7 @@
 // DRIFT's world and flow rules (M78), pinned to the three.js original
 // (3d-game-00/src/world.js, src/interact.js).
 #include "Flight.h"
+#include "SpeedField.h"
 #include "World.h"
 
 #include <doctest/doctest.h>
@@ -121,4 +122,33 @@ TEST_CASE("Drift flow: decays 0.012 per second and stays within 0..1")
     CHECK(flow.value == Approx(0.5f - 0.12f));
     flow.Check(world, { 0.0f, 0.0f, 1000.0f }, 1000.0f, 100.0f);
     CHECK(flow.value == 0.0f);
+}
+
+TEST_CASE("Drift speed field: stars wrap within 400 m, streaks within 130 m")
+{
+    SpeedField field(5);
+    REQUIRE(field.Stars().size() == SpeedField::StarCount);
+    REQUIRE(field.Streaks().size() == SpeedField::StreakCount);
+    for (int i = 0; i < 300; ++i)
+    {
+        field.Update(1.0f / 60.0f, 120.0f);
+    }
+    for (const glm::vec3& s : field.Stars())
+    {
+        CHECK(s.z <= 0.0f);
+        CHECK(s.z >= -400.0f);
+    }
+    for (const glm::vec3& s : field.Streaks())
+    {
+        CHECK(s.z <= 10.0f);
+        CHECK(s.z >= -120.0f);
+    }
+}
+
+TEST_CASE("Drift speed field: streaks show above 45 m/s, at most 0.55, length 0.08 s")
+{
+    CHECK(SpeedField::StreakOpacity(40.0f) == 0.0f);
+    CHECK(SpeedField::StreakOpacity(75.0f) == Approx(0.5f));
+    CHECK(SpeedField::StreakOpacity(200.0f) == Approx(0.55f));
+    CHECK(SpeedField::StreakLength(100.0f) == Approx(8.0f));
 }

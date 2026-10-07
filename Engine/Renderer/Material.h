@@ -59,6 +59,15 @@ namespace Atom
         // it (0 at the shore, 1 deep), which drives tint, foam and alpha.
         float water = 0.0f;
 
+        // Toon shading (M79): the sun's light in three steps (the toon
+        // shader variant), as DRIFT's three.js original draws everything.
+        bool toon = false;
+        // Inverted-hull outline (M79): when > 0, the mesh is drawn a second
+        // time pushed out this far along its normals (model units), front
+        // faces culled, in outlineColor (linear) - a rim round the silhouette.
+        float outline = 0.0f;
+        glm::vec3 outlineColor{ 0.0f };
+
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false; // no back-face culling (thin cards)

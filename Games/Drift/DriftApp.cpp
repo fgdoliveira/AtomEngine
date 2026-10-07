@@ -72,6 +72,25 @@ namespace Drift
             return false;
         }
 
+        // The look (M79), as the original's toon.js: every material toon;
+        // an inverted-hull outline (0.045, #07060f) on all but the orbs.
+        const auto style = [](Atom::Model& model, bool outline) {
+            for (Atom::Material& material : model.GetMaterials())
+            {
+                material.toon = true;
+                material.outline = outline ? 0.045f : 0.0f;
+                material.outlineColor = Linear(0x07060f);
+            }
+        };
+        style(*m_ship, true);
+        style(*m_ring, true);
+        style(*m_rock, true);
+        style(*m_orb, false);
+
+        const std::uint8_t white[4]{ 255, 255, 255, 255 };
+        m_white = renderer.CreateTexture(1, 1, white, false);
+        renderer.SetParticleAtlas(m_white.get(), 1);
+
         if (const char* seconds = SDL_getenv("ATOM_DRIFT_SECONDS"); seconds && *seconds)
         {
             m_autopilotSeconds = static_cast<float>(SDL_atof(seconds));
@@ -160,7 +179,11 @@ namespace Drift
         lighting.sunGlow = 0.0f;
         lighting.sunSize = 0.0f;
 
-        lighting.glowStrength = 0.45f; // M79 makes it follow flow
+        // UnrealBloomPass(strength 0.6, radius 0.5, threshold 0.85), its
+        // strength following flow: 0.45 + flow * 0.7.
+        lighting.glowStrength = 0.45f + flow * 0.7f;
+        lighting.glowThreshold = 0.85f;
+        m_fogDensity = lighting.fogDensity;
         GetRenderer().SetLighting(lighting);
     }
 
@@ -209,6 +232,8 @@ namespace Drift
         const glm::mat4 model = m_flight.ModelMatrix();
         m_ship->Submit(renderer, model);
         SubmitWorld();
+        m_speedField.Update(dt, forward);
+        SubmitSpeedField(forward);
         DrawHud(dt);
 
         // The engine's glow: PointLight(0xffa050, 4 + boost*10 + sin(30t)*0.8,
@@ -249,6 +274,55 @@ namespace Drift
             const Atom::Model& model = t.kind == Kind::Ring ? *m_ring : t.kind == Kind::Orb ? *m_orb : *m_rock;
             model.Submit(renderer, t.Matrix());
         }
+    }
+
+    void DriftApp::SubmitSpeedField(float forward)
+    {
+        // The original draws stars and streaks with fog off; the engine's
+        // particles are fogged (lerp(colour, fog, f)). So each colour is
+        // pre-compensated - (target - fog * f) / (1 - f) - to come out as
+        // the target after the shader's fog.
+        const glm::vec3 fog = GetRenderer().GetLighting().fogColor;
+        const glm::vec3 eye = m_flight.Camera().position;
+        const auto unfogged = [&](glm::vec3 target, const glm::vec3& at) {
+            const float f = std::min(0.95f, 1.0f - std::exp(-m_fogDensity * glm::distance(at, eye)));
+            return (target - fog * f) / (1.0f - f);
+        };
+        const glm::vec3& ship = m_flight.position;
+        m_particles.clear();
+
+        // PointsMaterial(0xf3e9d8, size 0.35, opacity 0.8) in a box riding
+        // at 0.9 of the ship's lateral position.
+        const glm::vec3 starBox{ ship.x * 0.9f, ship.y * 0.9f, ship.z };
+        const glm::vec3 starColor = Linear(0xf3e9d8);
+        for (const glm::vec3& star : m_speedField.Stars())
+        {
+            Atom::Particle p{};
+            p.position = starBox + star;
+            p.size = 0.35f;
+            p.color = glm::vec4{ unfogged(starColor, p.position), 0.8f };
+            m_particles.push_back(p);
+        }
+
+        // LineBasicMaterial(0xffb27a): segments from the head back along -Z,
+        // as long and as opaque as the speed says.
+        const float opacity = SpeedField::StreakOpacity(forward);
+        if (opacity > 0.0f)
+        {
+            const float length = SpeedField::StreakLength(forward);
+            const glm::vec3 streakColor = Linear(0xffb27a);
+            for (const glm::vec3& head : m_speedField.Streaks())
+            {
+                Atom::Particle p{};
+                p.position = ship + head - glm::vec3{ 0.0f, 0.0f, length * 0.5f }; // the segment's middle
+                p.size = 0.04f;
+                p.stretch = length;
+                p.color = glm::vec4{ unfogged(streakColor, p.position), opacity };
+                m_particles.push_back(p);
+            }
+        }
+        GetRenderer().SetParticleStreak(glm::vec3{ 0.0f, 0.0f, 1.0f });
+        GetRenderer().SubmitParticles(m_particles);
     }
 
     void DriftApp::DrawHud(float dt)
@@ -310,5 +384,7 @@ namespace Drift
         m_titleFont.reset();
         m_comboFont.reset();
         m_smallFont.reset();
+        GetRenderer().SetParticleAtlas(nullptr, 1);
+        m_white.reset();
     }
 }

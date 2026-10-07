@@ -21,6 +21,9 @@ set(ATOM_SHADER_SOURCES
     Basic.vert.hlsl
     Basic.frag.hlsl
     BasicRain.frag.hlsl
+    BasicToon.frag.hlsl
+    Outline.vert.hlsl
+    Outline.frag.hlsl
     Fullscreen.vert.hlsl
     Post.frag.hlsl
     GlowBright.frag.hlsl

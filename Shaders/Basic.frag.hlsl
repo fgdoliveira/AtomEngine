@@ -210,9 +210,17 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     // Thin alpha-tested cards (leaves, cloth) let light through: lit from
     // behind they glow at half strength instead of turning black.
     const float facing = dot(normal, u_sunDirection.xyz);
+#if ATOM_TOON
+    // Toon (M79): three.js's MeshToonMaterial with a 3-texel gradient map,
+    // read at facing * 0.5 + 0.5 with nearest filtering - three steps of
+    // 70 / 160 / 255 (linear values, as a DataTexture holds them).
+    const float ramp = facing * 0.5 + 0.5;
+    const float sunLight = ramp < 1.0 / 3.0 ? 70.0 / 255.0 : ramp < 2.0 / 3.0 ? 160.0 / 255.0 : 1.0;
+#else
     const float sunLight = u_alpha.x > 0.0
         ? max(saturate(facing), 0.5 * saturate(-facing))
         : saturate(facing);
+#endif
     const float3 sun = sunLight * u_sunColor.rgb * shadow;
 
     // The spot only for draws its cone reaches (M46: tested per draw on the

@@ -1,10 +1,13 @@
 #pragma once
 
 #include "Flight.h"
+#include "SpeedField.h"
 #include "World.h"
 
 #include "Assets/Model.h"
 #include "Core/Application.h"
+#include "Renderer/Particles.h"
+#include "Renderer/Texture.h"
 #include "UI/Font.h"
 
 #include <memory>
@@ -30,6 +33,7 @@ namespace Drift
         ShipInput ReadInput() const;
         void ApplyAtmosphere(float flow);
         void SubmitWorld();
+        void SubmitSpeedField(float forward);
         void DrawHud(float dt);
 
         std::vector<std::string> m_arguments;
@@ -44,6 +48,12 @@ namespace Drift
         Ship m_flight;
         std::unique_ptr<World> m_world;
         Flow m_flow;
+        // M79: stars and speed streaks, drawn as particles with a 1x1 white
+        // atlas (the original's square points and thin lines).
+        SpeedField m_speedField{ 3 };
+        std::unique_ptr<Atom::Texture> m_white;
+        std::vector<Atom::Particle> m_particles;
+        float m_fogDensity = 0.0035f;
         float m_time = 0.0f;
 
         // The title screen ("CLICK TO LAUNCH") over an idle glide; a click
