@@ -9,6 +9,7 @@
 
 #include "Assets/Model.h"
 #include "Core/Application.h"
+#include "Core/FrameStatsWindow.h"
 #include "Settings/GameSettings.h"
 #include "Renderer/Particles.h"
 #include "Renderer/Texture.h"
@@ -79,6 +80,7 @@ namespace Drift
         // pilot, quit after N seconds with a summary; ATOM_DRIFT_SEED fixes
         // the course; ATOM_DRIFT_CAPTURE=<png> screenshots the end.
         std::optional<float> m_autopilotSeconds;
+        Atom::FrameStatsWindow m_frameTimes; // M83: reported with the summary
         std::string m_capturePath;
         bool m_captured = false;
     };

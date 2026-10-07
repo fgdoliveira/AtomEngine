@@ -146,10 +146,11 @@ namespace Drift
         }
         std::cout << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << ", course seed " << seed << '\n';
 
-        // No cursor over the game, as in the demo: relative mouse mode hides
-        // it and keeps it in the window; clicks still arrive (the title's
-        // "click to launch"). Not fatal - an automated run may lack focus.
-        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+        // No cursor over the game, as in the demo - hidden, not captured:
+        // DRIFT steers partly by where the pointer is in the window (the
+        // original's mouse.x * 0.35), which relative mode would replace with
+        // a virtual, clamped position. Clicks still arrive.
+        SDL_HideCursor();
         return true;
     }
 
@@ -227,6 +228,10 @@ namespace Drift
     {
         const float dt = std::min(deltaSeconds, 0.05f); // as the original clamps
         m_time += dt;
+        if (m_autopilotSeconds && m_time > 1.0f)
+        {
+            m_frameTimes.AddSample(deltaSeconds * 1000.0); // unclamped: the real frame
+        }
         if (GetInput().WasKeyPressed(SDL_SCANCODE_ESCAPE))
         {
             RequestQuit(0);
@@ -341,6 +346,12 @@ namespace Drift
                           << static_cast<int>(forward) << " m/s; rings " << m_flow.ringsPassed << " passed, "
                           << m_flow.ringsMissed << " missed; orbs " << m_flow.orbsCollected << "; rocks "
                           << m_flow.rocksHit << "; flow " << static_cast<int>(m_flow.value * 100.0f) << "%\n";
+                // M83: the frame rate flown at (DRIFT has no PERF log); the
+                // first second is start-up, not counted.
+                std::printf("DRIFT frames: median %.2f ms (%.0f fps), p95 %.2f ms, %zu frames\n",
+                            m_frameTimes.Median(), m_frameTimes.Median() > 0.0 ? 1000.0 / m_frameTimes.Median() : 0.0,
+                            m_frameTimes.Percentile(0.95), m_frameTimes.Count());
+                std::fflush(stdout);
                 RequestQuit(0);
             }
         }

@@ -13,6 +13,7 @@
         @{ Pattern = '^(docs/|NoTrack/|audits/)|\.md$|^CHANGELOG|^LICENSE|^\.gitignore$|^\.gitattributes$|^\.github/'; Build = $false; Scenarios = @() }
 
         # DRIFT
+        @{ Pattern = '^Games/Drift/(CMakeLists\.txt|README\.txt\.in)$'; Scenarios = @('drift_fly', 'drift_diagnostics'); Package = 'Drift' } # M83: its package
         @{ Pattern = '^Games/Drift/'; Scenarios = @('drift_fly', 'drift_diagnostics') }
 
         # The engine

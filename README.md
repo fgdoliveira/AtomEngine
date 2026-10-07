@@ -10,12 +10,12 @@ neon city that implies a whole one — *2000s-inspired art direction on a
 modern, resolution-independent renderer*. A separate character lab, a
 2000s model-viewer studio, shows how the engine animates characters.
 
-Current version: **0.0.12** — latency, measured: a click now reaches the
-screen in 24 ms instead of 36, at the same 144 fps. The swapchain wait
-comes before input is read, and the frames-in-flight default went back to
-2, with a safeguard. `Tools/Perf/latency.ps1` measures it, with the
-engine's own timing or end to end with PresentMon. (0.0.11 was
-distribution: a one-command ZIP for players; 0.0.10 hardware portability.)
+Current version: **0.0.13 "Drift"** — a second game. **DRIFT** is a
+faithful port of a three.js web game: fly an endless path at dusk through
+rings, orbs and rocks, to a soundtrack the engine synthesises live. It
+brought toon shading, outlines and a live synth into the engine, a
+framework layer the games share, and packages without developer tools.
+(0.0.12 was latency: 36 → 24 ms from click to screen; 0.0.11 distribution.)
 See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
 
 ## What's in it
@@ -120,6 +120,10 @@ in a throwaway folder; `-GamePath build/bin/Release/AtomGame.exe` adds the
 game's own report. It only reads: no drivers, power plans or files change.
 
 ## Playing
+
+**DRIFT** (`build/bin/<config>/Drift.exe`): click to launch; WASD, the
+arrows or the mouse steer; Shift boosts; M mutes; Esc quits. Its
+package: `pwsh Tools/Dist/package.ps1 -Game Drift`. The demo:
 
 | Key | Action |
 |---|---|
@@ -544,7 +548,9 @@ pwsh Tools/Docs/capture_character_lab.ps1
 
 ```text
 Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
+Framework/ what every game shares: the run log, settings and command line, calibration, diagnostics
 Game/     Character Dialogue Environment Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
+Games/    other games: Drift/ (its rules and music in DriftLib, its assets, its package)
 Shaders/  HLSL, compiled to DXIL at build time
 Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
 Assets/   generated models, levels, dialogue, environments, data (flashlight), font;

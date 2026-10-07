@@ -52,3 +52,44 @@ add_custom_command(
     COMMENT "Copying DRIFT's assets"
     VERBATIM
 )
+
+# The distribution (M83): DRIFT's own install component, as the demo's
+# (Game/CMakeLists.txt). `pwsh Tools/Dist/package.ps1 -Game Drift`.
+install(TARGETS Drift RUNTIME DESTINATION . COMPONENT Drift)
+install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION . COMPONENT Drift)
+install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION . COMPONENT Drift) # the engine's shaders
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Assets/" DESTINATION Assets/Drift COMPONENT Drift)
+
+# Licences: AtomEngine's and every third-party component in Drift.exe and
+# SDL3.dll (ImGui links but never starts in a package; its code is there).
+set(DRIFT_NOTICES "DRIFT ${PROJECT_VERSION} (AtomEngine) - third-party notices\n\nDrift.exe and SDL3.dll contain the components below. Their licences require these notices to travel with the binaries.\n")
+foreach(entry IN ITEMS
+        "SDL 3|external/SDL/LICENSE.txt"
+        "GLM|external/glm/copying.txt"
+        "nlohmann/json|external/json/LICENSE.MIT"
+        "cgltf|external/cgltf/LICENSE"
+        "stb|external/stb/LICENSE"
+        "Dear ImGui|external/imgui/LICENSE.txt"
+        "Space Grotesk (font)|Games/Drift/Assets/Fonts/OFL.txt")
+    string(REPLACE "|" ";" parts "${entry}")
+    list(GET parts 0 name)
+    list(GET parts 1 file)
+    file(READ "${CMAKE_SOURCE_DIR}/${file}" text)
+    string(APPEND DRIFT_NOTICES "\n==============================================================================\n${name}  (${file})\n==============================================================================\n\n${text}\n")
+endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/dist-drift/THIRD_PARTY_NOTICES.txt" "${DRIFT_NOTICES}")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/README.txt.in" "${CMAKE_BINARY_DIR}/dist-drift/README.txt" @ONLY)
+install(
+    FILES
+        "${CMAKE_SOURCE_DIR}/LICENSE.txt"
+        "${CMAKE_BINARY_DIR}/dist-drift/THIRD_PARTY_NOTICES.txt"
+        "${CMAKE_BINARY_DIR}/dist-drift/README.txt"
+    DESTINATION .
+    COMPONENT Drift
+)
+
+# For verify.ps1 (removed before zipping): the game, its executable and
+# what it must hold.
+file(WRITE "${CMAKE_BINARY_DIR}/dist-drift/payload.txt"
+    "game=Drift\nexe=Drift.exe\nversion=${PROJECT_VERSION}\nshipped=Drift\ndevonly=\nshaders=${ATOM_SHADER_COUNT}\n")
+install(FILES "${CMAKE_BINARY_DIR}/dist-drift/payload.txt" DESTINATION . RENAME .payload COMPONENT Drift)
