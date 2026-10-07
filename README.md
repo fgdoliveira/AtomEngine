@@ -462,15 +462,22 @@ climb only when it passes (`Tools/Dev/check.ps1`):
 | C++ or shaders, inner loop | `-Level quick` - incremental build, unit tests (seconds) |
 | content JSON (levels, presets, dialogue) | `-Level quick` (the authoring tests), plus that level's scenario |
 | a feature | `-Level feature -Scenario <names>` - quick + the scenarios it touches |
-| a milestone or release commit | `-Level full` - Debug and Release, everything |
+| a milestone | `-Level changed` - what the branch touched (below) |
+| the release commit, once per version | `-Level full` - Debug and Release, everything |
+
+**`-Level changed`** compares the branch with `origin/master` (`-Base` to
+change that), including uncommitted and untracked files, and maps each
+changed file to scenarios through `Tools/Dev/changed.psd1`. It prints every
+file with what it chose and why, then builds Debug once and runs the unit
+tests plus those scenarios. A change to packaging or a `CMakeLists.txt`
+also stages and verifies the package. Docs-only branches run nothing.
+A file no rule covers is flagged and gets a broad rendering set, never
+silently nothing. `-DryRun` prints the plan without running it. The table
+is plain data: when a scenario or a folder is added, add its rule.
 
 Use the configuration where the defect shows (`-Config Debug` for asserts
-and lifetime checks, Release for anything timed). Which scenarios a change
-touches: rendering and shaders → `first_render`, `lakeshore`,
-`night_street`; levels and transitions → `levels_roundtrip`, `hot_reload`;
-developer tools → `devtools`; weather → `environment`; otherwise the
-level's own scenario. Rebuild assets only when Blender scripts or content
-products change. CI runs the unit tests and the package check on pull
+and lifetime checks, Release for anything timed). Rebuild assets only when
+Blender scripts or content products change. CI runs the unit tests and the package check on pull
 requests and pushes to master; scenarios are always a local job.
 
 ## Content pipeline
