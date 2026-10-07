@@ -26,6 +26,7 @@ brought toon shading, outlines and a live synth into the engine, a
 framework layer the games share, and packages without developer tools.
 (0.0.12 was latency: 36 → 24 ms from click to screen; 0.0.11 distribution.)
 See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
+Play it on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
 
 ## What's in it
 
