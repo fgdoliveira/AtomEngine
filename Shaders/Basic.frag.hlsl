@@ -214,8 +214,11 @@ float4 main(PSInput input, bool frontFace : SV_IsFrontFace) : SV_Target0
     // Toon (M79): three.js's MeshToonMaterial with a 3-texel gradient map,
     // read at facing * 0.5 + 0.5 with nearest filtering - three steps of
     // 70 / 160 / 255 (linear values, as a DataTexture holds them).
-    const float ramp = facing * 0.5 + 0.5;
-    const float sunLight = ramp < 1.0 / 3.0 ? 70.0 / 255.0 : ramp < 2.0 / 3.0 ? 160.0 / 255.0 : 1.0;
+    // The f suffixes matter: a ternary between bare literals is a literal,
+    // which dxc types as double; unoptimised (Debug, -Od) it stays double
+    // and devices without FP64 refuse the pipeline.
+    const float ramp = facing * 0.5f + 0.5f;
+    const float sunLight = ramp < 1.0f / 3.0f ? 70.0f / 255.0f : ramp < 2.0f / 3.0f ? 160.0f / 255.0f : 1.0f;
 #else
     const float sunLight = u_alpha.x > 0.0
         ? max(saturate(facing), 0.5 * saturate(-facing))

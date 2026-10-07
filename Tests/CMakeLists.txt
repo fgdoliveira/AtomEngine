@@ -84,7 +84,7 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
             ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
             LABELS scenario
             # M53: a GPU wrapper outliving the renderer fails the scenario.
-            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
             TIMEOUT 240
     )
 endforeach()
@@ -108,7 +108,7 @@ set_tests_properties(
         LABELS scenario
         ENVIRONMENT "ATOM_CALIBRATE_SECONDS=0.5"
         PASS_REGULAR_EXPRESSION "Calibration: (high|balanced|low|no result|refused) - "
-        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 180
 )
 
@@ -124,7 +124,7 @@ set_tests_properties(
     PROPERTIES
         LABELS scenario
         PASS_REGULAR_EXPRESSION "Diagnostics written"
-        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 120
 )
 
@@ -133,7 +133,7 @@ set_tests_properties(
     PROPERTIES
         LABELS scenario
         PASS_REGULAR_EXPRESSION "Diagnostics written"
-        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 120
 )
 
@@ -147,7 +147,7 @@ if(TARGET Drift)
             LABELS scenario
             ENVIRONMENT "ATOM_DRIFT_SECONDS=20;ATOM_DRIFT_SEED=7"
             PASS_REGULAR_EXPRESSION "DRIFT autopilot: flew [0-9]+ m .* rings [1-9][0-9]* passed"
-            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
             TIMEOUT 120
     )
     # M82: DRIFT's --diagnostics, the framework's shared report.
@@ -160,7 +160,7 @@ if(TARGET Drift)
         PROPERTIES
             LABELS scenario
             PASS_REGULAR_EXPRESSION "Diagnostics written"
-            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
             TIMEOUT 120
     )
 endif()
