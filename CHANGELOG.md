@@ -7,7 +7,9 @@ endless path at dusk, thread rings, collect orbs, dodge rocks, while the
 music, synthesised live, follows the flow. It is its own executable and
 package, built from the engine and a new framework layer, sharing no code
 with the demo. What it needed that was engine-shaped went into the engine
-in general form. Fidelity, part by part: [docs/Drift-Fidelity.md](docs/Drift-Fidelity.md).
+in general form. Its fidelity to the original was checked part by part:
+every rule by a unit test, the look by eye, the music by tests (whether
+it sounds like the original is a listening check, by ear).
 
 ### Added
 - **DRIFT (M77–M80):** `Games/Drift/`. `DriftLib` holds the original's

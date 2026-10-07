@@ -54,8 +54,8 @@ graph TD
   application. It uses the engine and the framework and nothing of the
   demo's (ADR-007). What it needed went into the engine in general form:
   a toon shading variant and inverted-hull outlines (M79), a live synth
-  (`Atom::Synth`, `SynthStream`, M80). Its fidelity to the original:
-  [Drift-Fidelity.md](Drift-Fidelity.md).
+  (`Atom::Synth`, `SynthStream`, M80). Its fidelity to the original was
+  checked part by part at release (CHANGELOG 0.0.13).
 - **Static libraries** let the tests exercise exactly the game code the
   executable runs.
 - **Usage requirements are honest** (M54): PUBLIC only for what a target's
@@ -304,8 +304,8 @@ flowchart LR
   Release, no tests). They differ only in `ATOM_DISTRIBUTION`.
 - **Checked:** locally by `Tools/Dist/package.ps1`, which also starts the
   package from outside the repository, and on pull requests and pushes to
-  master by CI's `package` job (M69), a check that keeps no ZIP. A clean-machine run follows
-  [Distribution-Test.md](Distribution-Test.md).
+  master by CI's `package` job (M69), a check that keeps no ZIP. A release
+  candidate is also tried on a clean Windows VM (a local procedure).
 
 **What ships, and how (M70, revised in M82).** The player keeps what helps a
 stranger report a problem; every developer facility is compiled out.

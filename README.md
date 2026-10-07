@@ -339,10 +339,9 @@ folder, a shader, a licence), if anything development-only got in
 needs a DLL Windows doesn't have, or if a shader is unsigned. The same
 revision gives the same files.
 
-What ships and what doesn't (diagnostics are kept on purpose), and the
+What ships and what doesn't (players keep the log and `--diagnostics`; developer tools are compiled out), and the
 whole flow, are in [docs/Architecture.md](docs/Architecture.md) §9. A
-release candidate is tested on a clean Windows VM with
-[docs/Distribution-Test.md](docs/Distribution-Test.md).
+release candidate is tested on a clean Windows VM (a local procedure).
 
 **Troubleshooting a player's report.** Ask for:
 1. `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log` (and
