@@ -14,13 +14,16 @@ namespace Atom
     class Texture
     {
     public:
-        // pixels: width * height RGBA8 texels, top row first.
+        // pixels: width * height RGBA8 texels, top row first. `mipmaps`
+        // false gives one level: for atlases drawn at their own size (font
+        // glyphs), where a smaller level only blurs and mixes neighbours.
         static std::unique_ptr<Texture> Create(
             SDL_GPUDevice* device,
             std::uint32_t width,
             std::uint32_t height,
             const std::uint8_t* pixels,
-            bool srgb = true
+            bool srgb = true,
+            bool mipmaps = true
         );
 
         // A colour target the GPU draws into (M27): one mip level, RGBA8

@@ -760,10 +760,11 @@ namespace Atom
         std::uint32_t width,
         std::uint32_t height,
         const std::uint8_t* pixels,
-        bool srgb
+        bool srgb,
+        bool mipmaps
     )
     {
-        return Texture::Create(m_device, width, height, pixels, srgb);
+        return Texture::Create(m_device, width, height, pixels, srgb, mipmaps);
     }
 
     std::unique_ptr<Texture> Renderer::LoadTexture(const std::string& path, bool srgb)

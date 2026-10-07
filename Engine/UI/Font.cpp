@@ -131,13 +131,17 @@ namespace Atom
             }
         }
 
-        // Linear (not sRGB) texture: alpha is coverage, not a colour.
+        // Linear (not sRGB) texture: alpha is coverage, not a colour. One
+        // mip level: text is drawn at the size it was baked, and with 2x
+        // horizontal oversampling the GPU would otherwise pick level 1 (two
+        // texels per pixel across) - half the resolution, a blur that was
+        // in every piece of text until this fix.
         std::vector<std::uint8_t> rgba(AtlasSize * AtlasSize * 4, 255);
         for (int i = 0; i < AtlasSize * AtlasSize; ++i)
         {
             rgba[i * 4 + 3] = coverage[i];
         }
-        font->m_atlas = renderer.CreateTexture(AtlasSize, AtlasSize, rgba.data(), false);
+        font->m_atlas = renderer.CreateTexture(AtlasSize, AtlasSize, rgba.data(), false, false);
         if (!font->m_atlas)
         {
             return nullptr;

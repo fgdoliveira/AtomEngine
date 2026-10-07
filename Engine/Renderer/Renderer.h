@@ -151,12 +151,14 @@ namespace Atom
             std::span<const SkinVertex> skin = {}
         );
 
-        // pixels: RGBA8, top row first.
+        // pixels: RGBA8, top row first. `mipmaps` false: one level (font
+        // atlases, drawn at their own size).
         std::unique_ptr<Texture> CreateTexture(
             std::uint32_t width,
             std::uint32_t height,
             const std::uint8_t* pixels,
-            bool srgb = true
+            bool srgb = true,
+            bool mipmaps = true
         );
 
         // Loads a PNG/JPG/... file; nullptr (with a message) on failure.
