@@ -202,6 +202,24 @@ namespace Drift
         {
             m_running = true;
         }
+        if (m_running && !m_audio)
+        {
+            m_audio = std::make_unique<Atom::SynthStream>(); // heap: the synth's delay line is 256 KB
+            if (!m_audio->Start(m_music))
+            {
+                std::cout << "DRIFT: no audio device - playing silent\n";
+            }
+        }
+        const auto send = [&](MusicCommand command, int argument = 0, float value = 0.0f) {
+            if (m_audio && m_audio->IsRunning())
+            {
+                m_audio->Send({ static_cast<int>(command), argument, value });
+            }
+        };
+        if (GetInput().WasKeyPressed(SDL_SCANCODE_M))
+        {
+            send(MusicCommand::ToggleMute);
+        }
         if (m_running)
         {
             m_titleFade = std::max(0.0f, m_titleFade - dt / 0.6f);
@@ -214,6 +232,7 @@ namespace Drift
         m_world->Update(dt, m_time, m_flight.position.z);
         if (m_running)
         {
+            const int chainBefore = m_flow.chain;
             const FlowEvents events = m_flow.Check(*m_world, m_flight.position, previousZ, dt);
             if (events.orbs > 0 || events.rockHit)
             {
@@ -223,6 +242,21 @@ namespace Drift
             {
                 m_flight.shake = 1.0f;
             }
+            // The original's sounds: a chime per gate passed, a pickup per orb
+            // at the chain's value before it grew, a thud for a rock.
+            for (int i = 0; i < events.ringsPassed; ++i)
+            {
+                send(MusicCommand::Chime);
+            }
+            for (int i = 0; i < events.orbs; ++i)
+            {
+                send(MusicCommand::Pickup, chainBefore + i);
+            }
+            if (events.rockHit)
+            {
+                send(MusicCommand::Thud);
+            }
+            send(MusicCommand::Flow, 0, m_flow.value);
         }
         ApplyAtmosphere(m_flow.value);
 
@@ -376,6 +410,7 @@ namespace Drift
 
     void DriftApp::OnShutdown()
     {
+        m_audio.reset(); // the audio thread stops before anything it uses goes
         // GPU objects go before the renderer (M53).
         m_ship.reset();
         m_ring.reset();

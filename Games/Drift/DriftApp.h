@@ -1,8 +1,11 @@
 #pragma once
 
 #include "Flight.h"
+#include "Music.h"
 #include "SpeedField.h"
 #include "World.h"
+
+#include "Audio/SynthStream.h"
 
 #include "Assets/Model.h"
 #include "Core/Application.h"
@@ -54,6 +57,12 @@ namespace Drift
         std::unique_ptr<Atom::Texture> m_white;
         std::vector<Atom::Particle> m_particles;
         float m_fogDensity = 0.0035f;
+
+        // M80: the soundtrack, synthesised live; started at launch (the
+        // original creates its AudioContext on the click). The stream is
+        // declared after the music it plays, so it stops first.
+        Music m_music;
+        std::unique_ptr<Atom::SynthStream> m_audio;
         float m_time = 0.0f;
 
         // The title screen ("CLICK TO LAUNCH") over an idle glide; a click

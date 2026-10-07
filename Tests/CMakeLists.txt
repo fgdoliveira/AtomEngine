@@ -39,6 +39,7 @@ add_executable(
     LatencyProbeTests.cpp
     DriftFlightTests.cpp
     DriftWorldTests.cpp
+    SynthTests.cpp
     FakeGame.h
 )
 

@@ -12,9 +12,11 @@ add_library(
     World.h
     SpeedField.cpp
     SpeedField.h
+    Music.cpp
+    Music.h
 )
 target_include_directories(DriftLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(DriftLib PUBLIC glm::glm)
+target_link_libraries(DriftLib PUBLIC glm::glm AtomEngine) # M80: the engine's Synth
 
 if(NOT ATOM_BUILD_GAME)
     return() # the libraries only: no executable, no shaders

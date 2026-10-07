@@ -11,6 +11,10 @@ target_sources(
         Core/Application.cpp
         Core/FrameStatsWindow.cpp
         Core/LatencyProbe.cpp
+        Audio/Synth.cpp
+        Audio/Synth.h
+        Audio/SynthStream.cpp
+        Audio/SynthStream.h
         Core/Time.cpp
         Debug/DevTools.cpp
         Physics/CollisionWorld.cpp
