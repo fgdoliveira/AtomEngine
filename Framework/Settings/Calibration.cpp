@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace AtomGame
+namespace AtomFramework
 {
     bool LooksRefreshCapped(double medianMs, double p95Ms, double refreshHz)
     {

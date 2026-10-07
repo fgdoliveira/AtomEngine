@@ -1,0 +1,39 @@
+DRIFT @PROJECT_VERSION@ - made with AtomEngine
+==============================================
+
+Fly down an endless path at dusk. Thread the rings, collect the orbs,
+dodge the rocks: every clean pass raises the flow, and the music -
+synthesised live as you play - builds with it.
+
+Start: double-click Drift.exe. Nothing to install.
+Needs: Windows 10 or 11 (64-bit) and a Direct3D 12 GPU.
+
+Controls
+--------
+  Click                  launch (on the title screen)
+  WASD / Arrows / Mouse  steer
+  Shift                  boost
+  M                      mute
+  Esc                    quit
+
+Logs
+----
+The log of each run is kept per user, not in this folder:
+
+  %APPDATA%\AtomEngine\Drift\logs\Drift.log            (this run)
+  %APPDATA%\AtomEngine\Drift\logs\Drift.previous.log
+
+If it doesn't start
+-------------------
+A message names the reason and the log. Useful to try, from a terminal
+in this folder:
+
+  Drift.exe --gpu low-power        the integrated GPU (laptops)
+  Drift.exe --gpu high-performance the dedicated GPU
+  Drift.exe --diagnostics report.txt
+                                   writes what the game found (GPU,
+                                   display) and quits
+
+When reporting a problem, send Drift.log and that report.
+
+Licences: LICENSE.txt (AtomEngine) and THIRD_PARTY_NOTICES.txt.

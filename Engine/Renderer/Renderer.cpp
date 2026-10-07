@@ -1,4 +1,5 @@
 #include "Renderer/Renderer.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/AssetLog.h"
 
 #include "Renderer/GpuResources.h"
@@ -311,9 +312,9 @@ namespace Atom
         // vsync off; ATOM_FRAMES_IN_FLIGHT=1..3 (default 3: see GPUDevice).
         PresentationConfig presentation;
         presentation.vsync = config.vsync;
-        const char* present = SDL_getenv("ATOM_PRESENT");
+        const char* present = Atom::DevSwitch("ATOM_PRESENT");
         presentation.preferImmediate = present && std::string_view(present) == "immediate";
-        const char* frames = SDL_getenv("ATOM_FRAMES_IN_FLIGHT");
+        const char* frames = Atom::DevSwitch("ATOM_FRAMES_IN_FLIGHT");
         const bool framesChosen = frames && *frames;
         if (framesChosen)
         {
@@ -326,14 +327,14 @@ namespace Atom
         // M74: the swapchain wait happens before input is read (measured:
         // 30.2 -> 24.1 ms click to display with 2 frames, same 144 fps).
         // ATOM_LATENCY_WAIT=late restores the old order, for comparison.
-        const char* wait = SDL_getenv("ATOM_LATENCY_WAIT");
+        const char* wait = Atom::DevSwitch("ATOM_LATENCY_WAIT");
         m_waitEarly = !(wait && SDL_strcmp(wait, "late") == 0);
         std::cout << "Swapchain wait: " << (m_waitEarly ? "early (before input is read)" : "late (in Render)") << '\n';
         // M74: 2 frames in flight unless chosen - watched once, with vsync,
         // in case 2 can't hold the refresh rate here (as on v0.0.10's driver).
         m_framesGuard = !framesChosen && m_gpu.GetInfo().framesInFlight == 2;
         // M73: ATOM_LATENCY_LOG=1 times each click through the frame.
-        if (const char* latency = SDL_getenv("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
+        if (const char* latency = Atom::DevSwitch("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
         {
             m_latency.SetEnabled(true, &std::cout);
             std::cout << "Latency log on: a LAT block every " << LatencyProbe::BlockSamples << " clicks\n";
@@ -423,20 +424,97 @@ namespace Atom
         std::uint32_t samples,
         bool doubleSided,
         bool alphaToCoverage,
-        bool skinned
+        bool skinned,
+        bool toon
     )
     {
         const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
         alphaToCoverage = alphaToCoverage && CanUseAlphaToCoverage(samples);
-        // The rain variant (M50) while it rains.
-        const bool rain = m_lighting.rain > 0.0f;
-        const std::size_t index = (rain ? 24 : 0) + (skinned ? 12 : 0) + slot * 4
+        // The rain variant (M50) while it rains; the toon variant (M79) for
+        // toon materials, which take precedence (they have no wet look).
+        const bool rain = !toon && m_lighting.rain > 0.0f;
+        const std::size_t variant = toon ? 2 : rain ? 1 : 0;
+        const std::size_t index = variant * 24 + (skinned ? 12 : 0) + slot * 4
             + (doubleSided ? 2 : 0) + (alphaToCoverage ? 1 : 0);
         if (!m_scenePipelines[index])
         {
-            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned, false, rain);
+            m_scenePipelines[index] = CreateScenePipeline(slot, doubleSided, alphaToCoverage, false, skinned, false, rain, toon);
         }
         return m_scenePipelines[index];
+    }
+
+    SDL_GPUGraphicsPipeline* Renderer::GetOutlinePipeline(std::uint32_t samples)
+    {
+        const std::size_t slot = samples >= 4 ? 2 : samples == 2 ? 1 : 0;
+        if (m_outlinePipelines[slot])
+        {
+            return m_outlinePipelines[slot];
+        }
+        SDL_GPUShader* vertexShader = LoadShader(m_device, "Outline.vert", SDL_GPU_SHADERSTAGE_VERTEX,
+                                                 ShaderResources{ .uniformBuffers = 3 });
+        SDL_GPUShader* fragmentShader = LoadShader(m_device, "Outline.frag", SDL_GPU_SHADERSTAGE_FRAGMENT,
+                                                   ShaderResources{ .uniformBuffers = 2 });
+        if (!vertexShader || !fragmentShader)
+        {
+            if (vertexShader)
+            {
+                SDL_ReleaseGPUShader(m_device, vertexShader);
+            }
+            if (fragmentShader)
+            {
+                SDL_ReleaseGPUShader(m_device, fragmentShader);
+            }
+            return nullptr;
+        }
+
+        // The scene's vertex layout; the shader reads position and normal.
+        SDL_GPUVertexBufferDescription vertexBuffer{};
+        vertexBuffer.slot = 0;
+        vertexBuffer.pitch = sizeof(Vertex);
+        vertexBuffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+        SDL_GPUVertexAttribute attributes[2]{};
+        attributes[0].location = 0;
+        attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        attributes[0].offset = offsetof(Vertex, position);
+        attributes[1].location = 1;
+        attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        attributes[1].offset = offsetof(Vertex, normal);
+
+        SDL_GPUColorTargetDescription colorTarget{};
+        colorTarget.format = m_targets.GetColorFormat();
+
+        SDL_GPUGraphicsPipelineCreateInfo createInfo{};
+        createInfo.vertex_shader = vertexShader;
+        createInfo.fragment_shader = fragmentShader;
+        createInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBuffer;
+        createInfo.vertex_input_state.num_vertex_buffers = 1;
+        createInfo.vertex_input_state.vertex_attributes = attributes;
+        createInfo.vertex_input_state.num_vertex_attributes = 2;
+        createInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+        createInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+        // Front faces culled: only the pushed-out shell's inside shows.
+        createInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_FRONT;
+        createInfo.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+        createInfo.rasterizer_state.enable_depth_clip = true;
+        createInfo.multisample_state.sample_count = slot == 2
+            ? SDL_GPU_SAMPLECOUNT_4
+            : slot == 1 ? SDL_GPU_SAMPLECOUNT_2 : SDL_GPU_SAMPLECOUNT_1;
+        createInfo.depth_stencil_state.enable_depth_test = true;
+        createInfo.depth_stencil_state.enable_depth_write = true;
+        createInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        createInfo.target_info.color_target_descriptions = &colorTarget;
+        createInfo.target_info.num_color_targets = 1;
+        createInfo.target_info.depth_stencil_format = RenderTargets::GetDepthFormat();
+        createInfo.target_info.has_depth_stencil_target = true;
+
+        m_outlinePipelines[slot] = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
+        SDL_ReleaseGPUShader(m_device, vertexShader);
+        SDL_ReleaseGPUShader(m_device, fragmentShader);
+        if (!m_outlinePipelines[slot])
+        {
+            std::cerr << "Failed to create outline pipeline: " << SDL_GetError() << '\n';
+        }
+        return m_outlinePipelines[slot];
     }
 
     SDL_GPUGraphicsPipeline* Renderer::GetDecalPipeline(std::uint32_t samples, bool skinned)
@@ -468,7 +546,8 @@ namespace Atom
         bool decal,
         bool skinned,
         bool water,
-        bool rain
+        bool rain,
+        bool toon
     )
     {
         // Skinned meshes: the same fragment shading, a vertex shader that
@@ -482,7 +561,7 @@ namespace Atom
         // Water binds the same resources as the scene, shading them its own way.
         SDL_GPUShader* fragmentShader = LoadShader(
             m_device,
-            water ? "Water.frag" : rain ? "BasicRain.frag" : "Basic.frag",
+            water ? "Water.frag" : toon ? "BasicToon.frag" : rain ? "BasicRain.frag" : "Basic.frag",
             SDL_GPU_SHADERSTAGE_FRAGMENT,
             ShaderResources{ .samplers = water ? 6u : 5u, .uniformBuffers = 2 }
         );
@@ -681,10 +760,11 @@ namespace Atom
         std::uint32_t width,
         std::uint32_t height,
         const std::uint8_t* pixels,
-        bool srgb
+        bool srgb,
+        bool mipmaps
     )
     {
-        return Texture::Create(m_device, width, height, pixels, srgb);
+        return Texture::Create(m_device, width, height, pixels, srgb, mipmaps);
     }
 
     std::unique_ptr<Texture> Renderer::LoadTexture(const std::string& path, bool srgb)
@@ -1303,7 +1383,7 @@ namespace Atom
                     ? GetWaterPipeline(sceneSamples)
                     : isDecal
                     ? GetDecalPipeline(sceneSamples, skinned)
-                    : GetScenePipeline(sceneSamples, material.doubleSided, masked, skinned);
+                    : GetScenePipeline(sceneSamples, material.doubleSided, masked, skinned, material.toon);
                 if (!pipeline)
                 {
                     continue;
@@ -1452,6 +1532,25 @@ namespace Atom
                 0,
                 0
             );
+
+            // M79: an outlined material draws its inverted hull right after
+            // (the same buffers, its own pipeline); the next draw rebinds the
+            // scene pipeline and its textures.
+            if (bindMaterials && !reflection && !skinned && material.outline > 0.0f)
+            {
+                if (SDL_GPUGraphicsPipeline* outline = GetOutlinePipeline(sceneSamples))
+                {
+                    SDL_BindGPUGraphicsPipeline(renderPass, outline);
+                    bound = outline;
+                    boundMaterial = nullptr;
+                    ++m_stats.pipelineBinds;
+                    const glm::vec4 width{ material.outline, 0.0f, 0.0f, 0.0f };
+                    SDL_PushGPUVertexUniformData(commandBuffer, 2, &width, sizeof(width));
+                    const glm::vec4 color{ material.outlineColor, material.fogAmount };
+                    SDL_PushGPUFragmentUniformData(commandBuffer, 0, &color, sizeof(color));
+                    SDL_DrawGPUIndexedPrimitives(renderPass, command.mesh->GetIndexCount(), 1, 0, 0, 0);
+                }
+            }
         }
 
         return drawn;
@@ -2563,6 +2662,13 @@ namespace Atom
                     SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
                 }
             }
+            for (SDL_GPUGraphicsPipeline* pipeline : m_outlinePipelines)
+            {
+                if (pipeline)
+                {
+                    SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+                }
+            }
             for (SDL_GPUGraphicsPipeline* pipeline : m_scenePipelines)
             {
                 if (pipeline)
@@ -2637,6 +2743,7 @@ namespace Atom
         m_scenePipelines = {};
         m_decalPipelines = {};
         m_waterPipelines = {};
+        m_outlinePipelines = {};
         m_postPipeline = nullptr;
         m_shadowPipelines = {};
         m_particlePipelines = {};

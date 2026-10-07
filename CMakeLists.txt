@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.12
+    VERSION 0.0.13
     LANGUAGES CXX
 )
 
@@ -21,6 +21,14 @@ option(ATOM_BUILD_GAME "Build the AtomGame executable and compile its shaders (n
 # for development (Debug and Release keep their console); the package
 # command (Tools/Dist) builds its own folder with it on.
 option(ATOM_DISTRIBUTION "Build the game as distributed: a windowed program (no console)" OFF)
+# M82: the packaged game has no developer tools - F1/F10, the ATOM_*
+# switches (Engine/Core/DevSwitch.h), the test harness, benches and hot
+# reload are compiled out. It keeps the log and --diagnostics.
+if(ATOM_DISTRIBUTION)
+    add_compile_definitions(ATOM_DEV_TOOLS=0)
+else()
+    add_compile_definitions(ATOM_DEV_TOOLS=1)
+endif()
 
 option(
     ATOM_BUILD_PRESENTATION_PROBE
@@ -59,7 +67,9 @@ if(ATOM_BUILD_GAME)
     add_subdirectory(Shaders)
 endif()
 add_subdirectory(Engine)
+add_subdirectory(Framework) # M76: shared by every game
 add_subdirectory(Game)
+add_subdirectory(Games/Drift) # M77: a second game
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)

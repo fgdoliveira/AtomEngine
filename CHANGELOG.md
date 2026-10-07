@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.0.13 — Drift
+
+A second game. **DRIFT** is a faithful port of a three.js web game: fly an
+endless path at dusk, thread rings, collect orbs, dodge rocks, while the
+music, synthesised live, follows the flow. It is its own executable and
+package, built from the engine and a new framework layer, sharing no code
+with the demo. What it needed that was engine-shaped went into the engine
+in general form. Its fidelity to the original was checked part by part:
+every rule by a unit test, the look by eye, the music by tests (whether
+it sounds like the original is a listening check, by ear).
+
+### Added
+- **DRIFT (M77–M80):** `Games/Drift/`. `DriftLib` holds the original's
+  rules line by line, every constant kept and pinned by unit tests: the
+  path, the ship and its leash, the spring camera, the course (a segment
+  every 80 m: a ring, 7 orbs, 2–6 rocks), flow and the orb chain, the
+  speed field (1500 stars, 120 streaks), the music. The `Drift`
+  executable: the title screen, the HUD in the original's layout and font
+  (Space Grotesk, OFL), WASD / arrows / the pointer to steer, Shift to
+  boost, M to mute. Its models come from the original's Blender script,
+  ported (`Tools/Blender/drift_models.py`).
+- **Toon shading and outlines (M79):** a `BasicToon` scene-shader variant
+  (three steps, as three.js's gradient map) and inverted-hull outlines,
+  per material (`Material::toon`, `outline`, `outlineColor`).
+- **A live synth (M80):** `Atom::Synth`, DSP modelled on the WebAudio graph
+  (160 voices, PolyBLEP saw, envelopes, an RBJ low-pass bus, a delay), and
+  `Atom::SynthStream`, which plays a `SynthSequencer` on SDL's audio
+  thread through a lock-free command queue, with no locks or allocation
+  there. More than 10× real time in Release.
+- **The framework (M76):** `AtomFramework` (`Framework/`), between the
+  engine and the games: the run log named per game, the settings model and
+  command line, the calibration decision and, since M82, the
+  `--diagnostics` report. ADR-007: games share a framework, not each
+  other's code.
+- **Per-game packages:** `package.ps1 -Game Drift` makes
+  `Drift-v0.0.13-win64.zip` (1.9 MB, 35 files); CI packages both games.
+- **`check.ps1 -Level changed` (M81):** builds Debug once and runs the
+  unit tests plus the scenarios mapped from the files the branch touched
+  (`Tools/Dev/changed.psd1`, a data table printed with its reasons).
+  Unmapped files get a broad set, never nothing.
+- Scenarios `drift_fly` (a 20 s autopilot flight) and `drift_diagnostics`.
+  `latency.ps1 -Game .../Drift.exe` measures DRIFT through its autopilot,
+  whose summary now includes the frame rate flown at.
+
+### Changed
+- **Packages carry no developer tools (M82, ADR-008).** A distribution
+  build defines `ATOM_DEV_TOOLS=0`: `ATOM_*` switches are ignored, and F1,
+  F10 and ImGui never start. Players keep the log, the start-failure box
+  and `--diagnostics`. The smoke run refuses a package that logs
+  "Developer tools: on". This reverses 0.0.11's "nothing stripped".
+- **One F1 overlay for every game (M82):** the engine's ImGui corner panel
+  (frame time, scene, draws, device, latency) and the game's own lines
+  after it. The demo's old text overlay is folded into it.
+- **Validation per milestone is what changed;** the full matrix runs once
+  per version, before the release commit (CLAUDE.md, README).
+
+### Fixed
+- **Blurry UI text since the first font.** Font atlases had a full mip
+  chain, and with 2× horizontal oversampling the GPU sampled mip 1, a
+  half-resolution copy. Atlases now have one level. On a scripted capture
+  the hint line changed by 31 levels on average, against a run-to-run
+  noise of at most 3.
+- **DRIFT's Debug build lost its scene pipeline:** the toon ramp's untyped
+  literals compiled to double precision at `-Od`, which the Iris Xe
+  refuses. Scenarios now fail on any "Failed to create … pipeline".
+
+### Measured
+- DRIFT, Release, 144 Hz panel: median frame 6.95 ms (144 fps), p95
+  7.83 ms. Click to GPU done (`latency.ps1 -Mode Engine`, 4 rounds):
+  median 20.7 ms, p95 27.5 ms; only 8 blocks of samples, so a baseline,
+  not a comparison with the demo (17.5 ms the same session).
+- The demo against 0.0.12 (`ab.ps1`, 8 rounds each, plugged in): night
+  street −0.22 ms (−1.05..+0.38), lakeshore −0.002 ms (−0.06..+0.23).
+  Both straddle zero: the engine work for DRIFT costs the demo nothing
+  measurable.
+
 ## 0.0.12 — Latency
 
 Measured first, then changed. 0.0.10 kept 3 frames in flight on frame

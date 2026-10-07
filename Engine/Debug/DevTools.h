@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 union SDL_Event;
 struct SDL_GPUCommandBuffer;
 struct SDL_GPUDevice;
@@ -39,13 +42,25 @@ namespace Atom
         // `target` (the swapchain image), over everything else.
         void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target);
 
+        // The F10 panels.
         bool IsVisible() const { return m_visible; }
         void SetVisible(bool visible) { m_visible = visible; }
         bool IsInitialized() const { return m_initialized; }
 
+        // The F1 overlay (M82): a corner window of text lines, shared by
+        // every game. The engine adds its lines first each frame, the game
+        // appends its own; drawn without taking any input.
+        bool IsOverlayVisible() const { return m_initialized && m_overlayVisible; }
+        void SetOverlayVisible(bool visible) { m_overlayVisible = visible; }
+        void AddOverlayLine(std::string line) { m_overlayLines.push_back(std::move(line)); }
+
     private:
+        void DrawOverlay();
+
         bool m_initialized = false;
         bool m_visible = false;
+        bool m_overlayVisible = false;
         bool m_frameActive = false;
+        std::vector<std::string> m_overlayLines;
     };
 }

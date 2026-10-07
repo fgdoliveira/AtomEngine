@@ -1,0 +1,87 @@
+#pragma once
+
+#include "Flight.h"
+#include "Music.h"
+#include "SpeedField.h"
+#include "World.h"
+
+#include "Audio/SynthStream.h"
+
+#include "Assets/Model.h"
+#include "Core/Application.h"
+#include "Core/FrameStatsWindow.h"
+#include "Settings/GameSettings.h"
+#include "Renderer/Particles.h"
+#include "Renderer/Texture.h"
+#include "UI/Font.h"
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace Drift
+{
+    // DRIFT on AtomEngine (M77-): a second game, built from the engine and
+    // the framework, sharing no code with the demo.
+    class DriftApp : public Atom::Application
+    {
+    public:
+        explicit DriftApp(std::vector<std::string> arguments);
+
+    protected:
+        StartupConfig OnConfigure() override;
+        bool OnInitialize() override;
+        void OnUpdate(float deltaSeconds) override;
+        void OnShutdown() override;
+
+    private:
+        ShipInput ReadInput() const;
+        void ApplyAtmosphere(float flow);
+        void SubmitWorld();
+        void SubmitSpeedField(float forward);
+        void DrawHud(float dt);
+
+        std::vector<std::string> m_arguments;
+        AtomFramework::CommandLine m_commandLine;          // M82: --gpu, --diagnostics
+        AtomFramework::ResolvedSettings m_resolvedSettings;
+        std::string m_assetRoot;
+        std::unique_ptr<Atom::Model> m_ship;
+        std::unique_ptr<Atom::Model> m_ring;
+        std::unique_ptr<Atom::Model> m_orb;
+        std::unique_ptr<Atom::Model> m_rock;
+        std::unique_ptr<Atom::Font> m_titleFont; // 92 px: DRIFT
+        std::unique_ptr<Atom::Font> m_comboFont; // 46 px: the chain
+        std::unique_ptr<Atom::Font> m_smallFont; // 16 px: labels
+        Ship m_flight;
+        std::unique_ptr<World> m_world;
+        Flow m_flow;
+        // M79: stars and speed streaks, drawn as particles with a 1x1 white
+        // atlas (the original's square points and thin lines).
+        SpeedField m_speedField{ 3 };
+        std::unique_ptr<Atom::Texture> m_white;
+        std::vector<Atom::Particle> m_particles;
+        float m_fogDensity = 0.0035f;
+
+        // M80: the soundtrack, synthesised live; started at launch (the
+        // original creates its AudioContext on the click). The stream is
+        // declared after the music it plays, so it stops first.
+        Music m_music;
+        std::unique_ptr<Atom::SynthStream> m_audio;
+        float m_time = 0.0f;
+
+        // The title screen ("CLICK TO LAUNCH") over an idle glide; a click
+        // starts the run, and the title fades out over 0.6 s.
+        bool m_running = false;
+        float m_titleFade = 1.0f;
+        float m_chainPop = 0.0f; // the chain counter's pop, 0.25 s
+
+        // Automated runs (ATOM_DRIFT_SECONDS=N): fly the path by a simple
+        // pilot, quit after N seconds with a summary; ATOM_DRIFT_SEED fixes
+        // the course; ATOM_DRIFT_CAPTURE=<png> screenshots the end.
+        std::optional<float> m_autopilotSeconds;
+        Atom::FrameStatsWindow m_frameTimes; // M83: reported with the summary
+        std::string m_capturePath;
+        bool m_captured = false;
+    };
+}

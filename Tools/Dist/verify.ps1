@@ -1,16 +1,16 @@
-# Is a staged distribution complete, and nothing more? (M68)
+# Is a staged distribution complete, and nothing more? (M68; M76: any game)
 #
 #   pwsh Tools/Dist/verify.ps1 [-Path Dist/AtomGame]
 #
-# Reads what the package must hold from its .payload file, which the CMake
-# install rules write from the same lists that define the package
-# (Game/CMakeLists.txt) - so there is no second, hand-kept manifest.
+# Reads what the package must hold from its .payload file, which the game's
+# CMake install rules write from the same lists that define the package -
+# so there is no second, hand-kept manifest. It names the game's executable.
 # Checks:
-#   - present: AtomGame.exe, SDL3.dll, the licences and README, every
+#   - present: the executable, SDL3.dll, the licences and README, every
 #     shipped asset folder, every compiled shader;
 #   - absent: development-only folders and files (authoring sources,
 #     schemas, test scripts, debug symbols, build metadata, logs);
-#   - AtomGame.exe and SDL3.dll load only Windows DLLs and SDL3.dll (no
+#   - the executable and SDL3.dll load only Windows DLLs and SDL3.dll (no
 #     C++ runtime DLLs: M66);
 #   - every shader is signed (a DXIL container whose digest isn't zero),
 #     or retail drivers refuse it.
@@ -31,11 +31,12 @@ $payload = @{}
 foreach ($line in Get-Content $payloadFile) {
     if ($line -match "^(\w+)=(.*)$") { $payload[$Matches[1]] = $Matches[2] }
 }
-$shipped = $payload.shipped -split ","
-$devOnly = $payload.devonly -split ","
+$shipped = @($payload.shipped -split "," | Where-Object { $_ })
+$devOnly = @($payload.devonly -split "," | Where-Object { $_ })
+if (-not $payload.exe) { throw "$payloadFile names no executable (exe=...)" }
 
-Write-Host "== present"
-foreach ($file in "AtomGame.exe", "SDL3.dll", "LICENSE.txt", "THIRD_PARTY_NOTICES.txt", "README.txt") {
+Write-Host "== present ($($payload.game))"
+foreach ($file in $payload.exe, "SDL3.dll", "LICENSE.txt", "THIRD_PARTY_NOTICES.txt", "README.txt") {
     if (Test-Path (Join-Path $root $file)) { Pass $file } else { Fail "missing $file" }
 }
 foreach ($folder in $shipped) {
@@ -66,7 +67,7 @@ if (-not $dumpbin) { Fail "dumpbin not found (Visual Studio C++ tools): dependen
 else {
     # Windows system DLLs and API sets that every Windows 10/11 has.
     $system = 'kernel32|user32|gdi32|shell32|imm32|winmm|ole32|oleaut32|version|advapi32|setupapi|dxgi|d3d12|ws2_32|cfgmgr32|hid|dwmapi|uxtheme|shcore|comdlg32'
-    foreach ($binary in "AtomGame.exe", "SDL3.dll") {
+    foreach ($binary in $payload.exe, "SDL3.dll") {
         $dlls = & $dumpbin.FullName /nologo /dependents (Join-Path $root $binary) |
             ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^[\w.-]+\.dll$' } # names only, not the "Dump of file" header
         $unexpected = @($dlls | Where-Object { $_ -notmatch "^($system|SDL3)\.dll$" })

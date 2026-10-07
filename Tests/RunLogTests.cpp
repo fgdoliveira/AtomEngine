@@ -5,7 +5,7 @@
 #include <ostream>
 #include <sstream>
 
-using namespace AtomGame;
+using namespace AtomFramework;
 
 TEST_CASE("TeeBuffer: both outputs receive everything")
 {

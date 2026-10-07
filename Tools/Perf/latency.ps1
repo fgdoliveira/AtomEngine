@@ -3,6 +3,7 @@
 #   pwsh Tools/Perf/latency.ps1 [-Mode Engine|PresentMon] [-Configs default,fif3-vsync,...]
 #                               [-Rounds 4] [-Seconds 10] [-Level street]
 #                               [-EngineLog] [-PresentMonPath <exe>] [-NoElevate]
+#                               [-Game build/bin/Release/Drift.exe]   (M83: DRIFT, by its autopilot)
 #
 # Two modes, by design:
 #   Engine (default)  the engine's own timing (ATOM_LATENCY_LOG, M73): from the
@@ -148,7 +149,13 @@ $script = Join-Path $temp "atom_latency.atomtest"
 $warmup = 4.0
 "wait $($warmup + $Seconds + 2)`nquit`n" | Set-Content -NoNewline -Path $script
 $variables = @("ATOM_TEST_SCRIPT", "ATOM_START_LEVEL", "ATOM_LATENCY_FLASH", "ATOM_LATENCY_LOG", "ATOM_LATENCY_WAIT",
-    "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT", "ATOM_PERF_LOG")
+    "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT", "ATOM_PERF_LOG", "ATOM_DRIFT_SECONDS", "ATOM_DRIFT_SEED")
+# M83: DRIFT (-Game .../Drift.exe) has no scenario scripts or levels: its
+# autopilot flies a fixed course and quits after the same span. The
+# latency log is the engine's, so the stages are the same; the frame
+# interval (the demo's PERF log) and the click flash are the demo's only.
+$exeName = Split-Path $Game -Leaf
+$isDrift = $exeName -like "Drift*"
 $saved = @{}
 foreach ($name in $variables) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
 
@@ -168,8 +175,13 @@ function Get-P95([double[]]$values) {
 function Invoke-Run([string]$config) {
     foreach ($name in "ATOM_FRAMES_IN_FLIGHT", "ATOM_VSYNC", "ATOM_PRESENT", "ATOM_LATENCY_WAIT") { [Environment]::SetEnvironmentVariable($name, $null) }
     foreach ($entry in $known[$config].GetEnumerator()) { [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value) }
-    [Environment]::SetEnvironmentVariable("ATOM_TEST_SCRIPT", $script)
-    [Environment]::SetEnvironmentVariable("ATOM_START_LEVEL", $Level)
+    if ($isDrift) {
+        [Environment]::SetEnvironmentVariable("ATOM_DRIFT_SECONDS", "$($warmup + $Seconds + 2)")
+        [Environment]::SetEnvironmentVariable("ATOM_DRIFT_SEED", "7")
+    } else {
+        [Environment]::SetEnvironmentVariable("ATOM_TEST_SCRIPT", $script)
+        [Environment]::SetEnvironmentVariable("ATOM_START_LEVEL", $Level)
+    }
     [Environment]::SetEnvironmentVariable("ATOM_LATENCY_FLASH", "1")
     [Environment]::SetEnvironmentVariable("ATOM_LATENCY_LOG", $(if ($engineStages) { "1" } else { $null }))
     [Environment]::SetEnvironmentVariable("ATOM_PERF_LOG", $(if ($Mode -eq "Engine") { "1" } else { $null }))
@@ -181,7 +193,7 @@ function Invoke-Run([string]$config) {
     Start-Sleep -Seconds $warmup
     $pm = $null
     if ($Mode -eq "PresentMon") {
-        $pm = Start-Process $PresentMonPath -ArgumentList "--process_name AtomGame.exe --output_file `"$csv`" --timed $Seconds --terminate_after_timed --no_console_stats --stop_existing_session" -PassThru -WindowStyle Hidden
+        $pm = Start-Process $PresentMonPath -ArgumentList "--process_name $exeName --output_file `"$csv`" --timed $Seconds --terminate_after_timed --no_console_stats --stop_existing_session" -PassThru -WindowStyle Hidden
         Start-Sleep -Milliseconds 500
     }
 
@@ -239,7 +251,7 @@ function Invoke-Run([string]$config) {
 # PresentMon gives one sample per click; the engine one LAT block per 20
 # clicks (its "samples" and p95 are then of block medians).
 $metric = if ($Mode -eq "PresentMon") { "click to display (PresentMon)" } else { "click to GPU done (engine, per 20-click block)" }
-Write-Host ("Latency: {0}, {1} mode, {2} rounds of {3} s, level {4}. Hands off the mouse and keyboard." -f ($Configs -join " / "), $Mode, $Rounds, $Seconds, $Level)
+Write-Host ("Latency: {0}, {1} mode, {2} rounds of {3} s, {4}. Hands off the mouse and keyboard." -f ($Configs -join " / "), $Mode, $Rounds, $Seconds, $(if ($isDrift) { "DRIFT's autopilot (seed 7)" } else { "level $Level" }))
 $results = @{}
 for ($i = 0; $i -lt $Configs.Count; $i++) { $results[$i] = [System.Collections.Generic.List[object]]::new() }
 try {

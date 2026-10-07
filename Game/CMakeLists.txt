@@ -19,10 +19,6 @@ add_library(
     DemoAppLab.cpp
     DemoAppDevTools.cpp
     DemoAppCalibration.cpp
-    Settings/Calibration.cpp
-    Platform/RunLog.cpp
-    Platform/RunLog.h
-    Settings/Calibration.h
     Character/Animator.cpp
     Character/Animator.h
     Character/LabViewer.cpp
@@ -32,8 +28,6 @@ add_library(
     PlayerController.cpp
     PlayerController.h
     Testing/TestScript.cpp
-    Settings/GameSettings.cpp
-    Settings/GameSettings.h
     Testing/GameDiagnostics.cpp
     Testing/GameDiagnostics.h
     Testing/PairedBench.cpp
@@ -103,6 +97,7 @@ target_link_libraries(
     AtomGameLib
     PUBLIC
         AtomEngine
+        AtomFramework # M76: log, settings, calibration decision
     PRIVATE
         nlohmann_json::nlohmann_json
         imgui
@@ -183,14 +178,17 @@ set_property(
 
 # The distribution (M68): what `cmake --install` puts in a package folder
 # - the one authoritative list. Tools/Dist/package.ps1 installs from a
-# -DATOM_DISTRIBUTION=ON build, verifies and zips it.
-install(TARGETS AtomGame RUNTIME DESTINATION .)
-install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION .) # the only runtime DLL (M66)
-install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION .) # Shaders/ exports the folder
+# -DATOM_DISTRIBUTION=ON build, verifies and zips it. M76: every rule is in
+# the AtomGame component, so each game installs (and packages) only its own
+# files: `cmake --install ... --component AtomGame`.
+install(TARGETS AtomGame RUNTIME DESTINATION . COMPONENT AtomGame)
+install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION . COMPONENT AtomGame) # the only runtime DLL (M66)
+install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION . COMPONENT AtomGame) # Shaders/ exports the folder
 foreach(folder IN LISTS ATOM_SHIPPED_ASSETS)
     install(
         DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/${folder}"
         DESTINATION Assets
+        COMPONENT AtomGame
         PATTERN "character_lab*" EXCLUDE # the lab is development-only
     )
 endforeach()
@@ -220,12 +218,14 @@ install(
         "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt"
         "${CMAKE_BINARY_DIR}/dist/README.txt"
     DESTINATION .
+    COMPONENT AtomGame
 )
 
 # For Tools/Dist/verify.ps1: what this package must hold, from the lists
-# above rather than a hand-kept copy. Removed before zipping.
+# above rather than a hand-kept copy. Removed before zipping. M76: it also
+# names the game and its executable, so the scripts serve every game.
 string(REPLACE ";" "," ATOM_SHIPPED_LIST "${ATOM_SHIPPED_ASSETS}")
 string(REPLACE ";" "," ATOM_DEV_LIST "${ATOM_DEV_ASSETS}")
 file(WRITE "${CMAKE_BINARY_DIR}/dist/payload.txt"
-    "version=${PROJECT_VERSION}\nshipped=${ATOM_SHIPPED_LIST}\ndevonly=${ATOM_DEV_LIST}\nshaders=${ATOM_SHADER_COUNT}\n")
-install(FILES "${CMAKE_BINARY_DIR}/dist/payload.txt" DESTINATION . RENAME .payload)
+    "game=AtomGame\nexe=AtomGame.exe\nversion=${PROJECT_VERSION}\nshipped=${ATOM_SHIPPED_LIST}\ndevonly=${ATOM_DEV_LIST}\nshaders=${ATOM_SHADER_COUNT}\n")
+install(FILES "${CMAKE_BINARY_DIR}/dist/payload.txt" DESTINATION . RENAME .payload COMPONENT AtomGame)

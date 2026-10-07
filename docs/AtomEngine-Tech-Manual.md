@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.12 / M75**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94).
+A study guide to every concept the engine uses, as of **v0.0.13 / M83**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -103,9 +103,18 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 92. [Wait first, then read input (M74)](#92-wait-first-then-read-input-m74)
 93. [Measuring without administrator rights](#93-measuring-without-administrator-rights)
 94. [Releasing 0.0.12 (M75)](#94-releasing-0012-m75)
-95. [Anatomy of a frame and what it costs](#95-anatomy-of-a-frame-and-what-it-costs)
-96. [Build system and project layout](#96-build-system-and-project-layout)
-97. [Glossary](#97-glossary)
+95. [A framework both games share (M76)](#95-a-framework-both-games-share-m76)
+96. [Porting a web game: DRIFT flies (M77)](#96-porting-a-web-game-drift-flies-m77)
+97. [Rules as pure, seeded code (M78)](#97-rules-as-pure-seeded-code-m78)
+98. [Toon shading and inverted-hull outlines (M79)](#98-toon-shading-and-inverted-hull-outlines-m79)
+99. [A live synth on the audio thread (M80)](#99-a-live-synth-on-the-audio-thread-m80)
+100. [Validating what changed (M81)](#100-validating-what-changed-m81)
+101. [Lean packages, one overlay, one report (M82)](#101-lean-packages-one-overlay-one-report-m82)
+102. [Two old bugs a second game exposed](#102-two-old-bugs-a-second-game-exposed)
+103. [Releasing 0.0.13 (M83)](#103-releasing-0013-m83)
+104. [Anatomy of a frame and what it costs](#104-anatomy-of-a-frame-and-what-it-costs)
+105. [Build system and project layout](#105-build-system-and-project-layout)
+106. [Glossary](#106-glossary)
 
 ---
 
@@ -346,7 +355,7 @@ Yaw (turn left/right) and pitch (look up/down); pitch clamped just short of ±90
 
 **Textures** are GPU images. AtomEngine uploads RGBA8 pixels through a transfer buffer (like meshes).
 
-**Mipmaps.** A chain of pre-shrunk copies (256, 128, 64 … 1 px). When a surface is far away, one screen pixel covers many texels; sampling the full-size image then *aliases* (shimmers). The GPU instead picks the mip level whose texel size ≈ pixel size. AtomEngine generates the chain on the GPU (`SDL_GenerateMipmapsForGPUTexture`), which is why textures are created with `COLOR_TARGET` usage too.
+**Mipmaps.** A chain of pre-shrunk copies (256, 128, 64 … 1 px). When a surface is far away, one screen pixel covers many texels; sampling the full-size image then *aliases* (shimmers). The GPU instead picks the mip level whose texel size ≈ pixel size. AtomEngine generates the chain on the GPU (`SDL_GenerateMipmapsForGPUTexture`), which is why textures are created with `COLOR_TARGET` usage too. **Not every texture wants mipmaps:** one always drawn at its own size, like a font atlas, gains nothing from smaller levels and can be blurred by them. Since v0.0.13 `CreateTexture` takes a `mipmaps` flag, and font atlases have a single level (§102).
 
 **Samplers** decide how a texture is read:
 - **Filtering**: nearest (blocky) vs linear (smooth) within a level; mipmap mode picks/blends levels (**trilinear** = linear + linear mip blend).
@@ -685,6 +694,8 @@ No sound files: every sound is synthesised at start-up from a fixed seed, with s
 
 **Footsteps** trigger once per head-bob cycle (`PlayerController::GetStepCount`), with the surface chosen from where the feet are (road, gutter, shrine path, dirt). Since v0.0.2 the surfaces come from the level file (a default plus zones, §31) — e.g. earth in the machiya's doma, floorboards past the step — and a new *wood* footstep (hollow knock with a creak) and an interior **room tone** were added. Levels start and stop their own ambience; `AudioScape` is the named sound library plus the sounds that follow the player.
 
+**Live synthesis (v0.0.13).** Everything above is synthesised once, then played. DRIFT's music is synthesised *live* on the audio thread by `Atom::Synth` and `SynthStream`, with no locks there: a lock-free queue carries the game's commands instead of the stream lock (§99).
+
 **WAV support.** `AudioSystem::LoadWav` loads any WAV and converts it to mono 48 kHz float with `SDL_ConvertAudioSamples`, so recorded sounds can replace any synthesised one.
 
 **Dev capture.** `ATOM_AUDIO_CAPTURE=file.wav` records the first minute of the final mix to a float WAV — used to verify levels, clipping and behaviour without listening (RMS per window = loudness; zero-crossing rate ≈ brightness).
@@ -713,7 +724,7 @@ In v0.0.2 the director's switches (e.g. whether the figure appears) come from ea
 
 **Font baking (`Engine/UI/Font`).**
 - `stb_truetype` rasterises the ranges the game needs — ASCII, Latin-1, and typographic punctuation (curly quotes, dashes, ellipsis, used by dialogue) — into one coverage atlas at a fixed pixel height. Two fonts are baked: a large one (prompts, dialogue) and a small one (debug panel, speaker names).
-- **2× horizontal oversampling**: each glyph is rasterised at double width. Text positioned between pixels then samples a sub-pixel-accurate glyph, so small text stays crisp.
+- **2× horizontal oversampling**: each glyph is rasterised at double width. Text positioned between pixels then samples a sub-pixel-accurate glyph, so small text stays crisp. (Until v0.0.13 the atlas also had mipmaps, and with two texels per pixel the GPU sampled the half-size level: text was blurry from the start. §102 tells how it was found.)
 - The atlas stores **white RGB with coverage in alpha**, so any colour is just a tint. It's a **linear** texture (not sRGB): alpha is a coverage fraction, not a colour.
 - **Kerning** (per-pair spacing like "AV") is precomputed into a map of non-zero pairs, so the header doesn't expose stb types.
 - The bundled font is a Latin subset of *Shippori Mincho* (SIL OFL) — a mincho (serif) face that suits the setting.
@@ -725,7 +736,7 @@ In v0.0.2 the director's switches (e.g. whether the figure appears) come from ea
 - Vertices are uploaded each frame (like particles, §25) and drawn **after the post pass**, straight into the swapchain image with `LOAD` (keep what post wrote). So UI is never tonemapped, graded, fogged or grained, and is always at window resolution regardless of render scale (§20).
 - The pen is snapped to whole pixels vertically; horizontal positions use the oversampling.
 
-**What the game draws.** The fading controls hint at start, the `[E] prompt` of the current target, the message line (`MessageFeed`: one line of feedback that fades after a few seconds; a new message replaces the old), the dialogue panel (§30), and the **F1** debug panel (frame time, render settings, level, position, draws, voices).
+**What the game draws.** The fading controls hint at start, the `[E] prompt` of the current target, the message line (`MessageFeed`: one line of feedback that fades after a few seconds; a new message replaces the old), the dialogue panel (§30), and the **F1** debug panel (frame time, render settings, level, position, draws, voices). Since v0.0.13 the F1 panel is the engine's ImGui overlay, shared by every game (§101).
 
 **Code.** `Engine/UI/Font.*`, `Engine/UI/UIRenderer.*`, `Shaders/UI.*.hlsl`, `Game/Interaction/MessageFeed.h`, `DemoApp::DrawOverlay`.
 
@@ -2397,6 +2408,8 @@ The workflow runs on **pull requests, pushes to master, and on demand**, not on 
 - **Debug only:** asserts, the D3D12 debug layer.
 - **Not packaged:** the lab, the tests, the probes, the tools, the schemas.
 
+**Reversed in v0.0.13 (§101):** packages now carry *no* developer tools. F10, F1 and the `ATOM_*` switches are compiled out (`ATOM_DEV_TOOLS=0`); the log, `--diagnostics` and the start-failure box stay. What was learned in between: with two games, "inert unless used" left the facilities uneven and within a player's reach.
+
 **Two builds, one source:**
 
 | | `build/` | `build-dist/` |
@@ -2406,9 +2419,9 @@ The workflow runs on **pull requests, pushes to master, and on demand**, not on 
 | Configurations | Debug, Release | Release |
 | Tests | yes | no |
 
-**Concept: a clean machine.** "Works on my machine" hides dependencies the developer installed long ago. The decisive test is a Windows with nothing on it: a **VirtualBox VM** restored from a "clean" snapshot each time. Windows containers can't do this: they need Windows Pro or Server, have no desktop and no real GPU. VirtualBox has no Direct3D 12 either, so the VM proves everything up to the GPU (DLLs, paths, log, settings, the failure message), but not a play-through. `docs/Distribution-Test.md` holds the procedure and its expected results.
+**Concept: a clean machine.** "Works on my machine" hides dependencies the developer installed long ago. The decisive test is a Windows with nothing on it: a **VirtualBox VM** restored from a "clean" snapshot each time. Windows containers can't do this: they need Windows Pro or Server, have no desktop and no real GPU. VirtualBox has no Direct3D 12 either, so the VM proves everything up to the GPU (DLLs, paths, log, settings, the failure message), but not a play-through. The procedure and its expected results are kept as a local working note, outside the repository.
 
-**Code.** `docs/Architecture.md` §9, `docs/Distribution-Test.md`, the README's Distribution and troubleshooting sections.
+**Code.** `docs/Architecture.md` §9, the README's Distribution and troubleshooting sections.
 
 ---
 
@@ -2535,7 +2548,214 @@ As M73 predicted, with 3 frames there was nothing to move. With 2 frames the 6 m
 
 ---
 
-## 95. Anatomy of a frame and what it costs
+## 95. A framework both games share (M76)
+
+**The problem.** v0.0.13 adds a second game. Everything game-side that isn't rendering had grown inside the demo: the run log, the settings model and command line, the calibration decision. A second game would have had to copy it, and two copies drift apart.
+
+**Concept: a framework layer.** Between an engine (rendering, audio, input, the frame loop) and a game (its rules and content) there is a middle layer: what *every game* built on the engine needs, but the engine itself shouldn't own. AtomEngine now has three layers:
+
+| Layer | Namespace | Holds | Knows about |
+|---|---|---|---|
+| `AtomEngine` | `Atom` | renderer, audio, input, the frame loop | nothing above it |
+| `AtomFramework` | `AtomFramework` | `RunLog`, `GameSettings` (model, command line, precedence), calibration, and since M82 the `--diagnostics` report | the engine |
+| a game | `AtomGame`, `Drift` | its rules, content, presentation | the engine and the framework, never another game |
+
+**Concept: move first, then change.** The files moved with `git mv` and their include paths stayed the same, so the move itself changed no behaviour and the existing tests proved it. Only then did the code start serving two games. `GameDiagnostics` and the test-script runner stayed in the demo: their vocabulary (levels, entities, dialogue) is the demo's, and moving them would have put one game's policy into the shared layer.
+
+**Concept: the engine names no game.** A message like "AtomGame.exe needs a GPU" was a leak of the game into the engine. It now says "this game's executable". `RunLog` is named per game: `%APPDATA%\AtomEngine\<game>\logs\<game>.log`.
+
+**Concept: packaging per game.** Every install rule belongs to a CMake **component** named like the game, so `cmake --install --component Drift` installs DRIFT's files and nothing of the demo's. The payload file names the game and its executable; `package.ps1 -Game <name>` and `verify.ps1` serve any game.
+
+The decision is ADR-007 in Architecture: games share a framework, not each other's code.
+
+**Code.** `Framework/` (`Platform/RunLog`, `Settings/GameSettings`, `Settings/Calibration`, `Diagnostics/DiagnosticsReport`), `Game/CMakeLists.txt` and `Games/Drift/CMakeLists.txt` (install components).
+
+---
+
+## 96. Porting a web game: DRIFT flies (M77)
+
+**The brief: faithful first.** DRIFT started as a three.js web game. A port can be faithful (the same rules, look and sound) or a reinterpretation. Faithful first means: reproduce the original exactly, check it against the original, and only then change anything. Without that, "better" can't be told apart from "different".
+
+**Concept: port the rules line by line.** `ship.js` and the path in `world.js` became `DriftLib` (`Flight.h`): the path from two sines and a cosine, the ship's input easing, the 11 m leash to the path, banking, squash and stretch, speed `38 + flow × 34`, boost ×1.7, and the spring camera (look-ahead, roll, FOV `70 + boost × 18 + flow × 6`, a seeded shake). **Every constant kept.** Unit tests pin the formulas, so a later "cleanup" that changes the feel fails a test.
+
+**Concept: pure game logic.** `DriftLib` contains no rendering, audio or window code: it takes time and input and returns positions. That's what makes it unit-testable without a GPU, and it's why the executable (`DriftApp`) is thin: it reads input, steps the library, and draws what it says.
+
+**Concept: content from the same source.** The original's models came from a Blender script, ported to `Tools/Blender/drift_models.py`. Three of the four models came out **byte-identical** to the web version's; the ship matched in size, structure and bounds (the web one had been made in a live session, not by the script).
+
+**Concept: when the two engines differ.** Some things can't be copied, only approximated, and each approximation is written down:
+- **Light units:** three.js and AtomEngine scale light intensity differently, so intensities were matched by eye.
+- **Fog:** three.js's linear fog became the engine's exponential fog (0.0035/m), chosen to look the same over the distances that matter.
+- **The engine's glow** stands in for the original's point light (M79 tunes it).
+
+**Concept: an autopilot for testing.** A game you have to play by hand can't run in CI. `ATOM_DRIFT_SECONDS=N` flies the path automatically for N seconds and prints a summary; `Scenario.drift_fly` runs it. Since M78 `ATOM_DRIFT_SEED` fixes the course, so a run is reproducible.
+
+**Code.** `Games/Drift/Flight.*`, `DriftApp.*`, `Tools/Blender/drift_models.py`, `Tests/DriftFlightTests.cpp`.
+
+---
+
+## 97. Rules as pure, seeded code (M78)
+
+**The world.** `World` lays a segment every 80 m, up to 720 m ahead, and recycles what's 20 m behind. Each segment holds a ring on the path, a trail of 7 weaving orbs, and `2 + min(4, segment / 4)` rocks off the racing line, sized 0.8–2.6.
+
+**Concept: flow, one value everything follows.** `Flow` is a number from 0 to 1. Passing a ring within 3.1 m adds 0.10 and missing it subtracts 0.08. An orb adds 0.025 and grows the **chain**; a rock subtracts 0.25, resets the chain and shakes the camera. Flow decays by 0.012 per second. Speed, FOV, bloom, music and the sky all read it.
+
+**Concept: order is part of the rules.** The original checks rings, then orbs, then rocks. In a frame where the ship takes an orb *and* hits a rock, that order decides the outcome: the chain grows, then resets, and ends at 0. The port checks in the same order, and a test pins it. Details like this are where faithful ports quietly diverge.
+
+**Concept: seeded randomness.** The course comes from a seeded generator, so the same seed gives the same course on every machine and every run. That makes the rules testable ("seed 7: rings pass") and the scenario deterministic in what it flies through.
+
+**The HUD and the title.** The original's layout and font (Space Grotesk, under the SIL Open Font License, shipped with its licence): controls top left, the chain top right (popping ×1.25 when it changes), the flow bar at the bottom, and a "CLICK TO LAUNCH" title screen over an idle glide.
+
+**Code.** `Games/Drift/World.*`, `Tests/DriftWorldTests.cpp`, `DriftApp::DrawHud`; `Scenario.drift_fly` in `Tests/CMakeLists.txt`.
+
+---
+
+## 98. Toon shading and inverted-hull outlines (M79)
+
+**Concept: toon (cel) shading.** Ordinary diffuse light (Lambert, §13) varies smoothly with the angle between the surface and the light. Toon shading **quantises** it into a few flat bands, like a cartoon. three.js does this with a gradient map: a tiny texture read at `facing × 0.5 + 0.5` with nearest filtering. DRIFT's map has three texels, so three steps: 70, 160 and 255 out of 255.
+
+**How AtomEngine does it: a shader variant.** `BasicToon.frag` defines `ATOM_TOON` and includes `Basic.frag` (the same pattern as rain in §69), replacing the sun's Lambert with the three steps. A **variant** rather than a branch: materials that aren't toon run the plain shader exactly, at no cost. The pipeline table became plain | rain | toon (72 entries), chosen per material (`Material::toon`).
+
+**Concept: inverted-hull outlines.** The classic cheap outline:
+1. Draw the mesh normally.
+2. Draw it again, every vertex pushed out along its normal by the outline width, with **front faces culled**, in a flat dark colour.
+
+Only the back faces of the slightly bigger copy survive, and they peek out around the silhouette: a rim. It costs one extra draw per outlined mesh and needs no post-processing. Its limits are known: it can show gaps at hard edges and doesn't outline internal creases. AtomEngine pushes vertices in model space (`Outline.vert`), fogs the colour like the scene so distant outlines fade, and skips shadow and reflection passes. DRIFT outlines the ship, rings and rocks (0.045, `#07060f`) but not the orbs, as the original does.
+
+**Concept: compensating for a pipeline difference.** The original draws its stars and streaks unfogged; the engine's particles are always fogged. Rather than add a "no fog" particle mode, the port pre-compensates the colour on the CPU: if fog will blend a fraction *f* of the fog colour in, the particle is given `(target − fog·f) / (1 − f)`, so it arrives on screen at the target colour.
+
+**Stars and streaks.** `SpeedField`: 1500 stars in a box that rides at 0.9 of the ship's lateral position, and 120 streaks, stretched over 0.08 s of travel, visible above 45 m/s. Both are particles with a 1×1 white atlas, matching the original's square points and thin lines.
+
+**Bloom.** The engine's glow (§41) with the original's `UnrealBloomPass` threshold of 0.85 and strength `0.45 + flow × 0.7`. A different blur kernel, so close rather than identical.
+
+**Measured:** the demo against v0.0.12 showed no cost (night street −0.26 ms, lakeshore −0.004 ms, both within noise).
+
+**Code.** `Shaders/BasicToon.frag.hlsl`, the `ATOM_TOON` block in `Basic.frag.hlsl`, `Outline.vert/.frag.hlsl`, `Material::toon/outline/outlineColor`, `Games/Drift/SpeedField.*`.
+
+---
+
+## 99. A live synth on the audio thread (M80)
+
+**The difference from §26.** The demo's sounds are synthesised *once* at start-up into buffers, then played back by the mixer. DRIFT's soundtrack is **generative**: it is synthesised *live*, note by note, and follows the flow (the filter opens, the hats come in, the arpeggio gets denser). That means synthesis runs on the audio thread, under a hard deadline.
+
+**Concept: modelling WebAudio.** The original builds a WebAudio graph: oscillators, gain envelopes, a biquad filter, a delay. `Atom::Synth` reproduces that graph as plain DSP:
+- **Voices:** a fixed pool of 160 (sine, triangle, saw, noise through its own filter, and a pitch sweep for kicks).
+- **PolyBLEP saw:** a naive sawtooth has an instant jump that aliases (high harmonics fold back as audible junk). PolyBLEP smooths the sample or two around each jump with a small polynomial, removing most of the aliasing cheaply.
+- **Envelopes:** a linear attack to the peak, then an exponential decay to 0.0001 at the note's duration, as WebAudio's `exponentialRampToValueAtTime`. Computing `pow()` per sample was too slow, so the ramp is a constant per-sample **ratio**: multiplying by *r* each sample is an exponential curve.
+- **The filtered bus:** an RBJ low-pass (§26's biquad) whose cutoff approaches its target like WebAudio's `setTargetAtTime`. A trap found here: WebAudio specifies a low-pass's Q **in decibels**, so the original's 2 dB becomes a linear 1.26.
+- **A feedback delay and a master gain** with its own time constant (mute fades instead of clicking).
+
+**Concept: real-time rules on the audio thread.** The device asks for audio every few milliseconds; miss that and the sound breaks up. So on the audio thread there are **no locks and no allocation**: nothing that can wait on another thread or on the memory allocator. Everything is allocated when the synth is built.
+
+**Concept: a lock-free command queue.** The game must still tell the music things (a pickup, a flow change, mute). `SynthStream` uses a **single-producer, single-consumer (SPSC) queue**: one thread only writes, the other only reads, and atomic indices make that safe without a lock. Contrast §26, where the mixer shares its voice list under the stream lock; that works for short edits, but a synth running every block can't risk waiting.
+
+**Concept: sample-accurate scheduling.** The music is a `SynthSequencer` (the port of `audio.js`). Each 256-frame block, it's asked which notes start inside that block and at which sample, so notes land exactly on the beat whatever the block boundaries. 96 BPM eighth notes, D minor pads, a kick on the quarters, hats above flow 0.15, an arpeggio whose probability grows with flow, the filter opening toward `500 + flow² × 6000` Hz, and pickups climbing a pentatonic scale with the chain.
+
+**Concept: testing sound without listening.** `RenderOffline` runs the same code without a device. Tests check a sine's pitch from its zero crossings, the envelope's rise and decay, the low-pass's attenuation two octaves above the cutoff, the delay's repeat time, and that four seconds of the soundtrack are finite, unclipped and audible. Whether it *sounds like the original* is a listening check, which only a person can do.
+
+**Speed:** more than 10× real time in Release.
+
+**Code.** `Engine/Audio/Synth.*`, `SynthStream.*` (`SynthSequencer`), `Games/Drift/Music.*`, `Tests/SynthTests.cpp`.
+
+---
+
+## 100. Validating what changed (M81)
+
+**The cost that grew.** Each milestone ran the full matrix: every scenario in Debug and Release, plus a CI-configuration build. About 20 minutes, even for a change to one folder. Validation that slow gets skipped or resented.
+
+**Concept: test selection by change.** Map each changed file to the checks that can catch its mistakes, and run only those. Large codebases do this with dependency graphs; AtomEngine does it with a reviewable table.
+
+**How AtomEngine does it.** `check.ps1 -Level changed` collects the files the branch touched since it left the base (committed, uncommitted and untracked) and maps each through `Tools/Dev/changed.psd1`:
+- **First matching rule wins,** and each file is printed with the rule that matched, so the choice is visible.
+- **Docs only:** nothing to build. DRIFT's sources: `drift_fly` and `drift_diagnostics`. Shaders and the renderer: the rendering set. A CMake or packaging change also stages and verifies a package.
+- **Never silently nothing:** a file no rule matches is flagged and gets a broad fallback set.
+- **No stale entries:** every scenario named in the table must exist (`ctest -N`), so a renamed scenario fails the check instead of quietly running less.
+- `-DryRun` prints the plan without building.
+
+**The rules that came with it:** per milestone, `-Level changed`; `-Level full` **once per version**, before the release commit; no local CI-configuration build (CI runs it on the pull request); `ab.ps1` only when a milestone touches performance.
+
+**Concept: a table is data, not logic.** The mapping lives in a `.psd1` data file, not in the script, so reviewing or changing which tests guard which folder is a one-line diff anyone can read.
+
+**Code.** `Tools/Dev/check.ps1`, `Tools/Dev/changed.psd1`, `CLAUDE.md`, the README's Development workflow.
+
+---
+
+## 101. Lean packages, one overlay, one report (M82)
+
+**What changed since §88.** v0.0.11 shipped every developer facility, inert unless used ("nothing stripped"). With two games the facilities were uneven (the demo had a debug overlay, a performance log and a test harness; DRIFT had almost none), and a player could reach tools meant for developers. M82 reverses the policy.
+
+**Concept: a compile-time switch.** A distribution build (`-DATOM_DISTRIBUTION=ON`) now also defines `ATOM_DEV_TOOLS=0`. Two entry points are gated:
+- **`Atom::DevSwitch(name)`** replaces every direct read of an `ATOM_*` environment variable. In a package it returns nothing, so no switch can change behaviour.
+- **The developer tools** (ImGui: the F10 panels and the F1 overlay) are never initialised.
+
+The trade-off is written down (ADR-008): the shipped executable is no longer the exact tested one. The switch gates only *entry points*, not game code paths, which keeps that difference small. The run log's first lines say which build it is: "Developer tools: on" or "off (distribution build)".
+
+**Players keep** the log, the start-failure message box, `--diagnostics`, and the settings flags (`--gpu`, `--quality`, `--reset-settings`…).
+
+**Concept: a guard against the wrong build.** `package.ps1`'s smoke run checks the packaged game's output for "Developer tools: off" and refuses the package otherwise. A development build can't be shipped by mistake.
+
+**One F1 overlay for every game.** The engine draws a corner window with ImGui that never takes the mouse or keyboard. The engine adds its lines first each frame (frame time, scene size and MSAA, draws and triangles, the adapter, present mode and frames in flight, the latency readout), then the game appends its own through `AddOverlayLine`. The demo's old overlay (drawn with the game's UI renderer) folded into it; DRIFT adds speed, flow, chain and totals.
+
+**One `--diagnostics` report.** The report (§79) moved to the framework: `DiagnosticsReport` writes the shared facts (SDL, the adapter and any fallback, presentation, display, power), and each game appends its own lines. The demo's output is unchanged (`Scenario.diagnostics` passes as before). DRIFT gained the framework's command line, so `--gpu` and `--diagnostics` work there too (`Scenario.drift_diagnostics`).
+
+**Code.** `Engine/Core/DevSwitch.h`, `Engine/Debug/DevTools.*` (`AddOverlayLine`), `Application::AddEngineOverlayLines`, `Framework/Diagnostics/DiagnosticsReport.*`, `Tools/Dist/package.ps1`, Architecture §9 and ADR-008.
+
+---
+
+## 102. Two old bugs a second game exposed
+
+A second game uses the engine differently, and that shakes out bugs the first one never triggered or that everyone had stopped seeing.
+
+### Double precision in a Debug shader
+
+**The symptom.** DRIFT's Debug build looked broken, and the log repeated `D3D12 ERROR: CreatePixelShader: Shader uses double precision float ops which are not supported on the current device`, then "Failed to create scene pipeline". Release was fine.
+
+**Concept: literal types in HLSL.** A number like `1.0` with no suffix is a *literal*, whose type is decided by context. The toon ramp chose between bare literals with nested `? :`, so the whole expression stayed a literal, and dxc typed it **double**. With optimisation (`-O3`) the doubles were folded away; Debug builds compile with `-Od`, so they stayed in the shader. The Iris Xe has **no 64-bit floating point in shaders** (`FP64` is optional in D3D12), so the device refused the pipeline.
+
+**The fix:** `f` suffixes (`1.0f / 3.0f`) make every value a 32-bit float. Every shader was recompiled both ways and scanned: none uses doubles now.
+
+**Why the tests passed anyway.** `drift_fly` checked only the autopilot's summary, which prints even with the pipeline missing. Scenarios now also fail on "Failed to create … pipeline". **Lesson:** a test that checks only the happy output can pass while the program is visibly broken; check for the failure signatures too.
+
+### Blurry text since the first font
+
+**The symptom.** UI text had always looked soft, "not clean", in every game.
+
+**The cause: three reasonable decisions combined.**
+1. The font atlas was created through the general `CreateTexture`, which **always builds mipmaps** (§11).
+2. The UI sampler is trilinear.
+3. Glyphs are baked with **2× horizontal oversampling** (§28), so each screen pixel spans two atlas texels across.
+
+The GPU picks the mip level from the texel-to-pixel ratio: two texels per pixel means **mip level 1**, the half-resolution, box-filtered copy. Text had been drawn from an atlas half its baked size since v0.0.2.
+
+**The fix:** `CreateTexture` takes a `mipmaps` flag, and fonts pass `false`. An atlas drawn at its own size gains nothing from smaller levels; they only blur it and mix neighbouring glyphs.
+
+**Concept: measure the fix, and check the measurement.** Two identical scripted runs of the demo differ by at most 3 levels per pixel in the hint line; old against new differed by 31 on average, and enlarged crops showed the halos gone and the letters' counters open. The first comparison had shown *no* change at all, because the "new" build had never been built (a missing `cmake` on the shell's path, hidden by an output filter). An executable's timestamp gave it away. **Lesson:** a comparison that shows exactly zero difference is as suspicious as one that shows a huge one; confirm that both sides really are what you think.
+
+**Concept: DPI awareness, ruled out.** At 125 % Windows display scaling, a program that isn't DPI-aware is drawn at 100 % and stretched by Windows (blurring everything). The window was checked from outside with the Win32 API: per-monitor DPI-aware, 1280×720 physical pixels, matching the swapchain. A query from a DPI-*unaware* process returned scaled numbers (1024×576) at first, a trap of its own.
+
+**Code.** `Shaders/Basic.frag.hlsl` (the `ATOM_TOON` block), `Tests/CMakeLists.txt` (fail expressions), `Engine/UI/Font.cpp`, `Texture::Create` (`mipmaps`).
+
+---
+
+## 103. Releasing 0.0.13 (M83)
+
+**DRIFT's package.** Its own install component: `Drift.exe`, `SDL3.dll`, the engine's shaders, `Assets/Drift/`, the licences (Space Grotesk's OFL among the third-party notices) and a players' README. `package.ps1 -Game Drift` makes `Drift-v0.0.13-win64.zip`: **1.9 MB, 35 files**, against the demo's 16 MB. CI now packages both games.
+
+**The numbers** (Release, plugged in, 144 Hz panel):
+- **DRIFT:** median frame 6.95 ms (144 fps), p95 7.83 ms. Click to GPU done (`latency.ps1 -Mode Engine`): median 20.7 ms, p95 27.5 ms.
+- **The demo against v0.0.12** (`ab.ps1`, 8 rounds): night street −0.22 ms (−1.05..+0.38), lakeshore −0.002 ms (−0.06..+0.23). Both ranges straddle zero: the engine work for DRIFT costs the demo nothing measurable.
+- `check.ps1 -Level full`: 20/20 in Debug and in Release, once, before the release commit.
+
+**Concept: a baseline is not a comparison.** DRIFT's latency came from only 8 blocks of samples, and its rounds ranged 18.6–27.5 ms. The demo measured 17.5 ms in the same session, but with that much noise the difference can't be called real. DRIFT's figure is recorded as a baseline for its next version, not as "DRIFT is slower". DRIFT also had no frame-rate report; its autopilot summary now includes one, which ruled out the first suspicion (that DRIFT ran at 72 fps).
+
+**Concept: a fidelity sheet.** Every part of the original (rules, look, sound) against the port, with *how* each was checked: a unit test pinning the constant, the scenario, by eye side by side, or by ear. The deliberate differences are listed too: text 4 px larger than the original's CSS (a 1280×720 window at 125 % scaling made 12 px small), a window instead of a browser page, a hidden cursor. The one check a test can't do, whether the music sounds like the original, is the player's listening check.
+
+**A correction made at release: hidden is not captured.** Asked to hide DRIFT's cursor "like the demo", the first change copied the demo's mouse capture (relative mouse mode). But the demo uses the mouse for *look* (deltas), while DRIFT steers partly by where the pointer *is* in the window (`mouse.x × 0.35`, as in `ship.js`). Relative mode replaces that position with a virtual, clamped one. DRIFT now only hides the cursor (`SDL_HideCursor`). **Lesson:** copy a behaviour's purpose, not its implementation.
+
+**Code.** `Games/Drift/CMakeLists.txt` (install rules), `Games/Drift/README.txt.in`, `.github/workflows/ci.yml`, `Tools/Perf/latency.ps1` (`-Game .../Drift.exe`), `CHANGELOG.md` 0.0.13, Architecture §1 and ADR-007/008.
+
+---
+
+## 104. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2576,18 +2796,19 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.10**, against v0.0.9 (interleaved builds, §82): the night street −0.51 ms, the lakeshore −0.55 ms, from the third frame in flight (§81); with vsync on the 144 Hz panel, 72 → 144 fps. Baselines measured with two frames in flight don't compare with v0.0.10's.
 - **v0.0.11** adds no rendering work: against v0.0.10 (interleaved builds, §89) the night street +0.07 ms and the lakeshore +0.004 ms, within noise. The static C++ runtime and the new log cost nothing measurable.
 - **v0.0.12** (§94): click to display 36 → 24 ms at 144 fps. Uncapped, the 2-frame default is ~0.3 ms slower per frame than 0.0.11's 3 (the code alone: −0.004 ms). Baselines across 0.0.10–0.0.11 and 0.0.12 differ in frames in flight; set `ATOM_FRAMES_IN_FLIGHT` alike to compare code.
+- **v0.0.13** (§103): against v0.0.12 (interleaved builds) the night street −0.22 ms and the lakeshore −0.002 ms, within noise: toon shading, outlines and the synth cost the demo nothing. DRIFT itself, with vsync on the 144 Hz panel: median frame 6.95 ms, p95 7.83 ms (its autopilot's summary).
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 96. Build system and project layout
+## 105. Build system and project layout
 
-- **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomGameLib` (gameplay as a static lib), `AtomGame` (exe), `AtomTests` (doctest unit tests), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`).
+- **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomFramework` (what every game shares, §95), `AtomGameLib` (the demo's gameplay as a static lib), `AtomGame` (exe), `DriftLib` and `Drift` (the second game, §96), `AtomTests` (doctest unit tests, linking both game libraries), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`); `drift_fly` and `drift_diagnostics` run `Drift`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
 - **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85). The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73), split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
-- **Distribution** (§86): `pwsh Tools/Dist/package.ps1` builds `build-dist/`, stages `Dist/AtomGame/` with `cmake --install`, verifies it and zips `Dist/AtomGame-v<version>-win64.zip`.
-- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, and the package check (no artifact kept). **Validation ladder** (§75): `Tools/Dev/check.ps1`.
-- **Shader variants** (§69): `BasicRain.frag` includes `Basic.frag` with a define; a change to `Basic.frag` rebuilds both.
+- **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game AtomGame|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build with developer tools, §101) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
+- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, and the package check for both games (no artifact kept). **Validation** (§75, §100): `Tools/Dev/check.ps1 -Level changed` per milestone (the table in `Tools/Dev/changed.psd1`), `-Level full` once per version.
+- **Shader variants** (§69, §98): `BasicRain.frag` and `BasicToon.frag` include `Basic.frag` with a define; a change to `Basic.frag` rebuilds all three. Write float literals with `f` (§102).
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
 - Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
@@ -2598,13 +2819,18 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json` (§78); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
 - **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
-- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93).
+- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97). All are read through `Atom::DevSwitch` and ignored in a package (§101).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
 ```
 Engine/  Assets/ Audio/ Core/ Debug/ (ImGui) Physics/ Platform/ Renderer/ Scene/ UI/
          Renderer/GPUDevice (device, window claim, presentation, fallback)
+         Audio/Synth, SynthStream (the live synth); Core/DevSwitch (development switches)
+Framework/ Platform/RunLog, Settings/ (GameSettings, Calibration),
+         Diagnostics/DiagnosticsReport (--diagnostics, shared)
+Games/Drift/ DriftLib: Flight, World, SpeedField, Music; DriftApp, Main;
+         Assets/ (ship, ring, orb, rock .glb; Fonts/SpaceGrotesk + OFL); README.txt.in
 Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Atmosphere, UneaseDirector, Main
          World/ Interaction/ Dialogue/ Level/ Testing/
@@ -2612,15 +2838,15 @@ Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
          Character/ (LabViewer, Animator, SpringArm); DemoAppLab (the lab's modes)
          Flashlight; DemoAppDevTools (the ImGui panels)
          Environment/ (EnvironmentController); Level/Environment (state, Blend)
-         Settings/ (GameSettings, Calibration); DemoAppCalibration
-         Platform/RunLog (the log, console attach)
+         DemoAppCalibration (settings and the log moved to Framework/ in v0.0.13)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
-         GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain (.hlsl)
+         GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain,
+         BasicToon, Outline (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), latency.ps1 (input latency: Engine / PresentMon),
              benchmark scenarios (lights, water and weather)
-Tools/Dev/  check.ps1 (the validation ladder), doctor.ps1, common.ps1
+Tools/Dev/  check.ps1 (validation: changed, quick, feature, full), changed.psd1 (its table), doctor.ps1, common.ps1
 Tools/Dist/  package.ps1 (the package), verify.ps1 (its check), README.txt.in (players' README)
 Tools/PresentationProbe/  PresentationProbe (SDL or raw D3D12, window moves),
                           SwapchainMatrix (every swapchain kind, D3D11/D3D12, every adapter)
@@ -2641,11 +2867,13 @@ external/ SDL glm cgltf stb json doctest imgui
 
 **Controls:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc release/quit · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · F10 developer tools · **F flashlight** (once found) · M mute.
 
+**DRIFT:** click to launch · WASD, arrows or the pointer's position steer · Shift boost · M mute · Esc quit · (development builds: F1 overlay, F10 tools).
+
 **Character lab:** arrows / mouse orbit, wheel zoom · 1–4 clip · 5 blend (Z/X slider) · 6 state machine · −/+ speed · Space pause · . step · B bind pose · K skeleton · W weights · Tab drive (WASD, Shift run, Space jump, Tab back).
 
 ---
 
-## 97. Glossary
+## 106. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -2854,4 +3082,22 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Winding** — vertex order of a triangle (CW/CCW), used for back-face culling.
 - **Wet material** — a material whose emitted light ripples and which catches a moving sheen; the fake wet road.
 - **xorshift** — a tiny, fast pseudo-random generator; seeded, it gives the same sequence on every platform.
+- **Baseline (measurement)** — a recorded number for later versions to compare against, as opposed to a comparison drawn now (§103).
+- **Cel / toon shading** — diffuse light quantised into a few flat bands instead of a smooth gradient (§98).
+- **Compile-time switch** — a preprocessor definition that removes code from a build entirely, rather than disabling it at runtime (`ATOM_DEV_TOOLS`, §101).
+- **DPI awareness** — whether a Windows program draws at the display's real pixel density; an unaware one is drawn at 100 % and stretched, blurring it (§102).
+- **Envelope** — how a note's loudness evolves: here a linear attack, then an exponential decay (§99).
+- **Fidelity sheet** — a part-by-part comparison of a port against its original, with how each part was checked (§103).
+- **FP64** — 64-bit (double-precision) floating point in shaders; optional in D3D12 and missing on many integrated GPUs (§102).
+- **Framework layer** — code every game on an engine shares but the engine doesn't own: logs, settings, the command line, diagnostics (§95).
+- **Generative music** — music produced live by rules and randomness rather than played from a recording (§99).
+- **Inverted hull** — an outline drawn as a slightly inflated copy of the mesh with its front faces culled, so only a rim shows (§98).
+- **Literal (shader)** — a number written in code; without a suffix its type comes from context, which can make it double (§102).
+- **Lock-free / SPSC queue** — a queue made safe with atomic indices instead of a lock; single-producer, single-consumer: one thread writes, one reads (§99).
+- **PolyBLEP** — a cheap correction around each jump of a sawtooth that removes most of its aliasing (§99).
+- **Port (faithful)** — reproducing a program on another platform with the same behaviour, before changing anything (§96).
+- **Real-time thread** — a thread with a hard deadline (audio): it must never wait on a lock or the allocator (§99).
+- **Relative mouse mode** — the cursor hidden and pinned, the program reading only movement; for mouse-look, not for pointing (§103).
+- **Sample-accurate scheduling** — starting each note on its exact sample inside an audio block, not at the block's start (§99).
+- **Test selection** — running only the tests a change can affect, chosen from the changed files (§100).
 - **Z-fighting** — flicker when two surfaces share the same (or nearly the same) depth, so the depth test picks a different winner per pixel and frame; in AtomEngine caused by coplanar overlapping faces (§33).

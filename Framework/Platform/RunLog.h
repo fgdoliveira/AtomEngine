@@ -5,7 +5,7 @@
 #include <streambuf>
 #include <string>
 
-namespace AtomGame
+namespace AtomFramework
 {
     // Writes everything to two buffers - the console's and the log file's -
     // and remembers the last complete line (the reason a start failed).
@@ -33,13 +33,14 @@ namespace AtomGame
     // Windows-subsystem program has no console: started from a terminal it
     // re-attaches to it; with redirected output (ctest, ab.ps1) it keeps the
     // inherited handles. Either way std::cout and std::cerr are copied to
-    // <prefpath>/logs/AtomGame.log (the previous run kept as
-    // AtomGame.previous.log) - except in scripted runs, which must not
-    // overwrite the player's log.
+    // <prefpath>/logs/<app>.log (the previous run kept as
+    // <app>.previous.log), the pref path being SDL's for ("AtomEngine",
+    // app) - except in scripted runs, which must not overwrite the player's
+    // log. M76: shared by every game; `app` is the game's name.
     class RunLog
     {
     public:
-        RunLog();
+        explicit RunLog(const std::string& app);
         ~RunLog();
 
         RunLog(const RunLog&) = delete;

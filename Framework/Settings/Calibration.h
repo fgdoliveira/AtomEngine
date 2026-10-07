@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace AtomGame
+namespace AtomFramework // M76: the decision; each game runs its own measurement
 {
     // Auto quality (M64): the highest tier this machine draws within budget,
     // measured, not guessed from a GPU's name. Pure decisions here; the run

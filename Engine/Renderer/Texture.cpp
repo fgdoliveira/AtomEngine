@@ -16,7 +16,8 @@ namespace Atom
         std::uint32_t width,
         std::uint32_t height,
         const std::uint8_t* pixels,
-        bool srgb
+        bool srgb,
+        bool mipmaps
     )
     {
         if (!device || !pixels || width == 0 || height == 0)
@@ -26,7 +27,7 @@ namespace Atom
         }
 
         const std::uint32_t mipLevels =
-            static_cast<std::uint32_t>(std::bit_width(std::max(width, height)));
+            mipmaps ? static_cast<std::uint32_t>(std::bit_width(std::max(width, height))) : 1u;
 
         SDL_GPUTextureCreateInfo createInfo{};
         createInfo.type = SDL_GPU_TEXTURETYPE_2D;

@@ -8,15 +8,27 @@ when a change alters a diagram or a rule here, the change updates this page.
 ## 1. Targets and dependency direction
 
 ```text
-AtomGame (exe) ──→ AtomGameLib ──→ AtomEngine ──→ SDL3, GLM
-AtomTests ───────→ AtomGameLib
+AtomGame (exe) ──→ AtomGameLib ──→ AtomFramework ──→ AtomEngine, SDL3
+                        │
+                        └────────→ AtomEngine ──→ SDL3, GLM
+Drift (exe) ─────→ DriftLib ─────→ AtomEngine
+      └──────────→ AtomFramework
+AtomTests ───────→ AtomGameLib, DriftLib
 ```
 
 ```mermaid
 graph TD
     Exe[AtomGame executable] --> Game[AtomGameLib]
     Tests[AtomTests] --> Game
+    DriftExe[Drift executable] --> DriftLib[DriftLib]
+    DriftExe --> Framework
+    DriftLib --> Engine
+    Tests --> DriftLib
+    Framework --> Engine
     Game --> Engine[AtomEngine]
+    Game --> Framework[AtomFramework]
+    Framework --> SDL
+    Framework -.->|private| JSON
     Game -.->|private| JSON[nlohmann/json]
     Game -.->|private| ImGui
     Engine --> SDL[SDL3]
@@ -29,6 +41,21 @@ graph TD
 - **The one rule that matters most:** the engine never includes game code.
   `Engine/` (namespace `Atom`) is reusable; `Game/` (namespace `AtomGame`)
   is the concrete demo.
+- **The framework (M76):** `Framework/` (namespace `AtomFramework`) is what
+  every game made with AtomEngine shares but the engine doesn't own: the
+  run's log (`RunLog`, named per game), the settings model and command
+  line (`GameSettings`), the calibration decision. Games link it; they never
+  share each other's code. Install rules are per game (a CMake component
+  named like the game), so `Tools/Dist/package.ps1 -Game <name>` packages
+  any of them. Since M82 it also holds the shared `--diagnostics` report.
+- **The second game (v0.0.13):** `Games/Drift/` (namespace `Drift`) is a
+  port of a three.js web game: `DriftLib` holds its rules, course, speed
+  field and music (pure, unit-tested), the `Drift` executable its
+  application. It uses the engine and the framework and nothing of the
+  demo's (ADR-007). What it needed went into the engine in general form:
+  a toon shading variant and inverted-hull outlines (M79), a live synth
+  (`Atom::Synth`, `SynthStream`, M80). Its fidelity to the original was
+  checked part by part at release (CHANGELOG 0.0.13).
 - **Static libraries** let the tests exercise exactly the game code the
   executable runs.
 - **Usage requirements are honest** (M54): PUBLIC only for what a target's
@@ -277,28 +304,33 @@ flowchart LR
   Release, no tests). They differ only in `ATOM_DISTRIBUTION`.
 - **Checked:** locally by `Tools/Dist/package.ps1`, which also starts the
   package from outside the repository, and on pull requests and pushes to
-  master by CI's `package` job (M69), a check that keeps no ZIP. A clean-machine run follows
-  [Distribution-Test.md](Distribution-Test.md).
+  master by CI's `package` job (M69), a check that keeps no ZIP. A release
+  candidate is also tried on a clean Windows VM (a local procedure).
 
-**What ships, and how (M70).** Diagnostics are kept on purpose: on a
-stranger's PC a hidden report is worth more than a few kilobytes saved.
+**What ships, and how (M70, revised in M82).** The player keeps what helps a
+stranger report a problem; every developer facility is compiled out.
 
 | Facility | Policy |
 |---|---|
 | The log file, `--diagnostics`, the start-failure message box | **always available** |
-| F10 developer panels (Settings, Lighting, Environment, …), F1 overlay, F2–F8 switches | **shipped, as diagnostics**: behind keys a player never needs |
-| `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF logs | **development-enabled**: shipped, inert unless set |
-| Hot reload (`ATOM_ASSET_ROOT`) | **development-enabled**: needs the source tree |
+| F10 developer panels, the shared F1 overlay (every game) | **development only**: compiled out (`ATOM_DEV_TOOLS=0`) |
+| The demo's F2–F8 display toggles | **shipped**: plain game keys |
+| `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF and LAT logs, DRIFT's autopilot | **development only**: `Atom::DevSwitch` reads nothing in a package |
+| Hot reload (`ATOM_ASSET_ROOT`) | **development only**: needs the source tree |
 | Asserts, the D3D12 debug layer | **Debug only**: compiled out of Release |
 | The character lab (`Lab/`, `ThirdParty/`, its level) | **not packaged**: its character's licence isn't recorded |
 | `Tests/`, `PresentationProbe`, `SwapchainMatrix`, `Tools/Perf`, `Tools/Dev`, Blender tools, schemas | **not packaged** |
 
-Nothing is stripped from the Release code: the shipped executable is the
-tested one, with the same code paths.
+M82 reverses M70's "nothing stripped": `-DATOM_DISTRIBUTION=ON` also defines
+`ATOM_DEV_TOOLS=0`. The cost is that the shipped executable is not byte for
+byte the tested one; the switch gates only entry points (environment reads,
+ImGui start-up), so game code paths are the same. The log says which:
+"Developer tools: off (distribution build)", and `package.ps1` refuses a
+package that says "on".
 
 ## 10. Tools
 
-- **Runtime:** Dear ImGui panels (F10) and the F1 overlay - an overlay, not
+- **Runtime:** Dear ImGui panels (F10) and the F1 overlay (M82: shared by every game, engine lines first, then the game's) - an overlay, not
   an editor framework, and kept out of captures.
 - **Scripted:** `.atomtest` scenarios, paired benches, captures - compiled
   in, switched on by the environment.
@@ -382,6 +414,32 @@ can work around. It confirms the decision: low-power by default,
 high-performance as an opt-in that falls back and says which step failed
 (`GPUDevice`, §4). On this machine the RTX is testable on an external
 monitor wired to it.
+
+### ADR-007 — Games share a framework, not each other's code
+**Context:** v0.0.13 adds a second game, DRIFT, beside the demo. Both
+need a log per run, a command line, settings resolution, diagnostics,
+packaging - none of it rendering, so none of it the engine's. **Decision:**
+a third layer, `AtomFramework`, between the engine and the games; each
+game is its own library and executable, and no game links another.
+What a game needs that is engine-shaped (toon shading, outlines, a synth)
+goes into the engine in general form, never as "DRIFT mode". **Rejected:**
+DRIFT as a level of the demo (it would inherit the demo's player,
+interaction and settings, none of which it wants); copying the demo's
+platform code (two diverging copies). **Revisit when** a third game needs
+something both have and the framework doesn't, or the framework starts
+holding one game's policy.
+
+### ADR-008 — Packages carry no developer tools
+**Context:** M70 shipped everything ("nothing stripped"): F10 panels, the
+F1 overlay, every `ATOM_*` switch, inert unless used. With two games the
+facilities were uneven, and a player could reach tools meant for
+development. **Decision (M82):** a distribution build defines
+`ATOM_DEV_TOOLS=0`; `Atom::DevSwitch` reads no environment and ImGui never
+starts. Players keep the log, the start-failure box and `--diagnostics`.
+`package.ps1` refuses a package whose run says "Developer tools: on".
+**Cost:** the package is not byte for byte the tested build; the switch
+gates entry points only, so game code paths are the same. **Revisit when**
+a player-facing diagnostic needs a developer facility.
 
 ## 13. When to add what
 

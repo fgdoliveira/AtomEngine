@@ -1,24 +1,27 @@
-# Make the Windows distribution (M68): one command, from source to ZIP.
+# Make a game's Windows distribution (M68; M76: any game): one command,
+# from source to ZIP.
 #
-#   pwsh Tools/Dist/package.ps1 [-NoSmoke] [-BuildDir build-dist] [-OutDir Dist]
+#   pwsh Tools/Dist/package.ps1 [-Game AtomGame] [-NoSmoke] [-BuildDir build-dist] [-OutDir Dist]
 #
-#   1. builds AtomGame in Release in its own folder (build-dist/), with
-#      -DATOM_DISTRIBUTION=ON: the windowed program players get (M67). The
-#      development build (build/) is left alone;
-#   2. installs it into a fresh staging folder, Dist/AtomGame/, with the
-#      CMake install rules (Game/CMakeLists.txt: the one definition of the
-#      package);
+#   1. builds the game (its CMake target, named like the game) in Release in
+#      its own folder (build-dist/), with -DATOM_DISTRIBUTION=ON: the
+#      windowed program players get (M67). The development build (build/)
+#      is left alone;
+#   2. installs the game's CMake install component into a fresh staging
+#      folder, Dist/<Game>/ (the game's CMakeLists: the one definition of
+#      its package);
 #   3. verifies the staged files (verify.ps1);
 #   4. unless -NoSmoke (a machine without a GPU, CI): copies the package to
 #      a temporary folder and starts it from another working directory -
 #      `--no-settings --diagnostics` must report, so nothing depends on
 #      the repository or the current directory;
-#   5. zips it as Dist/AtomGame-v<version>-win64.zip, every entry stamped
+#   5. zips it as Dist/<Game>-v<version>-win64.zip, every entry stamped
 #      with the commit's time. The same revision gives the same payload
 #      (every file byte for byte); the ZIP container itself isn't
 #      bit-identical between runs (the writer's own metadata);
 #   6. prints the measurements.
 param(
+    [string]$Game = "AtomGame",
     [switch]$NoSmoke,
     [string]$BuildDir = "build-dist",
     [string]$OutDir = "Dist"
@@ -40,11 +43,11 @@ function Step([string]$what, [scriptblock]$action) {
 Step "configure $BuildDir (distribution, Release)" {
     & $cmake -B $BuildDir -S . -DATOM_DISTRIBUTION=ON -DATOM_BUILD_TESTS=OFF | Select-Object -Last 1
 }
-Step "build AtomGame" { & $cmake --build $BuildDir --config Release --target AtomGame | Select-Object -Last 1 }
+Step "build $Game" { & $cmake --build $BuildDir --config Release --target $Game | Select-Object -Last 1 }
 
-$stage = Join-Path $OutDir "AtomGame"
+$stage = Join-Path $OutDir $Game
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
-Step "stage $stage" { & $cmake --install $BuildDir --config Release --prefix $stage | Out-Null }
+Step "stage $stage" { & $cmake --install $BuildDir --config Release --component $Game --prefix $stage | Out-Null }
 Step "verify" { pwsh -NoProfile -File "$PSScriptRoot/verify.ps1" -Path $stage }
 
 $payload = @{}
@@ -53,29 +56,35 @@ Remove-Item (Join-Path $stage ".payload") # the check's input, not part of the g
 
 if (-not $NoSmoke) {
     Write-Host "== smoke: run from outside the repository"
-    $smoke = Join-Path ([System.IO.Path]::GetTempPath()) "AtomGameDist"
+    $smoke = Join-Path ([System.IO.Path]::GetTempPath()) "$($Game)Dist"
     if (Test-Path $smoke) { Remove-Item $smoke -Recurse -Force }
     Copy-Item $stage $smoke -Recurse
     $report = Join-Path $smoke "report.txt"
-    $out = Join-Path ([System.IO.Path]::GetTempPath()) "AtomGameDist.out.txt"
+    $out = Join-Path ([System.IO.Path]::GetTempPath()) "$($Game)Dist.out.txt"
     # Started with another working directory; a windowed program, so its
     # output is captured through redirected handles (RunLog keeps them).
-    $process = Start-Process (Join-Path $smoke "AtomGame.exe") -ArgumentList "--no-settings", "--diagnostics", "`"$report`"" `
+    $process = Start-Process (Join-Path $smoke $payload.exe) -ArgumentList "--no-settings", "--diagnostics", "`"$report`"" `
         -WorkingDirectory ([System.IO.Path]::GetTempPath()) -RedirectStandardOutput $out -PassThru -Wait
     if ($process.ExitCode -ne 0 -or -not (Test-Path $report)) {
         Write-Host "FAILED: the staged game didn't start outside the repository (exit $($process.ExitCode)); see $out" -ForegroundColor Red
         exit 1
     }
-    Write-Host ("   ok: {0}" -f ((Get-Content $report | Select-String "gpu.adapter:").Line))
+    # M82: a package is a distribution build - no developer tools. A
+    # development build staged by mistake says "on" here and is refused.
+    if (-not (Select-String -Path $out -Pattern "Developer tools: off" -Quiet)) {
+        Write-Host "FAILED: the packaged game has developer tools compiled in (not a distribution build); see $out" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host ("   ok: {0}; developer tools off" -f ((Get-Content $report | Select-String "gpu.adapter:").Line))
     Remove-Item $smoke -Recurse -Force
 }
 
-$zip = Join-Path $OutDir "AtomGame-v$($payload.version)-win64.zip"
+$zip = Join-Path $OutDir "$Game-v$($payload.version)-win64.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 $commitTime = (git log -1 --date=rfc --format=%cd).Trim() # the form cmake -E tar --mtime parses
 Step "zip $zip" {
     Push-Location $OutDir
-    try { & $cmake -E tar cf (Split-Path $zip -Leaf) --format=zip "--mtime=$commitTime" AtomGame }
+    try { & $cmake -E tar cf (Split-Path $zip -Leaf) --format=zip "--mtime=$commitTime" $Game }
     finally { Pop-Location }
 }
 
@@ -84,7 +93,7 @@ $files = @(Get-ChildItem $stage -Recurse -File)
 $mb = { param($bytes) "{0:N1} MB" -f ($bytes / 1MB) }
 Write-Host ""
 Write-Host "Package  $((Resolve-Path $zip).Path)"
-Write-Host ("  AtomGame.exe       {0}" -f (& $mb (Get-Item (Join-Path $stage "AtomGame.exe")).Length))
+Write-Host ("  {0,-18} {1}" -f $payload.exe, (& $mb (Get-Item (Join-Path $stage $payload.exe)).Length))
 Write-Host ("  uncompressed       {0} in {1} files ({2} DLL)" -f (& $mb ($files | Measure-Object Length -Sum).Sum), $files.Count,
     @($files | Where-Object Extension -eq ".dll").Count)
 Write-Host ("  zip                {0}" -f (& $mb (Get-Item $zip).Length))

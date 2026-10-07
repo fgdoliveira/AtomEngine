@@ -2,6 +2,7 @@
 // pure and tested (Settings/Calibration.*); this file drives the game
 // through the views and records what it saw.
 #include "DemoApp.h"
+#include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 
 #include <SDL3/SDL.h>
 
@@ -70,7 +71,7 @@ namespace AtomGame
         m_calibration.returnLevel = LevelName();
         // ATOM_CALIBRATE_SECONDS shortens the run (tests); settling stays
         // about a third of it.
-        if (const char* seconds = SDL_getenv("ATOM_CALIBRATE_SECONDS"); seconds && *seconds)
+        if (const char* seconds = Atom::DevSwitch("ATOM_CALIBRATE_SECONDS"); seconds && *seconds)
         {
             m_calibration.measureSeconds = std::max(0.25f, static_cast<float>(SDL_atof(seconds)));
             m_calibration.settleSeconds = std::min(1.0f, m_calibration.measureSeconds / 3.0f);

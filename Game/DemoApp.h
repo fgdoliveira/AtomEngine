@@ -42,6 +42,10 @@
 
 namespace AtomGame
 {
+    // M76: the settings model and calibration decision live in the shared
+    // framework now; the demo uses them as before, unqualified.
+    using namespace AtomFramework;
+
     // The game. It owns only what persists for the whole session (player,
     // camera, progress, systems, UI); everything that belongs to a place
     // lives in the current Level, owned by the LevelManager.
@@ -335,7 +339,7 @@ namespace AtomGame
 
         std::unique_ptr<Atom::Font> m_font;      // prompts, hints, dialogue
         std::unique_ptr<Atom::Font> m_smallFont; // debug overlay, speaker names
-        bool m_showDebugOverlay = false;
+
         float m_hintTime = 0.0f;
         float m_smoothedFrameMs = 0.0f;
 

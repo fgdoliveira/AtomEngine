@@ -37,6 +37,9 @@ add_executable(
     GPUDeviceTests.cpp
     RunLogTests.cpp
     LatencyProbeTests.cpp
+    DriftFlightTests.cpp
+    DriftWorldTests.cpp
+    SynthTests.cpp
     FakeGame.h
 )
 
@@ -44,6 +47,7 @@ target_link_libraries(
     AtomTests
     PRIVATE
         AtomGameLib
+        DriftLib # M77: the second game's pure logic
         nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 
@@ -80,7 +84,7 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
             ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
             LABELS scenario
             # M53: a GPU wrapper outliving the renderer fails the scenario.
-            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
             TIMEOUT 240
     )
 endforeach()
@@ -104,7 +108,7 @@ set_tests_properties(
         LABELS scenario
         ENVIRONMENT "ATOM_CALIBRATE_SECONDS=0.5"
         PASS_REGULAR_EXPRESSION "Calibration: (high|balanced|low|no result|refused) - "
-        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 180
 )
 
@@ -120,7 +124,7 @@ set_tests_properties(
     PROPERTIES
         LABELS scenario
         PASS_REGULAR_EXPRESSION "Diagnostics written"
-        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 120
 )
 
@@ -129,6 +133,34 @@ set_tests_properties(
     PROPERTIES
         LABELS scenario
         PASS_REGULAR_EXPRESSION "Diagnostics written"
-        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown"
+        FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 120
 )
+
+# M77: DRIFT flies on autopilot for a few seconds and reports the distance:
+# the second game starts, loads its assets, renders and shuts down clean.
+if(TARGET Drift)
+    add_test(NAME Scenario.drift_fly COMMAND $<TARGET_FILE:Drift>)
+    set_tests_properties(
+        Scenario.drift_fly
+        PROPERTIES
+            LABELS scenario
+            ENVIRONMENT "ATOM_DRIFT_SECONDS=20;ATOM_DRIFT_SEED=7"
+            PASS_REGULAR_EXPRESSION "DRIFT autopilot: flew [0-9]+ m .* rings [1-9][0-9]* passed"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
+            TIMEOUT 120
+    )
+    # M82: DRIFT's --diagnostics, the framework's shared report.
+    add_test(
+        NAME Scenario.drift_diagnostics
+        COMMAND $<TARGET_FILE:Drift> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/drift_diagnostics.txt"
+    )
+    set_tests_properties(
+        Scenario.drift_diagnostics
+        PROPERTIES
+            LABELS scenario
+            PASS_REGULAR_EXPRESSION "Diagnostics written"
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
+            TIMEOUT 120
+    )
+endif()

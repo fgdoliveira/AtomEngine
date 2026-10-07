@@ -151,12 +151,14 @@ namespace Atom
             std::span<const SkinVertex> skin = {}
         );
 
-        // pixels: RGBA8, top row first.
+        // pixels: RGBA8, top row first. `mipmaps` false: one level (font
+        // atlases, drawn at their own size).
         std::unique_ptr<Texture> CreateTexture(
             std::uint32_t width,
             std::uint32_t height,
             const std::uint8_t* pixels,
-            bool srgb = true
+            bool srgb = true,
+            bool mipmaps = true
         );
 
         // Loads a PNG/JPG/... file; nullptr (with a message) on failure.
@@ -338,7 +340,9 @@ namespace Atom
         SDL_GPUGraphicsPipeline* GetWaterPipeline(std::uint32_t samples);
         SDL_GPUGraphicsPipeline* CreateScenePipeline(
             std::size_t slot, bool doubleSided, bool alphaToCoverage, bool decal, bool skinned,
-            bool water = false, bool rain = false);
+            bool water = false, bool rain = false, bool toon = false);
+        // M79: the inverted-hull outline (Outline.vert/.frag), per sample count.
+        SDL_GPUGraphicsPipeline* GetOutlinePipeline(std::uint32_t samples);
         SDL_GPUGraphicsPipeline* CreateShadowPipeline(bool skinned);
         SDL_GPUGraphicsPipeline* GetShadowPipeline(bool skinned)
         {
@@ -356,7 +360,8 @@ namespace Atom
             std::uint32_t samples,
             bool doubleSided = false,
             bool alphaToCoverage = false,
-            bool skinned = false
+            bool skinned = false,
+            bool toon = false // M79: the toon variant
         );
 
         // Light view-projection for the sun, fitted around the camera and
@@ -406,7 +411,8 @@ namespace Atom
 
         // Indexed by log2(samples): 1x, 2x, 4x.
         // [skinned][samples slot][double-sided][alpha-to-coverage]
-        std::array<SDL_GPUGraphicsPipeline*, 48> m_scenePipelines{}; // [rain][skinned][samples][sides][a2c]
+        std::array<SDL_GPUGraphicsPipeline*, 72> m_scenePipelines{}; // [plain|rain|toon][skinned][samples][sides][a2c]
+        std::array<SDL_GPUGraphicsPipeline*, 3> m_outlinePipelines{}; // M79: [samples slot]
         std::array<SDL_GPUGraphicsPipeline*, 12> m_decalPipelines{}; // [rain][skinned][samples slot]
         std::array<SDL_GPUGraphicsPipeline*, 3> m_waterPipelines{}; // [samples slot]
         glm::vec4 m_wind{ 0.0f };

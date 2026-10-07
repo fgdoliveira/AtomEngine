@@ -34,9 +34,10 @@ namespace Atom
         // low-power fallback can't reach the adapter that drives the screen.
         void ExplainNoDevice()
         {
+            // M76: the engine serves more than one game - name none of them.
             std::cerr << "No GPU could present to this window. On a laptop with two GPUs, check Windows Settings > "
-                         "System > Display > Graphics: a GPU forced for AtomGame.exe applies to every request; "
-                         "'Let Windows decide' lets AtomEngine pick the GPU that drives this screen.\n";
+                         "System > Display > Graphics: a GPU forced for this game's executable applies to every "
+                         "request; 'Let Windows decide' lets AtomEngine pick the GPU that drives this screen.\n";
         }
     }
 

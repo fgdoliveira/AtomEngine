@@ -134,6 +134,9 @@ namespace Atom
         // Materials can be tweaked at runtime (e.g. flickering emission);
         // every part using the material follows. nullptr if not found.
         Material* FindMaterial(std::string_view name);
+        // All of them (M79: a game styling a whole model, e.g. toon). The
+        // last entry is the fallback material.
+        std::vector<Material>& GetMaterials() { return m_materials; }
 
         // Every part is lit by this baked texture (its TEXCOORD_1) instead
         // of the ambient term. The texture must outlive the model's use.
