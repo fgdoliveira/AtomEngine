@@ -1,4 +1,4 @@
-#include "Atmosphere.h"
+#include "Environment/Atmosphere.h"
 
 #include "Renderer/Renderer.h"
 
@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Demo
+namespace AtomFramework
 {
     namespace
     {

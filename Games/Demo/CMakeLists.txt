@@ -2,8 +2,6 @@
 add_library(
     DemoLib
     STATIC
-    Atmosphere.cpp
-    Atmosphere.h
     AudioScape.cpp
     AudioScape.h
     SoundSynth.cpp

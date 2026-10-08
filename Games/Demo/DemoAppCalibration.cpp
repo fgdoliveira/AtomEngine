@@ -108,7 +108,7 @@ namespace Demo
             {
                 Teleport(view.feet, view.yawDegrees);
             }
-            m_rainOverride = view.rain > 0.0f ? std::optional<float>(view.rain) : std::nullopt;
+            m_view.rain = view.rain > 0.0f ? std::optional<float>(view.rain) : std::nullopt;
             ApplyQuality(Tiers[run.tier]);
             run.phase = CalibrationRun::Phase::Settle;
             run.timer = 0.0f;
@@ -177,7 +177,7 @@ namespace Demo
     {
         CalibrationRun& run = m_calibration;
         run.active = false;
-        m_rainOverride.reset();
+        m_view.rain.reset();
 
         Atom::Renderer& renderer = GetRenderer();
         CalibrationInput input;

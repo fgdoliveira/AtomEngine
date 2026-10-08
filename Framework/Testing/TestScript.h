@@ -31,22 +31,25 @@ namespace AtomFramework
         virtual bool TeleportTo(const std::string& entity, float distance) = 0;
         virtual void Teleport(const glm::vec3& feet, float yawDegrees) = 0;
         virtual bool Face(const std::string& entity) = 0;
+        // What an app may not have (v0.0.14): interaction, dialogue, story
+        // flags, footstep surfaces, zone beds, live screens. The defaults
+        // answer "none", so a script using them fails on its expectation.
         // Name of what the interaction system would pick right now.
-        virtual std::string CurrentTarget() = 0;
-        virtual bool Interact() = 0;           // like pressing E
-        virtual bool Choose(int index) = 0;    // 0-based among visible choices
-        virtual void Advance() = 0;            // E/Space in dialogue
+        virtual std::string CurrentTarget() { return {}; }
+        virtual bool Interact() { return false; }       // like pressing E
+        virtual bool Choose(int /*index*/) { return false; } // 0-based among visible choices
+        virtual void Advance() {}                       // E/Space in dialogue
+        virtual bool HasFlag(const std::string& /*flag*/) const { return false; }
+        virtual std::string Message() const { return {}; }
+        virtual std::string DialogueNodeId() const { return {}; }
+        virtual std::string SurfaceName() const { return {}; } // footstep surface underfoot
+        virtual float ZoneLevel(const std::string& /*cell*/) const { return 0.0f; } // cell ambience faded in, 0..1 (M25)
+        // Last frame: render textures drawn into, scene draws sampling one (M27).
+        virtual std::pair<std::uint32_t, std::uint32_t> ScreenStats() const { return { 0, 0 }; }
 
-        virtual bool HasFlag(const std::string& flag) const = 0;
         virtual std::string LevelName() const = 0;
         virtual std::string ModeName() const = 0;  // exploring | dialogue | transitioning
-        virtual std::string Message() const = 0;
-        virtual std::string DialogueNodeId() const = 0;
         virtual std::size_t VoiceCount() const = 0; // looping voices (leak checks)
-        virtual std::string SurfaceName() const = 0; // footstep surface underfoot
-        virtual float ZoneLevel(const std::string& cell) const = 0; // cell ambience faded in, 0..1 (M25)
-        // Last frame: render textures drawn into, scene draws sampling one (M27).
-        virtual std::pair<std::uint32_t, std::uint32_t> ScreenStats() const = 0;
         virtual ArrivalError Arrival() const = 0;
         // Animation of a named entity (M19): time into its clip, nullopt if
         // it has none; and whether it is still playing.
@@ -98,11 +101,11 @@ namespace AtomFramework
         virtual bool Set(const std::string& what, const std::string& value) = 0;
         // Input actions (M29), as a player's keys would give them: held until
         // released, or pressed for one frame. False for an unknown action.
-        virtual bool HoldAction(const std::string& action, bool held) = 0;
-        virtual bool PressAction(const std::string& action) = 0;
+        virtual bool HoldAction(const std::string& /*action*/, bool /*held*/) { return false; }
+        virtual bool PressAction(const std::string& /*action*/) { return false; }
         // Counters (M33).
-        virtual int GetCounter(const std::string& name) const = 0;
-        virtual void SetCounter(const std::string& name, int value) = 0;
+        virtual int GetCounter(const std::string& /*name*/) const { return 0; }
+        virtual void SetCounter(const std::string& /*name*/, int /*value*/) {}
     };
 
     // The panning camera's easing (smoothstep): 0 -> 0, 1 -> 1, gentle at

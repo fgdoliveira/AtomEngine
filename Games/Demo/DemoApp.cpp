@@ -30,24 +30,6 @@
 
 namespace Demo
 {
-    namespace
-    {
-        struct FogPreset
-        {
-            const char* name;
-            float density; // ~3/density metres until fully fogged
-        };
-
-        constexpr FogPreset FogPresets[] = {
-            { "dense", 0.13f },
-            { "medium", 0.085f },
-            { "light", 0.045f },
-            { "off", 0.0f },
-            { "level", -1.0f }, // M47: the level's own density (none: off)
-        };
-        constexpr std::size_t DefaultFogPreset = 4; // level
-    }
-
     Atom::Application::StartupConfig DemoApp::OnConfigure()
     {
         // Before the window and GPU exist (M60): command line > ATOM_*
@@ -174,7 +156,7 @@ namespace Demo
             << "quality.drawing: " << ToString(CurrentQualityTier()) << "\n"
             << "settings.render_scale: " << s.renderScale << "\n"
             << "settings.msaa: " << s.msaaSamples << "x\n"
-            << "settings.shadows: " << (m_shadowsEnabled ? "on" : "off") << "\n"
+            << "settings.shadows: " << (m_view.shadows ? "on" : "off") << "\n"
             << "settings.particles: " << (m_atmosphere.IsEnabled() ? "on" : "off") << "\n"
             << "settings.reflection: " << (renderer.IsReflectionEnabled() ? "allowed" : "off") << "\n"
             << "settings.file: " << (m_settingsPersist ? m_settingsPath : std::string("not used this run")) << "\n";
@@ -212,7 +194,7 @@ namespace Demo
         QualityPreset now;
         now.renderScale = renderer.GetSettings().renderScale;
         now.msaaSamples = renderer.GetSettings().msaaSamples;
-        now.shadows = m_shadowsEnabled;
+        now.shadows = m_view.shadows;
         now.particles = m_atmosphere.IsEnabled();
         now.reflection = renderer.IsReflectionEnabled();
         return TierOf(now);
@@ -229,7 +211,7 @@ namespace Demo
         settings.msaaSamples = preset.msaaSamples;
         renderer.SetSettings(settings);
         renderer.SetReflectionEnabled(preset.reflection);
-        m_shadowsEnabled = preset.shadows;
+        m_view.shadows = preset.shadows;
         m_atmosphere.SetEnabled(preset.particles);
         m_qualityTier = tier;
         ApplyLighting();
@@ -261,7 +243,7 @@ namespace Demo
             std::cout << "Latency flash on: a left click turns that frame black\n";
         }
 
-        m_fogPreset = DefaultFogPreset;
+        m_view.fogPreset = DefaultFogPreset;
         m_audioScape.Initialize(GetAudio());
 
         if (!m_atmosphere.Initialize(GetRenderer()) || !m_unease.Initialize(GetRenderer()))
@@ -929,9 +911,9 @@ namespace Demo
             stats.sceneHeight,
             GetRenderer().GetSettings().renderScale * 100.0f,
             stats.msaaSamples,
-            FogPresets[m_fogPreset].name,
-            GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
-            m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off",
+            FogPresets[m_view.fogPreset].name,
+            GetRenderer().GetLighting().shadowsEnabled ? "on" : m_view.shadows ? "off (level)" : "off",
+            m_view.postMode == 0 ? "full" : m_view.postMode == 1 ? "grade" : "off",
             stats.drawn,
             stats.submitted,
             stats.shadowDrawn,
@@ -1018,9 +1000,9 @@ namespace Demo
         std::snprintf(line, sizeof(line), "Render scale %.0f%%   models loaded %zu, shared %zu", settings.renderScale * 100.0f,
                       m_modelCache.GetLoads(), m_modelCache.GetHits());
         tools.AddOverlayLine(line);
-        std::snprintf(line, sizeof(line), "Fog %s   Shadows %s   Baked light %s   Post %s", FogPresets[m_fogPreset].name,
-                      GetRenderer().GetLighting().shadowsEnabled ? "on" : m_shadowsEnabled ? "off (level)" : "off",
-                      m_bakedLightEnabled ? "on" : "off", m_postMode == 0 ? "full" : m_postMode == 1 ? "grade" : "off");
+        std::snprintf(line, sizeof(line), "Fog %s   Shadows %s   Baked light %s   Post %s", FogPresets[m_view.fogPreset].name,
+                      GetRenderer().GetLighting().shadowsEnabled ? "on" : m_view.shadows ? "off (level)" : "off",
+                      m_view.bakedLight ? "on" : "off", m_view.postMode == 0 ? "full" : m_view.postMode == 1 ? "grade" : "off");
         tools.AddOverlayLine(line);
         std::snprintf(line, sizeof(line), "Particles %s   Unease %s   Audio %s", m_atmosphere.IsEnabled() ? "on" : "off",
                       m_unease.IsEnabled() ? "on" : "off", m_audioScape.IsMuted() ? "muted" : "on");
@@ -1215,132 +1197,26 @@ namespace Demo
 
     void DemoApp::UpdateRenderSettings()
     {
-        const Atom::Input& input = GetInput();
-        Atom::Renderer& renderer = GetRenderer();
-        Atom::RenderSettings settings = renderer.GetSettings();
-
-        // F2: render scale 100 -> 85 -> 75 -> 50 -> 100 %.
-        if (input.WasKeyPressed(SDL_SCANCODE_F2))
+        // F2-F8 are the framework's view toggles (v0.0.14, shared with the
+        // Showcase); F9 is the demo's own.
+        if (HandleViewKeys(GetInput(), GetRenderer(), m_view, &m_atmosphere))
         {
-            constexpr float scales[] = { 1.0f, 0.85f, 0.75f, 0.5f };
-            std::size_t next = 0;
-            for (std::size_t i = 0; i < std::size(scales); ++i)
-            {
-                if (settings.renderScale >= scales[i] - 0.001f)
-                {
-                    next = (i + 1) % std::size(scales);
-                    break;
-                }
-            }
-            settings.renderScale = scales[next];
-            renderer.SetSettings(settings);
-        }
-
-        // F5: fog dense -> medium -> light -> off.
-        if (input.WasKeyPressed(SDL_SCANCODE_F5))
-        {
-            m_fogPreset = (m_fogPreset + 1) % std::size(FogPresets);
             ApplyLighting();
-        }
-
-        // F7: post look full -> grade only (no grain/vignette) -> off.
-        if (input.WasKeyPressed(SDL_SCANCODE_F7))
-        {
-            m_postMode = (m_postMode + 1) % 3;
-            const Atom::PostSettings defaults{};
-            settings.post = defaults;
-            settings.post.enabled = m_postMode != 2;
-            if (m_postMode == 1)
-            {
-                settings.post.grain = 0.0f;
-                settings.post.vignette = 0.0f;
-            }
-            renderer.SetSettings(settings);
-        }
-
-        // F1: the debug overlay is the engine's shared one now (M82, DevTools).
-
-        // F8: particles (leaves, ash, fog banks) on/off.
-        if (input.WasKeyPressed(SDL_SCANCODE_F8))
-        {
-            m_atmosphere.SetEnabled(!m_atmosphere.IsEnabled());
         }
 
         // F9: unease events (figure, static, flicker) on/off.
-        if (input.WasKeyPressed(SDL_SCANCODE_F9))
+        if (GetInput().WasKeyPressed(SDL_SCANCODE_F9))
         {
             m_unease.SetEnabled(!m_unease.IsEnabled());
-        }
-
-        // F3: baked light on/off, to compare with the flat hemisphere ambient.
-        if (input.WasKeyPressed(SDL_SCANCODE_F3))
-        {
-            m_bakedLightEnabled = !m_bakedLightEnabled;
-            ApplyLighting();
-        }
-
-        // F6: sun shadows on/off.
-        if (input.WasKeyPressed(SDL_SCANCODE_F6))
-        {
-            m_shadowsEnabled = !m_shadowsEnabled;
-            ApplyLighting();
-        }
-
-        // F4: MSAA 4x -> 2x -> 1x -> 4x.
-        if (input.WasKeyPressed(SDL_SCANCODE_F4))
-        {
-            settings.msaaSamples = settings.msaaSamples > 1
-                ? settings.msaaSamples / 2
-                : 4;
-            renderer.SetSettings(settings);
         }
     }
 
     void DemoApp::ApplyLighting()
     {
-        // The level decides the light; the player's toggles (fog preset,
-        // shadows) apply on top wherever they are.
-        Atom::SceneLighting lighting{};
-        float levelFog = 0.0f;
-        if (const Level* level = m_levels ? m_levels->GetLevel() : nullptr)
-        {
-            const LevelLighting& l = level->GetData().lighting;
-            // Sun, ambient, fog, sky and water from the environment (the
-            // level's own light, or a preset over it, M49); the rest stays
-            // the level's.
-            const EnvironmentState& e = m_environment.Current();
-            lighting.sunDirection = e.sunDirection;
-            lighting.sunColor = m_sunEnabled ? e.sunColor : glm::vec3{ 0.0f };
-            lighting.skyColor = e.skyColor;
-            lighting.groundColor = e.groundColor;
-            lighting.fogColor = e.fogColor;
-            lighting.shadowsEnabled = l.shadows && m_shadowsEnabled;
-            lighting.bakedLight = m_bakedLightEnabled ? l.bakedLight : 0.0f;
-            lighting.glowStrength = l.glowStrength;
-            lighting.glowThreshold = l.glowThreshold;
-            lighting.skyPanorama = level->GetSkyPanorama();
-            lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;
-            if (e.sky)
-            {
-                lighting.skyGradient = true;
-                lighting.skyZenith = e.sky->zenith;
-                lighting.skyHorizon = e.sky->horizon;
-                lighting.sunSize = e.sky->sunSize;
-                lighting.sunGlow = e.sky->sunGlow;
-            }
-            levelFog = e.fogDensity.value_or(0.0f);
-            lighting.waterShallow = e.water.shallow;
-            lighting.waterDeep = e.water.deep;
-            lighting.waterSkyReflection = e.water.skyReflection;
-            lighting.waterRipple = e.water.ripple;
-            lighting.waterGlint = e.water.glint;
-            lighting.waterReflection = e.water.reflection;
-            lighting.rain = level->GetData().outdoor ? m_rainOverride.value_or(e.rain) : 0.0f; // indoors it rains elsewhere
-        }
-        const float presetFog = FogPresets[m_fogPreset].density;
-        lighting.fogDensity = presetFog < 0.0f ? levelFog : presetFog;
-        lighting.fogHeightFalloff = 0.08f;
-        GetRenderer().SetLighting(lighting);
+        // The level's light under the current environment, the viewer's
+        // toggles on top (the framework's mapping since v0.0.14).
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        GetRenderer().SetLighting(SceneLightingFor(level, m_environment.Current(), m_view));
     }
 
     void DemoApp::UpdateMouseCapture()
@@ -1767,10 +1643,10 @@ namespace Demo
         }
         else if (what == "post" && (value == "full" || value == "grade" || value == "off"))
         {
-            m_postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
+            m_view.postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
             settings.post = Atom::PostSettings{};
-            settings.post.enabled = m_postMode != 2;
-            if (m_postMode == 1)
+            settings.post.enabled = m_view.postMode != 2;
+            if (m_view.postMode == 1)
             {
                 settings.post.grain = 0.0f;
                 settings.post.vignette = 0.0f;
@@ -1795,20 +1671,20 @@ namespace Demo
             {
                 return false;
             }
-            m_fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
+            m_view.fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
         }
-        else if (what == "shadows" && onOff) m_shadowsEnabled = on;
-        else if (what == "sun" && onOff) m_sunEnabled = on;
+        else if (what == "shadows" && onOff) m_view.shadows = on;
+        else if (what == "sun" && onOff) m_view.sun = on;
         else if (what == "particles" && onOff) m_atmosphere.SetEnabled(on);
         else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
         else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on); // M51: to measure it
-        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_rainOverride = number;
-        else if (what == "rain" && value == "level") m_rainOverride.reset(); // the environment's again
+        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_view.rain = number;
+        else if (what == "rain" && value == "level") m_view.rain.reset(); // the environment's again
         else if (what == "weather" && onOff)
         {
             // M51: the lake's weather all at once - water and rain - or none.
             renderer.SetWaterEnabled(on);
-            m_rainOverride = on ? 1.0f : 0.0f;
+            m_view.rain = on ? 1.0f : 0.0f;
         }
         else if (what == "unease" && onOff) m_unease.SetEnabled(on);
         else if (what == "world" && onOff) m_drawWorld = on;

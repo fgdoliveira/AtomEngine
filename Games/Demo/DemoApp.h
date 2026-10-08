@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Atmosphere.h"
+#include "Environment/Atmosphere.h"
 #include "Character/LabViewer.h"
 #include "Character/SpringArm.h"
 #include "AudioScape.h"
@@ -16,6 +16,7 @@
 #include "Level/FileWatcher.h"
 #include "Input/InputContext.h"
 #include "Level/LevelManager.h"
+#include "Level/ViewToggles.h"
 #include "Pachinko/MachineMode.h"
 #include "Pachinko/PachinkoGame.h"
 #include "World/FixedStep.h"
@@ -253,7 +254,7 @@ namespace Demo
         std::map<std::string, std::string> m_presets; // name -> file text (Assets/Environments)
         std::string m_environmentName;                // showing or heading for; "" = the level's own
         float m_environmentSeconds = 3.0f;            // dev tools: how long a switch blends
-        std::optional<float> m_rainOverride;          // M51: "set rain" for benchmarks
+        ViewToggles m_view; // v0.0.14: F2-F8 and their switches (fog preset, shadows, baked light, post, sun, rain), the framework's
         FileWatcher m_environmentFiles;
         void LoadEnvironmentPresets();
         EnvironmentState ResolveEnvironment(const std::string& name) const;
@@ -333,10 +334,6 @@ namespace Demo
         bool m_arriving = false;
         float m_time = 0.0f;
 
-        std::size_t m_fogPreset = 0;
-        bool m_shadowsEnabled = true;
-        bool m_bakedLightEnabled = true; // F3: compare with the flat ambient
-        int m_postMode = 0; // 0 full, 1 grade only, 2 off
 
         std::unique_ptr<Atom::Font> m_font;      // prompts, hints, dialogue
         std::unique_ptr<Atom::Font> m_smallFont; // debug overlay, speaker names
@@ -348,7 +345,6 @@ namespace Demo
         // leave out (the fixed step lives in m_diagnostics).
         bool m_drawWorld = true;          // off: only the cleared frame
         bool m_showHud = true;            // the controls hint
-        bool m_sunEnabled = true;
 
         float m_titleTimer = 0.0f;
         int m_titleFrames = 0;

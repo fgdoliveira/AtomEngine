@@ -31,6 +31,8 @@ add_library(
     Character/SpringArm.cpp
     Character/SpringArm.h
     Environment/EnvironmentController.cpp
+    Environment/Atmosphere.cpp
+    Environment/Atmosphere.h
     Environment/EnvironmentController.h
     Interaction/ActionExecutor.cpp
     Interaction/ActionExecutor.h
@@ -54,6 +56,8 @@ add_library(
     Level/ModelCache.h
     Level/ScreenProgram.h
     Level/SoundLibrary.h
+    Level/ViewToggles.cpp
+    Level/ViewToggles.h
     Testing/GameDiagnostics.cpp
     Testing/GameDiagnostics.h
     Testing/PairedBench.cpp

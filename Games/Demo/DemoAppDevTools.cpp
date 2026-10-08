@@ -134,12 +134,12 @@ namespace Demo
             {
                 Set("scale", std::to_string(renderScale));
             }
-            int fog = static_cast<int>(m_fogPreset);
+            int fog = static_cast<int>(m_view.fogPreset);
             if (ImGui::Combo("Fog", &fog, FogNames, IM_ARRAYSIZE(FogNames)))
             {
                 Set("fog", FogNames[fog]);
             }
-            int post = m_postMode;
+            int post = m_view.postMode;
             if (ImGui::Combo("Post", &post, PostNames, IM_ARRAYSIZE(PostNames)))
             {
                 Set("post", PostNames[post]);
@@ -155,14 +155,14 @@ namespace Demo
                     Set(what, value ? "on" : "off");
                 }
             };
-            toggle("Shadows", "shadows", m_shadowsEnabled);
-            toggle("Sun", "sun", m_sunEnabled);
+            toggle("Shadows", "shadows", m_view.shadows);
+            toggle("Sun", "sun", m_view.sun);
             toggle("Particles", "particles", m_atmosphere.IsEnabled());
             toggle("Unease", "unease", m_unease.IsEnabled());
             toggle("World", "world", m_drawWorld);
             toggle("HUD", "hud", m_showHud);
             toggle("F1 overlay", "overlay", GetDevTools().IsOverlayVisible());
-            if (ImGui::Checkbox("Baked light (F3)", &m_bakedLightEnabled))
+            if (ImGui::Checkbox("Baked light (F3)", &m_view.bakedLight))
             {
                 ApplyLighting();
             }
