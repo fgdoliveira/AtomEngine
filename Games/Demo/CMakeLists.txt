@@ -37,6 +37,8 @@ add_library(
     Dialogue/Dialogue.h
     Level/FileWatcher.h
     Level/ModelCache.h
+    Level/ScreenProgram.h
+    Level/SoundLibrary.h
     Level/JsonText.h
     Dialogue/DialogueRunner.cpp
     Dialogue/DialogueRunner.h
@@ -80,8 +82,10 @@ add_library(
     Pachinko/Playfield.h
     Pachinko/PixelDraw.h
     World/FixedStep.h
-    World/PachinkoAttract.cpp
-    World/PachinkoAttract.h
+    Pachinko/PachinkoAttract.cpp
+    Pachinko/PachinkoAttract.h
+    Pachinko/LevelScreens.cpp
+    Pachinko/LevelScreens.h
     World/LiveEffects.h
 )
 

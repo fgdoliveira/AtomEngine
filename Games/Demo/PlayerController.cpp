@@ -50,7 +50,7 @@ namespace Demo
 
     void PlayerController::Update(
         const Atom::Input& input,
-        const ActionInput& actions,
+        const MoveIntent& intent,
         Atom::Camera& camera,
         const Atom::CollisionWorld* world,
         float deltaSeconds
@@ -61,18 +61,13 @@ namespace Demo
             -input.GetMouseDeltaY() * mouseSensitivity
         );
 
-        glm::vec2 move{ 0.0f };
-        if (actions.Held(InputAction::MoveForward)) { move.y += 1.0f; }
-        if (actions.Held(InputAction::MoveBack)) { move.y -= 1.0f; }
-        if (actions.Held(InputAction::MoveRight)) { move.x += 1.0f; }
-        if (actions.Held(InputAction::MoveLeft)) { move.x -= 1.0f; }
-
+        glm::vec2 move = intent.move;
         if (glm::dot(move, move) > 1.0f)
         {
             move = glm::normalize(move);
         }
 
-        const bool jogging = actions.Held(InputAction::Jog);
+        const bool jogging = intent.jog;
         const float speed = jogging ? jogSpeed : walkSpeed;
         const glm::vec3 targetVelocity =
             (camera.GetFlatForward() * move.y + camera.GetFlatRight() * move.x)

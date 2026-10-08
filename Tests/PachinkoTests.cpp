@@ -1,7 +1,7 @@
 #include "Audio/Reverb.h"
 #include "Level/LevelData.h"
 #include "World/FixedStep.h"
-#include "World/PachinkoAttract.h"
+#include "Pachinko/PachinkoAttract.h"
 
 #include <doctest/doctest.h>
 

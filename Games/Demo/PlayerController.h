@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Input/InputContext.h"
-
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 namespace Atom
@@ -33,11 +32,20 @@ namespace Demo
             return static_cast<int>(m_bobPhase / 3.14159265f);
         }
 
+        // What the player asks for this frame (v0.0.14): plain values, so
+        // the controller needs no game's input map. `move` is x right,
+        // y forward, each -1..1.
+        struct MoveIntent
+        {
+            glm::vec2 move{ 0.0f };
+            bool jog = false;
+        };
+
         // Applies mouse look and movement, then places the camera at eye
         // height including head-bob. With no world, walks on y = 0.
         void Update(
             const Atom::Input& input,
-            const ActionInput& actions,
+            const MoveIntent& intent,
             Atom::Camera& camera,
             const Atom::CollisionWorld* world,
             float deltaSeconds

@@ -3,6 +3,7 @@
 #include "Core/AssetLog.h"
 #include "Diagnostics/DiagnosticsReport.h"
 
+#include "Pachinko/LevelScreens.h"
 #include "Pachinko/PixelDraw.h"
 
 #include "Interaction/ActionExecutor.h"
@@ -289,7 +290,7 @@ namespace Demo
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
         m_levels = std::make_unique<LevelManager>(Level::Services{
-            GetRenderer(), GetAudio(), m_audioScape, m_assets, m_modelCache });
+            GetRenderer(), GetAudio(), m_audioScape, m_assets, m_modelCache, MakePachinkoScreens() });
         m_levels->onUnloading = [this](Level& outgoing) { OnLevelUnloading(outgoing); };
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
             OnLevelLoaded(incoming, spawn);
@@ -710,7 +711,14 @@ namespace Demo
         switch (m_mode)
         {
         case Mode::Exploring:
-            m_player.Update(GetInput(), m_actions, m_camera, CurrentCollision(), deltaSeconds);
+        {
+            // The demo's input map, read here; the controller takes plain values.
+            PlayerController::MoveIntent intent;
+            intent.move.y = (m_actions.Held(InputAction::MoveForward) ? 1.0f : 0.0f) - (m_actions.Held(InputAction::MoveBack) ? 1.0f : 0.0f);
+            intent.move.x = (m_actions.Held(InputAction::MoveRight) ? 1.0f : 0.0f) - (m_actions.Held(InputAction::MoveLeft) ? 1.0f : 0.0f);
+            intent.jog = m_actions.Held(InputAction::Jog);
+            m_player.Update(GetInput(), intent, m_camera, CurrentCollision(), deltaSeconds);
+        }
             UpdateInteraction();
             break;
         case Mode::InDialogue:

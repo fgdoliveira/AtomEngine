@@ -1,7 +1,6 @@
 #include "Level/Level.h"
 
 #include "Assets/Model.h"
-#include "AudioScape.h"
 #include "PlayerController.h"
 #include "Renderer/Renderer.h"
 #include "World/LiveEffects.h"
@@ -282,8 +281,16 @@ namespace Demo
         // its own attract loop; the material shows it as colour and glow.
         for (const ScreenData& data : d.screens)
         {
-            Screen screen{ services.renderer.CreateRenderTexture(PachinkoAttract::Width, PachinkoAttract::Height),
-                           PachinkoAttract(data.seed), FixedStep{}, data.material };
+            // v0.0.14: the program is the app's (the demo's: pachinko attract loops).
+            std::string error = "this app runs no screen programs";
+            std::unique_ptr<ScreenProgram> program = services.screens ? services.screens(data, assets, error) : nullptr;
+            if (!program)
+            {
+                std::cerr << "Level '" << d.name << "': screen '" << data.material << "': " << error << '\n';
+                return nullptr;
+            }
+            Screen screen{ services.renderer.CreateRenderTexture(program->Width(), program->Height()),
+                           std::move(program), FixedStep{}, data.material };
             const std::vector<Atom::Material*> materials = level->FindSceneMaterials(data.material);
             if (!screen.target || materials.empty())
             {
@@ -294,16 +301,6 @@ namespace Demo
             {
                 material->baseColorTexture = &screen.target->GetTexture();
                 material->emissiveTexture = &screen.target->GetTexture();
-            }
-            if (!data.machine.empty())
-            {
-                const PlayfieldParseResult field = LoadPlayfieldFile(assets.Resolve(data.machine));
-                if (!field.playfield)
-                {
-                    std::cerr << "Level '" << d.name << "': " << field.error << '\n';
-                    return nullptr;
-                }
-                screen.demo.emplace(*field.playfield, data.seed);
             }
             level->m_screens.push_back(std::move(screen));
         }
@@ -582,29 +579,9 @@ namespace Demo
             }
             for (int steps = screen.clock.Advance(deltaSeconds); steps > 0; --steps)
             {
-                if (screen.demo)
-                {
-                    // A player who never tires: the handle held, the knob
-                    // in the sweet spot, the tray topped up.
-                    if (screen.demo->GetTray() < 20)
-                    {
-                        screen.demo->AddToTray(200);
-                    }
-                    screen.demo->Step({ true, 0.0f });
-                }
-                else
-                {
-                    screen.attract.Step();
-                }
+                screen.program->Step();
             }
-            if (screen.demo)
-            {
-                screen.demo->Draw(screen.target->GetCanvas());
-            }
-            else
-            {
-                screen.attract.Draw(screen.target->GetCanvas());
-            }
+            screen.program->Draw(screen.target->GetCanvas());
         }
 
         // Sequence sounds follow their entity.

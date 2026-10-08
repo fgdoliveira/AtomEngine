@@ -3,14 +3,14 @@
 #include "Audio/AudioSystem.h"
 #include "Level/LevelData.h"
 #include "Level/ModelCache.h"
+#include "Level/SoundLibrary.h"
 #include "Renderer/Renderer.h"
 #include "Physics/CollisionWorld.h"
 #include "Platform/AssetRoots.h"
 #include "World/GameWorld.h"
 #include "World/FixedStep.h"
 #include "World/Impostors.h"
-#include "Pachinko/PachinkoGame.h"
-#include "World/PachinkoAttract.h"
+#include "Level/ScreenProgram.h"
 
 #include <memory>
 #include <optional>
@@ -29,8 +29,6 @@ namespace Atom
 
 namespace Demo
 {
-    class AudioScape;
-
     // A loaded level: owns everything that exists only while you're in it.
     //
     //   owned here (dies on unload)      owned by the game (survives)
@@ -53,9 +51,10 @@ namespace Demo
         {
             Atom::Renderer& renderer;
             Atom::AudioSystem& audio;
-            const AudioScape& sounds;
+            const SoundLibrary& sounds; // v0.0.14: the app's named sounds
             AtomFramework::AssetRoots assets; // v0.0.14: where "Kit/wall.glb" is found
             ModelCache& models;
+            ScreenFactory screens; // v0.0.14: programs for live screens; empty if the app has none
         };
 
         static std::unique_ptr<Level> Create(LevelData data, Services& services);
@@ -138,11 +137,10 @@ namespace Demo
         struct Screen
         {
             std::unique_ptr<Atom::RenderTexture> target;
-            PachinkoAttract attract;
+            std::unique_ptr<ScreenProgram> program; // v0.0.14: the app's (attract loop, self-playing game)
             FixedStep clock;
             std::string material;
             bool takenOver = false;
-            std::optional<PachinkoGame> demo; // M32: the real game, playing itself
         };
         std::vector<Screen> m_screens;
         float m_time = 0.0f; // for halo flicker

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Audio/AudioSystem.h"
+#include "Level/SoundLibrary.h"
 #include "SoundSynth.h"
 
 #include <glm/vec3.hpp>
@@ -24,7 +25,7 @@ namespace Demo
     // (named, synthesised once) and the sounds that follow the player
     // everywhere: footsteps, distant cicada calls, radio static. Levels start
     // their own ambience from the library by name and stop it on unload.
-    class AudioScape
+    class AudioScape : public SoundLibrary // v0.0.14: what level files name
     {
     public:
         void Initialize(Atom::AudioSystem& audio);
@@ -33,7 +34,7 @@ namespace Demo
         // "vending_hum", "static", "room_tone", "creak"; the night city's
         // "traffic", "neon_buzz", "voices", "street_bells",
         // "pachinko_leak", "train"; the bus's "bus_engine", "door_hiss".
-        Atom::SoundHandle GetSound(std::string_view name) const;
+        Atom::SoundHandle GetSound(std::string_view name) const override;
 
         struct Listener
         {
