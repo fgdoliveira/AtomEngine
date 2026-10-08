@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../Framework/Schemas/level.schema.json",
+  "name": "showcase",
+  "model": "Lakeshore/lakeshore.glb",
+  "collision": "Lakeshore/lakeshore_col.glb",
+  "defaultSpawn": "plaza",
+  "spawns": {
+    "plaza": { "position": [0.0, 0.25, 12.5], "yaw": 0 },
+    "lakeshore": { "position": [0.0, 0.5, -17.0], "yaw": 0 },
+    "lights": { "position": [14.0, 0.25, 6.0], "yaw": 90 },
+    "pavilion": { "position": [-15.0, 0.25, 7.0], "yaw": -90 },
+    "toon_garden": { "position": [-26.0, 0.25, -2.0], "yaw": 0 },
+    "synth_booth": { "position": [26.0, 0.25, -2.0], "yaw": 0 }
+  },
+  "lighting": {
+    "sunDirection": [0.3, 0.4, -0.85],
+    "sunColor": [1.0, 0.93, 0.8],
+    "skyColor": [0.58, 0.66, 0.8],
+    "groundColor": [0.3, 0.32, 0.2],
+    "fogDensity": 0.004,
+    "skyGradient": { "zenith": [0.16, 0.34, 0.72], "horizon": [0.6, 0.73, 0.88], "sunSize": 1.4, "sunGlow": 0.5 },
+    "water": { "shallow": [0.2, 0.5, 0.45], "deep": [0.04, 0.16, 0.24], "skyReflection": 0.85, "ripple": 1.0, "reflection": true },
+    "shadows": true,
+    "bakedLight": 1.0,
+    "glow": { "strength": 0.6, "threshold": 0.8 }
+  },
+  "environment": { "default": "clear_day", "presets": ["clear_day", "overcast", "rain", "fog", "sunset", "night"] },
+  "outdoor": true,
+  "surfaces": { "default": "dirt", "zones": [{ "min": [-1.0, 0, -18.0], "max": [1.0, 0, -3.0], "surface": "wood" }] },
+  "particles": { "leaves": true, "fogBanks": false },
+  "halos": [
+    { "position": [28.05, 4.6, 0.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [28.05, 4.6, 6.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3, "flicker": 0.8 },
+    { "position": [28.05, 4.6, 12.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [23.0, 2.3, 2.0], "size": 3.0, "color": [1.0, 0.3, 0.6], "intensity": 0.5 },
+    { "position": [23.0, 2.3, 10.0], "size": 3.0, "color": [0.3, 0.8, 1.0], "intensity": 0.5, "flicker": 0.5 }
+  ],
+  "lights": [
+    { "position": [28.05, 4.6, 0.0], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0 },
+    { "position": [28.05, 4.6, 6.0], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0, "flicker": 0.8 },
+    { "position": [23.0, 2.3, 2.0], "color": [1.0, 0.3, 0.6], "intensity": 1.5, "radius": 6.0 },
+    { "position": [23.0, 2.3, 10.0], "color": [0.3, 0.8, 1.0], "intensity": 1.5, "radius": 6.0, "flicker": 0.5 }
+  ],
+  "entities": [
+    { "name": "cube_1", "position": [-3.2, 0.25, 7.0], "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red" } },
+    { "name": "cube_2", "position": [0.0, 0.25, 5.0], "model": "Kit/demo_cube_gold.glb", "animation": { "clip": "spin_gold" } },
+    { "name": "cube_3", "position": [3.4, 0.25, 3.5], "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal" } },
+    { "name": "cube_4", "position": [-1.2, 0.25, 1.5], "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal", "speed": 1.5 } },
+    { "name": "cube_5", "position": [1.8, 0.25, 8.2], "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red", "speed": 0.7 } },
+
+    { "name": "lamp_1", "position": [27.0, 0.25, 0.0], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_2", "position": [27.0, 0.25, 6.0], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_3", "position": [27.0, 0.25, 12.0], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "sign_pink", "position": [23.0, 0.25, 2.0], "model": "Kit/neon_sign.glb" },
+    { "name": "sign_cyan", "position": [23.0, 0.25, 10.0], "model": "Kit/neon_sign.glb" },
+    { "name": "vending", "position": [20.0, 0.25, 12.5], "yaw": 180, "model": "Kit/vending_machine.glb" },
+
+    { "name": "rudy", "position": [-25.0, 0.25, 7.0], "yaw": 90, "model": "ThirdParty/rudy.glb", "scale": 0.8,
+      "animator": {
+        "initial": "idle",
+        "states": {
+          "idle": { "clip": "Idle" },
+          "move": { "blend": ["Walk", "Run"], "param": "speed", "range": [1.4, 4.0] },
+          "jump": { "clip": "Jump", "loop": false, "next": "idle", "nextBlend": 0.2, "inPlace": "hips" }
+        },
+        "transitions": [
+          { "from": "*", "to": "jump", "when": ["grounded == 0"], "blend": 0.1 },
+          { "from": "jump", "to": "move", "when": ["grounded == 1", "speed > 0.2"], "blend": 0.15 },
+          { "from": "jump", "to": "idle", "when": ["grounded == 1"], "blend": 0.2 },
+          { "from": "idle", "to": "move", "when": ["speed > 0.2"], "blend": 0.25 },
+          { "from": "move", "to": "idle", "when": ["speed <= 0.2"], "blend": 0.3 }
+        ]
+      } },
+    { "name": "pavilion_toro_1", "position": [-27.0, 0.25, 4.0], "model": "Kit/toro.glb" },
+    { "name": "pavilion_toro_2", "position": [-27.0, 0.25, 10.0], "model": "Kit/toro.glb" },
+
+    { "name": "plain_hokora", "position": [-28.0, 0.25, -9.0], "model": "Kit/hokora.glb" },
+    { "name": "plain_toro", "position": [-28.0, 0.25, -14.0], "model": "Kit/toro.glb" },
+    { "name": "plain_tree", "position": [-28.0, 0.25, -19.0], "model": "Kit/tree.glb" },
+    { "name": "toon_hokora", "position": [-24.5, 0.25, -9.0], "model": "Kit/hokora.glb" },
+    { "name": "toon_toro", "position": [-24.5, 0.25, -14.0], "model": "Kit/toro.glb" },
+    { "name": "toon_tree", "position": [-24.5, 0.25, -19.0], "model": "Kit/tree.glb" },
+
+    { "name": "synth_booth", "position": [27.0, 0.25, -8.0], "model": "Kit/vending_machine.glb",
+      "collider": { "center": [0.0, 0.95, 0.0], "halfExtents": [0.5, 0.95, 0.4] } }
+  ]
+}

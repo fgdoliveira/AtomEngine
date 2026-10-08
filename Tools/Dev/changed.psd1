@@ -16,8 +16,12 @@
         @{ Pattern = '^Games/Drift/(CMakeLists\.txt|README\.txt\.in)$'; Scenarios = @('drift_fly', 'drift_diagnostics'); Package = 'Drift' } # M83: its package
         @{ Pattern = '^Games/Drift/'; Scenarios = @('drift_fly', 'drift_diagnostics') }
 
+        # The Showcase (v0.0.14): a scenario script runs itself; anything else, the tour.
+        @{ Pattern = '^Showcase/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('$scenario') }
+        @{ Pattern = '^Showcase/'; Scenarios = @('showcase_tour') }
+
         # The engine
-        @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Scenarios = @('first_render', 'lakeshore', 'night_street', 'drift_fly') }
+        @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Scenarios = @('first_render', 'lakeshore', 'night_street', 'drift_fly', 'showcase_tour') }
         @{ Pattern = '^Engine/Audio/'; Scenarios = @('drift_fly', 'pachinko_session') }
         @{ Pattern = '^Engine/Debug/'; Scenarios = @('devtools') }
         @{ Pattern = '^Engine/Assets/'; Scenarios = @('first_render', 'character_lab', 'drift_fly') }
@@ -28,7 +32,7 @@
         @{ Pattern = '^Framework/Environment/'; Scenarios = @('environment', 'lakeshore') }
         @{ Pattern = '^Framework/Character/'; Scenarios = @('character_lab', 'passage') }
         @{ Pattern = '^Framework/Testing/'; Scenarios = @('diagnostics', 'first_render', 'devtools') }
-        @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('first_render', 'diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics') }
+        @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('first_render', 'diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics', 'showcase_tour') }
 
         # The demo (v0.0.14: Games/Demo), its package
         @{ Pattern = '^Games/Demo/(CMakeLists\.txt|README\.txt\.in)$'; Scenarios = @('first_render', 'diagnostics'); Package = 'Demo' }
@@ -66,5 +70,5 @@
     )
 
     # For unmapped files: the broad rendering set.
-    Fallback = @('first_render', 'lakeshore', 'night_street', 'drift_fly')
+    Fallback = @('first_render', 'lakeshore', 'night_street', 'drift_fly', 'showcase_tour')
 }

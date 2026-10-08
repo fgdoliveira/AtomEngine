@@ -90,6 +90,22 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
     )
 endforeach()
 
+# v0.0.14: the Showcase's scenarios (Showcase/Scenarios/*.atomtest) run the
+# Showcase the same way.
+file(GLOB ATOM_SHOWCASE_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Showcase/Scenarios/*.atomtest")
+foreach(scenario IN LISTS ATOM_SHOWCASE_SCENARIOS)
+    get_filename_component(name "${scenario}" NAME_WE)
+    add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:Showcase>)
+    set_tests_properties(
+        "Scenario.${name}"
+        PROPERTIES
+            ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
+            LABELS scenario
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
+            TIMEOUT 240
+    )
+endforeach()
+
 # M62: --diagnostics starts the engine, writes its report and exits (a GPU
 # run like the scenarios, so it carries their label).
 add_test(

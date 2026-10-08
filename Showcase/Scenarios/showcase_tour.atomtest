@@ -1,0 +1,35 @@
+# The Showcase (v0.0.14): one scene, an area per engine feature. Visits
+# each area and checks that what it shows is running.
+expect_level showcase
+expect_near 0 0.25 12.5 0.3
+# The plaza: animated models.
+expect_animating cube_2
+# The pavilion: the character's state machine walks it through its loop
+# (stand 0-2 s, then speed up): by now it moves.
+wait 4
+teleport -15 0.25 7 -90
+expect_state rudy move
+# The lakeshore: water and its planar reflection are drawn.
+teleport 0 0.5 -17 0
+wait 0.5
+expect_water 1
+expect_reflection 1
+# Weather applies to the whole scene: rain falls (particles), then night.
+environment rain 0
+wait 1
+expect_environment rain
+expect_particles > 100
+environment night 1
+wait 1.5
+expect_environment night
+# The light corner, at night.
+teleport 14 0.25 6 90
+wait 0.5
+environment clear_day 0
+# The toon garden and the synth booth.
+teleport -26 0.25 -2 0
+wait 0.3
+teleport 26 0.25 -2 0
+wait 0.3
+expect_voices_max 0
+log showcase tour done

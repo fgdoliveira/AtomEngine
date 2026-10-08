@@ -1,0 +1,53 @@
+# The Showcase (v0.0.14): every engine feature in one scene, built only from
+# the engine and the framework - the engine's front door, and the default
+# startup project. A showcase, not a product: it has no install rules and
+# is never packaged (the pavilion's character has no recorded licence).
+
+if(NOT ATOM_BUILD_GAME)
+    return() # the libraries only: no executable, no shaders
+endif()
+
+add_executable(
+    Showcase
+    Main.cpp
+    ShowcaseApp.cpp
+    ShowcaseApp.h
+)
+target_link_libraries(
+    Showcase
+    PRIVATE
+        AtomEngine
+        AtomFramework
+)
+add_dependencies(Showcase AtomShaders) # the engine's shaders, shared with every app
+if(ATOM_DISTRIBUTION)
+    set_target_properties(Showcase PROPERTIES WIN32_EXECUTABLE ON)
+endif()
+
+# Its assets beside the executable: the shared pieces (Content/) in
+# Assets/<folder>, as every app has them, and its own in Assets/Showcase/,
+# looked up first.
+set(SHOWCASE_COPY_COMMANDS
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:Showcase>/Assets/Showcase)
+foreach(folder IN ITEMS Fonts Kit Sky)
+    list(APPEND SHOWCASE_COPY_COMMANDS
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            ${CMAKE_SOURCE_DIR}/Content/${folder} $<TARGET_FILE_DIR:Showcase>/Assets/${folder})
+endforeach()
+# Until M86's last step moves them here: the lab art and presets still in
+# the demo's folder.
+foreach(folder IN ITEMS Environments Lab Lakeshore ThirdParty)
+    list(APPEND SHOWCASE_COPY_COMMANDS
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            ${CMAKE_SOURCE_DIR}/Games/Demo/Assets/${folder} $<TARGET_FILE_DIR:Showcase>/Assets/Showcase/${folder})
+endforeach()
+add_custom_command(
+    TARGET Showcase
+    POST_BUILD
+    ${SHOWCASE_COPY_COMMANDS}
+    COMMENT "Copying the Showcase's assets"
+    VERBATIM
+)
+
+set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Showcase)

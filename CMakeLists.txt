@@ -68,6 +68,7 @@ if(ATOM_BUILD_GAME)
 endif()
 add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
+add_subdirectory(Showcase) # v0.0.14: the engine's front door, every feature in one scene
 add_subdirectory(Games/Demo) # v0.0.14: the demo, beside DRIFT
 add_subdirectory(Games/Drift) # M77: a second game
 

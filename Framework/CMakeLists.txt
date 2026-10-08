@@ -34,6 +34,8 @@ add_library(
     Environment/Atmosphere.cpp
     Environment/Atmosphere.h
     Environment/EnvironmentController.h
+    Environment/EnvironmentPresets.cpp
+    Environment/EnvironmentPresets.h
     Interaction/ActionExecutor.cpp
     Interaction/ActionExecutor.h
     Interaction/Actions.h

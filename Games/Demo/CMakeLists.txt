@@ -142,10 +142,8 @@ add_custom_command(
     VERBATIM
 )
 
-set_property(
-    DIRECTORY ${CMAKE_SOURCE_DIR}
-    PROPERTY VS_STARTUP_PROJECT Demo
-)
+
+# The startup project is the Showcase (v0.0.14, Showcase/CMakeLists.txt).
 
 # The distribution (M68): what `cmake --install` puts in a package folder
 # - the one authoritative list. Tools/Dist/package.ps1 installs from a

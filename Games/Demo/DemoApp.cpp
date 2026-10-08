@@ -435,57 +435,24 @@ namespace Demo
     void DemoApp::LoadEnvironmentPresets()
     {
         // Every preset in Assets/Environments (M49), checked as it loads: a
-        // broken one is reported and left out.
-        m_presets.clear();
-        std::error_code error;
-        for (const auto& entry : std::filesystem::directory_iterator(m_assets.Resolve("Environments"), error))
+        // broken one is reported and left out (the framework's library).
+        for (const std::string& problem : m_presets.Load(m_assets.Resolve("Environments")))
         {
-            if (entry.path().extension() != ".json")
-            {
-                continue;
-            }
-            Atom::AssetLog::Opened(entry.path().string());
-            std::ifstream file(entry.path(), std::ios::binary);
-            std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
-            EnvironmentState probe;
-            if (const std::string problem = ApplyEnvironmentPreset(text, probe); !problem.empty())
-            {
-                const std::string name = entry.path().filename().string();
-                std::cerr << entry.path().string() << ": " << problem << '\n';
-                m_messages.Show(name + ": " + problem);
-                continue;
-            }
-            m_presets[entry.path().stem().string()] = std::move(text);
+            std::cerr << "Environments/" << problem << '\n';
+            m_messages.Show(problem);
         }
     }
 
     EnvironmentState DemoApp::ResolveEnvironment(const std::string& name) const
     {
         // The level's own light, with the preset's values on top.
-        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
-        EnvironmentState state = level ? static_cast<const EnvironmentState&>(level->GetData().lighting)
-                                       : EnvironmentState{};
-        if (const auto found = m_presets.find(name); found != m_presets.end())
-        {
-            ApplyEnvironmentPreset(found->second, state); // checked when loaded
-        }
-        return state;
+        return m_presets.Resolve(m_levels ? m_levels->GetLevel() : nullptr, name);
     }
 
     std::vector<std::string> DemoApp::OfferedPresets() const
     {
         // The level's list; a level without one may try them all.
-        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
-        if (level && level->GetData().environment && !level->GetData().environment->presets.empty())
-        {
-            return level->GetData().environment->presets;
-        }
-        std::vector<std::string> names;
-        for (const auto& [name, text] : m_presets)
-        {
-            names.push_back(name);
-        }
-        return names;
+        return m_presets.Offered(m_levels ? m_levels->GetLevel() : nullptr);
     }
 
     void DemoApp::ResetEnvironment()
@@ -495,7 +462,7 @@ namespace Demo
         if (level && level->GetData().environment)
         {
             const std::string& name = level->GetData().environment->defaultPreset;
-            if (m_presets.count(name))
+            if (m_presets.Has(name))
             {
                 m_environmentName = name;
             }
@@ -516,7 +483,7 @@ namespace Demo
     {
         // "level" (or "") is the level's own light.
         const std::string preset = name == "level" ? std::string() : name;
-        if (!preset.empty() && !m_presets.count(preset))
+        if (!preset.empty() && !m_presets.Has(preset))
         {
             return false;
         }

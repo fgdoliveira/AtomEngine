@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Environment/Atmosphere.h"
+#include "Environment/EnvironmentPresets.h"
 #include "Character/LabViewer.h"
 #include "Character/SpringArm.h"
 #include "AudioScape.h"
@@ -251,7 +252,7 @@ namespace Demo
 
         // Weather and time of day (M49): presets over the level's own light.
         EnvironmentController m_environment;
-        std::map<std::string, std::string> m_presets; // name -> file text (Assets/Environments)
+        EnvironmentPresets m_presets; // Assets/Environments (M49; the framework's since v0.0.14)
         std::string m_environmentName;                // showing or heading for; "" = the level's own
         float m_environmentSeconds = 3.0f;            // dev tools: how long a switch blends
         ViewToggles m_view; // v0.0.14: F2-F8 and their switches (fog preset, shadows, baked light, post, sun, rain), the framework's
