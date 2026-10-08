@@ -3,7 +3,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-namespace AtomGame
+namespace Demo
 {
     // Sitting down at a pachinko machine (M29), as an explicit state machine:
     //

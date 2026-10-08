@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace AtomGame
+namespace Demo
 {
     PachinkoRules::PachinkoRules(RulesSettings settings, std::uint32_t seed)
         : m_settings(settings)

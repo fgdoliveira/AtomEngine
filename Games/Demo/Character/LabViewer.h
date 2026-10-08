@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // The character lab's viewer (M36): a model viewer as 2000s tools had
     // them. An orbit camera turns around the subject; the clips play,

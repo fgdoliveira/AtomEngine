@@ -10,7 +10,7 @@ namespace Atom
     class UIRenderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // A pachinko machine's attract loop (M27): what the screen shows while
     // nobody plays. Balls launched up the left rail fall through a field of

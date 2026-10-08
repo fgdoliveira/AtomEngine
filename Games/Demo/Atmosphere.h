@@ -14,7 +14,7 @@ namespace Atom
     class Renderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // Particle ambience around the player: falling leaves and ash, and slow
     // fog banks drifting at ground level. Particles live in a box that

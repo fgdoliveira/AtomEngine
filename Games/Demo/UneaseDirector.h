@@ -17,7 +17,7 @@ namespace Atom
     class Renderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     class AudioScape;
     class Level;

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace AtomGame
+namespace Demo
 {
     void LabViewer::Reset(const Orbit& orbit, std::vector<ViewerClip> clips,
                           std::string_view blendFrom, std::string_view blendTo)

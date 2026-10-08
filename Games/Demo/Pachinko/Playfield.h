@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // A pachinko machine's playfield as data (M31): Assets/Machines/<name>.json.
     // Coordinates are pixels on the 320x240 screen, y down.

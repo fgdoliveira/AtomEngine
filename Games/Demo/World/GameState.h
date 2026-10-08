@@ -5,7 +5,7 @@
 #include <string_view>
 #include <unordered_set>
 
-namespace AtomGame
+namespace Demo
 {
     // Progress that outlives any single level: named story flags such as
     // "keeper_permission", and (M33) named counters such as "tokens" and

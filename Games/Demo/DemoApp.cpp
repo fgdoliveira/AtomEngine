@@ -27,7 +27,7 @@
 #include <sstream>
 #include <string>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {
@@ -1524,7 +1524,7 @@ namespace AtomGame
 
     std::string DemoApp::DialogueNodeId() const
     {
-        const AtomGame::DialogueNode* node = m_dialogue.GetNode();
+        const Demo::DialogueNode* node = m_dialogue.GetNode();
         return node && m_dialogue.IsActive() ? node->id : std::string{};
     }
 

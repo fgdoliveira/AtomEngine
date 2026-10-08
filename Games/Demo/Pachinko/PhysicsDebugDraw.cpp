@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace AtomGame
+namespace Demo
 {
     void DrawPhysicsDebug(Atom::UIRenderer& canvas, const World2D& world, glm::vec4 color)
     {

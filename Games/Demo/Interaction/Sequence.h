@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // Action sequences (M26): timed steps written as data in the level file
     // ("sequences"), started by an interaction. While one runs the player is

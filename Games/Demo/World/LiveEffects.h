@@ -2,7 +2,7 @@
 
 #include <glm/vec3.hpp>
 
-namespace AtomGame
+namespace Demo
 {
     // Small, pure pieces of the night street's live effects (M25). Pure so
     // they can be unit tested and so every user of a light (its halo, its

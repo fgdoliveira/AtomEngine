@@ -12,7 +12,7 @@ namespace Atom
     class Renderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // Shares loaded models (M22): a model used by two levels, or by several
     // entities, is loaded once. Entries are weak, so a model dies with the

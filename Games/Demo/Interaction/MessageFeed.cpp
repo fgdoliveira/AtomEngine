@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-namespace AtomGame
+namespace Demo
 {
     void MessageFeed::Show(std::string text, float seconds)
     {

@@ -6,8 +6,8 @@
 #include <sstream>
 #include <string>
 
-using namespace AtomGame;
-using AtomGameTests::FakeGame;
+using namespace Demo;
+using DemoTests::FakeGame;
 
 // Characterization tests (M57): what the frame-time log and the scripted
 // tests did inside DemoApp, they still do in GameDiagnostics - the PERF line

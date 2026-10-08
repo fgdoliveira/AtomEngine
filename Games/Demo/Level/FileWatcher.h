@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // Notices when files change on disk, by comparing modification times
     // (polling: simple, portable, and cheap for a handful of files checked

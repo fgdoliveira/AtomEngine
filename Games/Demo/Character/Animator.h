@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // The animation state machine (M37), as data. Gameplay sets parameters
     // ("speed", "grounded"); the animator picks the state, crossfades

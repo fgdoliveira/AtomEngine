@@ -6,7 +6,7 @@
 
 #include <doctest/doctest.h>
 
-using namespace AtomGame;
+using namespace Demo;
 
 namespace
 {

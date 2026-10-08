@@ -19,7 +19,7 @@
 #include <optional>
 #include <string>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

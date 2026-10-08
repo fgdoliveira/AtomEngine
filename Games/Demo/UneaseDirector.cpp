@@ -15,7 +15,7 @@
 #include <iterator>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

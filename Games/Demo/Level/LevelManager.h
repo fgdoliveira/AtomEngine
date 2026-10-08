@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // Owns the current level and moves between levels behind a fade:
     //

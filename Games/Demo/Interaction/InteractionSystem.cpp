@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-namespace AtomGame
+namespace Demo
 {
     EntityId InteractionSystem::FindTarget(
         const GameWorld& world,

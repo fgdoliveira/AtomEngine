@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // How far the camera is from where the last level load placed it
     // (spawn position at eye height, spawn yaw).

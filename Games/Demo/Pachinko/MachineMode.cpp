@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <string>
 
-using namespace AtomGame;
+using namespace Demo;
 
 namespace
 {

@@ -11,7 +11,7 @@
 #include <cstdio>
 #include <iostream>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

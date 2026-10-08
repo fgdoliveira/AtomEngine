@@ -2,7 +2,7 @@
 
 #include "Level/Environment.h"
 
-namespace AtomGame
+namespace Demo
 {
     // Weather as authored state, not meteorology (M49): the environment now,
     // and optionally a transition toward another one over some seconds.

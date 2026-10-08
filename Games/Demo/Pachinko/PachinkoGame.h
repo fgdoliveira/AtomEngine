@@ -12,7 +12,7 @@ namespace Atom
     class UIRenderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // What the player does this tick: hold the handle, turn the knob.
     struct PachinkoInput

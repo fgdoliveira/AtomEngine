@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace AtomGame
+namespace Demo
 {
     bool LevelManager::Load(const std::string& levelName, const std::string& spawnName)
     {

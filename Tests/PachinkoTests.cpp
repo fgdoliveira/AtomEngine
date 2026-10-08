@@ -8,7 +8,7 @@
 #include <cmath>
 #include <string>
 
-using namespace AtomGame;
+using namespace Demo;
 
 TEST_CASE("Fixed step: whole steps from any frame rate, leftovers carried, hitches capped")
 {

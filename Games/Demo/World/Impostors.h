@@ -17,7 +17,7 @@ namespace Atom
     class Renderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // Impostors (M24): a building pre-rendered from several directions into
     // one atlas (Tools/Blender/atom_city.py). At runtime a card at the

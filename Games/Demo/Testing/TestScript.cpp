@@ -8,7 +8,7 @@
 #include <sstream>
 #include <unordered_map>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

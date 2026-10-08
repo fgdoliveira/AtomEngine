@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace AtomGame
+namespace Demo
 {
     // Parses JSON text; on a syntax error, returns a message that says where
     // ("line 12, column 7: ...") so an author can jump straight to it.

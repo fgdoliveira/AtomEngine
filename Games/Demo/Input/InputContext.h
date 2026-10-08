@@ -13,7 +13,7 @@ namespace Atom
     class Input;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // Input contexts (M29). Gameplay asks for *actions* ("launch", "leave"),
     // never for keys. Which keys trigger an action depends on the active

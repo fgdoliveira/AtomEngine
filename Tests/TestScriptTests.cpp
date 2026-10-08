@@ -6,8 +6,8 @@
 #include <map>
 #include <set>
 
-using namespace AtomGame;
-using AtomGameTests::FakeGame;
+using namespace Demo;
+using DemoTests::FakeGame;
 
 namespace
 {

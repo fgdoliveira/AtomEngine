@@ -9,7 +9,7 @@
 #include <map>
 #include <sstream>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

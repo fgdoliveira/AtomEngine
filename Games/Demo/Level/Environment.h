@@ -4,7 +4,7 @@
 
 #include <optional>
 
-namespace AtomGame
+namespace Demo
 {
     // A procedural day sky (M47): zenith colour overhead, horizon colour at
     // eye level, the sun's disc and a glow around it. Drawn where a level

@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     int exitCode = 0;
     bool startFailed = false;
     {
-        AtomGame::DemoApp application(std::move(arguments));
+        Demo::DemoApp application(std::move(arguments));
         exitCode = application.Run();
         startFailed = application.StartFailed();
     }

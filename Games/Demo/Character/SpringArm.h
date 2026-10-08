@@ -5,7 +5,7 @@
 #include <functional>
 #include <optional>
 
-namespace AtomGame
+namespace Demo
 {
     // A third-person camera on a spring arm (M38): it hangs behind and
     // above a pivot (the character's shoulders) at the end of an arm the

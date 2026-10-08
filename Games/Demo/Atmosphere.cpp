@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstdint>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

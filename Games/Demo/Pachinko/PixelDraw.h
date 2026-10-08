@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace AtomGame
+namespace Demo
 {
     // Small pixel-art drawing helpers for the 320x240 canvases (the attract
     // loop, the pachinko game): everything is rectangles.

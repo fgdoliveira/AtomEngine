@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace AtomGame
+namespace Demo
 {
     glm::vec2 ClosestOnSegment(glm::vec2 p, glm::vec2 a, glm::vec2 b)
     {

@@ -5,7 +5,7 @@
 #include <functional>
 #include <string>
 
-namespace AtomGame
+namespace Demo
 {
     class GameState;
     class MessageFeed;

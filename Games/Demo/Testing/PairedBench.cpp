@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace AtomGame
+namespace Demo
 {
     PairedBench::PairedBench(int rounds, double measureSeconds, double settleSeconds)
         : m_roundCount(std::max(1, rounds))

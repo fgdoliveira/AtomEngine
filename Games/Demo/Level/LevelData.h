@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // Everything a level file (Assets/Levels/<name>.json) describes. Plain
     // data: parsing produces it, Level turns it into live objects.

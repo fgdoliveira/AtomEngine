@@ -27,7 +27,7 @@ namespace Atom
     struct Material;
 }
 
-namespace AtomGame
+namespace Demo
 {
     class AudioScape;
 

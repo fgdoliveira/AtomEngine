@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace AtomGame
+namespace Demo
 {
     // A fixed-timestep clock (M27): frame time accumulates and is spent in
     // whole steps, so a simulation advances identically at 30 fps or 144.

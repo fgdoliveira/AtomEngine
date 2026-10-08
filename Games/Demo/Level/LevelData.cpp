@@ -10,7 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

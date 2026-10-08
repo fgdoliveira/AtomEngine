@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // A conversation as data. Content lives in Assets/Dialogue/*.json; C++
     // only knows how to walk it (DialogueRunner) and draw it (DialogueView).

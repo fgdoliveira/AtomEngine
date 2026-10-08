@@ -40,7 +40,7 @@
 #include <string>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // M76: the settings model and calibration decision live in the shared
     // framework now; the demo uses them as before, unqualified.

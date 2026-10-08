@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace AtomGame
+namespace Demo
 {
     void EnvironmentController::Reset(const EnvironmentState& state)
     {

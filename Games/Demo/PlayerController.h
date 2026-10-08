@@ -11,7 +11,7 @@ namespace Atom
     class Input;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // First-person walker. The body is a vertical stack of spheres that
     // slides along walls; the feet follow the floor found by a downward ray,

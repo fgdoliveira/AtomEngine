@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-using namespace AtomGame;
+using namespace Demo;
 
 namespace
 {

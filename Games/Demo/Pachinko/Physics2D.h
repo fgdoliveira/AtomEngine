@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // 2D rigid-body physics for the pachinko field (M30). Units are field
     // pixels (the 320x240 screen), y down, seconds.

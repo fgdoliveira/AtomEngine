@@ -12,7 +12,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace AtomGame
+namespace Demo
 {
     std::optional<ImpostorDescriptor> ParseImpostorDescriptor(std::string_view text, std::string& error)
     {

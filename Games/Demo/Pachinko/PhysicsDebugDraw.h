@@ -7,7 +7,7 @@ namespace Atom
     class UIRenderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     class World2D;
 

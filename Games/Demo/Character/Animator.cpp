@@ -4,7 +4,7 @@
 #include <charconv>
 #include <cmath>
 
-namespace AtomGame
+namespace Demo
 {
     bool AnimCondition::Holds(float actual) const
     {

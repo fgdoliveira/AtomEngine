@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // An in-process A/B benchmark (M46): what does switching one setting
     // cost? A laptop's speed drifts (heat, power, boost clocks), so two

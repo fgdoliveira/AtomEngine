@@ -2,7 +2,7 @@
 
 #include "Platform/Input.h"
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

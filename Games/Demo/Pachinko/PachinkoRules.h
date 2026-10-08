@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // A machine's rules as data (M32), from its machine file's "rules".
     struct RulesSettings

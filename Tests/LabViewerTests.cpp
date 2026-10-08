@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-using namespace AtomGame;
+using namespace Demo;
 
 namespace
 {

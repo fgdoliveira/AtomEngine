@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace AtomGame
+namespace Demo
 {
     float FlickerFactor(float time, const glm::vec3& seed, float amount)
     {

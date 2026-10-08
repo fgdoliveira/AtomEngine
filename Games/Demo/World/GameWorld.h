@@ -16,7 +16,7 @@ namespace Atom
     class Model;
 }
 
-namespace AtomGame
+namespace Demo
 {
     using EntityId = Atom::Handle;
 

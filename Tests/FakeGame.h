@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-namespace AtomGameTests
+namespace DemoTests
 {
-    using namespace AtomGame;
+    using namespace Demo;
 
     // A scripted stand-in for the game: just enough state to check that the
     // runner sequences, waits and fails correctly.

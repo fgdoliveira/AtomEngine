@@ -10,7 +10,7 @@
 #include <iostream>
 #include <string_view>
 
-namespace AtomGame
+namespace Demo
 {
     GameDiagnostics::GameDiagnostics() = default;
     GameDiagnostics::~GameDiagnostics() = default;

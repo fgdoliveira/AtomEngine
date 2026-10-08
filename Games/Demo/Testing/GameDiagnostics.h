@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace AtomGame
+namespace Demo
 {
     // What measures and drives the game rather than plays it (M57, audit
     // ARCH-002): the frame-time log (M46), the scripted test (M13) and the

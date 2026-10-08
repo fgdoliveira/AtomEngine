@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-namespace AtomGame
+namespace Demo
 {
     namespace
     {

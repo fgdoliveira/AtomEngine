@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace AtomGame
+namespace Demo
 {
     bool SequenceRunner::Start(const Sequence& sequence, const std::string& name)
     {

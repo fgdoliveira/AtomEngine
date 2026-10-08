@@ -5,7 +5,7 @@
 #include <string>
 #include <variant>
 
-namespace AtomGame
+namespace Demo
 {
     // What happens when the player interacts with something. Each action is
     // plain data, so it can later be read from level files (M12); code that

@@ -12,7 +12,7 @@ namespace Atom
     class CollisionWorld;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // The flashlight (M44): the player's spot light. Found once (a story
     // flag says so), then F switches it on and off in any level.

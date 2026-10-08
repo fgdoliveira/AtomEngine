@@ -8,7 +8,7 @@ namespace Atom
     class UIRenderer;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // One line of feedback at the bottom of the screen ("It's locked."),
     // fading out after a few seconds. A new message replaces the old one.

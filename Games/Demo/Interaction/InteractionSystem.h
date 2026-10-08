@@ -11,7 +11,7 @@ namespace Atom
     class CollisionWorld;
 }
 
-namespace AtomGame
+namespace Demo
 {
     class GameState;
 

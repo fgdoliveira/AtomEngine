@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace AtomGame
+namespace Demo
 {
     // Procedural sound design for the demo. Every generator is seeded, so
     // the same sounds come out on every run. Loops are crossfaded at their

@@ -9,7 +9,7 @@
 #include <cmath>
 #include <iostream>
 
-namespace AtomGame
+namespace Demo
 {
     void AudioScape::Initialize(Atom::AudioSystem& audio)
     {

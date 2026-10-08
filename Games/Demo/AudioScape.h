@@ -18,7 +18,7 @@ namespace Atom
     class Camera;
 }
 
-namespace AtomGame
+namespace Demo
 {
     // The persistent part of the soundscape. It owns the sound library
     // (named, synthesised once) and the sounds that follow the player

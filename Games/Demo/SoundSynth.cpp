@@ -7,7 +7,7 @@
 #include <random>
 #include <vector>
 
-namespace AtomGame::SoundSynth
+namespace Demo::SoundSynth
 {
     namespace
     {
