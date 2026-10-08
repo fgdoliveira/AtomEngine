@@ -7,7 +7,7 @@ namespace AtomGame
 {
     bool LevelManager::Load(const std::string& levelName, const std::string& spawnName)
     {
-        const std::string path = m_services.assetRoot + "Assets/Levels/" + levelName + ".json";
+        const std::string path = m_services.assets.Resolve("Levels/" + levelName + ".json");
         LevelParseResult parsed = LoadLevelFile(path);
         if (!parsed.level)
         {
@@ -51,7 +51,7 @@ namespace AtomGame
         {
             return "no level to reload";
         }
-        const std::string path = m_services.assetRoot + "Assets/Levels/" + m_level->GetName() + ".json";
+        const std::string path = m_services.assets.Resolve("Levels/" + m_level->GetName() + ".json");
         LevelParseResult parsed = LoadLevelFile(path);
         if (!parsed.level)
         {
@@ -84,33 +84,33 @@ namespace AtomGame
             return files;
         }
         const LevelData& data = m_level->GetData();
-        const std::string assets = m_services.assetRoot + "Assets/";
-        const std::string levelFile = assets + "Levels/" + data.name + ".json";
+        const AtomFramework::AssetRoots& assets = m_services.assets;
+        const std::string levelFile = assets.Resolve("Levels/" + data.name + ".json");
         files.push_back(levelFile);
         files.push_back(MarkersPathFor(levelFile));
-        files.push_back(assets + data.model);
-        files.push_back(assets + data.collision);
+        files.push_back(assets.Resolve(data.model));
+        files.push_back(assets.Resolve(data.collision));
         if (data.lightmap)
         {
-            files.push_back(assets + data.lightmap->texture);
+            files.push_back(assets.Resolve(data.lightmap->texture));
         }
         for (const ChunkData& chunk : data.chunks)
         {
-            files.push_back(assets + chunk.model);
+            files.push_back(assets.Resolve(chunk.model));
             if (!chunk.collision.empty())
             {
-                files.push_back(assets + chunk.collision);
+                files.push_back(assets.Resolve(chunk.collision));
             }
         }
         for (const ImpostorData& impostor : data.impostors)
         {
-            files.push_back(assets + impostor.set);
+            files.push_back(assets.Resolve(impostor.set));
         }
         for (const EntityData& entity : data.entities)
         {
             if (!entity.model.empty())
             {
-                files.push_back(assets + entity.model);
+                files.push_back(assets.Resolve(entity.model));
             }
         }
         return files;

@@ -1,4 +1,5 @@
 #include "Flashlight.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Interaction/InteractionSystem.h"
 #include "Physics/CollisionWorld.h"
 
@@ -111,7 +112,7 @@ TEST_CASE("Things that need light are found only while the beam is on them")
 TEST_CASE("The flashlight's settings load from data and save back the same")
 {
     // The shipped file is valid and is what the flashlight uses.
-    std::ifstream file(ATOM_SOURCE_DIR "/Assets/Data/flashlight.json", std::ios::binary);
+    std::ifstream file(AtomTests::Asset("Data/flashlight.json"), std::ios::binary);
     REQUIRE(file);
     const std::string shipped{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
     Flashlight light;

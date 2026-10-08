@@ -1,4 +1,5 @@
 #include "Pachinko/PachinkoGame.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Pachinko/Playfield.h"
 
 #include <doctest/doctest.h>
@@ -12,7 +13,7 @@ namespace
 {
     Playfield Shipped()
     {
-        const PlayfieldParseResult result = LoadPlayfieldFile(ATOM_SOURCE_DIR "/Assets/Machines/night_fever.json");
+        const PlayfieldParseResult result = LoadPlayfieldFile(AtomTests::Asset("Machines/night_fever.json"));
         INFO(result.error);
         REQUIRE(result.playfield.has_value());
         return *result.playfield;

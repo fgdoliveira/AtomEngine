@@ -1,6 +1,6 @@
 # Interleaved build A/B (M46): is build B slower or faster than build A?
 #
-#   pwsh Tools/Perf/ab.ps1 -A <path\AtomGame.exe> -B <path\AtomGame.exe> -Level night_street [-Rounds 8] [-Seconds 8] [-TimeoutSeconds N]
+#   pwsh Tools/Perf/ab.ps1 -A <path\Demo.exe> -B <path\Demo.exe> -Level night_street [-Rounds 8] [-Seconds 8] [-TimeoutSeconds N]
 #
 # A laptop's speed drifts (heat, power, boost clocks), so two long runs
 # can't be compared. This alternates short runs in the order AB BA AB BA...

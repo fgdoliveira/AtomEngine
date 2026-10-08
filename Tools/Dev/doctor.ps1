@@ -3,7 +3,7 @@
 #
 #   pwsh Tools/Dev/doctor.ps1                       # prerequisites
 #   pwsh Tools/Dev/doctor.ps1 -Configure            # ... and a test configure
-#   pwsh Tools/Dev/doctor.ps1 -GamePath build/bin/Release/AtomGame.exe   # ... and the game's own report
+#   pwsh Tools/Dev/doctor.ps1 -GamePath build/bin/Release/Demo.exe   # ... and the game's own report
 #
 # Each check prints PASS, WARN or FAIL with what to do. It reads, and never
 # changes anything: no power plans, drivers, environment variables or
@@ -59,15 +59,19 @@ $missing = @("SDL", "glm", "cgltf", "stb", "json", "doctest", "imgui") |
 if ($missing.Count -eq 0) { Report PASS "Submodules" "all present" }
 else { Report FAIL "Submodules" ("missing: {0} - run: git submodule update --init --recursive" -f ($missing -join ", ")) }
 
-# The runtime asset payload (Game/CMakeLists.txt's list) in the source tree.
-$listText = Get-Content -Raw (Join-Path $root "Game/CMakeLists.txt")
-if ($listText -match "set\(ATOM_RUNTIME_ASSETS([^)]*)\)") {
-    $folders = $Matches[1] -split "\s+" | Where-Object { $_ }
-    $absent = $folders | Where-Object { -not (Test-Path (Join-Path $root "Assets/$_")) }
-    if ($absent.Count -eq 0) { Report PASS "Runtime assets" ("{0} folders present" -f $folders.Count) }
-    else { Report FAIL "Runtime assets" ("missing under Assets/: {0}" -f ($absent -join ", ")) }
+# The demo's runtime asset payload (Games/Demo/CMakeLists.txt's lists) in the
+# source tree: each folder in the demo's Assets/ or the shared Content/.
+$listText = Get-Content -Raw (Join-Path $root "Games/Demo/CMakeLists.txt")
+$folders = @()
+foreach ($list in "ATOM_SHIPPED_ASSETS", "ATOM_DEV_ASSETS") {
+    if ($listText -match "set\($list([^)]*)\)") { $folders += $Matches[1] -split "\s+" | Where-Object { $_ } }
 }
-else { Report WARN "Runtime assets" "could not read the payload list in Game/CMakeLists.txt" }
+if ($folders.Count -gt 0) {
+    $absent = $folders | Where-Object { -not ((Test-Path (Join-Path $root "Games/Demo/Assets/$_")) -or (Test-Path (Join-Path $root "Content/$_"))) }
+    if ($absent.Count -eq 0) { Report PASS "Runtime assets" ("{0} folders present" -f $folders.Count) }
+    else { Report FAIL "Runtime assets" ("missing under Games/Demo/Assets/ and Content/: {0}" -f ($absent -join ", ")) }
+}
+else { Report WARN "Runtime assets" "could not read the payload lists in Games/Demo/CMakeLists.txt" }
 
 # Power: performance numbers on battery mean little.
 $power = Get-PowerSource

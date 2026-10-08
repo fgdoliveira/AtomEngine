@@ -1,6 +1,6 @@
 # Gameplay code as a library so both the game and the unit tests use it.
 add_library(
-    AtomGameLib
+    DemoLib
     STATIC
     Atmosphere.cpp
     Atmosphere.h
@@ -86,7 +86,7 @@ add_library(
 )
 
 target_include_directories(
-    AtomGameLib
+    DemoLib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -94,7 +94,7 @@ target_include_directories(
 # JSON and ImGui are used only inside the library's .cpp files (the
 # parsers, the developer panels), so they stay PRIVATE (M54).
 target_link_libraries(
-    AtomGameLib
+    DemoLib
     PUBLIC
         AtomEngine
         AtomFramework # M76: log, settings, calibration decision
@@ -104,7 +104,7 @@ target_link_libraries(
 )
 
 target_compile_definitions(
-    AtomGameLib
+    DemoLib
     PRIVATE
         ATOM_VERSION="${PROJECT_VERSION}" # the window title
 )
@@ -114,17 +114,17 @@ if(NOT ATOM_BUILD_GAME)
 endif()
 
 add_executable(
-    AtomGame
+    Demo
     Main.cpp
 )
 
 target_link_libraries(
-    AtomGame
+    Demo
     PRIVATE
-        AtomGameLib
+        DemoLib
 )
 
-add_dependencies(AtomGame AtomShaders)
+add_dependencies(Demo AtomShaders)
 
 # M67: the distributed game is a windowed program - no console window on
 # double-click. Development builds keep their console. Main.cpp keeps
@@ -132,7 +132,7 @@ add_dependencies(AtomGame AtomShaders)
 # writes the log file in both and, when windowed, re-attaches to a
 # terminal that started it.
 if(ATOM_DISTRIBUTION)
-    set_target_properties(AtomGame PROPERTIES WIN32_EXECUTABLE ON)
+    set_target_properties(Demo PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 
 # The runtime asset payload (M56, audit ASSET-001): the folders of Assets/
@@ -150,21 +150,35 @@ endif()
 # development-only ones (the character lab: its rigged character in
 # ThirdParty/ has no recorded licence) stay in the build copy for the
 # scenarios, and out of the package.
+#
+# v0.0.14: two source roots, one runtime folder. The demo's own art is in
+# Games/Demo/Assets/; generic pieces other apps use too are in Content/
+# (ATOM_CONTENT_ASSETS). Both land in Assets/<folder> beside the
+# executable, so level files name them the same way.
 set(ATOM_SHIPPED_ASSETS
     City Data Dialogue Environments Fields First Fonts Interior Kit
     Lakeshore Levels Machines Night Pachinko Passage Shrine Sky Street
 )
 set(ATOM_DEV_ASSETS Lab ThirdParty)
+set(ATOM_CONTENT_ASSETS Fonts Kit Sky)
 set(ATOM_RUNTIME_ASSETS ${ATOM_SHIPPED_ASSETS} ${ATOM_DEV_ASSETS})
+function(atom_asset_source folder out)
+    if(folder IN_LIST ATOM_CONTENT_ASSETS)
+        set(${out} "${CMAKE_SOURCE_DIR}/Content/${folder}" PARENT_SCOPE)
+    else()
+        set(${out} "${CMAKE_CURRENT_SOURCE_DIR}/Assets/${folder}" PARENT_SCOPE)
+    endif()
+endfunction()
 set(ATOM_ASSET_COPY_COMMANDS)
 foreach(folder IN LISTS ATOM_RUNTIME_ASSETS)
+    atom_asset_source(${folder} source)
     list(APPEND ATOM_ASSET_COPY_COMMANDS
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            ${CMAKE_SOURCE_DIR}/Assets/${folder}
-            $<TARGET_FILE_DIR:AtomGame>/Assets/${folder})
+            ${source}
+            $<TARGET_FILE_DIR:Demo>/Assets/${folder})
 endforeach()
 add_custom_command(
-    TARGET AtomGame
+    TARGET Demo
     POST_BUILD
     ${ATOM_ASSET_COPY_COMMANDS}
     COMMENT "Copying the runtime assets"
@@ -173,29 +187,30 @@ add_custom_command(
 
 set_property(
     DIRECTORY ${CMAKE_SOURCE_DIR}
-    PROPERTY VS_STARTUP_PROJECT AtomGame
+    PROPERTY VS_STARTUP_PROJECT Demo
 )
 
 # The distribution (M68): what `cmake --install` puts in a package folder
 # - the one authoritative list. Tools/Dist/package.ps1 installs from a
 # -DATOM_DISTRIBUTION=ON build, verifies and zips it. M76: every rule is in
-# the AtomGame component, so each game installs (and packages) only its own
-# files: `cmake --install ... --component AtomGame`.
-install(TARGETS AtomGame RUNTIME DESTINATION . COMPONENT AtomGame)
-install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION . COMPONENT AtomGame) # the only runtime DLL (M66)
-install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION . COMPONENT AtomGame) # Shaders/ exports the folder
+# the Demo component, so each game installs (and packages) only its own
+# files: `cmake --install ... --component Demo`.
+install(TARGETS Demo RUNTIME DESTINATION . COMPONENT Demo)
+install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION . COMPONENT Demo) # the only runtime DLL (M66)
+install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION . COMPONENT Demo) # Shaders/ exports the folder
 foreach(folder IN LISTS ATOM_SHIPPED_ASSETS)
+    atom_asset_source(${folder} source)
     install(
-        DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/${folder}"
+        DIRECTORY "${source}"
         DESTINATION Assets
-        COMPONENT AtomGame
+        COMPONENT Demo
         PATTERN "character_lab*" EXCLUDE # the lab is development-only
     )
 endforeach()
 
 # Licences: AtomEngine's, and every third-party component compiled into
 # the executable or shipped beside it (doctest is tests-only, not here).
-set(ATOM_NOTICES "AtomEngine ${PROJECT_VERSION} - third-party notices\n\nAtomGame.exe and SDL3.dll contain the components below. Their licences require these notices to travel with the binaries.\n")
+set(ATOM_NOTICES "AtomEngine ${PROJECT_VERSION} - third-party notices\n\nDemo.exe and SDL3.dll contain the components below. Their licences require these notices to travel with the binaries.\n")
 foreach(entry IN ITEMS
         "SDL 3|external/SDL/LICENSE.txt"
         "GLM|external/glm/copying.txt"
@@ -203,7 +218,7 @@ foreach(entry IN ITEMS
         "cgltf|external/cgltf/LICENSE"
         "stb|external/stb/LICENSE"
         "Dear ImGui|external/imgui/LICENSE.txt"
-        "Shippori Mincho (font)|Assets/Fonts/OFL.txt")
+        "Shippori Mincho (font)|Content/Fonts/OFL.txt")
     string(REPLACE "|" ";" parts "${entry}")
     list(GET parts 0 name)
     list(GET parts 1 file)
@@ -211,14 +226,14 @@ foreach(entry IN ITEMS
     string(APPEND ATOM_NOTICES "\n==============================================================================\n${name}  (${file})\n==============================================================================\n\n${text}\n")
 endforeach()
 file(WRITE "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt" "${ATOM_NOTICES}")
-configure_file("${CMAKE_SOURCE_DIR}/Tools/Dist/README.txt.in" "${CMAKE_BINARY_DIR}/dist/README.txt" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/README.txt.in" "${CMAKE_BINARY_DIR}/dist/README.txt" @ONLY)
 install(
     FILES
         "${CMAKE_SOURCE_DIR}/LICENSE.txt"
         "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt"
         "${CMAKE_BINARY_DIR}/dist/README.txt"
     DESTINATION .
-    COMPONENT AtomGame
+    COMPONENT Demo
 )
 
 # For Tools/Dist/verify.ps1: what this package must hold, from the lists
@@ -227,5 +242,5 @@ install(
 string(REPLACE ";" "," ATOM_SHIPPED_LIST "${ATOM_SHIPPED_ASSETS}")
 string(REPLACE ";" "," ATOM_DEV_LIST "${ATOM_DEV_ASSETS}")
 file(WRITE "${CMAKE_BINARY_DIR}/dist/payload.txt"
-    "game=AtomGame\nexe=AtomGame.exe\nversion=${PROJECT_VERSION}\nshipped=${ATOM_SHIPPED_LIST}\ndevonly=${ATOM_DEV_LIST}\nshaders=${ATOM_SHADER_COUNT}\n")
-install(FILES "${CMAKE_BINARY_DIR}/dist/payload.txt" DESTINATION . RENAME .payload COMPONENT AtomGame)
+    "game=Demo\nexe=Demo.exe\nversion=${PROJECT_VERSION}\nshipped=${ATOM_SHIPPED_LIST}\ndevonly=${ATOM_DEV_LIST}\nshaders=${ATOM_SHADER_COUNT}\n")
+install(FILES "${CMAKE_BINARY_DIR}/dist/payload.txt" DESTINATION . RENAME .payload COMPONENT Demo)

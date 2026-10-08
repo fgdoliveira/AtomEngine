@@ -110,7 +110,7 @@ namespace AtomGame
 
     void DemoApp::LoadSavedSettings()
     {
-        if (char* pref = SDL_GetPrefPath("AtomEngine", "AtomGame"))
+        if (char* pref = SDL_GetPrefPath("AtomEngine", "Demo"))
         {
             m_settingsPath = std::string(pref) + "settings.json";
             SDL_free(pref);
@@ -119,6 +119,19 @@ namespace AtomGame
         if (!m_settingsPersist)
         {
             return; // defaults and explicit flags only
+        }
+        // v0.0.14: the game was AtomGame.exe, its settings (calibration
+        // included) under ...\AtomEngine\AtomGame\. Brought over once, when
+        // the new folder has none. Remove after a release or two.
+        {
+            namespace fs = std::filesystem;
+            const fs::path current(m_settingsPath);
+            const fs::path previous = current.parent_path().parent_path() / "AtomGame" / "settings.json";
+            std::error_code error;
+            if (!fs::exists(current, error) && fs::exists(previous, error) && fs::copy_file(previous, current, error))
+            {
+                std::cout << "Settings brought over from " << previous.string() << '\n';
+            }
         }
         if (m_commandLine.resetSettings)
         {
@@ -224,18 +237,21 @@ namespace AtomGame
     bool DemoApp::OnInitialize()
     {
         const char* basePath = SDL_GetBasePath();
-        m_assetRoot = basePath ? basePath : "";
-        // ATOM_ASSET_ROOT=<folder containing Assets/> reads the source tree
-        // instead of the build's copy, and turns on hot reload.
+        m_outputRoot = basePath ? basePath : "";
+        m_assets = AtomFramework::AssetRoots({ m_outputRoot + "Assets/" });
+        // ATOM_ASSET_ROOT=<the repository> reads the source tree instead of
+        // the build's copy, and turns on hot reload. v0.0.14: the demo's own
+        // assets first, then the shared Content/.
         if (const char* root = Atom::DevSwitch("ATOM_ASSET_ROOT"); root && *root)
         {
-            m_assetRoot = root;
-            if (m_assetRoot.back() != '/' && m_assetRoot.back() != '\\')
+            m_outputRoot = root;
+            if (m_outputRoot.back() != '/' && m_outputRoot.back() != '\\')
             {
-                m_assetRoot += '/';
+                m_outputRoot += '/';
             }
+            m_assets = AtomFramework::AssetRoots({ m_outputRoot + "Games/Demo/Assets/", m_outputRoot + "Content/" });
             m_hotReload = true;
-            std::cout << "Hot reload on: assets from " << m_assetRoot << '\n';
+            std::cout << "Hot reload on: assets from " << m_outputRoot << "Games/Demo/Assets and Content\n";
         }
 
         if (const char* flash = Atom::DevSwitch("ATOM_LATENCY_FLASH"); flash && SDL_strcmp(flash, "1") == 0)
@@ -258,7 +274,7 @@ namespace AtomGame
                   << "; GPU preference: " << ToString(m_resolvedSettings.gpu) << " (" << m_resolvedSettings.gpuReason
                   << "), adapter \"" << GetRenderer().GetAdapterName() << '"' << std::endl; // flushed: a start-up record
 
-        const std::string fontPath = m_assetRoot + "Assets/Fonts/ShipporiMincho-Medium-Latin.ttf";
+        const std::string fontPath = m_assets.Resolve("Fonts/ShipporiMincho-Medium-Latin.ttf");
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
         m_smallFont = Atom::Font::Load(GetRenderer(), fontPath, 19.0f);
         if (!m_font || !m_smallFont)
@@ -266,14 +282,14 @@ namespace AtomGame
             return false;
         }
 
-        m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+        m_dialogues.LoadDirectory(m_assets.Resolve("Dialogue"));
         LoadFlashlightSettings();
         LoadEnvironmentPresets();
 
         // Levels get the persistent services they need; the manager tells
         // us when one goes away and when the next one is ready.
         m_levels = std::make_unique<LevelManager>(Level::Services{
-            GetRenderer(), GetAudio(), m_audioScape, m_assetRoot, m_modelCache });
+            GetRenderer(), GetAudio(), m_audioScape, m_assets, m_modelCache });
         m_levels->onUnloading = [this](Level& outgoing) { OnLevelUnloading(outgoing); };
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) {
             OnLevelLoaded(incoming, spawn);
@@ -413,7 +429,7 @@ namespace AtomGame
         m_levelFiles.Watch(m_levels->GetSourceFiles());
         std::vector<std::string> dialogues;
         std::error_code error;
-        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Dialogue", error))
+        for (const auto& entry : std::filesystem::directory_iterator(m_assets.Resolve("Dialogue"), error))
         {
             if (entry.path().extension() == ".json")
             {
@@ -421,9 +437,9 @@ namespace AtomGame
             }
         }
         m_dialogueFiles.Watch(std::move(dialogues));
-        m_dataFiles.Watch({ m_assetRoot + "Assets/Data/flashlight.json" });
+        m_dataFiles.Watch({ m_assets.Resolve("Data/flashlight.json") });
         std::vector<std::string> presets;
-        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Environments", error))
+        for (const auto& entry : std::filesystem::directory_iterator(m_assets.Resolve("Environments"), error))
         {
             if (entry.path().extension() == ".json")
             {
@@ -439,7 +455,7 @@ namespace AtomGame
         // broken one is reported and left out.
         m_presets.clear();
         std::error_code error;
-        for (const auto& entry : std::filesystem::directory_iterator(m_assetRoot + "Assets/Environments", error))
+        for (const auto& entry : std::filesystem::directory_iterator(m_assets.Resolve("Environments"), error))
         {
             if (entry.path().extension() != ".json")
             {
@@ -541,7 +557,7 @@ namespace AtomGame
     {
         // The flashlight's settings (M46); without the file it keeps the
         // values it was built with.
-        const std::string path = m_assetRoot + "Assets/Data/flashlight.json";
+        const std::string path = m_assets.Resolve("Data/flashlight.json");
         Atom::AssetLog::Opened(path);
         std::ifstream file(path, std::ios::binary);
         if (!file)
@@ -569,7 +585,7 @@ namespace AtomGame
 
         if (!m_dialogueFiles.Poll().empty())
         {
-            m_dialogues.LoadDirectory(m_assetRoot + "Assets/Dialogue");
+            m_dialogues.LoadDirectory(m_assets.Resolve("Dialogue"));
             m_messages.Show("Dialogue reloaded");
         }
         if (!m_dataFiles.Poll().empty())
@@ -1540,7 +1556,7 @@ namespace AtomGame
         {
             return false;
         }
-        const PlayfieldParseResult field = LoadPlayfieldFile(m_assetRoot + "Assets/" + play.machine);
+        const PlayfieldParseResult field = LoadPlayfieldFile(m_assets.Resolve(play.machine));
         if (!field.playfield)
         {
             std::cerr << field.error << '\n';
@@ -1714,7 +1730,7 @@ namespace AtomGame
 
     std::string DemoApp::Capture(const std::string& stem, bool includeUi)
     {
-        const std::string path = m_assetRoot + "out/img/" + stem + ".png";
+        const std::string path = m_outputRoot + "out/img/" + stem + ".png";
         GetRenderer().RequestCapture(path, includeUi);
         return path;
     }

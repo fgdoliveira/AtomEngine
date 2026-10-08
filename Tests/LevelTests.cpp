@@ -1,4 +1,5 @@
 #include "Level/LevelData.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 
 #include <doctest/doctest.h>
 
@@ -180,7 +181,7 @@ TEST_CASE("Dust and the flashlight's beam are per level")
 
 TEST_CASE("Every shipped level file is valid")
 {
-    const std::filesystem::path folder = ATOM_SOURCE_DIR "/Assets/Levels";
+    const std::filesystem::path folder = AtomTests::Asset("Levels");
     int count = 0;
     for (const auto& entry : std::filesystem::directory_iterator(folder))
     {
@@ -196,12 +197,11 @@ TEST_CASE("Every shipped level file is valid")
         // fail to load in the game).
         if (result.level)
         {
-            const std::string assets = ATOM_SOURCE_DIR "/Assets/";
-            CHECK(std::filesystem::exists(assets + result.level->model));
-            CHECK(std::filesystem::exists(assets + result.level->collision));
+            CHECK(std::filesystem::exists(AtomTests::Asset(result.level->model)));
+            CHECK(std::filesystem::exists(AtomTests::Asset(result.level->collision)));
             if (result.level->lightmap)
             {
-                CHECK(std::filesystem::exists(assets + result.level->lightmap->texture));
+                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->lightmap->texture)));
             }
         }
         ++count;
@@ -211,7 +211,7 @@ TEST_CASE("Every shipped level file is valid")
 
 TEST_CASE("The street level keeps its content")
 {
-    const LevelParseResult result = LoadLevelFile(ATOM_SOURCE_DIR "/Assets/Levels/street.json");
+    const LevelParseResult result = LoadLevelFile(AtomTests::Asset("Levels/street.json"));
     REQUIRE(result.level.has_value());
     const LevelData& street = *result.level;
 

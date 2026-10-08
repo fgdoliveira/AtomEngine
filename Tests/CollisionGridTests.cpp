@@ -1,4 +1,5 @@
 #include "Physics/CollisionWorld.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 
 #include <doctest/doctest.h>
 
@@ -11,7 +12,6 @@ using namespace Atom;
 
 namespace
 {
-    const std::string Assets = ATOM_SOURCE_DIR "/Assets/";
 }
 
 TEST_CASE("The collision grid answers exactly like a scan of every triangle")
@@ -19,7 +19,7 @@ TEST_CASE("The collision grid answers exactly like a scan of every triangle")
     int files = 0;
     for (const char* folder : { "Street", "Shrine", "Interior", "Fields" })
     {
-        for (const auto& entry : std::filesystem::directory_iterator(Assets + folder))
+        for (const auto& entry : std::filesystem::directory_iterator(AtomTests::Asset(folder)))
         {
             const std::string name = entry.path().filename().string();
             if (name.find("_col") == std::string::npos || entry.path().extension() != ".glb")
@@ -73,7 +73,7 @@ TEST_CASE("Appending collision keeps what was there")
 {
     CollisionWorld world;
     world.AddTriangle({ 0, 0, 0 }, { 0, 0, 1 }, { 1, 0, 0 }); // facing up
-    REQUIRE(world.Append(Assets + "Interior/interior_col.glb"));
+    REQUIRE(world.Append(AtomTests::Asset("Interior/interior_col.glb")));
     CHECK(world.GetTriangleCount() > 1);
     // The hand-added floor still answers (grid rebuilt after the append).
     CHECK(world.FindFloor({ 0.2f, 1.0f, 0.2f }, 2.0f).has_value());
@@ -83,8 +83,8 @@ TEST_CASE("The grid makes the street's queries much cheaper")
 {
     CollisionWorld grid;
     CollisionWorld scan;
-    REQUIRE(grid.Load(Assets + "Street/street_col.glb"));
-    REQUIRE(scan.Load(Assets + "Street/street_col.glb"));
+    REQUIRE(grid.Load(AtomTests::Asset("Street/street_col.glb")));
+    REQUIRE(scan.Load(AtomTests::Asset("Street/street_col.glb")));
     scan.SetBroadPhase(false);
 
     const auto time = [](CollisionWorld& world) {

@@ -5,6 +5,7 @@
 #include "Level/ModelCache.h"
 #include "Renderer/Renderer.h"
 #include "Physics/CollisionWorld.h"
+#include "Platform/AssetRoots.h"
 #include "World/GameWorld.h"
 #include "World/FixedStep.h"
 #include "World/Impostors.h"
@@ -53,7 +54,7 @@ namespace AtomGame
             Atom::Renderer& renderer;
             Atom::AudioSystem& audio;
             const AudioScape& sounds;
-            std::string assetRoot; // folder containing Assets/
+            AtomFramework::AssetRoots assets; // v0.0.14: where "Kit/wall.glb" is found
             ModelCache& models;
         };
 

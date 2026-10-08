@@ -93,7 +93,7 @@ jobs:
 
       - name: Build, stage, verify and zip
         shell: pwsh
-        run: pwsh Tools/Dist/package.ps1 -NoSmoke
+        run: pwsh Tools/Dist/package.ps1 -Game Demo -NoSmoke
 
       - name: The same for DRIFT (M83)
         shell: pwsh

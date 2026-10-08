@@ -3,8 +3,8 @@
 Headless:
     blender -b --factory-startup -P Tools/Blender/build_assets.py
 
-Writes Assets/Kit/<piece>.glb, Assets/Street/street.glb (visuals) and
-Assets/Street/street_col.glb (collision proxies, no materials).
+Writes Content/Kit/<piece>.glb, Games/Demo/Assets/Street/street.glb (visuals) and
+Games/Demo/Assets/Street/street_col.glb (collision proxies, no materials).
 
 Options (after "--"): --no-cache re-bakes every lightmap; --gpu bakes them
 on the NVIDIA GPU for fast iteration (never commit those).
@@ -57,7 +57,10 @@ importlib.reload(atom_night)
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Assets"))
+    # v0.0.14: the demo's own products in Games/Demo/Assets; the generic kit
+    # pieces and sky, which other apps use too, in the shared Content/.
+    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Games", "Demo", "Assets"))
+    parser.add_argument("--content", default=os.path.join(REPO_ROOT, "Content"))
     parser.add_argument("--no-export", action="store_true")
     # Lightmaps whose inputs are unchanged since the last bake are kept
     # (fingerprints in build/bake_cache/); --no-cache bakes everything.
@@ -314,7 +317,7 @@ def main():
 
     # Night sky panorama (M23), written like the lightmaps: our own PNG
     # writer, so it's byte-identical across rebuilds.
-    sky_dir = os.path.join(args.out, "Sky")
+    sky_dir = os.path.join(args.content, "Sky")
     os.makedirs(sky_dir, exist_ok=True)
     sky = atom_textures.night_sky()
     height, width = sky.shape[:2]
@@ -325,7 +328,7 @@ def main():
     atom_lightmap._write_png(os.path.join(sky_dir, "night_sky.png"), width, encoded, height)
     print("Exported", os.path.relpath(os.path.join(sky_dir, "night_sky.png"), REPO_ROOT))
 
-    kit_dir = os.path.join(args.out, "Kit")
+    kit_dir = os.path.join(args.content, "Kit")
     street_dir = os.path.join(args.out, "Street")
     os.makedirs(kit_dir, exist_ok=True)
     os.makedirs(street_dir, exist_ok=True)

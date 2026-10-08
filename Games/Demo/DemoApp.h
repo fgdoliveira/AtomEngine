@@ -236,7 +236,8 @@ namespace AtomGame
         GameWorld* CurrentWorld();
         const Atom::CollisionWorld* CurrentCollision() const;
 
-        std::string m_assetRoot;
+        AtomFramework::AssetRoots m_assets; // v0.0.14: beside the exe, or the source tree (hot reload)
+        std::string m_outputRoot;           // where out/img/ captures go: the exe's folder, or the repository
 
         // Hot reload (M20), on when ATOM_ASSET_ROOT points at the source tree.
         bool m_hotReload = false;

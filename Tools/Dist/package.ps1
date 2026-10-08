@@ -1,7 +1,7 @@
 # Make a game's Windows distribution (M68; M76: any game): one command,
 # from source to ZIP.
 #
-#   pwsh Tools/Dist/package.ps1 [-Game AtomGame] [-NoSmoke] [-BuildDir build-dist] [-OutDir Dist]
+#   pwsh Tools/Dist/package.ps1 [-Game Demo|Drift] [-NoSmoke] [-BuildDir build-dist] [-OutDir Dist]
 #
 #   1. builds the game (its CMake target, named like the game) in Release in
 #      its own folder (build-dist/), with -DATOM_DISTRIBUTION=ON: the
@@ -21,7 +21,7 @@
 #      bit-identical between runs (the writer's own metadata);
 #   6. prints the measurements.
 param(
-    [string]$Game = "AtomGame",
+    [string]$Game = "Demo",
     [switch]$NoSmoke,
     [string]$BuildDir = "build-dist",
     [string]$OutDir = "Dist"

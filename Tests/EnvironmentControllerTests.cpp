@@ -1,4 +1,5 @@
 #include "Environment/EnvironmentController.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Level/LevelData.h"
 
 #include <doctest/doctest.h>
@@ -123,8 +124,8 @@ TEST_CASE("A level's environment block parses and its default must be offered")
 
 TEST_CASE("Every shipped preset is valid, declares its schema, and the schema knows its keys")
 {
-    const std::string folder = ATOM_SOURCE_DIR "/Assets/Environments";
-    std::ifstream schemaFile(ATOM_SOURCE_DIR "/Assets/Schemas/environment.schema.json");
+    const std::string folder = AtomTests::Asset("Environments");
+    std::ifstream schemaFile(AtomTests::Asset("Schemas/environment.schema.json"));
     const nlohmann::json keys = nlohmann::json::parse(schemaFile)["properties"];
     int count = 0;
     for (const auto& entry : std::filesystem::directory_iterator(folder))

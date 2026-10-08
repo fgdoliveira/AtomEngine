@@ -60,7 +60,7 @@ if(ATOM_MULTI_CONFIG)
 else()
     set(ATOM_SHADER_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
 endif()
-# M68: the distribution's install rules (Game/) and its check need both.
+# M68: the distribution's install rules (Games/Demo/) and its check need both.
 set(ATOM_SHADER_OUTPUT_DIR "${ATOM_SHADER_OUTPUT_DIR}" PARENT_SCOPE)
 list(LENGTH ATOM_SHADER_SOURCES ATOM_SHADER_COUNT)
 set(ATOM_SHADER_COUNT ${ATOM_SHADER_COUNT} PARENT_SCOPE)

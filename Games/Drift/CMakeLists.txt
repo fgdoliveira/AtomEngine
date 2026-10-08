@@ -1,6 +1,6 @@
 # DRIFT (M77-): a second game made with AtomEngine, ported from a three.js
 # original. It uses the engine and the framework; it shares no code with
-# the demo (Game/).
+# the demo (Games/Demo/).
 
 # The game's pure logic, unit-tested (built without the game too, as CI does).
 add_library(
@@ -54,7 +54,7 @@ add_custom_command(
 )
 
 # The distribution (M83): DRIFT's own install component, as the demo's
-# (Game/CMakeLists.txt). `pwsh Tools/Dist/package.ps1 -Game Drift`.
+# (Games/Demo/CMakeLists.txt). `pwsh Tools/Dist/package.ps1 -Game Drift`.
 install(TARGETS Drift RUNTIME DESTINATION . COMPONENT Drift)
 install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION . COMPONENT Drift)
 install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION . COMPONENT Drift) # the engine's shaders

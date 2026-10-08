@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "atomengine/level.schema.json",
   "title": "AtomEngine level",
-  "description": "A level: its models, spawns, light, sound and entities. The C++ parser (Game/Level/LevelData.cpp) is the authority; this schema gives editors completion and early warnings. Positions are in game space (metres, Y up); yaw in degrees (0 looks down -Z, 90 down +X). Spawn and entity positions may come from Blender markers (<level>.markers.json) instead.",
+  "description": "A level: its models, spawns, light, sound and entities. The C++ parser (Games/Demo/Level/LevelData.cpp) is the authority; this schema gives editors completion and early warnings. Positions are in game space (metres, Y up); yaw in degrees (0 looks down -Z, 90 down +X). Spawn and entity positions may come from Blender markers (<level>.markers.json) instead.",
   "type": "object",
   "required": ["name", "model", "collision"],
   "additionalProperties": false,
@@ -344,7 +344,7 @@
     "surface": { "enum": ["asphalt", "concrete", "dirt", "stone", "wood"] },
     "sound": {
       "type": "string",
-      "description": "A sound from the library (Game/AudioScape.cpp).",
+      "description": "A sound from the library (Games/Demo/AudioScape.cpp).",
       "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak",
                "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train", "bus_engine", "door_hiss", "pachinko_hall"]
     },

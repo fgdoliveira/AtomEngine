@@ -1,5 +1,5 @@
 # Street: the keeper's permission branch only opens after bowing.
-# Run: ATOM_TEST_SCRIPT=Tests/Scenarios/street_keeper.atomtest AtomGame
+# Run: ATOM_TEST_SCRIPT=Tests/Scenarios/street_keeper.atomtest Demo
 
 expect_level street
 expect_mode exploring

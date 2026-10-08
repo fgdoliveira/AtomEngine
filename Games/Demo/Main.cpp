@@ -11,7 +11,7 @@
 int main(int argc, char** argv)
 {
     // First: where this run's output goes (the terminal, a pipe, the log).
-    AtomFramework::RunLog log("AtomGame"); // M76: the framework's, named for this game
+    AtomFramework::RunLog log("Demo"); // M76: the framework's, named for this game (AtomGame until v0.0.14)
     const char* basePath = SDL_GetBasePath();
     std::cout << "Executable folder: " << (basePath ? basePath : "unknown") << '\n'
               << "Log: " << (log.GetPath().empty() ? std::string("none (scripted run)") : log.GetPath()) << '\n';
@@ -34,14 +34,14 @@ int main(int argc, char** argv)
     // Double-clicked and nothing to show for it: say why, and where to look.
     if (startFailed && log.IsWithoutConsole())
     {
-        std::string message = "AtomGame could not start.\n\n";
+        std::string message = "The AtomEngine demo could not start.\n\n";
         const std::string reason = log.GetLastError();
         message += reason.empty() ? std::string("No reason was reported.") : reason;
         if (!log.GetPath().empty())
         {
             message += "\n\nDetails are in the log:\n" + log.GetPath();
         }
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AtomGame", message.c_str(), nullptr);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AtomEngine Demo", message.c_str(), nullptr);
     }
     return exitCode;
 }

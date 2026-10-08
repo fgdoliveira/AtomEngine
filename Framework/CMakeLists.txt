@@ -7,6 +7,8 @@ add_library(
     STATIC
     Platform/RunLog.cpp
     Platform/RunLog.h
+    Platform/AssetRoots.cpp
+    Platform/AssetRoots.h
     Settings/GameSettings.cpp
     Settings/GameSettings.h
     Settings/Calibration.cpp

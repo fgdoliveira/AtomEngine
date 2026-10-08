@@ -1,11 +1,11 @@
-AtomGame @PROJECT_VERSION@ - made with AtomEngine
-==================================================
+AtomEngine Demo @PROJECT_VERSION@
+=====================================
 
 A first-person walk through a foggy rural Japanese street in the spirit
 of 2000s horror and, a night bus ride away, one street of a neon city -
 2000s-inspired art direction on a modern renderer.
 
-Start: double-click AtomGame.exe. Nothing to install.
+Start: double-click Demo.exe. Nothing to install.
 Needs: Windows 10 or 11 (64-bit) and a Direct3D 12 GPU.
 
 Controls
@@ -15,10 +15,8 @@ Controls
   W S or 1-4             choose a dialogue option
   F                      flashlight (once found)
   Esc                    release the mouse (again: quit)
-  F1                     debug overlay
   F2 - F8                render scale, baked light, MSAA, fog, shadows,
                          post look, particles
-  F10                    settings and developer tools
   M                      mute
 
 At the pachinko machine: hold Space to launch, Up / Down (or the mouse
@@ -26,25 +24,25 @@ wheel) for strength, B or Enter to buy balls, Q or Backspace to stand up.
 
 Settings and logs
 -----------------
-Settings (F10 > Settings) and the log of each run are kept per user, not
-in this folder:
+Settings (chosen with the options below) and the log of each run are
+kept per user, not in this folder:
 
-  %APPDATA%\AtomEngine\AtomGame\settings.json
-  %APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log      (this run)
-  %APPDATA%\AtomEngine\AtomGame\logs\AtomGame.previous.log
+  %APPDATA%\AtomEngine\Demo\settings.json
+  %APPDATA%\AtomEngine\Demo\logs\Demo.log      (this run)
+  %APPDATA%\AtomEngine\Demo\logs\Demo.previous.log
 
 If it doesn't start
 -------------------
 A message names the reason and the log. Useful to try, from a terminal
 in this folder:
 
-  AtomGame.exe --gpu low-power        the integrated GPU (laptops)
-  AtomGame.exe --quality low          lighter rendering
-  AtomGame.exe --reset-settings       back to the defaults
-  AtomGame.exe --diagnostics report.txt
-                                      writes what the game found (GPU,
-                                      display, settings) and quits
+  Demo.exe --gpu low-power        the integrated GPU (laptops)
+  Demo.exe --quality low          lighter rendering
+  Demo.exe --reset-settings       back to the defaults
+  Demo.exe --diagnostics report.txt
+                                  writes what the game found (GPU,
+                                  display, settings) and quits
 
-When reporting a problem, send AtomGame.log and that report.
+When reporting a problem, send Demo.log and that report.
 
 Licences: LICENSE.txt (AtomEngine) and THIRD_PARTY_NOTICES.txt.

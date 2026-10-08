@@ -84,10 +84,10 @@ namespace AtomGame
 
         std::unique_ptr<Level> level(new Level(std::move(data), services.audio));
         const LevelData& d = level->m_data;
-        const std::string assets = services.assetRoot + "Assets/";
+        const AtomFramework::AssetRoots& assets = services.assets;
 
-        level->m_scene = services.models.Get(services.renderer, assets + d.model);
-        if (!level->m_scene || !level->m_collision.Load(assets + d.collision))
+        level->m_scene = services.models.Get(services.renderer, assets.Resolve(d.model));
+        if (!level->m_scene || !level->m_collision.Load(assets.Resolve(d.collision)))
         {
             std::cerr << "Level '" << d.name << "': failed to load its scene or collision\n";
             return nullptr;
@@ -95,7 +95,7 @@ namespace AtomGame
 
         if (d.sky)
         {
-            level->m_skyPanorama = services.renderer.LoadTexture(assets + d.sky->panorama);
+            level->m_skyPanorama = services.renderer.LoadTexture(assets.Resolve(d.sky->panorama));
             if (!level->m_skyPanorama)
             {
                 std::cerr << "Level '" << d.name << "': missing sky " << d.sky->panorama << '\n';
@@ -109,7 +109,7 @@ namespace AtomGame
             auto& set = level->m_impostorSets[data.set];
             if (!set)
             {
-                set = ImpostorSet::Load(services.renderer, assets + data.set);
+                set = ImpostorSet::Load(services.renderer, assets.Resolve(data.set));
                 if (!set)
                 {
                     std::cerr << "Level '" << d.name << "': impostor " << data.set << " failed to load\n";
@@ -126,13 +126,13 @@ namespace AtomGame
         for (const ChunkData& data : d.chunks)
         {
             Chunk chunk;
-            chunk.model = services.models.Get(services.renderer, assets + data.model);
+            chunk.model = services.models.Get(services.renderer, assets.Resolve(data.model));
             if (!chunk.model)
             {
                 std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' failed to load\n";
                 return nullptr;
             }
-            if (!data.collision.empty() && !level->m_collision.Append(assets + data.collision))
+            if (!data.collision.empty() && !level->m_collision.Append(assets.Resolve(data.collision)))
             {
                 std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' has no collision\n";
                 return nullptr;
@@ -141,7 +141,7 @@ namespace AtomGame
             {
                 // Per-chunk lightmaps (M25): a whole street at a useful
                 // density doesn't fit one texture.
-                auto lightmap = services.renderer.LoadTexture(assets + data.lightmap);
+                auto lightmap = services.renderer.LoadTexture(assets.Resolve(data.lightmap));
                 if (!lightmap)
                 {
                     std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' is missing its lightmap "
@@ -166,7 +166,7 @@ namespace AtomGame
         {
             // A level that names a lightmap is lit by it; without it the
             // room would silently fall back to flat light, so it's an error.
-            level->m_lightmap = services.renderer.LoadTexture(assets + d.lightmap->texture);
+            level->m_lightmap = services.renderer.LoadTexture(assets.Resolve(d.lightmap->texture));
             if (!level->m_lightmap)
             {
                 std::cerr << "Level '" << d.name << "': missing lightmap " << d.lightmap->texture << '\n';
@@ -297,7 +297,7 @@ namespace AtomGame
             }
             if (!data.machine.empty())
             {
-                const PlayfieldParseResult field = LoadPlayfieldFile(assets + data.machine);
+                const PlayfieldParseResult field = LoadPlayfieldFile(assets.Resolve(data.machine));
                 if (!field.playfield)
                 {
                     std::cerr << "Level '" << d.name << "': " << field.error << '\n';
@@ -398,7 +398,7 @@ namespace AtomGame
         auto& slot = m_models[relativePath];
         if (!slot)
         {
-            slot = services.models.Get(services.renderer, services.assetRoot + "Assets/" + relativePath);
+            slot = services.models.Get(services.renderer, services.assets.Resolve(relativePath));
         }
         return slot.get();
     }

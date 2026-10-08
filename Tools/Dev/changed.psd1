@@ -23,32 +23,37 @@
         @{ Pattern = '^Engine/Assets/'; Scenarios = @('first_render', 'character_lab', 'drift_fly') }
         @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('first_render', 'diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics') }
 
-        # The demo, by system
-        @{ Pattern = '^Game/Pachinko/'; Scenarios = @('pachinko_session') }
-        @{ Pattern = '^Game/(Character/|DemoAppLab)'; Scenarios = @('character_lab') }
-        @{ Pattern = '^Game/Environment/'; Scenarios = @('environment', 'lakeshore') }
-        @{ Pattern = '^Game/(Dialogue|Interaction)/'; Scenarios = @('street_keeper') }
-        @{ Pattern = '^Game/Flashlight'; Scenarios = @('flashlight', 'passage') }
-        @{ Pattern = '^Game/DemoAppDevTools'; Scenarios = @('devtools') }
-        @{ Pattern = '^Game/(DemoAppCalibration|Settings/)'; Scenarios = @('calibration', 'quality_tiers') }
-        @{ Pattern = '^Game/Testing/'; Scenarios = @('diagnostics', 'first_render') }
-        @{ Pattern = '^Game/Level/'; Scenarios = @('levels_roundtrip', 'hot_reload') }
-        @{ Pattern = '^Game/'; Scenarios = @('first_render', 'levels_roundtrip') }
+        # The demo (v0.0.14: Games/Demo), its package
+        @{ Pattern = '^Games/Demo/(CMakeLists\.txt|README\.txt\.in)$'; Scenarios = @('first_render', 'diagnostics'); Package = 'Demo' }
 
-        # Content: the authoring tests check it; the levels load it.
-        @{ Pattern = '^Assets/(Levels|Environments)/'; Scenarios = @('levels_roundtrip', 'hot_reload', 'environment') }
-        @{ Pattern = '^Assets/(Machines|Pachinko)/'; Scenarios = @('pachinko_session') }
-        @{ Pattern = '^Assets/Lakeshore/'; Scenarios = @('lakeshore') }
-        @{ Pattern = '^Assets/(Lab|ThirdParty)/'; Scenarios = @('character_lab') }
-        @{ Pattern = '^Assets/'; Scenarios = @('first_render', 'levels_roundtrip') }
+        # The demo's content (before its code: first match wins). The authoring tests check it; the levels load it.
+        @{ Pattern = '^Games/Demo/Assets/(Levels|Environments)/'; Scenarios = @('levels_roundtrip', 'hot_reload', 'environment') }
+        @{ Pattern = '^Games/Demo/Assets/(Machines|Pachinko)/'; Scenarios = @('pachinko_session') }
+        @{ Pattern = '^Games/Demo/Assets/Lakeshore/'; Scenarios = @('lakeshore') }
+        @{ Pattern = '^Games/Demo/Assets/(Lab|ThirdParty)/'; Scenarios = @('character_lab') }
+        @{ Pattern = '^Games/Demo/Assets/'; Scenarios = @('first_render', 'levels_roundtrip') }
+        # Shared content: kit pieces, sky, fonts.
+        @{ Pattern = '^Content/'; Scenarios = @('first_render', 'levels_roundtrip', 'night_street') }
+
+        # The demo, by system
+        @{ Pattern = '^Games/Demo/Pachinko/'; Scenarios = @('pachinko_session') }
+        @{ Pattern = '^Games/Demo/(Character/|DemoAppLab)'; Scenarios = @('character_lab') }
+        @{ Pattern = '^Games/Demo/Environment/'; Scenarios = @('environment', 'lakeshore') }
+        @{ Pattern = '^Games/Demo/(Dialogue|Interaction)/'; Scenarios = @('street_keeper') }
+        @{ Pattern = '^Games/Demo/Flashlight'; Scenarios = @('flashlight', 'passage') }
+        @{ Pattern = '^Games/Demo/DemoAppDevTools'; Scenarios = @('devtools') }
+        @{ Pattern = '^Games/Demo/DemoAppCalibration'; Scenarios = @('calibration', 'quality_tiers') }
+        @{ Pattern = '^Games/Demo/Testing/'; Scenarios = @('diagnostics', 'first_render') }
+        @{ Pattern = '^Games/Demo/Level/'; Scenarios = @('levels_roundtrip', 'hot_reload') }
+        @{ Pattern = '^Games/Demo/'; Scenarios = @('first_render', 'levels_roundtrip') }
 
         # Tests: a scenario script runs itself; the rest are unit tests (always run).
         @{ Pattern = '^Tests/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('$scenario') }
         @{ Pattern = '^Tests/'; Scenarios = @() }
 
         # Packaging and the build: stage and verify a package.
-        @{ Pattern = '^Tools/Dist/'; Scenarios = @(); Package = 'AtomGame' }
-        @{ Pattern = '(^|/)CMakeLists\.txt$'; Scenarios = @(); Package = 'AtomGame' }
+        @{ Pattern = '^Tools/Dist/'; Scenarios = @(); Package = 'Demo' }
+        @{ Pattern = '(^|/)CMakeLists\.txt$'; Scenarios = @(); Package = 'Demo' }
 
         # Tools that don't ship or build: nothing beyond the unit tests.
         @{ Pattern = '^Tools/(Dev|Perf|Blender|Docs|Machines|PresentationProbe)/'; Scenarios = @() }
