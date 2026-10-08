@@ -162,6 +162,7 @@ namespace Showcase
         if (!m_levels->IsTransitioning())
         {
             UpdateKeys();
+            UpdateBooth();
             const Atom::Input& input = GetInput();
             const auto held = [&](SDL_Scancode a, SDL_Scancode b) { return input.IsKeyDown(a) || input.IsKeyDown(b); };
             PlayerController::MoveIntent intent;
@@ -233,6 +234,52 @@ namespace Showcase
         }
     }
 
+    void ShowcaseApp::UpdateBooth()
+    {
+        // The keys play only at the booth.
+        const Area* area = AreaAt(m_player.GetFeetPosition());
+        if (!area || std::string_view(area->spawn) != "synth_booth")
+        {
+            return;
+        }
+        const Atom::Input& input = GetInput();
+        constexpr SDL_Scancode keys[4] = { SDL_SCANCODE_J, SDL_SCANCODE_K, SDL_SCANCODE_L, SDL_SCANCODE_SEMICOLON };
+        for (int i = 0; i < 4; ++i)
+        {
+            if (input.WasKeyPressed(keys[i]))
+            {
+                SendToBooth(BoothCommand::Note, i, 0.0f);
+            }
+        }
+        if (input.WasKeyPressed(SDL_SCANCODE_U) || input.WasKeyPressed(SDL_SCANCODE_I))
+        {
+            const float factor = input.WasKeyPressed(SDL_SCANCODE_I) ? 1.5f : 1.0f / 1.5f;
+            m_cutoff = std::clamp(m_cutoff * factor, BoothSynth::MinCutoff, BoothSynth::MaxCutoff);
+            SendToBooth(BoothCommand::Filter, 0, m_cutoff);
+        }
+        if (input.WasKeyPressed(SDL_SCANCODE_O))
+        {
+            m_delay = !m_delay;
+            SendToBooth(BoothCommand::Delay, m_delay ? 1 : 0, 0.0f);
+        }
+    }
+
+    void ShowcaseApp::SendToBooth(BoothCommand command, int argument, float value)
+    {
+        if (!m_audio)
+        {
+            m_audio = std::make_unique<Atom::SynthStream>(); // heap: the delay line is large
+            if (!m_audio->Start(m_booth))
+            {
+                std::cout << "Synth booth: no audio device - playing silent\n";
+            }
+        }
+        if (m_audio->IsRunning())
+        {
+            m_audio->Send({ static_cast<int>(command), argument, value });
+        }
+    }
+
     void ShowcaseApp::UpdateMouseCapture()
     {
         Atom::Input& input = GetInput();
@@ -290,7 +337,13 @@ namespace Showcase
         // Bottom left: the area, what it shows; under it, the keys.
         const Area* area = m_levels->GetLevel() ? AreaAt(m_player.GetFeetPosition()) : nullptr;
         const std::string title = area ? area->title : "Between areas";
-        const std::string shows = area ? area->shows : "1-6 jump to an area";
+        std::string shows = area ? area->shows : "1-6 jump to an area";
+        if (area && std::string_view(area->spawn) == "synth_booth")
+        {
+            char state[64];
+            std::snprintf(state, sizeof(state), "   (filter %.0f Hz, delay %s)", m_cutoff, m_delay ? "on" : "off");
+            shows += state;
+        }
         const std::string keys = "1-6 areas    P weather: " + EnvironmentName()
             + "    F1 numbers    F2-F8 view    F10 tools";
         const float smallLine = m_smallFont->GetLineHeight() * scale;
@@ -336,6 +389,7 @@ namespace Showcase
 
     void ShowcaseApp::OnShutdown()
     {
+        m_audio.reset(); // the audio thread stops before the booth it plays goes
         GetRenderer().SetParticleAtlas(nullptr, 1); // the atmosphere's atlas goes next
         m_levels.reset(); // the level's GPU resources go before the device
         m_smallFont.reset();

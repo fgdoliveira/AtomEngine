@@ -273,6 +273,24 @@ namespace AtomFramework
             entity.hidden = Bool(json, "hidden", path, false);
             entity.goneWithFlag = String(json, "goneWithFlag", path);
 
+            // v0.0.14: a look of its own (toon shading, an outline).
+            if (json.contains("toon") || json.contains("outline") || json.contains("outlineColor"))
+            {
+                if (entity.model.empty())
+                {
+                    throw LevelError(path, "toon and outline style a model; this entity has none");
+                }
+                EntityStyle style;
+                style.toon = Bool(json, "toon", path, false);
+                style.outline = Number(json, "outline", path, 0.0f);
+                if (style.outline < 0.0f)
+                {
+                    throw LevelError(JsonPath(path, "outline"), "must not be negative");
+                }
+                style.outlineColor = Vec3(json, "outlineColor", style.outlineColor, path);
+                entity.style = style;
+            }
+
             if (const auto collider = json.find("collider"); collider != json.end())
             {
                 const std::string at = JsonPath(path, "collider");

@@ -162,6 +162,16 @@ namespace AtomFramework
         float maxDistance = 80.0f;
     };
 
+    // A look for one entity's model (v0.0.14): toon shading (M79) and an
+    // inverted-hull outline, on every material. The entity gets its own
+    // copy of the model, so the same model elsewhere keeps its look.
+    struct EntityStyle
+    {
+        bool toon = false;
+        float outline = 0.0f; // world-space width; 0: none
+        glm::vec3 outlineColor{ 0.03f, 0.025f, 0.06f }; // linear
+    };
+
     struct EntityData
     {
         std::string name;
@@ -176,6 +186,7 @@ namespace AtomFramework
         std::optional<EntityAnimation> animation; // needs a model with the clip
         std::optional<AnimatorData> animator;     // M37: a state machine instead
         std::optional<EntityMover> mover;
+        std::optional<EntityStyle> style; // v0.0.14: toon / outline
         bool hidden = false; // M26: until a sequence shows it
         std::string goneWithFlag; // M44: hidden and unusable once set
     };

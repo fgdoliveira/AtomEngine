@@ -122,6 +122,7 @@ namespace AtomFramework
 
         explicit Level(LevelData data, Atom::AudioSystem& audio);
         const Atom::Model* LoadModel(const std::string& relativePath, Services& services);
+        const Atom::Model* LoadStyledModel(const std::string& relativePath, const EntityStyle& style, Services& services);
         void SubmitChunk(Atom::Renderer& renderer, const Atom::Model& model,
                          Atom::RenderLayer layer, bool castsShadow) const;
         void AddCollider(const glm::vec3& position, float yawRadians, const ColliderBox& box);
@@ -164,6 +165,7 @@ namespace AtomFramework
         };
         std::vector<Impostor> m_impostors;
         std::unordered_map<std::string, std::shared_ptr<Atom::Model>> m_models;
+        std::vector<std::unique_ptr<Atom::Model>> m_styledModels; // v0.0.14: one private copy per styled entity
         Atom::CollisionWorld m_collision;
         GameWorld m_world; // after the models: entities die first
         std::vector<OwnedVoice> m_voices;

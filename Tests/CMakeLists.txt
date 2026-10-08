@@ -40,6 +40,7 @@ add_executable(
     DriftFlightTests.cpp
     DriftWorldTests.cpp
     SynthTests.cpp
+    BoothSynthTests.cpp
     FakeGame.h
     TestAssets.h
 )
@@ -49,6 +50,7 @@ target_link_libraries(
     PRIVATE
         DemoLib
         DriftLib # M77: the second game's pure logic
+        ShowcaseLib # v0.0.14: the synth booth
         nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 

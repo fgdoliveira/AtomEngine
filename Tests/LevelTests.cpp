@@ -75,6 +75,34 @@ TEST_CASE("Actions of every type come out of level data")
     CHECK(level.entities[0].collider->halfExtents.x == doctest::Approx(1.5f));
 }
 
+TEST_CASE("An entity may have a look of its own: toon shading and an outline (v0.0.14)")
+{
+    const LevelData level = ParseOrFail(R"({
+        "name": "x", "model": "m", "collision": "c", "spawns": { "s": { "position": [0, 0, 0] } },
+        "entities": [
+            { "name": "plain", "model": "Kit/toro.glb" },
+            { "name": "toon", "model": "Kit/toro.glb", "toon": true, "outline": 0.03, "outlineColor": [0.1, 0.2, 0.3] },
+            { "name": "outlined", "model": "Kit/toro.glb", "outline": 0.05 }
+        ]
+    })");
+    REQUIRE(level.entities.size() == 3);
+    CHECK_FALSE(level.entities[0].style.has_value());
+    REQUIRE(level.entities[1].style.has_value());
+    CHECK(level.entities[1].style->toon);
+    CHECK(level.entities[1].style->outline == doctest::Approx(0.03f));
+    CHECK(level.entities[1].style->outlineColor.z == doctest::Approx(0.3f));
+    REQUIRE(level.entities[2].style.has_value());
+    CHECK_FALSE(level.entities[2].style->toon);
+
+    // A style needs a model to style, and an outline can't be negative.
+    const auto noModel = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "s": { "position": [0, 0, 0] } }, "entities": [ { "name": "e", "toon": true } ] })");
+    CHECK_FALSE(noModel.level.has_value());
+    const auto negative = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "s": { "position": [0, 0, 0] } }, "entities": [ { "name": "e", "model": "m", "outline": -1 } ] })");
+    CHECK_FALSE(negative.level.has_value());
+}
+
 TEST_CASE("Surface zones match in order, with a default")
 {
     const LevelData level = ParseOrFail(Minimal);

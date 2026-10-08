@@ -186,7 +186,8 @@ namespace AtomFramework
             const float yaw = glm::radians(data.yawDegrees);
             if (!data.model.empty())
             {
-                const Atom::Model* model = level->LoadModel(data.model, services);
+                const Atom::Model* model = data.style ? level->LoadStyledModel(data.model, *data.style, services)
+                                                      : level->LoadModel(data.model, services);
                 if (!model)
                 {
                     return nullptr;
@@ -398,6 +399,26 @@ namespace AtomFramework
             slot = services.models.Get(services.renderer, services.assets.Resolve(relativePath));
         }
         return slot.get();
+    }
+
+    const Atom::Model* Level::LoadStyledModel(const std::string& relativePath, const EntityStyle& style,
+                                              Services& services)
+    {
+        // Not through the cache: the look is this entity's alone, and every
+        // other user of the model keeps the plain one (v0.0.14).
+        std::unique_ptr<Atom::Model> model = Atom::Model::Load(services.renderer, services.assets.Resolve(relativePath));
+        if (!model)
+        {
+            return nullptr;
+        }
+        for (Atom::Material& material : model->GetMaterials())
+        {
+            material.toon = style.toon;
+            material.outline = style.outline;
+            material.outlineColor = style.outlineColor;
+        }
+        m_styledModels.push_back(std::move(model));
+        return m_styledModels.back().get();
     }
 
     void Level::AddCollider(const glm::vec3& position, float yawRadians, const ColliderBox& box)

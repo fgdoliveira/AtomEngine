@@ -360,6 +360,9 @@
         "model": { "type": "string", "description": "glb relative to Assets/." },
         "hidden": { "type": "boolean", "description": "Not drawn until a sequence shows it (M26)." },
         "goneWithFlag": { "type": "string", "description": "Hidden and unusable for good once this flag is set: something taken (M44)." },
+        "toon": { "type": "boolean", "description": "Toon shading on every material of this entity's model (v0.0.14); it gets its own copy of the model." },
+        "outline": { "type": "number", "minimum": 0, "description": "Inverted-hull outline width in metres (v0.0.14); 0: none. Not for alpha-tested foliage: the hull ignores the cut-out and outlines whole cards." },
+        "outlineColor": { "$ref": "#/definitions/vec3", "description": "Linear RGB of the outline." },
         "collider": {
           "type": "object",
           "additionalProperties": false,

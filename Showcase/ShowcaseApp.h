@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BoothSynth.h"
 #include "Character/PlayerController.h"
 #include "Core/Application.h"
 #include "Environment/Atmosphere.h"
@@ -79,6 +80,8 @@ namespace Showcase
         void UpdateMouseCapture();
         void UpdateKeys();
         void UpdatePavilion();
+        void UpdateBooth();
+        void SendToBooth(BoothCommand command, int argument, float value);
         void DrawCaption();
         const Entity* FindEntity(const std::string& name) const;
         Entity* FindEntity(const std::string& name);
@@ -106,6 +109,12 @@ namespace Showcase
         GameDiagnostics m_diagnostics;
         std::unique_ptr<Atom::Font> m_font;
         std::unique_ptr<Atom::Font> m_smallFont;
+        // The synth booth: started on its first note; the stream is declared
+        // after the sequencer it plays, so it stops first.
+        BoothSynth m_booth;
+        std::unique_ptr<Atom::SynthStream> m_audio;
+        float m_cutoff = 2400.0f; // Hz, as the booth starts
+        bool m_delay = false;
         float m_time = 0.0f;
         glm::vec3 m_arrivalEye{ 0.0f };
         float m_arrivalYaw = 0.0f;

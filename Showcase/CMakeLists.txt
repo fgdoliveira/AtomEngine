@@ -3,6 +3,17 @@
 # startup project. A showcase, not a product: it has no install rules and
 # is never packaged (the pavilion's character has no recorded licence).
 
+# What the unit tests reach (built without the game too, as CI does): the
+# synth booth's sequencer.
+add_library(
+    ShowcaseLib
+    STATIC
+    BoothSynth.cpp
+    BoothSynth.h
+)
+target_include_directories(ShowcaseLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ShowcaseLib PUBLIC AtomEngine)
+
 if(NOT ATOM_BUILD_GAME)
     return() # the libraries only: no executable, no shaders
 endif()
@@ -16,6 +27,7 @@ add_executable(
 target_link_libraries(
     Showcase
     PRIVATE
+        ShowcaseLib
         AtomEngine
         AtomFramework
 )
