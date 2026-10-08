@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "night_street",
   "model": "Night/night_street.glb",
   "collision": "Night/night_street_col.glb",

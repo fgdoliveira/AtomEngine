@@ -14,6 +14,8 @@
 
 namespace Demo
 {
+    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
+
     namespace
     {
         using Json = nlohmann::json;

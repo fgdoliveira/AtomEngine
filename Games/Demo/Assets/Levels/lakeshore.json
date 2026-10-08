@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "lakeshore",
   "model": "Lakeshore/lakeshore.glb",
   "collision": "Lakeshore/lakeshore_col.glb",

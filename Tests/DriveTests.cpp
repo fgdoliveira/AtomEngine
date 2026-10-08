@@ -1,6 +1,6 @@
 #include "Character/Animator.h"
 #include "Character/SpringArm.h"
-#include "PlayerController.h"
+#include "Character/PlayerController.h"
 #include "Physics/CollisionWorld.h"
 
 #include <doctest/doctest.h>
@@ -10,7 +10,7 @@
 #include <map>
 #include <string>
 
-using namespace Demo;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {

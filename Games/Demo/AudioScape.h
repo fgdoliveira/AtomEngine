@@ -21,6 +21,8 @@ namespace Atom
 
 namespace Demo
 {
+    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
+
     // The persistent part of the soundscape. It owns the sound library
     // (named, synthesised once) and the sounds that follow the player
     // everywhere: footsteps, distant cicada calls, radio static. Levels start

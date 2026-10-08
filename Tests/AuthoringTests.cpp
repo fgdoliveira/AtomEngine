@@ -12,6 +12,7 @@
 #include <string>
 
 using namespace Demo;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {
@@ -108,15 +109,16 @@ TEST_CASE("Markers place spawns and entities; the level file still wins")
 TEST_CASE("Shipped levels and dialogues declare their schema, which knows their keys")
 {
     const auto properties = [](const std::string& schema) {
-        return ReadJson(AtomTests::Asset("Schemas/" + schema))["properties"];
+        return ReadJson(AtomTests::Schema(schema))["properties"];
     };
     const nlohmann::json level = properties("level.schema.json");
     const nlohmann::json dialogue = properties("dialogue.schema.json");
     const nlohmann::json machine = properties("machine.schema.json");
+    const std::string levelSchema = std::string(AtomTests::FrameworkSchemaFromDemo) + "level.schema.json";
 
     int files = 0;
     for (const auto& [folder, schema, keys] : {
-             std::tuple{ "Levels", "../Schemas/level.schema.json", &level },
+             std::tuple{ "Levels", levelSchema.c_str(), &level },
              std::tuple{ "Dialogue", "../Schemas/dialogue.schema.json", &dialogue },
              std::tuple{ "Machines", "../Schemas/machine.schema.json", &machine } })
     {

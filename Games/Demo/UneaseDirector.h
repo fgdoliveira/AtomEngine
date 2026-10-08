@@ -17,10 +17,16 @@ namespace Atom
     class Renderer;
 }
 
+namespace AtomFramework
+{
+    class Level; // v0.0.14: the framework's
+}
+
 namespace Demo
 {
+    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
+
     class AudioScape;
-    class Level;
 
     // Quiet "is something there?" moments, never a jump scare:
     //  - a dark figure stands far off in the fog and is gone once you get

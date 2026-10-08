@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-namespace DemoTests
+namespace AtomTests
 {
-    using namespace Demo;
+    using namespace AtomFramework; // v0.0.14: the world layer
 
     // A scripted stand-in for the game: just enough state to check that the
     // runner sequences, waits and fails correctly.

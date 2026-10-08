@@ -5,9 +5,14 @@
 #include <string>
 #include <vector>
 
+namespace AtomFramework
+{
+    class GameState; // v0.0.14: the framework's
+}
+
 namespace Demo
 {
-    class GameState;
+    using AtomFramework::GameState;
 
     // Walks a Dialogue as an explicit state machine. It never draws or reads
     // input devices: the game feeds it commands (Advance, MoveSelection,

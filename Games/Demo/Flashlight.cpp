@@ -11,6 +11,8 @@
 
 namespace Demo
 {
+    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
+
     namespace
     {
         // A point counts as lit when the beam there is at least this bright

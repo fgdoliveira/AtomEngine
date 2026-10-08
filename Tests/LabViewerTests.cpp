@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-using namespace Demo;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {

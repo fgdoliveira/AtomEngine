@@ -6,8 +6,8 @@
 #include <map>
 #include <set>
 
-using namespace Demo;
-using DemoTests::FakeGame;
+using namespace AtomFramework; // v0.0.14: the world layer
+using AtomTests::FakeGame;
 
 namespace
 {

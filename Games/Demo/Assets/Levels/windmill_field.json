@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "windmill_field",
   "model": "Fields/fields.glb",
   "collision": "Fields/fields_col.glb",

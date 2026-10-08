@@ -7,6 +7,8 @@
 
 namespace Demo
 {
+    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
+
     namespace
     {
         // Codepoint count, so the typewriter never splits a UTF-8 sequence.

@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/environment.schema.json",
+  "$schema": "../../../../Framework/Schemas/environment.schema.json",
   "name": "sunset",
   "sunDirection": [-0.55, 0.1, -0.83],
   "sunColor": [1.0, 0.52, 0.26],

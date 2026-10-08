@@ -13,59 +13,16 @@ add_library(
     DemoApp.cpp
     DemoApp.h
     Flashlight.cpp
-    Environment/EnvironmentController.cpp
-    Environment/EnvironmentController.h
     Flashlight.h
     DemoAppLab.cpp
     DemoAppDevTools.cpp
     DemoAppCalibration.cpp
-    Character/Animator.cpp
-    Character/Animator.h
-    Character/LabViewer.cpp
-    Character/SpringArm.cpp
-    Character/SpringArm.h
-    Character/LabViewer.h
-    PlayerController.cpp
-    PlayerController.h
-    Testing/TestScript.cpp
-    Testing/GameDiagnostics.cpp
-    Testing/GameDiagnostics.h
-    Testing/PairedBench.cpp
-    Testing/PairedBench.h
-    Testing/TestScript.h
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h
-    Level/FileWatcher.h
-    Level/ModelCache.h
-    Level/ScreenProgram.h
-    Level/SoundLibrary.h
-    Level/JsonText.h
     Dialogue/DialogueRunner.cpp
     Dialogue/DialogueRunner.h
     Dialogue/DialogueView.cpp
     Dialogue/DialogueView.h
-    Interaction/Actions.h
-    Level/Environment.cpp
-    Level/Environment.h
-    Level/Level.cpp
-    Level/Level.h
-    Level/LevelData.cpp
-    Level/LevelData.h
-    Level/LevelManager.cpp
-    Level/LevelManager.h
-    Interaction/ActionExecutor.cpp
-    Interaction/ActionExecutor.h
-    Interaction/InteractionSystem.cpp
-    Interaction/Sequence.cpp
-    Interaction/Sequence.h
-    Interaction/InteractionSystem.h
-    Interaction/MessageFeed.cpp
-    Interaction/MessageFeed.h
-    World/GameState.h
-    World/GameWorld.h
-    World/Impostors.cpp
-    World/Impostors.h
-    World/LiveEffects.cpp
     Input/InputContext.cpp
     Input/InputContext.h
     Pachinko/MachineMode.cpp
@@ -81,12 +38,10 @@ add_library(
     Pachinko/Playfield.cpp
     Pachinko/Playfield.h
     Pachinko/PixelDraw.h
-    World/FixedStep.h
     Pachinko/PachinkoAttract.cpp
     Pachinko/PachinkoAttract.h
     Pachinko/LevelScreens.cpp
     Pachinko/LevelScreens.h
-    World/LiveEffects.h
 )
 
 target_include_directories(

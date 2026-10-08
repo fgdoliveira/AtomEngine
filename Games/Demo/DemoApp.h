@@ -20,7 +20,7 @@
 #include "Pachinko/PachinkoGame.h"
 #include "World/FixedStep.h"
 #include "Pachinko/PachinkoAttract.h"
-#include "PlayerController.h"
+#include "Character/PlayerController.h"
 #include "Settings/Calibration.h"
 #include "Settings/GameSettings.h"
 #include "Testing/GameDiagnostics.h"

@@ -21,6 +21,13 @@
         @{ Pattern = '^Engine/Audio/'; Scenarios = @('drift_fly', 'pachinko_session') }
         @{ Pattern = '^Engine/Debug/'; Scenarios = @('devtools') }
         @{ Pattern = '^Engine/Assets/'; Scenarios = @('first_render', 'character_lab', 'drift_fly') }
+        # The framework's world layer (M85: moved from the demo), by system - before the catch-all.
+        @{ Pattern = '^Framework/Schemas/'; Scenarios = @() } # the authoring tests (always run) check it
+        @{ Pattern = '^Framework/Level/'; Scenarios = @('levels_roundtrip', 'hot_reload', 'night_street', 'pachinko_session') }
+        @{ Pattern = '^Framework/(Interaction|World)/'; Scenarios = @('street_keeper', 'levels_roundtrip', 'pachinko_session') }
+        @{ Pattern = '^Framework/Environment/'; Scenarios = @('environment', 'lakeshore') }
+        @{ Pattern = '^Framework/Character/'; Scenarios = @('character_lab', 'passage') }
+        @{ Pattern = '^Framework/Testing/'; Scenarios = @('diagnostics', 'first_render', 'devtools') }
         @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('first_render', 'diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics') }
 
         # The demo (v0.0.14: Games/Demo), its package
@@ -37,14 +44,12 @@
 
         # The demo, by system
         @{ Pattern = '^Games/Demo/Pachinko/'; Scenarios = @('pachinko_session') }
-        @{ Pattern = '^Games/Demo/(Character/|DemoAppLab)'; Scenarios = @('character_lab') }
-        @{ Pattern = '^Games/Demo/Environment/'; Scenarios = @('environment', 'lakeshore') }
-        @{ Pattern = '^Games/Demo/(Dialogue|Interaction)/'; Scenarios = @('street_keeper') }
+        @{ Pattern = '^Games/Demo/DemoAppLab'; Scenarios = @('character_lab') }
+        @{ Pattern = '^Games/Demo/Input/'; Scenarios = @('street_keeper', 'pachinko_session', 'character_lab') }
+        @{ Pattern = '^Games/Demo/Dialogue/'; Scenarios = @('street_keeper') }
         @{ Pattern = '^Games/Demo/Flashlight'; Scenarios = @('flashlight', 'passage') }
         @{ Pattern = '^Games/Demo/DemoAppDevTools'; Scenarios = @('devtools') }
         @{ Pattern = '^Games/Demo/DemoAppCalibration'; Scenarios = @('calibration', 'quality_tiers') }
-        @{ Pattern = '^Games/Demo/Testing/'; Scenarios = @('diagnostics', 'first_render') }
-        @{ Pattern = '^Games/Demo/Level/'; Scenarios = @('levels_roundtrip', 'hot_reload') }
         @{ Pattern = '^Games/Demo/'; Scenarios = @('first_render', 'levels_roundtrip') }
 
         # Tests: a scenario script runs itself; the rest are unit tests (always run).

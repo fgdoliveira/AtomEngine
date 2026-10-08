@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "machiya_interior",
   "model": "Interior/interior.glb",
   "collision": "Interior/interior_col.glb",

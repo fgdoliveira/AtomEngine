@@ -6,6 +6,8 @@
 
 namespace Demo
 {
+    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
+
     namespace
     {
         // The attract loop (M27): balls through the pins, reels, a score.

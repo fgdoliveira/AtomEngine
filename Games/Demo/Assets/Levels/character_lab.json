@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "character_lab",
   "model": "Lab/lab.glb",
   "collision": "Lab/lab_col.glb",

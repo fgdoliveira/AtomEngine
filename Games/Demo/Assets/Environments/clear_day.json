@@ -1,4 +1,4 @@
 {
-  "$schema": "../Schemas/environment.schema.json",
+  "$schema": "../../../../Framework/Schemas/environment.schema.json",
   "name": "clear_day"
 }

@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "pachinko_hall",
   "model": "Pachinko/pachinko.glb",
   "collision": "Pachinko/pachinko_col.glb",

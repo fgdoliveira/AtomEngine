@@ -9,6 +9,7 @@
 #include <string>
 
 using namespace Demo;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 TEST_CASE("Fixed step: whole steps from any frame rate, leftovers carried, hitches capped")
 {

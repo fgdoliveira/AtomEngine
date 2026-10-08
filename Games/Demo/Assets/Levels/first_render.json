@@ -1,5 +1,5 @@
 {
-  "$schema": "../Schemas/level.schema.json",
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
   "name": "first_render",
   "model": "First/first.glb",
   "collision": "First/first_col.glb",
