@@ -33,6 +33,8 @@
         @{ Pattern = '^Framework/Environment/'; Scenarios = @('environment', 'showcase_tour') }
         @{ Pattern = '^Framework/Character/'; Scenarios = @('showcase_lab', 'passage') }
         @{ Pattern = '^Framework/Testing/'; Scenarios = @('diagnostics', 'showcase_tour', 'devtools') }
+        # M89: one UI - the F10 panels and the player UI kit every app shares.
+        @{ Pattern = '^(Engine/Debug/|Framework/(Debug|UI)/)'; Scenarios = @('devtools', 'showcase_lens', 'night_street', 'drift_fly') }
         @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics', 'showcase_tour') }
 
         # The demo (v0.0.14: Games/Demo), its package

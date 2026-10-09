@@ -20,6 +20,9 @@ add_library(
     Settings/Calibration.h
     Diagnostics/DiagnosticsReport.cpp
     Diagnostics/DiagnosticsReport.h
+    # v0.0.14 (M89): the F10 panels every app shares.
+    Debug/DevPanels.cpp
+    Debug/DevPanels.h
     # v0.0.14 (M85): the world layer, moved from the demo - levels, the
     # world, interaction, environments, characters, the scenario harness.
     Character/Animator.cpp
@@ -89,4 +92,5 @@ target_link_libraries(
         AtomEngine # M82: the developer switches, and the renderer the diagnostics report reads
     PRIVATE
         nlohmann_json::nlohmann_json
+        imgui # M89: only inside DevPanels.cpp
 )

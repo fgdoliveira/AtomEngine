@@ -5,6 +5,7 @@
 #include "Character/LabViewer.h"
 #include "Character/PlayerController.h"
 #include "Character/SpringArm.h"
+#include "Debug/DevPanels.h"
 #include "Core/Application.h"
 #include "Environment/Atmosphere.h"
 #include "Environment/EnvironmentController.h"
@@ -133,6 +134,12 @@ namespace Showcase
         std::optional<glm::vec2> Project(const glm::vec3& world) const;
         void SendToBooth(BoothCommand command, int argument, float value);
         void DrawCaption();
+
+        // F10 (M89, ShowcaseDevTools.cpp): the shared panels, plus Features
+        // (the lens's switches) and Clock (the time of day).
+        void RegisterDevPanels();
+        void DrawDevTools(float deltaSeconds);
+        DevPanels m_devPanels;
         const Entity* FindEntity(const std::string& name) const;
         Entity* FindEntity(const std::string& name);
         const Atom::CollisionWorld* CurrentCollision() const;

@@ -294,6 +294,7 @@ namespace Showcase
     {
         Atom::Renderer& renderer = const_cast<ShowcaseApp*>(this)->GetRenderer();
         const Atom::FrameStats& stats = renderer.GetLastFrameStats();
+        if (name == "devtools_panels") return static_cast<float>(m_devPanels.PanelsDrawn());
         if (name == "water_draws") return static_cast<float>(stats.waterDraws);
         if (name == "reflection_draws") return static_cast<float>(stats.reflectionDrawn);
         if (name == "shadow_draws") return static_cast<float>(stats.shadowDrawn);

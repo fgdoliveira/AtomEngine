@@ -10,6 +10,7 @@
 #include "Assets/Model.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
+#include "Debug/DevPanels.h"
 #include "Settings/GameSettings.h"
 #include "Renderer/Particles.h"
 #include "Renderer/Texture.h"
@@ -41,6 +42,7 @@ namespace Drift
         void SubmitWorld();
         void SubmitSpeedField(float forward);
         void DrawHud(float dt);
+        void DrawDevTools(float dt); // F10 (M89): the shared Frame and Render panels, and Flight
 
         std::vector<std::string> m_arguments;
         AtomFramework::CommandLine m_commandLine;          // M82: --gpu, --diagnostics
@@ -83,5 +85,6 @@ namespace Drift
         Atom::FrameStatsWindow m_frameTimes; // M83: reported with the summary
         std::string m_capturePath;
         bool m_captured = false;
+        AtomFramework::DevPanels m_devPanels;
     };
 }

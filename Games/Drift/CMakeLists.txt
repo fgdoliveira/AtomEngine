@@ -34,6 +34,7 @@ target_link_libraries(
         DriftLib
         AtomEngine
         AtomFramework
+        imgui # M89: the Flight panel under F10
 )
 target_compile_definitions(Drift PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M82: the diagnostics title
 add_dependencies(Drift AtomShaders) # the engine's shaders, shared with every game

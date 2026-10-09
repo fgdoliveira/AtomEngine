@@ -25,6 +25,7 @@ add_executable(
     Main.cpp
     ShowcaseApp.cpp
     ShowcaseApp.h
+    ShowcaseDevTools.cpp
     ShowcaseLab.cpp
     ShowcaseLens.cpp
 )
@@ -34,6 +35,7 @@ target_link_libraries(
         ShowcaseLib
         AtomEngine
         AtomFramework
+        imgui # M89: its own F10 panels (ShowcaseDevTools.cpp)
 )
 add_dependencies(Showcase AtomShaders) # the engine's shaders, shared with every app
 if(ATOM_DISTRIBUTION)

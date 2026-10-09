@@ -219,6 +219,7 @@ namespace Demo
 
     bool DemoApp::OnInitialize()
     {
+        RegisterDevPanels();
         const char* basePath = SDL_GetBasePath();
         m_outputRoot = basePath ? basePath : "";
         m_assets = AtomFramework::AssetRoots({ m_outputRoot + "Assets/" });
@@ -1548,26 +1549,13 @@ namespace Demo
         float number = 0.0f;
         const bool isNumber = std::from_chars(value.data(), value.data() + value.size(), number).ec == std::errc{};
 
-        if (what == "msaa" && (value == "1" || value == "2" || value == "4"))
+        // The view switches every app shares (M89: the framework's).
+        if (ApplyViewSwitch(renderer, m_view, &m_camera, &m_atmosphere, what, value))
         {
-            settings.msaaSamples = static_cast<std::uint32_t>(number);
+            ApplyLighting();
+            return true;
         }
-        else if (what == "scale" && isNumber && number >= 0.1f && number <= 1.0f)
-        {
-            settings.renderScale = number;
-        }
-        else if (what == "post" && (value == "full" || value == "grade" || value == "off"))
-        {
-            m_view.postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
-            settings.post = Atom::PostSettings{};
-            settings.post.enabled = m_view.postMode != 2;
-            if (m_view.postMode == 1)
-            {
-                settings.post.grain = 0.0f;
-                settings.post.vignette = 0.0f;
-            }
-        }
-        else if (what == "quality")
+        if (what == "quality")
         {
             // M61: a quality mode for this run (never saved from a script).
             const std::optional<QualityMode> mode = ParseQualityMode(value);
@@ -1578,35 +1566,12 @@ namespace Demo
             SetQualityMode(*mode, false);
             return true;
         }
-        else if (what == "fog")
-        {
-            const auto found = std::find_if(std::begin(FogPresets), std::end(FogPresets),
-                [&](const FogPreset& preset) { return value == preset.name; });
-            if (found == std::end(FogPresets))
-            {
-                return false;
-            }
-            m_view.fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
-        }
-        else if (what == "shadows" && onOff) m_view.shadows = on;
-        else if (what == "sun" && onOff) m_view.sun = on;
-        else if (what == "particles" && onOff) m_atmosphere.SetEnabled(on);
-        else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
-        else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on); // M51: to measure it
-        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_view.rain = number;
-        else if (what == "rain" && value == "level") m_view.rain.reset(); // the environment's again
-        else if (what == "weather" && onOff)
-        {
-            // M51: the lake's weather all at once - water and rain - or none.
-            renderer.SetWaterEnabled(on);
-            m_view.rain = on ? 1.0f : 0.0f;
-        }
-        else if (what == "unease" && onOff) m_unease.SetEnabled(on);
+        if (what == "unease" && onOff) m_unease.SetEnabled(on);
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on); // M82: the shared F1 overlay
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
-        else if (what == "devtools_collapsed" && onOff) m_devToolsCollapse = on; // every panel, next frame
+        else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on); // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
         else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
         else if (what == "spot_shadows" && onOff) m_devSpot.castsShadows = on; // M43
@@ -1620,10 +1585,6 @@ namespace Demo
             m_flashlight.SetOn(on);
         }
         else if (what == "spot_offset" && isNumber && number >= 0.0f && number <= 0.1f) m_devSpot.shadowNormalOffset = number;
-        else if (what == "fov" && isNumber && number >= 10.0f && number <= 150.0f)
-        {
-            m_camera.verticalFov = glm::radians(number);
-        }
         else if (what == "fixed_dt" && isNumber && number >= 0.0f && number <= 0.25f)
         {
             m_diagnostics.SetFixedStep(number);

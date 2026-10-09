@@ -37,6 +37,7 @@ namespace Showcase
     bool ShowcaseApp::OnInitialize()
     {
         SDL_SetWindowTitle(GetWindow().GetSDLWindow(), "AtomEngine Showcase");
+        RegisterDevPanels();
 
         // Beside the executable: the Showcase's own assets (Assets/Showcase)
         // over the shared ones (Assets/). ATOM_ASSET_ROOT=<the repository>
@@ -258,6 +259,7 @@ namespace Showcase
         {
             DrawCaption();
         }
+        DrawDevTools(deltaSeconds);
     }
 
     void ShowcaseApp::UpdateKeys()
@@ -665,14 +667,16 @@ namespace Showcase
         char* end = nullptr;
         const float number = std::strtof(value.c_str(), &end);
         const bool isNumber = end && *end == '\0' && !value.empty();
-        Atom::Renderer& renderer = GetRenderer();
-        Atom::RenderSettings settings = renderer.GetSettings();
+        // The view switches every app shares (the framework's, M89).
+        if (ApplyViewSwitch(GetRenderer(), m_view, &m_camera, &m_atmosphere, what, value))
+        {
+            ApplyLighting();
+            return true;
+        }
         bool handled = true;
-        if (what == "shadows" && onOff) m_view.shadows = on;
-        else if (what == "sun" && onOff) m_view.sun = on;
-        else if (what == "particles" && onOff) m_atmosphere.SetEnabled(on);
-        else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on);
+        if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on);
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on);
+        else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on);
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "unease" && value == "off") {} // the demo's moments; the Showcase has none
@@ -686,46 +690,6 @@ namespace Showcase
             SetFeature(index, on);
             m_lensFocus = index;
         }
-        else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
-        else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on);
-        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_view.rain = number;
-        else if (what == "rain" && value == "level") m_view.rain.reset(); // the environment's again
-        else if (what == "weather" && onOff)
-        {
-            // M51: the lake's weather all at once - water and rain - or none.
-            renderer.SetWaterEnabled(on);
-            m_view.rain = on ? 1.0f : 0.0f;
-        }
-        else if (what == "msaa" && (value == "1" || value == "2" || value == "4"))
-        {
-            settings.msaaSamples = static_cast<std::uint32_t>(std::stoi(value));
-        }
-        else if (what == "scale" && isNumber && number >= 0.1f && number <= 1.0f) settings.renderScale = number;
-        else if (what == "post" && (value == "full" || value == "grade" || value == "off"))
-        {
-            m_view.postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
-            settings.post = Atom::PostSettings{};
-            settings.post.enabled = m_view.postMode != 2;
-            if (m_view.postMode == 1)
-            {
-                settings.post.grain = 0.0f;
-                settings.post.vignette = 0.0f;
-            }
-        }
-        else if (what == "fog")
-        {
-            const auto found = std::find_if(std::begin(FogPresets), std::end(FogPresets),
-                                            [&](const FogPreset& preset) { return value == preset.name; });
-            if (found == std::end(FogPresets))
-            {
-                return false;
-            }
-            m_view.fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
-        }
-        else if (what == "fov" && isNumber && number >= 10.0f && number <= 150.0f)
-        {
-            m_camera.verticalFov = glm::radians(number);
-        }
         else if (what == "fixed_dt" && isNumber && number >= 0.0f && number <= 0.25f)
         {
             m_diagnostics.SetFixedStep(number);
@@ -736,7 +700,6 @@ namespace Showcase
         }
         if (handled)
         {
-            renderer.SetSettings(settings);
             ApplyLighting();
             return true;
         }

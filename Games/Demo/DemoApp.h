@@ -3,6 +3,7 @@
 #include "Environment/Atmosphere.h"
 #include "Environment/EnvironmentPresets.h"
 #include "AudioScape.h"
+#include "Debug/DevPanels.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
 #include "Dialogue/Dialogue.h"
@@ -90,6 +91,10 @@ namespace Demo
         void UpdateWindowTitle(float deltaSeconds);
         // Developer tools (M41): the ImGui panels, when F10 shows them.
         void DrawDevTools(float deltaSeconds);
+        void RegisterDevPanels(); // the demo's own: Settings, Spot light, Game
+        void DrawSettingsPanel();
+        void DrawSpotPanel();
+        void DrawGamePanel();
         // Frame-time log, scripted tests and the fixed step (M57: moved out
         // of DemoApp, which keeps the frame order and calls them).
         GameDiagnostics m_diagnostics;
@@ -150,9 +155,7 @@ namespace Demo
         void MoveWindow(int x, int y) override { SDL_SetWindowPosition(GetWindow().GetSDLWindow(), x, y); }
         double RealFrameMs() const override { return m_diagnostics.RealFrameMs(); }
 
-        std::array<float, 240> m_frameHistory{}; // ms, a ring
-        std::size_t m_frameHistoryNext = 0;
-        std::optional<bool> m_devToolsCollapse; // harness: collapse/expand all panels once
+        AtomFramework::DevPanels m_devPanels; // F10: the shared panels and the demo's (M89)
 
         // A spot light to try the renderer's (M42) before the flashlight
         // exists: from the Spot light panel or "set spot on". Held at the

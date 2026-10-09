@@ -6,6 +6,13 @@
 
 #include <SDL3/SDL.h>
 
+#include "Scene/Camera.h"
+
+#include <glm/trigonometric.hpp>
+
+#include <algorithm>
+#include <cstdint>
+#include <cstdlib>
 #include <iterator>
 
 namespace AtomFramework
@@ -126,5 +133,68 @@ namespace AtomFramework
             renderer.SetSettings(settings);
         }
         return lightingChanged;
+    }
+
+    bool ApplyViewSwitch(Atom::Renderer& renderer, ViewToggles& toggles, Atom::Camera* camera,
+                         Atmosphere* particles, const std::string& what, const std::string& value)
+    {
+        const bool on = value == "on";
+        const bool onOff = on || value == "off";
+        char* end = nullptr;
+        const float number = std::strtof(value.c_str(), &end);
+        const bool isNumber = end && *end == '\0' && !value.empty();
+        Atom::RenderSettings settings = renderer.GetSettings();
+
+        if (what == "msaa" && (value == "1" || value == "2" || value == "4"))
+        {
+            settings.msaaSamples = static_cast<std::uint32_t>(number);
+        }
+        else if (what == "scale" && isNumber && number >= 0.1f && number <= 1.0f) settings.renderScale = number;
+        else if (what == "post" && (value == "full" || value == "grade" || value == "off"))
+        {
+            toggles.postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
+            settings.post = Atom::PostSettings{};
+            settings.post.enabled = toggles.postMode != 2;
+            if (toggles.postMode == 1)
+            {
+                settings.post.grain = 0.0f;
+                settings.post.vignette = 0.0f;
+            }
+        }
+        else if (what == "fog")
+        {
+            const auto found = std::find_if(std::begin(FogPresets), std::end(FogPresets),
+                                            [&](const FogPreset& preset) { return value == preset.name; });
+            if (found == std::end(FogPresets))
+            {
+                return false;
+            }
+            toggles.fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
+        }
+        else if (what == "fov" && camera && isNumber && number >= 10.0f && number <= 150.0f)
+        {
+            camera->verticalFov = glm::radians(number);
+        }
+        else if (what == "shadows" && onOff) toggles.shadows = on;
+        else if (what == "sun" && onOff) toggles.sun = on;
+        else if (what == "glow" && onOff) toggles.glow = on;
+        else if (what == "baked" && onOff) toggles.bakedLight = on;
+        else if (what == "particles" && particles && onOff) particles->SetEnabled(on);
+        else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
+        else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on);
+        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) toggles.rain = number;
+        else if (what == "rain" && value == "level") toggles.rain.reset(); // the environment's again
+        else if (what == "weather" && onOff)
+        {
+            // M51: the lake's weather all at once - water and rain - or none.
+            renderer.SetWaterEnabled(on);
+            toggles.rain = on ? 1.0f : 0.0f;
+        }
+        else
+        {
+            return false;
+        }
+        renderer.SetSettings(settings);
+        return true;
     }
 }

@@ -5,9 +5,11 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 
 namespace Atom
 {
+    class Camera;
     class Input;
 }
 
@@ -58,4 +60,12 @@ namespace AtomFramework
     // (the caller reapplies SceneLightingFor).
     bool HandleViewKeys(const Atom::Input& input, Atom::Renderer& renderer, ViewToggles& toggles,
                         Atmosphere* particles);
+
+    // The view switches every app's "set" accepts (v0.0.14, M89; the
+    // demo's since M41), and the F10 panels flip: msaa, scale, post, fog,
+    // fov, shadows, sun, glow, particles, water, reflection, rain, weather.
+    // Renderer settings are applied here; returns false for anything else
+    // (the app's own switches). The caller reapplies SceneLightingFor.
+    bool ApplyViewSwitch(Atom::Renderer& renderer, ViewToggles& toggles, Atom::Camera* camera,
+                         Atmosphere* particles, const std::string& what, const std::string& value);
 }
