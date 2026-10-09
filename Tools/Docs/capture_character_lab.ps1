@@ -11,7 +11,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path "$PSScriptRoot\..\..").Path
-$game = "$repo\build\bin\$Config\Demo.exe"
+$game = "$repo\build\bin\$Config\Showcase.exe"
 $out = "$repo\out\img\character_lab"
 
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }

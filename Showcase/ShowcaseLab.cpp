@@ -1,11 +1,16 @@
-// The character lab (M36): DemoApp's model-viewer mode. LabViewer holds the
-// state (orbit, clip, toggles); this file feeds it keys and the mouse, puts
-// the camera where it says, poses the subject and draws the overlays.
-#include "DemoApp.h"
+// The character lab (M36-M38) at the Showcase's pavilion (v0.0.14; the
+// demo's lab mode until then). LabViewer holds the viewer's state (orbit,
+// clip, toggles); this file feeds it keys and the mouse, puts the camera
+// where it says, poses the subject, drives it in drive mode and draws the
+// overlays. The keys are the demo lab's.
+#include "ShowcaseApp.h"
 
 #include "Assets/Model.h"
 #include "Assets/Skin.h"
 #include "Physics/CollisionWorld.h"
+#include "Platform/Input.h"
+#include "Renderer/Renderer.h"
+#include "UI/UIRenderer.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
@@ -16,10 +21,8 @@
 #include <cstdio>
 #include <optional>
 
-namespace Demo
+namespace Showcase
 {
-    using namespace AtomFramework; // v0.0.14: the world layer (levels, world, interaction) lives there
-
     namespace
     {
         constexpr float OrbitKeyDegreesPerSecond = 90.0f;
@@ -30,7 +33,7 @@ namespace Demo
         // Drive mode (M38).
         constexpr float DriveWalkSpeed = 1.6f; // m/s; the blend's walk end is 1.4
         constexpr float DriveRunSpeed = 4.0f;  // the blend's run end
-        constexpr float TurnRate = 10.0f;      // 1/s: how fast Rudy turns to face his way
+        constexpr float TurnRate = 10.0f;      // 1/s: how fast the character turns to face its way
         constexpr float ShoulderHeight = 1.3f; // the arm's pivot above the feet
         constexpr float DriveMouseDegreesPerPixel = 0.2f;
 
@@ -49,32 +52,37 @@ namespace Demo
         constexpr glm::vec4 JointColor{ 1.0f, 0.35f, 0.20f, 1.0f };
     }
 
-    Entity* DemoApp::FindLabSubject()
+    // A key, or the same action held / pressed by a scenario.
+    bool ShowcaseApp::LabKeyDown(const char* action, SDL_Scancode a, SDL_Scancode b) const
     {
-        GameWorld* world = CurrentWorld();
-        Entity* found = nullptr;
-        if (world && m_lab)
-        {
-            world->ForEach([&](EntityId, Entity& entity) {
-                if (entity.name == m_lab->subject)
-                {
-                    found = &entity;
-                }
-            });
-        }
-        return found;
+        const Atom::Input& input = const_cast<ShowcaseApp*>(this)->GetInput();
+        return input.IsKeyDown(a) || (b != SDL_SCANCODE_UNKNOWN && input.IsKeyDown(b))
+            || std::find(m_heldActions.begin(), m_heldActions.end(), action) != m_heldActions.end();
     }
 
-    void DemoApp::BeginLab(Level& level)
+    bool ShowcaseApp::LabKeyPressed(const char* action, SDL_Scancode a, SDL_Scancode b) const
     {
-        m_lab = level.GetData().lab;
-        GetRenderer().SetSkinWeightsView(false);
-        Entity* subject = FindLabSubject();
-        if (!m_lab || !subject || !subject->renderable || !subject->renderable->model)
+        const Atom::Input& input = const_cast<ShowcaseApp*>(this)->GetInput();
+        return input.WasKeyPressed(a) || (b != SDL_SCANCODE_UNKNOWN && input.WasKeyPressed(b))
+            || std::find(m_pressedActions.begin(), m_pressedActions.end(), action) != m_pressedActions.end();
+    }
+
+    Entity* ShowcaseApp::LabSubject()
+    {
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        return level && level->GetData().lab ? FindEntity(level->GetData().lab->subject) : nullptr;
+    }
+
+    void ShowcaseApp::BeginLab()
+    {
+        Entity* subject = LabSubject();
+        if (!subject || !subject->renderable || !subject->renderable->model)
         {
-            m_lab.reset();
             return;
         }
+        const LevelLab& lab = *m_levels->GetLevel()->GetData().lab;
+        m_labHome = subject->position;
+        m_labHomeYaw = subject->renderable->yaw;
 
         // The viewer's clips are the model's, in file order (keys 1-4).
         const Atom::Model& model = *subject->renderable->model;
@@ -84,10 +92,10 @@ namespace Demo
             clips.push_back(ViewerClip{ clip->name, clip->duration });
         }
         LabViewer::Orbit orbit;
-        orbit.target = subject->position + m_lab->target;
-        orbit.distance = m_lab->distance;
-        orbit.yawDegrees = m_lab->yawDegrees;
-        orbit.pitchDegrees = m_lab->pitchDegrees;
+        orbit.target = subject->position + lab.target;
+        orbit.distance = lab.distance;
+        orbit.yawDegrees = lab.yawDegrees;
+        orbit.pitchDegrees = lab.pitchDegrees;
         m_viewer.Reset(orbit, std::move(clips));
         m_labScriptedParams = false;
         if (subject->animator)
@@ -95,26 +103,46 @@ namespace Demo
             // The viewer owns the clock: the level mustn't advance it too.
             subject->animator->SetEnabled(false);
         }
+        m_mode = Mode::Viewing;
         ApplyLabPose();
-
-        // The fade-in shows the orbit view, so that is where we "arrive".
         m_camera.SetPosition(m_viewer.GetEye());
         m_camera.SetRotation(m_viewer.GetCameraYaw(), m_viewer.GetCameraPitch());
-        m_arrivalEye = m_viewer.GetEye();
-        m_arrivalYaw = m_viewer.GetCameraYaw();
     }
 
-    void DemoApp::UpdateLab(float deltaSeconds)
+    void ShowcaseApp::EndLab()
+    {
+        // The character goes back to its spot and its loop; the camera to
+        // the player, who never moved.
+        if (Entity* subject = LabSubject(); subject && subject->renderable)
+        {
+            subject->position = m_labHome;
+            subject->renderable->yaw = m_labHomeYaw;
+            subject->poseSamples.clear();
+            if (subject->animated)
+            {
+                subject->animated.reset();
+            }
+            if (subject->animator)
+            {
+                subject->animator->ForceState("idle");
+                subject->animator->SetEnabled(true);
+            }
+        }
+        GetRenderer().SetSkinWeightsView(false);
+        m_mode = Mode::Walking;
+        m_player.Teleport(m_player.GetFeetPosition(), m_camera);
+        Face(LabSubject() ? LabSubject()->name : std::string{});
+    }
+
+    void ShowcaseApp::UpdateLab(float deltaSeconds)
     {
         const Atom::Input& input = GetInput();
-        const auto axis = [&](InputAction positive, InputAction negative) {
-            return (m_actions.Held(positive) ? 1.0f : 0.0f) - (m_actions.Held(negative) ? 1.0f : 0.0f);
-        };
+        const auto axis = [&](bool positive, bool negative) { return (positive ? 1.0f : 0.0f) - (negative ? 1.0f : 0.0f); };
 
         ViewerInput in;
-        in.orbitYawDegrees = axis(InputAction::OrbitRight, InputAction::OrbitLeft)
+        in.orbitYawDegrees = axis(LabKeyDown("orbit_right", SDL_SCANCODE_RIGHT), LabKeyDown("orbit_left", SDL_SCANCODE_LEFT))
             * OrbitKeyDegreesPerSecond * deltaSeconds;
-        in.orbitPitchDegrees = axis(InputAction::OrbitUp, InputAction::OrbitDown)
+        in.orbitPitchDegrees = axis(LabKeyDown("orbit_up", SDL_SCANCODE_UP), LabKeyDown("orbit_down", SDL_SCANCODE_DOWN))
             * OrbitKeyDegreesPerSecond * deltaSeconds;
         if (input.IsMouseCaptured())
         {
@@ -124,31 +152,35 @@ namespace Demo
             in.orbitPitchDegrees += input.GetMouseDeltaY() * MouseDegreesPerPixel;
         }
         in.zoomSteps = input.GetWheelDelta()
-            + axis(InputAction::ZoomIn, InputAction::ZoomOut) * ZoomKeyStepsPerSecond * deltaSeconds;
-
-        const InputAction clipKeys[] = { InputAction::Clip1, InputAction::Clip2, InputAction::Clip3, InputAction::Clip4 };
+            + axis(LabKeyDown("zoom_in", SDL_SCANCODE_PAGEUP), LabKeyDown("zoom_out", SDL_SCANCODE_PAGEDOWN))
+                * ZoomKeyStepsPerSecond * deltaSeconds;
+        constexpr SDL_Scancode clipKeys[] = { SDL_SCANCODE_1, SDL_SCANCODE_2, SDL_SCANCODE_3, SDL_SCANCODE_4 };
+        constexpr const char* clipActions[] = { "clip_1", "clip_2", "clip_3", "clip_4" };
         for (int i = 0; i < 4; ++i)
         {
-            if (m_actions.Pressed(clipKeys[i]))
+            if (LabKeyPressed(clipActions[i], clipKeys[i]))
             {
                 in.selectClip = i;
             }
         }
-        if (m_actions.Pressed(InputAction::ModeBlend))
+        if (LabKeyPressed("mode_blend", SDL_SCANCODE_5))
         {
             in.selectMode = static_cast<int>(ViewerMode::Blend);
         }
-        if (m_actions.Pressed(InputAction::ModeAnimator))
+        if (LabKeyPressed("mode_animator", SDL_SCANCODE_6))
         {
             in.selectMode = static_cast<int>(ViewerMode::StateMachine);
         }
-        in.blendDelta = axis(InputAction::BlendUp, InputAction::BlendDown) * BlendSliderPerSecond * deltaSeconds;
-        in.speedStep = (m_actions.Pressed(InputAction::Faster) ? 1 : 0) - (m_actions.Pressed(InputAction::Slower) ? 1 : 0);
-        in.togglePause = m_actions.Pressed(InputAction::Pause);
-        in.step = m_actions.Pressed(InputAction::StepFrame);
-        in.toggleBindPose = m_actions.Pressed(InputAction::ToggleBindPose);
-        in.toggleSkeleton = m_actions.Pressed(InputAction::ToggleSkeleton);
-        in.toggleWeights = m_actions.Pressed(InputAction::ToggleWeights);
+        in.blendDelta = axis(LabKeyDown("blend_up", SDL_SCANCODE_X, SDL_SCANCODE_RIGHTBRACKET),
+                             LabKeyDown("blend_down", SDL_SCANCODE_Z, SDL_SCANCODE_LEFTBRACKET))
+            * BlendSliderPerSecond * deltaSeconds;
+        in.speedStep = (LabKeyPressed("faster", SDL_SCANCODE_EQUALS, SDL_SCANCODE_KP_PLUS) ? 1 : 0)
+            - (LabKeyPressed("slower", SDL_SCANCODE_MINUS, SDL_SCANCODE_KP_MINUS) ? 1 : 0);
+        in.togglePause = LabKeyPressed("pause", SDL_SCANCODE_SPACE);
+        in.step = LabKeyPressed("step", SDL_SCANCODE_PERIOD);
+        in.toggleBindPose = LabKeyPressed("toggle_bind", SDL_SCANCODE_B);
+        in.toggleSkeleton = LabKeyPressed("toggle_skeleton", SDL_SCANCODE_K);
+        in.toggleWeights = LabKeyPressed("toggle_weights", SDL_SCANCODE_W);
 
         m_viewer.Update(in, deltaSeconds);
         m_camera.SetPosition(m_viewer.GetEye());
@@ -156,7 +188,7 @@ namespace Demo
 
         // The state machine demo: the script plays the gameplay that would
         // set the parameters (unless a test sets them itself).
-        Entity* subject = FindLabSubject();
+        Entity* subject = LabSubject();
         if (subject && subject->animator && m_viewer.GetMode() == ViewerMode::StateMachine)
         {
             if (!m_labScriptedParams)
@@ -170,14 +202,10 @@ namespace Demo
         ApplyLabPose();
     }
 
-    void DemoApp::ApplyLabPose()
+    void ShowcaseApp::ApplyLabPose()
     {
-        Entity* subject = FindLabSubject();
-        if (!subject || !subject->renderable || !subject->renderable->model)
-        {
-            return;
-        }
-        if (m_mode == Mode::Driving)
+        Entity* subject = LabSubject();
+        if (!subject || !subject->renderable || !subject->renderable->model || m_mode == Mode::Driving)
         {
             return; // the drive poses the subject from its animator
         }
@@ -201,22 +229,22 @@ namespace Demo
         GetRenderer().SetSkinWeightsView(m_viewer.ShowsWeights());
     }
 
-    void DemoApp::BeginDrive()
+    void ShowcaseApp::BeginDrive()
     {
-        Entity* subject = FindLabSubject();
+        Entity* subject = LabSubject();
         if (!subject || !subject->animator)
         {
             return; // nothing to drive
         }
-        // Rudy at 0.8 scale: a slimmer, shorter body than the player's.
+        // The character at 0.8 scale: a slimmer, shorter body than the player's.
         m_driveBody.radius = 0.32f;
         m_driveBody.bodyHeight = 1.7f;
         m_driveBody.stepHeight = 0.3f;
         m_driveBody.walkSpeed = DriveWalkSpeed;
         m_driveBody.jogSpeed = DriveRunSpeed;
         m_driveBody.Place(subject->position);
-        // The arm starts behind him, as third-person games do: W walks the
-        // way he faces. (Yaw 0 puts the arm on +Z; he faces +Z at yaw 0.)
+        // The arm starts behind it, as third-person games do: W walks the
+        // way it faces. (Yaw 0 puts the arm on +Z; it faces +Z at yaw 0.)
         m_arm.Reset(glm::degrees(subject->renderable->yaw) + 180.0f, 15.0f);
         subject->animator->ForceState("idle");
         subject->animator->SetParam("speed", 0.0f);
@@ -226,13 +254,13 @@ namespace Demo
         UpdateDrive(0.0f);
     }
 
-    void DemoApp::EndDrive()
+    void ShowcaseApp::EndDrive()
     {
         // Back to the viewer, orbiting the subject wherever it stands.
-        if (const Entity* subject = FindLabSubject(); subject && m_lab)
+        if (const Entity* subject = LabSubject())
         {
             LabViewer::Orbit orbit = m_viewer.GetOrbit();
-            orbit.target = subject->position + m_lab->target;
+            orbit.target = subject->position + m_levels->GetLevel()->GetData().lab->target;
             orbit.yawDegrees = m_arm.GetYawDegrees();
             m_viewer.SetOrbit(orbit);
         }
@@ -242,26 +270,26 @@ namespace Demo
         m_camera.SetRotation(m_viewer.GetCameraYaw(), m_viewer.GetCameraPitch());
     }
 
-    void DemoApp::UpdateDrive(float deltaSeconds)
+    void ShowcaseApp::UpdateDrive(float deltaSeconds)
     {
-        Entity* subject = FindLabSubject();
+        Entity* subject = LabSubject();
         if (!subject || !subject->animator || !subject->renderable)
         {
             m_mode = Mode::Viewing;
             return;
         }
-        if (m_actions.Pressed(InputAction::ToggleSkeleton))
+        if (LabKeyPressed("toggle_skeleton", SDL_SCANCODE_K))
         {
             m_viewer.SetSkeleton(!m_viewer.ShowsSkeleton());
         }
 
         // The camera first: movement is relative to where it looks.
         const Atom::Input& input = GetInput();
-        const auto axis = [&](InputAction positive, InputAction negative) {
-            return (m_actions.Held(positive) ? 1.0f : 0.0f) - (m_actions.Held(negative) ? 1.0f : 0.0f);
-        };
-        float yaw = -axis(InputAction::OrbitRight, InputAction::OrbitLeft) * OrbitKeyDegreesPerSecond * deltaSeconds;
-        float pitch = axis(InputAction::OrbitUp, InputAction::OrbitDown) * OrbitKeyDegreesPerSecond * deltaSeconds;
+        const auto axis = [&](bool positive, bool negative) { return (positive ? 1.0f : 0.0f) - (negative ? 1.0f : 0.0f); };
+        float yaw = -axis(LabKeyDown("orbit_right", SDL_SCANCODE_RIGHT), LabKeyDown("orbit_left", SDL_SCANCODE_LEFT))
+            * OrbitKeyDegreesPerSecond * deltaSeconds;
+        float pitch = axis(LabKeyDown("orbit_up", SDL_SCANCODE_UP), LabKeyDown("orbit_down", SDL_SCANCODE_DOWN))
+            * OrbitKeyDegreesPerSecond * deltaSeconds;
         if (input.IsMouseCaptured())
         {
             yaw -= input.GetMouseDeltaX() * DriveMouseDegreesPerPixel;
@@ -272,15 +300,15 @@ namespace Demo
         const glm::vec3 forward{ std::sin(cameraYaw), 0.0f, -std::cos(cameraYaw) };
         const glm::vec3 right{ std::cos(cameraYaw), 0.0f, std::sin(cameraYaw) };
 
-        glm::vec2 move{ axis(InputAction::MoveRight, InputAction::MoveLeft),
-                        axis(InputAction::MoveForward, InputAction::MoveBack) };
+        glm::vec2 move{ axis(LabKeyDown("move_right", SDL_SCANCODE_D), LabKeyDown("move_left", SDL_SCANCODE_A)),
+                        axis(LabKeyDown("move_forward", SDL_SCANCODE_W), LabKeyDown("move_back", SDL_SCANCODE_S)) };
         if (glm::dot(move, move) > 1.0f)
         {
             move = glm::normalize(move);
         }
-        const float speed = m_actions.Held(InputAction::Jog) ? DriveRunSpeed : DriveWalkSpeed;
+        const float speed = LabKeyDown("jog", SDL_SCANCODE_LSHIFT) ? DriveRunSpeed : DriveWalkSpeed;
         const glm::vec3 target = (forward * move.y + right * move.x) * speed;
-        m_driveBody.Move(target, m_actions.Pressed(InputAction::Jump), CurrentCollision(), deltaSeconds);
+        m_driveBody.Move(target, LabKeyPressed("jump", SDL_SCANCODE_SPACE), CurrentCollision(), deltaSeconds);
 
         // The character goes where the body is (its feet eased up steps)
         // and turns, smoothly, to face the way it moves.
@@ -307,11 +335,11 @@ namespace Demo
         {
             if (event == "foot" && m_driveBody.IsGrounded())
             {
-                ++m_driveSteps; // AudioScape plays a step on each change
+                ++m_driveSteps;
             }
         }
 
-        // The spring arm: pulled in by walls between Rudy and the camera.
+        // The spring arm: pulled in by walls between the character and the camera.
         const Atom::CollisionWorld* world = CurrentCollision();
         m_arm.Update(subject->position + glm::vec3{ 0.0f, ShoulderHeight, 0.0f },
             [world](const glm::vec3& from, const glm::vec3& to) -> std::optional<float> {
@@ -327,95 +355,7 @@ namespace Demo
         GetRenderer().SetSkinWeightsView(false);
     }
 
-    bool DemoApp::SetClip(const std::string& entityName, const std::string& clipName)
-    {
-        if (m_lab && entityName == m_lab->subject)
-        {
-            const bool found = m_viewer.SelectClip(clipName);
-            if (found)
-            {
-                // Show it now, not after a crossfade (tests check the pose).
-                m_viewer.FinishCrossfade();
-            }
-            ApplyLabPose();
-            return found;
-        }
-        GameWorld* world = CurrentWorld();
-        bool found = false;
-        if (world)
-        {
-            world->ForEach([&](EntityId, Entity& entity) {
-                if (found || entity.name != entityName || !entity.renderable || !entity.renderable->model)
-                {
-                    return;
-                }
-                const int clip = entity.renderable->model->FindClip(clipName);
-                if (clip < 0)
-                {
-                    return;
-                }
-                found = true;
-                Animated& a = entity.animated ? *entity.animated : entity.animated.emplace();
-                a.clip = clip;
-                a.duration = entity.renderable->model->GetClip(clip)->duration;
-                a.time = 0.0f;
-                a.loop = true;
-                a.playing = true;
-            });
-        }
-        return found;
-    }
-
-    std::string DemoApp::ClipName(const std::string& entityName) const
-    {
-        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(entityName);
-        if (!entity || !entity->renderable || !entity->renderable->model)
-        {
-            return {};
-        }
-        // Blended: the clip with the most weight.
-        int shown = entity->animated ? entity->animated->clip : -1;
-        float heaviest = 0.0f;
-        for (const Atom::ClipSample& sample : entity->poseSamples)
-        {
-            if (sample.weight > heaviest)
-            {
-                heaviest = sample.weight;
-                shown = sample.clip;
-            }
-        }
-        const Atom::AnimationClip* clip = entity->renderable->model->GetClip(shown);
-        return clip ? clip->name : std::string{};
-    }
-
-    bool DemoApp::SetAnimatorParam(const std::string& entityName, const std::string& param, float value)
-    {
-        GameWorld* world = CurrentWorld();
-        bool found = false;
-        if (world)
-        {
-            world->ForEach([&](EntityId, Entity& entity) {
-                if (!found && entity.name == entityName && entity.animator)
-                {
-                    entity.animator->SetParam(param, value);
-                    found = true;
-                }
-            });
-        }
-        if (found && m_lab && entityName == m_lab->subject)
-        {
-            m_labScriptedParams = true;
-        }
-        return found;
-    }
-
-    std::string DemoApp::AnimatorState(const std::string& entityName) const
-    {
-        const Entity* entity = const_cast<DemoApp*>(this)->FindEntity(entityName);
-        return entity && entity->animator ? entity->animator->GetStateName() : std::string{};
-    }
-
-    void DemoApp::DrawSkeleton(const Entity& subject)
+    void ShowcaseApp::DrawSkeleton(const Entity& subject)
     {
         const Atom::Model* model = subject.renderable ? subject.renderable->model : nullptr;
         if (!model || !model->IsSkinned())
@@ -488,9 +428,10 @@ namespace Demo
         }
     }
 
-    void DemoApp::DrawLabOverlay(float scale)
+    void ShowcaseApp::DrawLabOverlay()
     {
-        if (const Entity* subject = FindLabSubject(); subject && m_viewer.ShowsSkeleton())
+        const Entity* subject = LabSubject();
+        if (subject && m_viewer.ShowsSkeleton())
         {
             DrawSkeleton(*subject);
         }
@@ -501,13 +442,13 @@ namespace Demo
 
         Atom::UIRenderer& ui = GetRenderer().GetUI();
         const glm::vec2 screen = ui.GetScreenSize();
+        const float scale = std::clamp(screen.y / 720.0f, 0.75f, 2.0f);
         const float padding = 10.0f * scale;
         const glm::vec2 origin{ 16.0f * scale };
 
         // The panel: what is shown, and how.
         char clipLine[200];
         const char* paused = m_viewer.IsPaused() ? "   PAUSED" : "";
-        const Entity* subject = FindLabSubject();
         const Animator* animator = subject && subject->animator ? &*subject->animator : nullptr;
         const bool driving = m_mode == Mode::Driving;
         if (driving && animator)
@@ -547,7 +488,7 @@ namespace Demo
             m_viewer.ShowsSkeleton() ? "ON " : "off",
             m_viewer.ShowsWeights() ? "ON " : "off");
 
-        const std::string title = "CHARACTER LAB  -  " + m_lab->subject + (driving ? "  -  DRIVE" : "");
+        const std::string title = "CHARACTER LAB  -  " + (subject ? subject->name : std::string{}) + (driving ? "  -  DRIVE" : "");
         const glm::vec2 titleSize = ui.MeasureText(*m_smallFont, title, scale);
         const glm::vec2 lineSize = ui.MeasureText(*m_smallFont, clipLine, scale);
         const glm::vec2 toggleSize = ui.MeasureText(*m_smallFont, toggles, scale);
@@ -577,13 +518,84 @@ namespace Demo
 
         // The help line along the bottom.
         const char* help = driving
-            ? "WASD move   Shift run   Space jump   arrows / mouse camera   K skeleton   Tab viewer"
+            ? "WASD move   Shift run   Space jump   arrows / mouse camera   K skeleton   Tab viewer   E leave"
             : "1-4 clip   5 blend  Z/X slider   6 state machine   -/+ speed   Space pause   . step"
-              "   arrows / mouse orbit   wheel zoom   Tab drive";
+              "   arrows / mouse orbit   wheel zoom   Tab drive   E leave";
         const glm::vec2 helpSize = ui.MeasureText(*m_smallFont, help, scale);
         const glm::vec2 helpAt{ (screen.x - helpSize.x) * 0.5f, screen.y - helpSize.y - 24.0f * scale };
         ui.DrawRect(helpAt - glm::vec2{ padding, padding * 0.5f }, helpSize + glm::vec2{ 2.0f * padding, padding },
             PanelColor);
         ui.DrawText(*m_smallFont, help, helpAt, DimTextColor, scale);
+    }
+
+    // --- The harness's lab hooks ------------------------------------------
+
+    bool ShowcaseApp::SetClip(const std::string& entityName, const std::string& clipName)
+    {
+        const Entity* subject = LabSubject();
+        if (m_mode != Mode::Walking && subject && entityName == subject->name)
+        {
+            const bool found = m_viewer.SelectClip(clipName);
+            if (found)
+            {
+                m_viewer.FinishCrossfade(); // show it now (tests check the pose)
+            }
+            ApplyLabPose();
+            return found;
+        }
+        return false;
+    }
+
+    std::string ShowcaseApp::ClipName(const std::string& entityName) const
+    {
+        const Entity* entity = FindEntity(entityName);
+        if (!entity || !entity->renderable || !entity->renderable->model)
+        {
+            return {};
+        }
+        // Blended: the clip with the most weight.
+        int shown = entity->animated ? entity->animated->clip : -1;
+        float heaviest = 0.0f;
+        for (const Atom::ClipSample& sample : entity->poseSamples)
+        {
+            if (sample.weight > heaviest)
+            {
+                heaviest = sample.weight;
+                shown = sample.clip;
+            }
+        }
+        const Atom::AnimationClip* clip = entity->renderable->model->GetClip(shown);
+        return clip ? clip->name : std::string{};
+    }
+
+    bool ShowcaseApp::SetAnimatorParam(const std::string& entityName, const std::string& param, float value)
+    {
+        Entity* entity = FindEntity(entityName);
+        if (!entity || !entity->animator)
+        {
+            return false;
+        }
+        entity->animator->SetParam(param, value);
+        if (const Entity* subject = LabSubject(); subject && subject == entity)
+        {
+            m_labScriptedParams = true;
+        }
+        return true;
+    }
+
+    bool ShowcaseApp::HoldAction(const std::string& action, bool held)
+    {
+        std::erase(m_heldActions, action);
+        if (held)
+        {
+            m_heldActions.push_back(action);
+        }
+        return true;
+    }
+
+    bool ShowcaseApp::PressAction(const std::string& action)
+    {
+        m_pressedActions.push_back(action); // seen by this frame's lab, then gone
+        return true;
     }
 }

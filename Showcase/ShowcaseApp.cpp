@@ -27,7 +27,7 @@ namespace Showcase
             { "plaza", "The plaza", "Meshes, materials, the camera; animated models" },
             { "lakeshore", "The lakeshore", "Water and its reflection, the sky; P switches the weather everywhere" },
             { "lights", "The light corner", "Live lights, glow and halos - best at night (P)" },
-            { "pavilion", "The pavilion", "A skinned character: blended clips and a state machine" },
+            { "pavilion", "The pavilion", "A skinned character, its clips blended by a state machine - E to inspect or drive it" },
             { "toon_garden", "The toon garden", "Toon shading and outlines beside plain-shaded twins" },
             { "synth_booth", "The synth booth", "The live synth: J K L ; play, U I filter, O delay" },
         };
@@ -77,15 +77,19 @@ namespace Showcase
         m_levels->onLoaded = [this](Level& incoming, const SpawnPoint& spawn) { OnLevelLoaded(incoming, spawn); };
         m_levels->onReloaded = [this](Level&) { ResetEnvironment(); ApplyLighting(); };
 
-        // ATOM_START_LEVEL=showcase:<spawn> starts at an area (testing).
+        // ATOM_START_LEVEL=<level>[:<spawn>] starts elsewhere: an area of the
+        // scene (showcase:lights), or one of the documentation stages the
+        // capture scripts film (first_render, character_lab).
+        std::string startLevel = "showcase";
         std::string startSpawn;
         if (const char* start = Atom::DevSwitch("ATOM_START_LEVEL"))
         {
             const std::string value = start;
             const std::size_t colon = value.find(':');
+            startLevel = value.substr(0, colon);
             startSpawn = colon == std::string::npos ? "" : value.substr(colon + 1);
         }
-        if (!m_levels->Load("showcase", startSpawn))
+        if (!m_levels->Load(startLevel, startSpawn))
         {
             return false;
         }
@@ -110,7 +114,16 @@ namespace Showcase
         m_atmosphere.Configure(data.leaves, data.fogBanks, data.dust);
         ResetEnvironment();
         ApplyLighting();
+        m_mode = Mode::Walking;
         std::cout << "Entered level '" << data.name << "'\n";
+        // A documentation stage with a subject (character_lab) opens in the
+        // viewer, as the demo's lab did; in the scene, E opens it.
+        if (data.lab && data.name != "showcase")
+        {
+            BeginLab();
+            m_arrivalEye = m_viewer.GetEye();
+            m_arrivalYaw = m_viewer.GetCameraYaw();
+        }
     }
 
     void ShowcaseApp::ResetEnvironment()
@@ -153,7 +166,10 @@ namespace Showcase
             m_environment.Update(deltaSeconds);
             ApplyLighting();
         }
-        UpdatePavilion();
+        if (m_mode == Mode::Walking)
+        {
+            UpdatePavilion();
+        }
         if (Level* level = m_levels->GetLevel())
         {
             level->Update(deltaSeconds, m_player.GetFeetPosition());
@@ -161,22 +177,53 @@ namespace Showcase
 
         if (!m_levels->IsTransitioning())
         {
-            UpdateKeys();
-            UpdateBooth();
-            const Atom::Input& input = GetInput();
-            const auto held = [&](SDL_Scancode a, SDL_Scancode b) { return input.IsKeyDown(a) || input.IsKeyDown(b); };
-            PlayerController::MoveIntent intent;
-            intent.move.y = (held(SDL_SCANCODE_W, SDL_SCANCODE_UP) ? 1.0f : 0.0f) - (held(SDL_SCANCODE_S, SDL_SCANCODE_DOWN) ? 1.0f : 0.0f);
-            intent.move.x = (held(SDL_SCANCODE_D, SDL_SCANCODE_RIGHT) ? 1.0f : 0.0f) - (held(SDL_SCANCODE_A, SDL_SCANCODE_LEFT) ? 1.0f : 0.0f);
-            intent.jog = input.IsKeyDown(SDL_SCANCODE_LSHIFT);
-            m_player.Update(input, intent, m_camera, CurrentCollision(), deltaSeconds);
+            // E at the pavilion opens the character lab; in the lab, Tab
+            // switches viewer and drive, E leaves.
+            const bool lab = LabKeyPressed("lab", SDL_SCANCODE_E);
+            const bool tab = LabKeyPressed("toggle_drive", SDL_SCANCODE_TAB);
+            switch (m_mode)
+            {
+            case Mode::Walking:
+            {
+                // The key works at the pavilion; a scenario's "lab" anywhere.
+                const Area* area = AreaAt(m_player.GetFeetPosition());
+                const bool scripted = std::find(m_pressedActions.begin(), m_pressedActions.end(), "lab") != m_pressedActions.end();
+                if (lab && (scripted || (area && std::string_view(area->spawn) == "pavilion")))
+                {
+                    BeginLab();
+                    break;
+                }
+                UpdateKeys();
+                UpdateBooth();
+                const Atom::Input& input = GetInput();
+                const auto held = [&](SDL_Scancode a, SDL_Scancode b) { return input.IsKeyDown(a) || input.IsKeyDown(b); };
+                PlayerController::MoveIntent intent;
+                intent.move.y = (held(SDL_SCANCODE_W, SDL_SCANCODE_UP) ? 1.0f : 0.0f) - (held(SDL_SCANCODE_S, SDL_SCANCODE_DOWN) ? 1.0f : 0.0f);
+                intent.move.x = (held(SDL_SCANCODE_D, SDL_SCANCODE_RIGHT) ? 1.0f : 0.0f) - (held(SDL_SCANCODE_A, SDL_SCANCODE_LEFT) ? 1.0f : 0.0f);
+                intent.jog = input.IsKeyDown(SDL_SCANCODE_LSHIFT);
+                m_player.Update(input, intent, m_camera, CurrentCollision(), deltaSeconds);
+                break;
+            }
+            case Mode::Viewing:
+                if (lab) { EndLab(); }
+                else if (tab) { BeginDrive(); }
+                else { UpdateLab(deltaSeconds); }
+                break;
+            case Mode::Driving:
+                if (lab) { EndDrive(); EndLab(); }
+                else if (tab) { EndDrive(); }
+                else { UpdateDrive(deltaSeconds); }
+                break;
+            }
         }
+        m_pressedActions.clear(); // a scenario's press lasts one frame, as a key's does
 
         Atom::Renderer& renderer = GetRenderer();
         renderer.SetCamera(m_camera.GetViewMatrix(), m_camera.verticalFov, m_camera.nearPlane, m_camera.farPlane);
-        if (const Level* level = m_levels->GetLevel())
+        const Level* drawn = m_drawWorld ? m_levels->GetLevel() : nullptr;
+        if (drawn)
         {
-            level->Submit(renderer, m_player.GetFeetPosition());
+            drawn->Submit(renderer, m_player.GetFeetPosition());
         }
 
         // Weather (M50): the environment's wind and, outdoors, its rain.
@@ -185,10 +232,20 @@ namespace Showcase
         m_atmosphere.SetRain(lighting.rain, lighting.skyColor * 0.55f + glm::vec3{ 0.18f });
         m_atmosphere.Update(deltaSeconds, m_player.GetFeetPosition(), lighting.fogColor,
                             lighting.fogDensity > 0.0f ? 1.0f : 0.35f);
-        m_atmosphere.Submit(renderer);
+        if (m_drawWorld)
+        {
+            m_atmosphere.Submit(renderer);
+        }
         renderer.SetWind(m_atmosphere.GetWind(), m_time);
 
-        DrawCaption();
+        if (m_mode != Mode::Walking)
+        {
+            DrawLabOverlay(); // the skeleton always; the panel with the HUD
+        }
+        else if (m_showHud)
+        {
+            DrawCaption();
+        }
     }
 
     void ShowcaseApp::UpdateKeys()
@@ -422,6 +479,14 @@ namespace Showcase
 
     void ShowcaseApp::Teleport(const glm::vec3& feet, float yawDegrees)
     {
+        if (m_mode == Mode::Driving)
+        {
+            // Drive mode: the character moves, and the camera looks the given
+            // way (forward walks along it).
+            m_driveBody.Place(feet);
+            m_arm.Reset(-yawDegrees, m_arm.GetPitchDegrees());
+            return;
+        }
         m_player.Teleport(feet, m_camera);
         m_camera.SetRotation(glm::radians(yawDegrees), 0.0f);
     }
@@ -448,7 +513,11 @@ namespace Showcase
 
     std::string ShowcaseApp::ModeName() const
     {
-        return m_levels && m_levels->IsTransitioning() ? "transitioning" : "exploring";
+        if (m_levels && m_levels->IsTransitioning())
+        {
+            return "transitioning";
+        }
+        return m_mode == Mode::Viewing ? "viewer" : m_mode == Mode::Driving ? "drive" : "exploring";
     }
 
     std::size_t ShowcaseApp::VoiceCount() const
@@ -546,34 +615,103 @@ namespace Showcase
 
     bool ShowcaseApp::Set(const std::string& what, const std::string& value)
     {
-        // The switches a scenario may flip: the view toggles, the field of
-        // view, rain, the F1 overlay.
+        // The switches scenarios, benchmarks and documentation captures
+        // flip - the demo's names and meanings, for what the Showcase has.
         const bool on = value == "on";
         const bool onOff = on || value == "off";
-        Atom::Renderer& renderer = GetRenderer();
-        Atom::RenderSettings settings = renderer.GetSettings();
-        if (what == "shadows" && onOff) { m_view.shadows = on; ApplyLighting(); return true; }
-        if (what == "particles" && onOff) { m_atmosphere.SetEnabled(on); return true; }
-        if (what == "overlay" && onOff) { GetDevTools().SetOverlayVisible(on); return true; }
-        if (what == "msaa" && (value == "1" || value == "2" || value == "4"))
-        {
-            settings.msaaSamples = static_cast<std::uint32_t>(std::stoi(value));
-            renderer.SetSettings(settings);
-            return true;
-        }
         char* end = nullptr;
         const float number = std::strtof(value.c_str(), &end);
         const bool isNumber = end && *end == '\0' && !value.empty();
-        if (what == "fov" && isNumber && number >= 30.0f && number <= 110.0f)
+        Atom::Renderer& renderer = GetRenderer();
+        Atom::RenderSettings settings = renderer.GetSettings();
+        bool handled = true;
+        if (what == "shadows" && onOff) m_view.shadows = on;
+        else if (what == "sun" && onOff) m_view.sun = on;
+        else if (what == "particles" && onOff) m_atmosphere.SetEnabled(on);
+        else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on);
+        else if (what == "devtools" && onOff) GetDevTools().SetVisible(on);
+        else if (what == "hud" && onOff) m_showHud = on;
+        else if (what == "world" && onOff) m_drawWorld = on;
+        else if (what == "unease" && value == "off") {} // the demo's moments; the Showcase has none
+        else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
+        else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on);
+        else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_view.rain = number;
+        else if (what == "rain" && value == "level") m_view.rain.reset(); // the environment's again
+        else if (what == "weather" && onOff)
+        {
+            // M51: the lake's weather all at once - water and rain - or none.
+            renderer.SetWaterEnabled(on);
+            m_view.rain = on ? 1.0f : 0.0f;
+        }
+        else if (what == "msaa" && (value == "1" || value == "2" || value == "4"))
+        {
+            settings.msaaSamples = static_cast<std::uint32_t>(std::stoi(value));
+        }
+        else if (what == "scale" && isNumber && number >= 0.1f && number <= 1.0f) settings.renderScale = number;
+        else if (what == "post" && (value == "full" || value == "grade" || value == "off"))
+        {
+            m_view.postMode = value == "full" ? 0 : value == "grade" ? 1 : 2;
+            settings.post = Atom::PostSettings{};
+            settings.post.enabled = m_view.postMode != 2;
+            if (m_view.postMode == 1)
+            {
+                settings.post.grain = 0.0f;
+                settings.post.vignette = 0.0f;
+            }
+        }
+        else if (what == "fog")
+        {
+            const auto found = std::find_if(std::begin(FogPresets), std::end(FogPresets),
+                                            [&](const FogPreset& preset) { return value == preset.name; });
+            if (found == std::end(FogPresets))
+            {
+                return false;
+            }
+            m_view.fogPreset = static_cast<std::size_t>(found - std::begin(FogPresets));
+        }
+        else if (what == "fov" && isNumber && number >= 10.0f && number <= 150.0f)
         {
             m_camera.verticalFov = glm::radians(number);
-            return true;
         }
-        if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f)
+        else if (what == "fixed_dt" && isNumber && number >= 0.0f && number <= 0.25f)
         {
-            m_view.rain = number;
+            m_diagnostics.SetFixedStep(number);
+        }
+        else
+        {
+            handled = false;
+        }
+        if (handled)
+        {
+            renderer.SetSettings(settings);
             ApplyLighting();
             return true;
+        }
+        // The character lab's switches, while it is open.
+        if (m_mode != Mode::Walking)
+        {
+            if (what == "mode" && (value == "clips" || value == "blend" || value == "machine"))
+            {
+                m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips
+                                    : value == "blend" ? ViewerMode::Blend : ViewerMode::StateMachine);
+                ApplyLabPose();
+                return true;
+            }
+            if (what == "blend" && isNumber && number >= 0.0f && number <= 1.0f)
+            {
+                m_viewer.SetBlendWeight(number);
+                ApplyLabPose();
+                return true;
+            }
+            if ((what == "skeleton" || what == "weights" || what == "bind" || what == "pause") && onOff)
+            {
+                if (what == "skeleton") m_viewer.SetSkeleton(on);
+                else if (what == "weights") m_viewer.SetWeights(on);
+                else if (what == "bind") m_viewer.SetBindPose(on);
+                else m_viewer.SetPaused(on);
+                ApplyLabPose();
+                return true;
+            }
         }
         return false;
     }

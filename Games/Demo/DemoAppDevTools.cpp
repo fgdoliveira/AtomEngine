@@ -431,7 +431,7 @@ namespace Demo
                 if (ImGui::Button("Copy as JSON"))
                 {
                     const std::string name = m_environmentName.empty() ? "my_preset" : m_environmentName;
-                    std::string json = "{\n  \"$schema\": \"../../../../Framework/Schemas/environment.schema.json\",\n"
+                    std::string json = "{\n  \"$schema\": \"../../Framework/Schemas/environment.schema.json\",\n"
                         "  \"name\": \"" + name + "\",\n"
                         "  \"sunDirection\": " + Vec3Json(e.sunDirection) + ",\n"
                         "  \"sunColor\": " + Vec3Json(e.sunColor) + ",\n"

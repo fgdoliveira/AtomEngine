@@ -28,6 +28,7 @@
   "outdoor": true,
   "surfaces": { "default": "dirt", "zones": [{ "min": [-1.0, 0, -18.0], "max": [1.0, 0, -3.0], "surface": "wood" }] },
   "particles": { "leaves": true, "fogBanks": false },
+  "lab": { "subject": "rudy", "target": [0.0, 0.85, 0.0], "distance": 3.6, "yaw": 110.0, "pitch": 10.0 },
   "halos": [
     { "position": [28.05, 4.6, 0.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
     { "position": [28.05, 4.6, 6.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3, "flicker": 0.8 },

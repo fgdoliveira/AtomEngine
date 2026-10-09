@@ -1,0 +1,59 @@
+# The character lab at the pavilion (M36-M38; the demo's character_lab
+# scenario until v0.0.14). E opens the viewer: clips, the walk/run blend.
+# Tab hands the character to the keys: the animator follows what its body
+# does - walk, run, jump, stand. (Climbing steps and a ramp is checked by
+# the unit tests, DriveTests: the pavilion is flat ground.)
+expect_level showcase
+teleport -15 0.25 7 -90
+wait 0.3
+press_action lab
+wait 0.1
+expect_mode viewer
+
+# The viewer: a clip, then the blend leaning all the way to the run.
+clip rudy Walk
+expect_clip rudy Walk
+set mode blend
+set blend 1
+wait 0.3
+expect_clip rudy Run
+set skeleton on
+wait 0.2
+set skeleton off
+set mode clips
+
+# Drive: walk along +X (open ground toward the plaza), then run, stop.
+press_action toggle_drive
+wait 0.1
+expect_mode drive
+expect_state rudy idle
+teleport -25 0.25 7 90
+wait 0.2
+hold_action move_forward on
+wait 1.5
+expect_state rudy move
+expect_clip rudy Walk
+hold_action jog on
+wait 1.2
+expect_clip rudy Run
+hold_action jog off
+hold_action move_forward off
+wait 1.2
+expect_state rudy idle
+
+# A jump: in the air, then back on the ground and standing.
+press_action jump
+wait 0.15
+expect_state rudy jump
+wait 1.6
+expect_state rudy idle
+
+# Tab back to the viewer, E back to walking: the character returns to its
+# spot and its loop.
+press_action toggle_drive
+wait 0.1
+expect_mode viewer
+press_action lab
+wait 0.1
+expect_mode exploring
+log showcase lab done

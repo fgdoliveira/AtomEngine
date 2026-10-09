@@ -37,30 +37,6 @@ namespace Demo
         StrengthDown,
         Leave,        // machine: stand up
         Buy,          // machine: tokens for balls (M33)
-        // Character lab viewer (M36).
-        OrbitLeft,
-        OrbitRight,
-        OrbitUp,
-        OrbitDown,
-        ZoomIn,
-        ZoomOut,
-        Clip1,
-        Clip2,
-        Clip3,
-        Clip4,
-        Slower,
-        Faster,
-        Pause,
-        StepFrame,
-        ToggleBindPose,
-        ToggleSkeleton,
-        ToggleWeights,
-        ModeBlend,    // M37: walk/run blend
-        ModeAnimator, // M37: the state machine demo
-        BlendDown,
-        BlendUp,
-        Jump,         // M38: drive mode
-        ToggleDrive,  // M38: Tab, viewer <-> drive
         ToggleLight,  // M44: the flashlight
         Count,
     };
@@ -70,8 +46,6 @@ namespace Demo
         Exploring,
         Dialogue,
         Machine,
-        Viewer, // M36: the character lab's model viewer
-        Driving, // M38: the lab's third-person drive mode
     };
 
     // "launch" <-> InputAction::Launch, for scripts and error messages.

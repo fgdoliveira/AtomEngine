@@ -2,8 +2,6 @@
 
 #include "Environment/Atmosphere.h"
 #include "Environment/EnvironmentPresets.h"
-#include "Character/LabViewer.h"
-#include "Character/SpringArm.h"
 #include "AudioScape.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
@@ -73,13 +71,11 @@ namespace Demo
             Transitioning, // fading between levels; input ignored
             InSequence,    // M26: a sequence runs; the player is frozen
             AtMachine,     // M29: sitting at a pachinko machine
-            Viewing,       // M36: the character lab's model viewer
-            Driving,       // M38: the lab's third-person drive mode
         };
 
-        // Where play rests between dialogues and transitions: the viewer in
-        // the character lab, exploring everywhere else.
-        Mode RestingMode() const { return m_lab ? Mode::Viewing : Mode::Exploring; }
+        // Where play rests between dialogues and transitions. (The character
+        // lab's viewer and drive modes moved to the Showcase in v0.0.14.)
+        Mode RestingMode() const { return Mode::Exploring; }
 
         void OnLevelUnloading(Level& outgoing);
         void OnLevelLoaded(Level& incoming, const SpawnPoint& spawn);
@@ -223,15 +219,8 @@ namespace Demo
         {
             m_levels->RequestChange(level, spawn);
         }
-        glm::vec3 FeetPosition() const override
-        {
-            return m_mode == Mode::Driving ? m_driveBody.GetFeetPosition() : m_player.GetFeetPosition();
-        }
+        glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
-        bool SetClip(const std::string& entity, const std::string& clip) override;
-        std::string ClipName(const std::string& entity) const override;
-        bool SetAnimatorParam(const std::string& entity, const std::string& param, float value) override;
-        std::string AnimatorState(const std::string& entity) const override;
         bool IsLit(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
@@ -301,25 +290,6 @@ namespace Demo
         void DrawMachineView();
         void PlayMachineSounds(const PachinkoGame& game);
         void EndMachine();
-        // The character lab (M36): set while the level has a "lab".
-        std::optional<LevelLab> m_lab;
-        LabViewer m_viewer;
-        void BeginLab(Level& level);
-        void UpdateLab(float deltaSeconds);
-        Entity* FindLabSubject();
-        void ApplyLabPose(); // the viewer's clip and time onto the subject
-        void DrawLabOverlay(float scale);
-        void DrawSkeleton(const Entity& subject);
-        bool m_labScriptedParams = false; // the harness sets them: no demo
-
-        // Drive mode (M38): the subject walks on the player's kind of body,
-        // the camera on a spring arm; its feet's events count footsteps.
-        PlayerController m_driveBody;
-        SpringArm m_arm;
-        int m_driveSteps = 0;
-        void BeginDrive();
-        void EndDrive();
-        void UpdateDrive(float deltaSeconds);
         SequenceRunner m_sequence;
         bool RunSequence(const std::string& id);
         void UpdateSequence(float deltaSeconds);

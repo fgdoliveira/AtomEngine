@@ -12,7 +12,6 @@ add_library(
     DemoApp.h
     Flashlight.cpp
     Flashlight.h
-    DemoAppLab.cpp
     DemoAppDevTools.cpp
     DemoAppCalibration.cpp
     Dialogue/Dialogue.cpp
@@ -113,11 +112,11 @@ endif()
 # (ATOM_CONTENT_ASSETS). Both land in Assets/<folder> beside the
 # executable, so level files name them the same way.
 set(ATOM_SHIPPED_ASSETS
-    City Data Dialogue Environments Fields First Fonts Interior Kit
-    Lakeshore Levels Machines Night Pachinko Passage Shrine Sky Street
+    City Data Dialogue Environments Fields Fonts Interior Kit
+    Levels Machines Night Pachinko Passage Shrine Sky Street
 )
-set(ATOM_DEV_ASSETS Lab ThirdParty)
-set(ATOM_CONTENT_ASSETS Fonts Kit Sky)
+set(ATOM_DEV_ASSETS) # v0.0.14: none - the character lab moved to the Showcase
+set(ATOM_CONTENT_ASSETS Environments Fonts Kit Sky)
 set(ATOM_RUNTIME_ASSETS ${ATOM_SHIPPED_ASSETS} ${ATOM_DEV_ASSETS})
 function(atom_asset_source folder out)
     if(folder IN_LIST ATOM_CONTENT_ASSETS)
@@ -159,7 +158,7 @@ foreach(folder IN LISTS ATOM_SHIPPED_ASSETS)
         DIRECTORY "${source}"
         DESTINATION Assets
         COMPONENT Demo
-        PATTERN "character_lab*" EXCLUDE # the lab is development-only
+
     )
 endforeach()
 

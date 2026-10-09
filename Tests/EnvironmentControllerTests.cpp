@@ -141,7 +141,7 @@ TEST_CASE("Every shipped preset is valid, declares its schema, and the schema kn
         EnvironmentState state;
         CHECK(ApplyEnvironmentPreset(text, state) == "");
         const nlohmann::json root = nlohmann::json::parse(text);
-        CHECK(root.value("$schema", "") == std::string(AtomTests::FrameworkSchemaFromDemo) + "environment.schema.json");
+        CHECK(root.value("$schema", "") == std::string(AtomTests::FrameworkSchemaFromContent) + "environment.schema.json");
         for (const auto& [key, value] : root.items())
         {
             CHECK(keys.contains(key));

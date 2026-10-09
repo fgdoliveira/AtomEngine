@@ -114,15 +114,17 @@ TEST_CASE("Shipped levels and dialogues declare their schema, which knows their 
     const nlohmann::json level = properties("level.schema.json");
     const nlohmann::json dialogue = properties("dialogue.schema.json");
     const nlohmann::json machine = properties("machine.schema.json");
-    const std::string levelSchema = std::string(AtomTests::FrameworkSchemaFromDemo) + "level.schema.json";
+    const std::string demoLevelSchema = std::string(AtomTests::FrameworkSchemaFromDemo) + "level.schema.json";
+    const std::string showcaseLevelSchema = std::string(AtomTests::FrameworkSchemaFromShowcase) + "level.schema.json";
 
     int files = 0;
     for (const auto& [folder, schema, keys] : {
-             std::tuple{ "Levels", levelSchema.c_str(), &level },
-             std::tuple{ "Dialogue", "../Schemas/dialogue.schema.json", &dialogue },
-             std::tuple{ "Machines", "../Schemas/machine.schema.json", &machine } })
+             std::tuple{ std::string(AtomTests::LevelFolders[0]), demoLevelSchema.c_str(), &level },
+             std::tuple{ std::string(AtomTests::LevelFolders[1]), showcaseLevelSchema.c_str(), &level },
+             std::tuple{ AtomTests::Asset("Dialogue"), "../Schemas/dialogue.schema.json", &dialogue },
+             std::tuple{ AtomTests::Asset("Machines"), "../Schemas/machine.schema.json", &machine } })
     {
-        for (const auto& entry : std::filesystem::directory_iterator(AtomTests::Asset(folder)))
+        for (const auto& entry : std::filesystem::directory_iterator(folder))
         {
             const std::string name = entry.path().filename().string();
             if (entry.path().extension() != ".json" || name.ends_with(".markers.json"))

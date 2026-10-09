@@ -16,7 +16,9 @@ namespace Demo
     namespace
     {
         // The heaviest views the game has: the night street's lights and
-        // particles, and the lakeshore in rain (water, reflection, drops).
+        // particles, and the windmill field in rain (foliage, shadows,
+        // drops). v0.0.14: was the lakeshore, a lab players never reached,
+        // which moved to the Showcase.
         struct CalibrationView
         {
             const char* level;
@@ -27,7 +29,7 @@ namespace Demo
         };
         constexpr std::array<CalibrationView, 2> Views{ {
             { "night_street", false, {}, 0.0f, 0.0f },
-            { "lakeshore", true, { -3.0f, 0.25f, -2.0f }, 20.0f, 1.0f },
+            { "windmill_field", false, {}, 0.0f, 1.0f },
         } };
         // Each view measures every tier twice, in the order H B L L B H (the
         // ABBA of M46: drift lands on both halves), and keeps each tier's

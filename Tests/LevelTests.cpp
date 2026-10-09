@@ -209,32 +209,35 @@ TEST_CASE("Dust and the flashlight's beam are per level")
 
 TEST_CASE("Every shipped level file is valid")
 {
-    const std::filesystem::path folder = AtomTests::Asset("Levels");
+    // The demo's and the Showcase's (v0.0.14).
     int count = 0;
-    for (const auto& entry : std::filesystem::directory_iterator(folder))
+    for (const char* folder : AtomTests::LevelFolders)
     {
-        if (entry.path().extension() != ".json"
-            || entry.path().filename().string().ends_with(".markers.json"))
+        for (const auto& entry : std::filesystem::directory_iterator(folder))
         {
-            continue; // markers are read with their level
-        }
-        const LevelParseResult result = LoadLevelFile(entry.path().string());
-        INFO(entry.path().filename().string() << ": " << result.error);
-        CHECK(result.level.has_value());
-        // Referenced files exist (a level naming a missing lightmap would
-        // fail to load in the game).
-        if (result.level)
-        {
-            CHECK(std::filesystem::exists(AtomTests::Asset(result.level->model)));
-            CHECK(std::filesystem::exists(AtomTests::Asset(result.level->collision)));
-            if (result.level->lightmap)
+            if (entry.path().extension() != ".json"
+                || entry.path().filename().string().ends_with(".markers.json"))
             {
-                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->lightmap->texture)));
+                continue; // markers are read with their level
             }
+            const LevelParseResult result = LoadLevelFile(entry.path().string());
+            INFO(entry.path().filename().string() << ": " << result.error);
+            CHECK(result.level.has_value());
+            // Referenced files exist (a level naming a missing lightmap would
+            // fail to load in the game).
+            if (result.level)
+            {
+                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->model)));
+                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->collision)));
+                if (result.level->lightmap)
+                {
+                    CHECK(std::filesystem::exists(AtomTests::Asset(result.level->lightmap->texture)));
+                }
+            }
+            ++count;
         }
-        ++count;
     }
-    CHECK(count >= 1);
+    CHECK(count >= 10);
 }
 
 TEST_CASE("The street level keeps its content")

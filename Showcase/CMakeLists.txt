@@ -23,6 +23,7 @@ add_executable(
     Main.cpp
     ShowcaseApp.cpp
     ShowcaseApp.h
+    ShowcaseLab.cpp
 )
 target_link_libraries(
     Showcase
@@ -42,17 +43,10 @@ endif()
 set(SHOWCASE_COPY_COMMANDS
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:Showcase>/Assets/Showcase)
-foreach(folder IN ITEMS Fonts Kit Sky)
+foreach(folder IN ITEMS Environments Fonts Kit Sky)
     list(APPEND SHOWCASE_COPY_COMMANDS
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             ${CMAKE_SOURCE_DIR}/Content/${folder} $<TARGET_FILE_DIR:Showcase>/Assets/${folder})
-endforeach()
-# Until M86's last step moves them here: the lab art and presets still in
-# the demo's folder.
-foreach(folder IN ITEMS Environments Lab Lakeshore ThirdParty)
-    list(APPEND SHOWCASE_COPY_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            ${CMAKE_SOURCE_DIR}/Games/Demo/Assets/${folder} $<TARGET_FILE_DIR:Showcase>/Assets/Showcase/${folder})
 endforeach()
 add_custom_command(
     TARGET Showcase

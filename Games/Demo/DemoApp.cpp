@@ -354,8 +354,6 @@ namespace Demo
         }
         m_unease.Configure({}, nullptr);
         m_audioScape.SetSurfaceProvider(nullptr);
-        m_lab.reset();
-        GetRenderer().SetSkinWeightsView(false);
     }
 
     void DemoApp::OnLevelLoaded(Level& incoming, const SpawnPoint& spawn)
@@ -370,7 +368,6 @@ namespace Demo
         m_arriving = true;
 
         ConfigureForLevel(incoming);
-        BeginLab(incoming);
         m_mode = RestingMode();
         std::cout << "Entered level '" << data.name << "'\n";
     }
@@ -379,12 +376,6 @@ namespace Demo
     {
         // Same place, same view: only the level's content changed.
         ConfigureForLevel(incoming);
-        const LabViewer kept = m_viewer;
-        BeginLab(incoming);
-        if (m_lab)
-        {
-            m_viewer = kept; // keep the orbit and the clip across a hot reload
-        }
         m_mode = RestingMode();
     }
 
@@ -608,8 +599,6 @@ namespace Demo
         // The mode decides what the keys mean (M29).
         const InputContextId context = m_mode == Mode::InDialogue ? InputContextId::Dialogue
             : m_mode == Mode::AtMachine ? InputContextId::Machine
-            : m_mode == Mode::Viewing ? InputContextId::Viewer
-            : m_mode == Mode::Driving ? InputContextId::Driving
             : InputContextId::Exploring;
         m_actions.Update(m_inputMap, context, GetInput());
 
@@ -681,30 +670,6 @@ namespace Demo
             m_target = {};
             UpdateMachine(deltaSeconds);
             break;
-        // Tab switches between the lab's two modes, once per press: the
-        // mode entered this frame doesn't see the same press again.
-        case Mode::Viewing:
-            m_target = {};
-            if (m_actions.Pressed(InputAction::ToggleDrive))
-            {
-                BeginDrive();
-            }
-            else
-            {
-                UpdateLab(deltaSeconds);
-            }
-            break;
-        case Mode::Driving:
-            m_target = {};
-            if (m_actions.Pressed(InputAction::ToggleDrive))
-            {
-                EndDrive();
-            }
-            else
-            {
-                UpdateDrive(deltaSeconds);
-            }
-            break;
         case Mode::Transitioning:
             m_target = {};
             // The fade-in is drawn from here: it must be the spawn.
@@ -717,13 +682,11 @@ namespace Demo
         {
             m_audioScape.ToggleMute();
         }
-        // Footsteps: the player's, or in drive mode the character's, timed
-        // by its animation's foot-down events.
-        const bool driving = m_mode == Mode::Driving;
+        // Footsteps: the player's.
         m_audioScape.Update(deltaSeconds, m_camera, AudioScape::Listener{
-            driving ? m_driveBody.GetFeetPosition() : m_player.GetFeetPosition(),
-            driving ? m_driveSteps : m_player.GetStepCount(),
-            driving ? m_driveBody.IsGrounded() : m_player.IsGrounded(),
+            m_player.GetFeetPosition(),
+            m_player.GetStepCount(),
+            m_player.IsGrounded(),
             input.IsKeyDown(SDL_SCANCODE_LSHIFT)
         });
 
@@ -905,8 +868,7 @@ namespace Demo
 
         // Controls hint: shown on arrival, then fades away.
         m_hintTime += deltaSeconds;
-        // The lab has its own help line (DrawLabOverlay).
-        const float hintAlpha = m_showHud && !m_lab ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
+        const float hintAlpha = m_showHud ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
             const char* hint = m_flashlight.IsOwned()
@@ -924,10 +886,6 @@ namespace Demo
         if (m_mode == Mode::InDialogue)
         {
             m_dialogueView.Draw(ui, *m_font, *m_smallFont, m_dialogue, scale, m_time);
-        }
-        else if (m_mode == Mode::Viewing || m_mode == Mode::Driving)
-        {
-            DrawLabOverlay(scale);
         }
         else if (m_mode == Mode::Exploring)
         {
@@ -1256,14 +1214,6 @@ namespace Demo
 
     void DemoApp::Teleport(const glm::vec3& feet, float yawDegrees)
     {
-        if (m_mode == Mode::Driving)
-        {
-            // Drive mode: the character moves, and the camera looks the
-            // given way (forward walks along it).
-            m_driveBody.Place(feet);
-            m_arm.Reset(-yawDegrees, m_arm.GetPitchDegrees());
-            return;
-        }
         m_player.Teleport(feet, m_camera);
         m_camera.SetRotation(glm::radians(yawDegrees), 0.0f);
     }
@@ -1362,8 +1312,6 @@ namespace Demo
         case Mode::Transitioning: return "transitioning";
         case Mode::InSequence: return "sequence";
         case Mode::AtMachine: return "machine";
-        case Mode::Viewing: return "viewer";
-        case Mode::Driving: return "drive";
         default: return "exploring";
         }
     }
@@ -1672,25 +1620,6 @@ namespace Demo
             m_flashlight.SetOn(on);
         }
         else if (what == "spot_offset" && isNumber && number >= 0.0f && number <= 0.1f) m_devSpot.shadowNormalOffset = number;
-        else if (what == "mode" && m_lab && (value == "clips" || value == "blend" || value == "machine"))
-        {
-            m_viewer.SelectMode(value == "clips" ? ViewerMode::Clips
-                : value == "blend" ? ViewerMode::Blend : ViewerMode::StateMachine);
-            ApplyLabPose();
-        }
-        else if (what == "blend" && m_lab && isNumber && number >= 0.0f && number <= 1.0f)
-        {
-            m_viewer.SetBlendWeight(number);
-            ApplyLabPose();
-        }
-        else if ((what == "skeleton" || what == "weights" || what == "bind" || what == "pause") && onOff && m_lab)
-        {
-            if (what == "skeleton") m_viewer.SetSkeleton(on);
-            else if (what == "weights") m_viewer.SetWeights(on);
-            else if (what == "bind") m_viewer.SetBindPose(on);
-            else m_viewer.SetPaused(on);
-            ApplyLabPose();
-        }
         else if (what == "fov" && isNumber && number >= 10.0f && number <= 150.0f)
         {
             m_camera.verticalFov = glm::radians(number);

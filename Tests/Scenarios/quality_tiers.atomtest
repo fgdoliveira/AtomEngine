@@ -1,29 +1,26 @@
 # Quality tiers (M61): each preset applies at once and draws; changing a
 # switch by hand makes it Custom; the tier survives a level change. A
 # scripted run starts at the default (High), whatever the machine has saved.
-goto_level lakeshore
-wait_for_level lakeshore
+# (v0.0.14: on the night street; the lakeshore, whose reflection High
+# allowed, moved to the Showcase.)
+goto_level night_street
+wait_for_level night_street
 expect_quality high
-wait 0.3
-expect_reflection 10                 # High allows the level's reflection
 
 set quality low
 expect_quality low
 wait 0.3
-expect_water 1                       # still drawing
 
 set quality balanced
 expect_quality balanced
 wait 0.3
-expect_water 1
 set shadows off                      # a switch by hand (F6)
 expect_quality custom
 
 set quality high
 expect_quality high
 wait 0.3
-expect_reflection 10
 
-goto_level night_street
-wait_for_level night_street
+goto_level windmill_field
+wait_for_level windmill_field
 expect_quality high
