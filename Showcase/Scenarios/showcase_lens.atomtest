@@ -39,8 +39,8 @@ expect_stat particles <= 5                # only the level's 5 halos (drawn as p
 set feature_weather on
 environment clear_day 0
 
-# The light corner: live lights and glow.
-teleport 14 0.25 6 90
+# The lane: its lamps and the neon sign - live lights and glow.
+teleport 10 0.25 2 90
 wait 0.4
 expect_stat live_lights >= 1
 set feature_lights off

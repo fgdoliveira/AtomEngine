@@ -20,7 +20,7 @@ namespace Showcase
             { "glow", "Glow and halos", "A bright pass blurred and added back; additive halo billboards",
               "Engine/Renderer/Glow.cpp", 41, "sign_pink", {}, true },
             { "toon", "Toon shading and outlines", "A shader variant with three light steps; an inverted-hull outline pass",
-              "Shaders/BasicToon.frag.hlsl", 98, "toon_hokora", {}, true },
+              "Shaders/BasicToon.frag.hlsl", 98, "shrine_hokora", {}, true },
             { "character", "Skinned character", "Skinning, blended clips and an animation state machine",
               "Framework/Character/Animator.cpp", 55, "rudy", {}, true },
             { "synth", "Live synth", "Synthesised on the audio thread; keys reach it through a lock-free queue",

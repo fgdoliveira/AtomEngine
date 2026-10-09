@@ -3,14 +3,14 @@
   "name": "showcase",
   "model": "Lakeshore/lakeshore.glb",
   "collision": "Lakeshore/lakeshore_col.glb",
-  "defaultSpawn": "plaza",
+  "defaultSpawn": "village",
   "spawns": {
-    "plaza": { "position": [0.0, 0.25, 12.5], "yaw": 0 },
-    "lakeshore": { "position": [0.0, 0.5, -17.0], "yaw": 0 },
-    "lights": { "position": [14.0, 0.25, 6.0], "yaw": 90 },
-    "pavilion": { "position": [-15.0, 0.25, 7.0], "yaw": -90 },
-    "toon_garden": { "position": [-26.0, 0.25, -2.0], "yaw": 0 },
-    "synth_booth": { "position": [26.0, 0.25, -2.0], "yaw": 0 }
+    "village": { "position": [0.0, 0.25, 8.0], "yaw": 0 },
+    "jetty": { "position": [0.0, 0.5, -17.0], "yaw": 180 },
+    "lane": { "position": [-3.0, 0.25, 2.0], "yaw": 90 },
+    "workshop": { "position": [-15.0, 0.25, 2.5], "yaw": -90 },
+    "shrine": { "position": [-25.5, 0.25, -1.0], "yaw": 0 },
+    "radio": { "position": [26.0, 0.25, -1.0], "yaw": 0 }
   },
   "lighting": {
     "sunDirection": [0.3, 0.4, -0.85],
@@ -24,39 +24,48 @@
     "bakedLight": 1.0,
     "glow": { "strength": 0.6, "threshold": 0.8 }
   },
-  "environment": { "default": "clear_day", "presets": ["clear_day", "overcast", "rain", "fog", "sunset", "night"] },
+  "environment": { "default": "clear_day", "presets": ["clear_day", "sunset", "night", "rain", "overcast", "fog"] },
   "outdoor": true,
   "surfaces": { "default": "dirt", "zones": [{ "min": [-1.0, 0, -18.0], "max": [1.0, 0, -3.0], "surface": "wood" }] },
   "particles": { "leaves": true, "fogBanks": false },
   "lab": { "subject": "rudy", "target": [0.0, 0.85, 0.0], "distance": 3.6, "yaw": 110.0, "pitch": 10.0 },
   "halos": [
-    { "position": [28.05, 4.6, 0.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
-    { "position": [28.05, 4.6, 6.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3, "flicker": 0.8 },
-    { "position": [28.05, 4.6, 12.0], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
-    { "position": [23.0, 2.3, 2.0], "size": 3.0, "color": [1.0, 0.3, 0.6], "intensity": 0.5 },
-    { "position": [23.0, 2.3, 10.0], "size": 3.0, "color": [0.3, 0.8, 1.0], "intensity": 0.5, "flicker": 0.5 }
+    { "position": [-6.95, 4.6, 3.6], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [4.05, 4.6, 3.6], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3, "flicker": 0.8 },
+    { "position": [14.05, 4.6, 3.6], "size": 1.5, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [17.0, 2.3, 4.2], "size": 3.0, "color": [1.0, 0.3, 0.6], "intensity": 0.5 },
+    { "position": [-25.5, 1.5, -10.0], "size": 1.4, "color": [1.0, 0.7, 0.4], "intensity": 0.25, "flicker": 0.4 }
   ],
   "lights": [
-    { "position": [28.05, 4.6, 0.0], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0 },
-    { "position": [28.05, 4.6, 6.0], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0, "flicker": 0.8 },
-    { "position": [23.0, 2.3, 2.0], "color": [1.0, 0.3, 0.6], "intensity": 1.5, "radius": 6.0 },
-    { "position": [23.0, 2.3, 10.0], "color": [0.3, 0.8, 1.0], "intensity": 1.5, "radius": 6.0, "flicker": 0.5 }
+    { "position": [-6.95, 4.6, 3.6], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0 },
+    { "position": [4.05, 4.6, 3.6], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0, "flicker": 0.8 },
+    { "position": [14.05, 4.6, 3.6], "color": [1.0, 0.78, 0.5], "intensity": 1.6, "radius": 9.0 },
+    { "position": [17.0, 2.3, 4.2], "color": [1.0, 0.3, 0.6], "intensity": 1.5, "radius": 6.0 }
   ],
   "entities": [
-    { "name": "cube_1", "position": [-3.2, 0.25, 7.0], "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red" } },
-    { "name": "cube_2", "position": [0.0, 0.25, 5.0], "model": "Kit/demo_cube_gold.glb", "animation": { "clip": "spin_gold" } },
-    { "name": "cube_3", "position": [3.4, 0.25, 3.5], "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal" } },
-    { "name": "cube_4", "position": [-1.2, 0.25, 1.5], "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal", "speed": 1.5 } },
-    { "name": "cube_5", "position": [1.8, 0.25, 8.2], "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red", "speed": 0.7 } },
+    { "name": "house_west", "position": [-6.0, 0.25, 9.5], "model": "Kit/machiya.glb",
+      "collider": { "center": [0.0, 3.6, 0.0], "halfExtents": [3.75, 3.6, 4.8] } },
+    { "name": "house_east", "position": [11.0, 0.25, 9.5], "model": "Kit/machiya.glb",
+      "collider": { "center": [0.0, 3.6, 0.0], "halfExtents": [3.75, 3.6, 4.8] } },
+    { "name": "house_radio", "position": [22.0, 0.25, 9.5], "model": "Kit/machiya.glb",
+      "collider": { "center": [0.0, 3.6, 0.0], "halfExtents": [3.75, 3.6, 4.8] } },
 
-    { "name": "lamp_1", "position": [27.0, 0.25, 0.0], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
-    { "name": "lamp_2", "position": [27.0, 0.25, 6.0], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
-    { "name": "lamp_3", "position": [27.0, 0.25, 12.0], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
-    { "name": "sign_pink", "position": [23.0, 0.25, 2.0], "model": "Kit/neon_sign.glb" },
-    { "name": "sign_cyan", "position": [23.0, 0.25, 10.0], "model": "Kit/neon_sign.glb" },
-    { "name": "vending", "position": [20.0, 0.25, 12.5], "yaw": 180, "model": "Kit/vending_machine.glb" },
+    { "name": "lamp_1", "position": [-8.0, 0.25, 3.6], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_2", "position": [3.0, 0.25, 3.6], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "lamp_3", "position": [13.0, 0.25, 3.6], "model": "Kit/street_lamp.glb", "collider": { "center": [0.0, 2.3, 0.0], "halfExtents": [0.1, 2.3, 0.1] } },
+    { "name": "sign_pink", "position": [17.0, 0.25, 4.2], "model": "Kit/neon_sign.glb" },
+    { "name": "vending", "position": [15.6, 0.25, 4.6], "model": "Kit/vending_machine.glb",
+      "collider": { "center": [0.0, 0.95, 0.0], "halfExtents": [0.5, 0.95, 0.45] } },
+    { "name": "pole_1", "position": [-1.5, 0.25, 13.0], "model": "Kit/utility_pole.glb" },
+    { "name": "pole_2", "position": [17.0, 0.25, 13.0], "model": "Kit/utility_pole.glb" },
+    { "name": "signpost", "position": [-1.5, 0.25, -2.5], "model": "Kit/signpost.glb" },
 
-    { "name": "rudy", "position": [-25.0, 0.25, 7.0], "yaw": 90, "model": "ThirdParty/rudy.glb", "scale": 0.8,
+    { "name": "workshop", "position": [-20.0, 0.25, 8.5], "model": "Kit/shed.glb",
+      "collider": { "center": [0.0, 1.5, 0.0], "halfExtents": [1.8, 1.5, 1.55] } },
+    { "name": "workshop_fence_1", "position": [-24.0, 0.25, 12.5], "model": "Kit/wood_fence.glb" },
+    { "name": "workshop_fence_2", "position": [-16.0, 0.25, 12.5], "model": "Kit/wood_fence.glb" },
+    { "name": "workshop_lantern", "position": [-17.0, 0.25, 5.5], "model": "Kit/toro.glb" },
+    { "name": "rudy", "position": [-20.0, 0.25, 4.5], "yaw": 90, "model": "ThirdParty/rudy.glb", "scale": 0.8,
       "animator": {
         "initial": "idle",
         "states": {
@@ -72,17 +81,27 @@
           { "from": "move", "to": "idle", "when": ["speed <= 0.2"], "blend": 0.3 }
         ]
       } },
-    { "name": "pavilion_toro_1", "position": [-27.0, 0.25, 4.0], "model": "Kit/toro.glb" },
-    { "name": "pavilion_toro_2", "position": [-27.0, 0.25, 10.0], "model": "Kit/toro.glb" },
 
-    { "name": "plain_hokora", "position": [-28.0, 0.25, -9.0], "model": "Kit/hokora.glb" },
-    { "name": "plain_toro", "position": [-28.0, 0.25, -14.0], "model": "Kit/toro.glb" },
-    { "name": "plain_tree", "position": [-28.0, 0.25, -19.0], "model": "Kit/tree.glb" },
-    { "name": "toon_hokora", "position": [-24.5, 0.25, -9.0], "model": "Kit/hokora.glb", "toon": true, "outline": 0.03 },
-    { "name": "toon_toro", "position": [-24.5, 0.25, -14.0], "model": "Kit/toro.glb", "toon": true, "outline": 0.025 },
-    { "name": "toon_tree", "position": [-24.5, 0.25, -19.0], "model": "Kit/tree.glb", "toon": true },
+    { "name": "shrine_torii", "position": [-25.5, 0.25, -4.5], "model": "Kit/torii.glb", "toon": true, "outline": 0.03 },
+    { "name": "shrine_lantern_1", "position": [-24.3, 0.25, -10.0], "model": "Kit/toro.glb", "toon": true, "outline": 0.025 },
+    { "name": "shrine_lantern_2", "position": [-26.7, 0.25, -10.0], "model": "Kit/toro.glb", "toon": true, "outline": 0.025 },
+    { "name": "shrine_offering", "position": [-25.5, 0.25, -12.4], "model": "Kit/offering_box.glb", "toon": true, "outline": 0.02 },
+    { "name": "shrine_hokora", "position": [-25.5, 0.25, -14.0], "model": "Kit/hokora.glb", "toon": true, "outline": 0.03,
+      "collider": { "center": [0.0, 0.75, 0.1], "halfExtents": [0.7, 0.75, 0.75] } },
+    { "name": "shrine_cedar_1", "position": [-28.0, 0.25, -19.0], "model": "Kit/cedar.glb" },
+    { "name": "shrine_cedar_2", "position": [-23.0, 0.25, -22.0], "model": "Kit/cedar.glb" },
 
-    { "name": "synth_booth", "position": [27.0, 0.25, -8.0], "model": "Kit/vending_machine.glb",
-      "collider": { "center": [0.0, 0.95, 0.0], "halfExtents": [0.5, 0.95, 0.4] } }
+    { "name": "synth_booth", "position": [26.0, 0.25, -8.0], "model": "Kit/shed.glb",
+      "collider": { "center": [0.0, 1.5, 0.0], "halfExtents": [1.8, 1.5, 1.55] } },
+    { "name": "radio_sign", "position": [24.0, 0.25, -6.2], "model": "Kit/hanging_sign.glb" },
+
+    { "name": "bush_1", "position": [-9.5, 0.25, 4.2], "model": "Kit/bush.glb" },
+    { "name": "bush_2", "position": [18.6, 0.25, 4.4], "model": "Kit/bush.glb" },
+    { "name": "tree_1", "position": [-12.0, 0.25, -1.0], "model": "Kit/tree.glb" },
+    { "name": "tree_2", "position": [9.0, 0.25, -1.0], "model": "Kit/tree.glb" },
+    { "name": "grass_1", "position": [-3.0, 0.25, 6.0], "model": "Kit/grass_tuft.glb" },
+    { "name": "grass_2", "position": [5.0, 0.25, 6.5], "model": "Kit/grass_tuft.glb" },
+    { "name": "grass_3", "position": [-17.0, 0.25, 1.0], "model": "Kit/grass_tuft.glb" },
+    { "name": "grass_4", "position": [24.0, 0.25, -3.0], "model": "Kit/grass_tuft.glb" }
   ]
 }

@@ -22,14 +22,14 @@ namespace Showcase
 {
     const std::vector<ShowcaseApp::Area>& ShowcaseApp::Areas()
     {
-        // In the order of the number keys.
+        // In the order of the number keys. Places, not features: what the
+        // engine does here is the lens's to say (Tab).
         static const std::vector<Area> areas = {
-            { "plaza", "The plaza", "Meshes, materials, the camera; animated models" },
-            { "lakeshore", "The lakeshore", "Water and its reflection, the sky; P switches the weather everywhere" },
-            { "lights", "The light corner", "Live lights, glow and halos - best at night (P)" },
-            { "pavilion", "The pavilion", "A skinned character, its clips blended by a state machine - E to inspect or drive it" },
-            { "toon_garden", "The toon garden", "Toon shading and outlines beside plain-shaded twins" },
-            { "synth_booth", "The synth booth", "The live synth: J K L ; play, U I filter, O delay" },
+            { "village", "The village", "Houses along the lane; the lamps come on as night falls" },
+            { "jetty", "The jetty", "The lake, and the sky in it" },
+            { "workshop", "The workshop", "Someone is at work here - E to watch them closely" },
+            { "shrine", "The shrine", "A small shrine under the cedars" },
+            { "radio", "The radio shed", "An old radio: J K L ; play, U I tone, O echo" },
         };
         return areas;
     }
@@ -94,12 +94,14 @@ namespace Showcase
             return false;
         }
 
-        std::cout << "Showcase: 1-6 areas, P weather, WASD/Shift/mouse walk, F1 numbers, F2-F8 view, F10 tools,"
-                     " Esc release/quit\n";
+        std::cout << "Showcase: 1-5 places, P next time of day, T pause time, Tab the lens, WASD/Shift/mouse walk,"
+                     " F1 numbers, F2-F8 view, F10 tools, Esc release/quit\n";
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
             RequestQuit(*exitCode); // a script that can't run
         }
+        // A scenario's time stands still unless it starts the clock ("set clock on").
+        m_clockOn = !m_diagnostics.HasTestScript();
         const bool captured = GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
         return captured || m_diagnostics.HasTestScript();
     }
@@ -164,6 +166,7 @@ namespace Showcase
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
+        UpdateClock(deltaSeconds);
         if (m_environment.IsTransitioning())
         {
             m_environment.Update(deltaSeconds);
@@ -191,7 +194,7 @@ namespace Showcase
                 // The key works at the pavilion; a scenario's "lab" anywhere.
                 const Area* area = AreaAt(m_player.GetFeetPosition());
                 const bool scripted = std::find(m_pressedActions.begin(), m_pressedActions.end(), "lab") != m_pressedActions.end();
-                if (lab && (scripted || (area && std::string_view(area->spawn) == "pavilion")))
+                if (lab && (scripted || (area && std::string_view(area->spawn) == "workshop")))
                 {
                     m_lens = false; // the lab has its own panel
                     BeginLab();
@@ -274,17 +277,44 @@ namespace Showcase
                 }
             }
         }
-        // P: the next weather, blended over two seconds.
+        // P: skip ahead to the next time of day; T: stop or restart the clock.
         if (input.WasKeyPressed(SDL_SCANCODE_P))
         {
-            const std::vector<std::string> offered = m_presets.Offered(m_levels->GetLevel());
-            if (!offered.empty())
-            {
-                const auto current = std::find(offered.begin(), offered.end(), m_environmentName);
-                const std::size_t next = current == offered.end() ? 0 : (current - offered.begin() + 1) % offered.size();
-                SetEnvironment(offered[next], 2.0f);
-            }
+            AdvanceClock(2.0f);
         }
+        if (input.WasKeyPressed(SDL_SCANCODE_T))
+        {
+            m_clockOn = !m_clockOn;
+        }
+    }
+
+    const std::vector<std::string>& ShowcaseApp::Day()
+    {
+        // The village's day: each time holds, then blends into the next.
+        static const std::vector<std::string> day = { "clear_day", "sunset", "night", "rain", "overcast" };
+        return day;
+    }
+
+    void ShowcaseApp::UpdateClock(float deltaSeconds)
+    {
+        if (!m_clockOn || m_environment.IsTransitioning())
+        {
+            return;
+        }
+        m_clockTime += deltaSeconds;
+        if (m_clockTime >= m_holdSeconds)
+        {
+            AdvanceClock(BlendSeconds);
+        }
+    }
+
+    void ShowcaseApp::AdvanceClock(float blendSeconds)
+    {
+        const std::vector<std::string>& day = Day();
+        const auto current = std::find(day.begin(), day.end(), m_environmentName);
+        const std::size_t next = current == day.end() ? 0 : (current - day.begin() + 1) % day.size();
+        m_clockTime = 0.0f;
+        SetEnvironment(day[next], blendSeconds);
     }
 
     void ShowcaseApp::UpdatePavilion()
@@ -304,7 +334,7 @@ namespace Showcase
     {
         // The keys play only at the booth.
         const Area* area = AreaAt(m_player.GetFeetPosition());
-        if (!area || std::string_view(area->spawn) != "synth_booth")
+        if (!area || std::string_view(area->spawn) != "radio")
         {
             return;
         }
@@ -406,16 +436,16 @@ namespace Showcase
 
         // Bottom left: the area, what it shows; under it, the keys.
         const Area* area = m_levels->GetLevel() ? AreaAt(m_player.GetFeetPosition()) : nullptr;
-        const std::string title = area ? area->title : "Between areas";
-        std::string shows = area ? area->shows : "1-6 jump to an area";
-        if (area && std::string_view(area->spawn) == "synth_booth")
+        const std::string title = area ? area->title : "By the lake";
+        std::string shows = area ? area->shows : "1-5 go to a place";
+        if (area && std::string_view(area->spawn) == "radio")
         {
             char state[64];
-            std::snprintf(state, sizeof(state), "   (filter %.0f Hz, delay %s)", m_cutoff, m_delay ? "on" : "off");
+            std::snprintf(state, sizeof(state), "   (tone %.0f Hz, echo %s)", m_cutoff, m_delay ? "on" : "off");
             shows += state;
         }
-        const std::string keys = "1-6 areas    P weather: " + EnvironmentName()
-            + "    F1 numbers    F2-F8 view    F10 tools";
+        const std::string keys = "1-5 places    P " + EnvironmentName() + (m_clockOn ? "" : " (paused)")
+            + "    T pause time    Tab the lens    F1 numbers    F10 tools";
         const float smallLine = m_smallFont->GetLineHeight() * scale;
         const float keysY = screen.y - margin - smallLine;
         const float showsY = keysY - smallLine * 1.4f;
@@ -647,6 +677,9 @@ namespace Showcase
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "unease" && value == "off") {} // the demo's moments; the Showcase has none
         else if (what == "lens" && onOff) m_lens = on;
+        else if (what == "clock" && onOff) m_clockOn = on;
+        else if (what == "clock" && value == "next") AdvanceClock(0.0f);
+        else if (what == "clock_hold" && isNumber && number >= 0.5f) m_holdSeconds = number;
         else if (what.rfind("feature_", 0) == 0 && onOff && FeatureIndex(std::string_view(what).substr(8)) >= 0)
         {
             const int index = FeatureIndex(std::string_view(what).substr(8));

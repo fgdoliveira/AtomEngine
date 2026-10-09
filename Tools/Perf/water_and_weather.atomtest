@@ -4,7 +4,7 @@
 # rain together. Two views: from the beach across the shallows, and from
 # the jetty's end out over open water.
 #
-#   ATOM_VSYNC=0 ATOM_START_LEVEL=showcase:lakeshore ATOM_TEST_SCRIPT=Tools/Perf/water_and_weather.atomtest Showcase.exe
+#   ATOM_VSYNC=0 ATOM_START_LEVEL=showcase:jetty ATOM_TEST_SCRIPT=Tools/Perf/water_and_weather.atomtest Showcase.exe
 #   (v0.0.14: the lakeshore is the Showcase's; same terrain, same coordinates)
 #
 # v0.0.8, laptop plugged in (Iris Xe, 1280x720, Balanced power plan), two

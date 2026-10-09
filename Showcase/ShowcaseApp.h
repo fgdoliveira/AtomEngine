@@ -33,10 +33,9 @@ namespace Showcase
 {
     using namespace AtomFramework;
 
-    // The Showcase (v0.0.14): every engine feature in one scene, an area
-    // per feature, built only from the engine and the framework - the
-    // engine's front door. Walk around (or jump with 1-6), switch the
-    // weather (P), the view (F2-F8), look at the numbers (F1, F10).
+    // The Showcase (v0.0.14): a lakeside village through a day, built only
+    // from the engine and the framework - the engine's front door. Walk it
+    // (or go to a place with 1-5); Tab, the lens, shows how it is made.
     class ShowcaseApp : public Atom::Application, public TestHooks
     {
     protected:
@@ -97,6 +96,13 @@ namespace Showcase
         void UpdateKeys();
         void UpdatePavilion();
         void UpdateBooth();
+
+        // The time of day (M88): environment presets on a clock, each held,
+        // then blended into the next; P skips ahead, T pauses.
+        static const std::vector<std::string>& Day();
+        static constexpr float BlendSeconds = 8.0f;
+        void UpdateClock(float deltaSeconds);
+        void AdvanceClock(float blendSeconds);
 
         // The character lab (M36-M38, the demo's until v0.0.14; ShowcaseLab.cpp):
         // at the pavilion, E opens the model viewer around the character,
@@ -182,6 +188,9 @@ namespace Showcase
         bool m_drawWorld = true; // "set world off": draw nothing but the UI (captures)
         bool m_showHud = true;   // "set hud off": no caption or lab panel
         float m_time = 0.0f;
+        bool m_clockOn = true;
+        float m_clockTime = 0.0f; // seconds into the current time of day
+        float m_holdSeconds = 40.0f; // how long each time of day holds ("set clock_hold")
         glm::vec3 m_arrivalEye{ 0.0f };
         float m_arrivalYaw = 0.0f;
     };

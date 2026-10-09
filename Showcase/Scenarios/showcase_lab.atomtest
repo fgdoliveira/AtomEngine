@@ -1,10 +1,10 @@
-# The character lab at the pavilion (M36-M38; the demo's character_lab
+# The character lab at the workshop (M36-M38; the demo's character_lab
 # scenario until v0.0.14). E opens the viewer: clips, the walk/run blend.
 # Tab hands the character to the keys: the animator follows what its body
 # does - walk, run, jump, stand. (Climbing steps and a ramp is checked by
-# the unit tests, DriveTests: the pavilion is flat ground.)
+# the unit tests, DriveTests: the workshop yard is flat ground.)
 expect_level showcase
-teleport -15 0.25 7 -90
+teleport -16 0.25 3 -90
 wait 0.3
 press_action lab
 wait 0.1
@@ -22,12 +22,12 @@ wait 0.2
 set skeleton off
 set mode clips
 
-# Drive: walk along +X (open ground toward the plaza), then run, stop.
+# Drive: walk along +X (the open lane past the workshop), then run, stop.
 press_action toggle_drive
 wait 0.1
 expect_mode drive
 expect_state rudy idle
-teleport -25 0.25 7 90
+teleport -26 0.25 2 90
 wait 0.2
 hold_action move_forward on
 wait 1.5
