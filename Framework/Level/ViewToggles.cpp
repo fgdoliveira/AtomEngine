@@ -28,7 +28,7 @@ namespace AtomFramework
             lighting.fogColor = e.fogColor;
             lighting.shadowsEnabled = l.shadows && toggles.shadows;
             lighting.bakedLight = toggles.bakedLight ? l.bakedLight : 0.0f;
-            lighting.glowStrength = l.glowStrength;
+            lighting.glowStrength = toggles.glow ? l.glowStrength : 0.0f;
             lighting.glowThreshold = l.glowThreshold;
             lighting.skyPanorama = level->GetSkyPanorama();
             lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;

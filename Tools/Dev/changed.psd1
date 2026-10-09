@@ -19,7 +19,7 @@
         # The Showcase (v0.0.14): a scenario script runs itself; anything else, the tour.
         @{ Pattern = '^Showcase/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('$scenario') }
         @{ Pattern = '^Showcase/(ShowcaseLab.cpp|Assets/(Lab|ThirdParty)/)'; Scenarios = @('showcase_lab', 'showcase_tour') }
-        @{ Pattern = '^Showcase/'; Scenarios = @('showcase_tour') }
+        @{ Pattern = '^Showcase/'; Scenarios = @('showcase_tour', 'showcase_lens') }
 
         # The engine
         @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Scenarios = @('night_street', 'drift_fly', 'showcase_tour') }

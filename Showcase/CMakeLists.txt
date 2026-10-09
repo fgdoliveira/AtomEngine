@@ -10,6 +10,8 @@ add_library(
     STATIC
     BoothSynth.cpp
     BoothSynth.h
+    Features/Features.cpp
+    Features/Features.h
 )
 target_include_directories(ShowcaseLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ShowcaseLib PUBLIC AtomEngine)
@@ -24,6 +26,7 @@ add_executable(
     ShowcaseApp.cpp
     ShowcaseApp.h
     ShowcaseLab.cpp
+    ShowcaseLens.cpp
 )
 target_link_libraries(
     Showcase

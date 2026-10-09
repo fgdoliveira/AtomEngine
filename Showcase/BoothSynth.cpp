@@ -53,6 +53,9 @@ namespace Showcase
             // A dotted-eighth echo at 96 BPM when on; off, no feedback or wet.
             synth.SetDelay(0.47f, command.argument ? 0.4f : 0.0f, command.argument ? 0.35f : 0.0f);
             break;
+        case BoothCommand::Mute:
+            synth.SetMasterTarget(command.argument ? 0.0f : 0.6f, 0.1f); // a fade, never a click
+            break;
         }
     }
 

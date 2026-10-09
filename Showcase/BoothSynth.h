@@ -10,6 +10,7 @@ namespace Showcase
         Note = 1,   // argument: 0..3, the four keys
         Filter,     // value: the low-pass cutoff to glide to (Hz)
         Delay,      // argument: 1 on, 0 off
+        Mute,       // argument: 1 silent, 0 audible (the lens's A/B)
     };
 
     // The synth booth (v0.0.14): Atom::Synth played live from the keys - a

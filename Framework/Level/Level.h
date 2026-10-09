@@ -104,6 +104,15 @@ namespace AtomFramework
         void SetGroupGain(std::string_view group, float scale);
         std::size_t GetVoiceCount() const { return m_voices.size(); }
 
+        // v0.0.14, the Showcase's lens: switch a capability off to see what
+        // it contributes, and back. The level's data is untouched.
+        void SetLiveLightsEnabled(bool on) { m_liveLightsEnabled = on; }
+        bool LiveLightsEnabled() const { return m_liveLightsEnabled; }
+        void SetHalosEnabled(bool on) { m_halosEnabled = on; }
+        bool HalosEnabled() const { return m_halosEnabled; }
+        void SetStylesEnabled(bool on); // toon and outlines on styled entities
+        bool StylesEnabled() const { return m_stylesEnabled; }
+
         // A live screen the game takes over (M29): its attract loop pauses and
         // the caller draws into the returned target until it hands it back.
         Atom::RenderTexture* TakeOverScreen(std::string_view material);
@@ -165,7 +174,18 @@ namespace AtomFramework
         };
         std::vector<Impostor> m_impostors;
         std::unordered_map<std::string, std::shared_ptr<Atom::Model>> m_models;
-        std::vector<std::unique_ptr<Atom::Model>> m_styledModels; // v0.0.14: one private copy per styled entity
+        // v0.0.14: one private copy per styled entity, with its style (to
+        // switch it off and back).
+        struct StyledModel
+        {
+            std::unique_ptr<Atom::Model> model;
+            EntityStyle style;
+        };
+        std::vector<StyledModel> m_styledModels;
+        static void ApplyStyle(StyledModel& styled, bool on);
+        bool m_stylesEnabled = true;
+        bool m_liveLightsEnabled = true;
+        bool m_halosEnabled = true;
         Atom::CollisionWorld m_collision;
         GameWorld m_world; // after the models: entities die first
         std::vector<OwnedVoice> m_voices;

@@ -411,14 +411,29 @@ namespace AtomFramework
         {
             return nullptr;
         }
-        for (Atom::Material& material : model->GetMaterials())
+        m_styledModels.push_back({ std::move(model), style });
+        ApplyStyle(m_styledModels.back(), m_stylesEnabled);
+        return m_styledModels.back().model.get();
+    }
+
+    void Level::ApplyStyle(StyledModel& styled, bool on)
+    {
+        for (Atom::Material& material : styled.model->GetMaterials())
         {
-            material.toon = style.toon;
-            material.outline = style.outline;
-            material.outlineColor = style.outlineColor;
+            material.toon = on && styled.style.toon;
+            material.outline = on ? styled.style.outline : 0.0f;
+            material.outlineColor = styled.style.outlineColor;
         }
-        m_styledModels.push_back(std::move(model));
-        return m_styledModels.back().get();
+    }
+
+    void Level::SetStylesEnabled(bool on)
+    {
+        // v0.0.14: the Showcase's A/B - every styled entity plain, and back.
+        m_stylesEnabled = on;
+        for (StyledModel& styled : m_styledModels)
+        {
+            ApplyStyle(styled, on);
+        }
     }
 
     void Level::AddCollider(const glm::vec3& position, float yawRadians, const ColliderBox& box)
@@ -477,7 +492,7 @@ namespace AtomFramework
         // (bends, alley mouths) hides them. Mid and far always draw.
         // Halos (M23): a flickering one stutters like a failing tube -
         // mostly on, with short irregular drops.
-        if (!m_data.halos.empty())
+        if (m_halosEnabled && !m_data.halos.empty())
         {
             std::vector<Atom::Particle> halos;
             halos.reserve(m_data.halos.size());
@@ -500,7 +515,7 @@ namespace AtomFramework
         }
 
         // Live lights (M25): the few lights computed per pixel.
-        for (std::size_t i = 0; i < m_data.lights.size(); ++i)
+        for (std::size_t i = 0; m_liveLightsEnabled && i < m_data.lights.size(); ++i)
         {
             const LiveLightData& l = m_data.lights[i];
             if (IsHidden(m_lights[i].anchor))

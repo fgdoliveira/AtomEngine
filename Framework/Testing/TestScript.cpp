@@ -47,6 +47,7 @@ namespace AtomFramework
                 { "expect_water", { 1, 1 } },       // min water surfaces drawn (M48)
                 { "expect_reflection", { 1, 1 } },  // min draws in the planar reflection (M53)
                 { "expect_particles", { 2, 2 } },   // op count: particles drawn (M50)
+                { "expect_stat", { 3, 3 } },        // name op value: an app statistic (v0.0.14)
                 { "environment", { 1, 2 } },        // preset [seconds]: switch, blended (M49)
                 { "expect_environment", { 1, 1 } }, // preset | level | (blending)
                 { "expect_quality", { 1, 1 } },     // low | balanced | high | custom (M61)
@@ -690,6 +691,26 @@ namespace AtomFramework
             if (game.EnvironmentName() != args[0])
             {
                 Fail(command, "the environment is " + game.EnvironmentName());
+            }
+            return true;
+        }
+        if (name == "expect_stat")
+        {
+            // v0.0.14: any named statistic the app reports (Stat), e.g. the
+            // Showcase's lens: "expect_stat water_draws == 0" after an A/B.
+            const std::optional<float> stat = game.Stat(args[0]);
+            if (!stat)
+            {
+                Fail(command, "no statistic '" + args[0] + "'");
+                return true;
+            }
+            const std::string& op = args[1];
+            const float value = number(2, 0.0f);
+            const bool ok = op == ">=" ? *stat >= value : op == "<=" ? *stat <= value
+                : op == ">" ? *stat > value : op == "<" ? *stat < value : *stat == value;
+            if (!ok)
+            {
+                Fail(command, args[0] + " is " + std::to_string(*stat));
             }
             return true;
         }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BoothSynth.h"
+#include "Features/Features.h"
 #include "Character/LabViewer.h"
 #include "Character/PlayerController.h"
 #include "Character/SpringArm.h"
@@ -20,8 +21,10 @@
 
 #include <SDL3/SDL_scancode.h>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -58,6 +61,7 @@ namespace Showcase
         bool SetAnimatorParam(const std::string& entity, const std::string& param, float value) override;
         bool HoldAction(const std::string& action, bool held) override;
         bool PressAction(const std::string& action) override;
+        std::optional<float> Stat(const std::string& name) const override;
         bool SetEnvironment(const std::string& name, float seconds) override;
         std::string EnvironmentName() const override;
         std::uint32_t ParticleCount() const override;
@@ -110,6 +114,17 @@ namespace Showcase
         void UpdateDrive(float deltaSeconds);
         void DrawSkeleton(const Entity& subject);
         void DrawLabOverlay();
+
+        // The lens (v0.0.14, ShowcaseLens.cpp): Tab shows how the place is
+        // made - a callout per feature in view, its live cost, its source
+        // and manual section; 1-9 and 0 switch a feature off and on.
+        static int FeatureIndex(std::string_view id);
+        void SetFeature(int index, bool on);
+        void ApplyFeatures(); // after a level (re)load: the switches survive it
+        void UpdateLens();
+        void DrawLens();
+        std::string FeatureCost(int index) const;
+        std::optional<glm::vec2> Project(const glm::vec3& world) const;
         void SendToBooth(BoothCommand command, int argument, float value);
         void DrawCaption();
         const Entity* FindEntity(const std::string& name) const;
@@ -148,6 +163,12 @@ namespace Showcase
         int m_driveSteps = 0;
         glm::vec3 m_labHome{ 0.0f };
         float m_labHomeYaw = 0.0f;
+        // The lens: open or not, each feature's switch, the one last touched.
+        bool m_lens = false;
+        std::array<bool, 10> m_featureOn{ true, true, true, true, true, true, true, true, true, true };
+        int m_lensFocus = 0;
+        float m_smoothedMs = 0.0f;
+
         // Input a scenario holds or presses, as keys would (TestHooks).
         std::vector<std::string> m_heldActions;
         std::vector<std::string> m_pressedActions;

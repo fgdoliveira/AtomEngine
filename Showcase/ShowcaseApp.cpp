@@ -115,6 +115,7 @@ namespace Showcase
         ResetEnvironment();
         ApplyLighting();
         m_mode = Mode::Walking;
+        ApplyFeatures(); // the lens's switches survive a (re)load
         std::cout << "Entered level '" << data.name << "'\n";
         // A documentation stage with a subject (character_lab) opens in the
         // viewer, as the demo's lab did; in the scene, E opens it.
@@ -158,6 +159,8 @@ namespace Showcase
             RequestQuit(*exitCode);
         }
         m_time += deltaSeconds;
+        // The lens's frame time: real, smoothed so it reads.
+        m_smoothedMs += (static_cast<float>(m_diagnostics.RealFrameMs()) - m_smoothedMs) * 0.05f;
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
@@ -190,9 +193,11 @@ namespace Showcase
                 const bool scripted = std::find(m_pressedActions.begin(), m_pressedActions.end(), "lab") != m_pressedActions.end();
                 if (lab && (scripted || (area && std::string_view(area->spawn) == "pavilion")))
                 {
+                    m_lens = false; // the lab has its own panel
                     BeginLab();
                     break;
                 }
+                UpdateLens();
                 UpdateKeys();
                 UpdateBooth();
                 const Atom::Input& input = GetInput();
@@ -242,6 +247,10 @@ namespace Showcase
         {
             DrawLabOverlay(); // the skeleton always; the panel with the HUD
         }
+        else if (m_lens)
+        {
+            DrawLens();
+        }
         else if (m_showHud)
         {
             DrawCaption();
@@ -251,9 +260,9 @@ namespace Showcase
     void ShowcaseApp::UpdateKeys()
     {
         const Atom::Input& input = GetInput();
-        // 1-6: jump to an area.
+        // 1-6: jump to an area (with the lens open, the keys switch features).
         const std::vector<Area>& areas = Areas();
-        for (std::size_t i = 0; i < areas.size(); ++i)
+        for (std::size_t i = 0; !m_lens && i < areas.size(); ++i)
         {
             if (input.WasKeyPressed(static_cast<SDL_Scancode>(SDL_SCANCODE_1 + i)))
             {
@@ -329,6 +338,10 @@ namespace Showcase
             if (!m_audio->Start(m_booth))
             {
                 std::cout << "Synth booth: no audio device - playing silent\n";
+            }
+            else if (!m_featureOn[FeatureIndex("synth")])
+            {
+                m_audio->Send({ static_cast<int>(BoothCommand::Mute), 1, 0.0f }); // switched off in the lens
             }
         }
         if (m_audio->IsRunning())
@@ -633,6 +646,13 @@ namespace Showcase
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "unease" && value == "off") {} // the demo's moments; the Showcase has none
+        else if (what == "lens" && onOff) m_lens = on;
+        else if (what.rfind("feature_", 0) == 0 && onOff && FeatureIndex(std::string_view(what).substr(8)) >= 0)
+        {
+            const int index = FeatureIndex(std::string_view(what).substr(8));
+            SetFeature(index, on);
+            m_lensFocus = index;
+        }
         else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
         else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on);
         else if (what == "rain" && isNumber && number >= 0.0f && number <= 1.0f) m_view.rain = number;

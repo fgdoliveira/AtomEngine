@@ -42,6 +42,7 @@ namespace AtomFramework
         bool bakedLight = true;     // F3: compare with the flat ambient
         int postMode = 0;           // 0 full, 1 grade only, 2 off
         bool sun = true;
+        bool glow = true;           // v0.0.14: the glow pass (the Showcase's lens A/B)
         std::optional<float> rain;  // M51: "set rain" for benchmarks
     };
 

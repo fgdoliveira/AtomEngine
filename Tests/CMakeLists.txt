@@ -41,6 +41,7 @@ add_executable(
     DriftWorldTests.cpp
     SynthTests.cpp
     BoothSynthTests.cpp
+    ShowcaseFeatureTests.cpp
     FakeGame.h
     TestAssets.h
 )

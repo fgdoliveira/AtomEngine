@@ -71,6 +71,9 @@ namespace AtomFramework
         virtual std::string EnvironmentName() const { return "level"; }
         // M50: particles the last frame drew.
         virtual std::uint32_t ParticleCount() const { return 0; }
+        // v0.0.14: a named statistic of the last frame (expect_stat); nullopt
+        // for a name the app doesn't report.
+        virtual std::optional<float> Stat(const std::string& /*name*/) const { return std::nullopt; }
         // M63: move the window (desktop coordinates), e.g. onto the display
         // of the other adapter of a hybrid laptop.
         virtual void MoveWindow(int /*x*/, int /*y*/) {}
