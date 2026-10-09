@@ -2,6 +2,7 @@
 
 #include "UI/Font.h"
 #include "UI/UIRenderer.h"
+#include "UI/UiKit.h"
 
 #include <algorithm>
 
@@ -25,19 +26,9 @@ namespace AtomFramework
             return;
         }
 
+        // The kit's toast (M89): the shared panel and ink, fading out.
         const float alpha = std::clamp(m_remaining / 0.6f, 0.0f, 1.0f);
-        const glm::vec2 screen = ui.GetScreenSize();
-        const float maxWidth = std::min(screen.x * 0.7f, 900.0f * scale);
-        const std::string wrapped = ui.WrapText(font, m_text, maxWidth, scale);
-        const glm::vec2 size = ui.MeasureText(font, wrapped, scale);
-
-        const glm::vec2 padding{ 22.0f * scale, 12.0f * scale };
-        const glm::vec2 position{
-            (screen.x - size.x) * 0.5f,
-            screen.y - size.y - 70.0f * scale
-        };
-        ui.DrawRect(position - padding, size + padding * 2.0f,
-            { 0.03f, 0.03f, 0.035f, 0.78f * alpha });
-        ui.DrawText(font, wrapped, position, { 0.93f, 0.91f, 0.85f, alpha }, scale);
+        UiKit kit(ui, font, font);
+        kit.Toast(m_text, alpha, scale / kit.Scale());
     }
 }

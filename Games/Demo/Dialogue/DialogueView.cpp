@@ -3,6 +3,7 @@
 #include "Dialogue/DialogueRunner.h"
 #include "UI/Font.h"
 #include "UI/UIRenderer.h"
+#include "UI/UiKit.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,12 +13,14 @@ namespace Demo
 {
     namespace
     {
-        constexpr glm::vec4 PanelColor{ 0.03f, 0.03f, 0.035f, 0.86f };
+        // The framework's UI theme (M89); the rule's red is the demo's own.
+        const AtomFramework::UiTheme& Theme = AtomFramework::DefaultUiTheme();
+        const glm::vec4 PanelColor{ Theme.panel.r, Theme.panel.g, Theme.panel.b, 0.86f };
         constexpr glm::vec4 RuleColor{ 0.55f, 0.18f, 0.12f, 0.9f };   // faded torii red
-        constexpr glm::vec4 SpeakerColor{ 0.80f, 0.62f, 0.45f, 1.0f };
-        constexpr glm::vec4 TextColor{ 0.93f, 0.91f, 0.85f, 1.0f };
-        constexpr glm::vec4 ChoiceColor{ 0.62f, 0.62f, 0.58f, 1.0f };
-        constexpr glm::vec4 SelectedColor{ 0.97f, 0.95f, 0.88f, 1.0f };
+        const glm::vec4& SpeakerColor = Theme.accent;
+        const glm::vec4& TextColor = Theme.ink;
+        const glm::vec4& ChoiceColor = Theme.dim;
+        const glm::vec4& SelectedColor = Theme.ink;
     }
 
     void DialogueView::Draw(

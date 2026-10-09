@@ -875,13 +875,8 @@ namespace Demo
             const char* hint = m_flashlight.IsOwned()
                 ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
                 : "WASD move   Shift jog   Mouse look   E interact   F1 debug";
-            const glm::vec2 size = ui.MeasureText(*m_font, hint, scale * 0.8f);
-            const glm::vec2 position{ (screen.x - size.x) * 0.5f, screen.y - size.y - 40.0f * scale };
-            // A soft shadow keeps light text legible over the pale fog.
-            ui.DrawText(*m_font, hint, position + glm::vec2{ 2.0f * scale },
-                { 0.0f, 0.0f, 0.0f, 0.55f * hintAlpha }, scale * 0.8f);
-            ui.DrawText(*m_font, hint, position,
-                { 0.92f, 0.90f, 0.84f, hintAlpha }, scale * 0.8f);
+            // The kit's hint bar (M89), as every app shows its keys.
+            UiKit(ui, *m_font, *m_smallFont).HintBar(hint, hintAlpha);
         }
 
         if (m_mode == Mode::InDialogue)

@@ -21,11 +21,7 @@ namespace Showcase
 {
     namespace
     {
-        constexpr glm::vec4 PanelColor{ 0.05f, 0.07f, 0.12f, 0.84f };
-        constexpr glm::vec4 TitleColor{ 0.85f, 0.62f, 0.25f, 1.0f };   // a warm amber: the lens's own colour
-        constexpr glm::vec4 TextColor{ 0.92f, 0.93f, 0.95f, 1.0f };
-        constexpr glm::vec4 DimColor{ 0.62f, 0.66f, 0.74f, 1.0f };
-        constexpr glm::vec4 OffColor{ 0.85f, 0.35f, 0.30f, 1.0f };
+        // Colours, panels and layout are the framework's UI kit (M89).
         constexpr float CalloutRange = 45.0f; // metres: farther features are listed, not pinned
     }
 
@@ -182,10 +178,9 @@ namespace Showcase
 
     void ShowcaseApp::DrawLens()
     {
-        Atom::UIRenderer& ui = GetRenderer().GetUI();
-        const glm::vec2 screen = ui.GetScreenSize();
-        const float scale = std::clamp(screen.y / 720.0f, 0.75f, 2.0f);
-        const float pad = 8.0f * scale;
+        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        const UiTheme& theme = kit.Theme();
+        const float pad = kit.Pad();
         const std::vector<FeatureInfo>& features = FeatureCatalog();
         const glm::vec3 eye = m_camera.GetPosition();
 
@@ -211,83 +206,51 @@ namespace Showcase
             {
                 continue;
             }
-            const std::optional<glm::vec2> p = Project(at);
-            if (!p)
+            if (const std::optional<glm::vec2> p = Project(at))
             {
-                continue;
+                char head[96];
+                std::snprintf(head, sizeof(head), "[%d] %s", (i + 1) % 10, f.title);
+                kit.Callout(*p, head, FeatureCost(i), m_featureOn[i]);
             }
-            char head[96];
-            std::snprintf(head, sizeof(head), "[%d] %s", (i + 1) % 10, f.title);
-            const std::string cost = FeatureCost(i);
-            const glm::vec2 a = ui.MeasureText(*m_smallFont, head, scale);
-            const glm::vec2 b = ui.MeasureText(*m_smallFont, cost, scale);
-            const glm::vec2 size{ std::max(a.x, b.x) + 2.0f * pad, a.y + b.y + 1.5f * pad };
-            const glm::vec2 origin = *p - glm::vec2{ size.x * 0.5f, size.y + 10.0f * scale };
-            ui.DrawRect(*p - glm::vec2{ 1.0f * scale, 10.0f * scale }, { 2.0f * scale, 10.0f * scale }, TitleColor);
-            ui.DrawRect(origin, size, PanelColor);
-            ui.DrawRect(origin, { 3.0f * scale, size.y }, m_featureOn[i] ? TitleColor : OffColor);
-            ui.DrawText(*m_smallFont, head, origin + glm::vec2{ pad, pad * 0.5f }, TextColor, scale);
-            ui.DrawText(*m_smallFont, cost, origin + glm::vec2{ pad, pad * 0.5f + a.y }, m_featureOn[i] ? DimColor : OffColor, scale);
         }
 
-        // The panel: every feature, its switch and cost; the focused one's
-        // engine system, source and manual section.
-        // Three columns (the font is proportional: spaces can't align them).
+        // The panel, top right: every feature, its switch and cost, in
+        // measured columns; the focused one's engine system, source and
+        // manual section.
         char line[200];
         std::snprintf(line, sizeof(line), "%.2f ms  (%.0f fps)   %s", m_smoothedMs,
                       m_smoothedMs > 0.0f ? 1000.0f / m_smoothedMs : 0.0f, EnvironmentName().c_str());
         const std::string frame = line;
-        std::vector<std::string> keys, titles, costs;
-        float keyWidth = 0.0f, titleWidth = 0.0f, costWidth = 0.0f;
+        std::vector<std::vector<std::string>> rows;
+        std::vector<glm::vec4> colors;
         for (int i = 0; i < static_cast<int>(features.size()); ++i)
         {
             std::snprintf(line, sizeof(line), "[%d] %s", (i + 1) % 10, m_featureOn[i] ? "on" : "OFF");
-            keys.push_back(line);
-            titles.push_back(features[i].title);
-            costs.push_back(FeatureCost(i));
-            keyWidth = std::max(keyWidth, ui.MeasureText(*m_smallFont, keys.back(), scale).x);
-            titleWidth = std::max(titleWidth, ui.MeasureText(*m_smallFont, titles.back(), scale).x);
-            costWidth = std::max(costWidth, ui.MeasureText(*m_smallFont, costs.back(), scale).x);
+            rows.push_back({ line, features[i].title, FeatureCost(i) });
+            colors.push_back(!m_featureOn[i] ? theme.warn : i == m_lensFocus ? theme.ink : theme.dim);
         }
-        const float gap = 12.0f * scale;
         const FeatureInfo& focus = features[m_lensFocus];
         const std::string system = focus.system;
         std::snprintf(line, sizeof(line), "%s   (manual section %d)", focus.source, focus.manual);
         const std::string where = line;
 
-        const float x = screen.x - 16.0f * scale;
-        float width = keyWidth + titleWidth + costWidth + 2.0f * gap;
-        width = std::max({ width, ui.MeasureText(*m_smallFont, system, scale).x,
-                           ui.MeasureText(*m_smallFont, where, scale).x, ui.MeasureText(*m_smallFont, frame, scale).x });
-        const float lineHeight = m_smallFont->GetLineHeight() * scale;
+        const float lineHeight = kit.LineHeight();
+        const float width = std::max({ kit.ColumnsWidth(rows), kit.Measure(system).x, kit.Measure(where).x,
+                                       kit.Measure(frame).x });
         const float height = (features.size() + 4.5f) * lineHeight + 2.0f * pad;
-        const glm::vec2 origin{ x - width - 2.0f * pad, 16.0f * scale };
-        ui.DrawRect(origin, { width + 2.0f * pad, height }, PanelColor);
-        glm::vec2 at = origin + glm::vec2{ pad };
-        ui.DrawText(*m_smallFont, "LENS - how this place is made", at, TitleColor, scale);
+        const glm::vec2 origin{ kit.Screen().x - kit.Margin() - width - 3.0f * pad, kit.Margin() };
+        kit.Panel(origin, { width + 3.0f * pad, height }, &theme.accent);
+        glm::vec2 at = origin + glm::vec2{ 2.0f * pad, pad };
+        kit.Text("LENS - how this place is made", at, theme.accent);
         at.y += lineHeight * 1.2f;
-        ui.DrawText(*m_smallFont, frame, at, TextColor, scale);
+        kit.Text(frame, at, theme.ink);
         at.y += lineHeight;
-        for (std::size_t i = 0; i < features.size(); ++i)
-        {
-            const glm::vec4 color = m_featureOn[i] ? DimColor : OffColor;
-            ui.DrawText(*m_smallFont, keys[i], at, color, scale);
-            ui.DrawText(*m_smallFont, titles[i], at + glm::vec2{ keyWidth + gap, 0.0f },
-                        static_cast<int>(i) == m_lensFocus ? TextColor : color, scale);
-            ui.DrawText(*m_smallFont, costs[i], at + glm::vec2{ keyWidth + titleWidth + 2.0f * gap, 0.0f }, color, scale);
-            at.y += lineHeight;
-        }
-        at.y += lineHeight * 0.3f;
-        ui.DrawText(*m_smallFont, system, at, TextColor, scale);
+        at.y += kit.Columns(at, rows, colors) + lineHeight * 0.3f;
+        kit.Text(system, at, theme.ink);
         at.y += lineHeight;
-        ui.DrawText(*m_smallFont, where, at, DimColor, scale);
+        kit.Text(where, at, theme.dim);
 
-        // The help line along the bottom.
-        const char* help = "Tab close the lens    1-9, 0 switch a feature off and on    F1 numbers    F10 tools";
-        const glm::vec2 helpSize = ui.MeasureText(*m_smallFont, help, scale);
-        const glm::vec2 helpAt{ (screen.x - helpSize.x) * 0.5f, screen.y - helpSize.y - 24.0f * scale };
-        ui.DrawRect(helpAt - glm::vec2{ pad, pad * 0.5f }, helpSize + glm::vec2{ 2.0f * pad, pad }, PanelColor);
-        ui.DrawText(*m_smallFont, help, helpAt, DimColor, scale);
+        kit.HintBar("Tab close the lens    1-9, 0 switch a feature off and on    F1 numbers    F10 tools");
     }
 
     std::optional<float> ShowcaseApp::Stat(const std::string& name) const

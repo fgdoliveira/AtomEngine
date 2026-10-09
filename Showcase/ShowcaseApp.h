@@ -19,6 +19,7 @@
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "UI/Font.h"
+#include "UI/UiKit.h"
 
 #include <SDL3/SDL_scancode.h>
 

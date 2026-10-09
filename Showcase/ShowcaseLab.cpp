@@ -43,11 +43,7 @@ namespace Showcase
             return std::remainder(to - from, 6.2831853f);
         }
 
-        // 2000s tool look: a navy panel, a lighter title strip, pale text.
-        constexpr glm::vec4 PanelColor{ 0.06f, 0.09f, 0.18f, 0.82f };
-        constexpr glm::vec4 TitleColor{ 0.20f, 0.36f, 0.62f, 0.92f };
-        constexpr glm::vec4 TextColor{ 0.90f, 0.93f, 0.97f, 1.0f };
-        constexpr glm::vec4 DimTextColor{ 0.62f, 0.70f, 0.82f, 1.0f };
+        // The skeleton overlay's colours; the panel is the UI kit's (M89).
         constexpr glm::vec4 BoneColor{ 1.0f, 0.82f, 0.25f, 0.95f };
         constexpr glm::vec4 JointColor{ 1.0f, 0.35f, 0.20f, 1.0f };
     }
@@ -440,11 +436,11 @@ namespace Showcase
             return;
         }
 
-        Atom::UIRenderer& ui = GetRenderer().GetUI();
-        const glm::vec2 screen = ui.GetScreenSize();
-        const float scale = std::clamp(screen.y / 720.0f, 0.75f, 2.0f);
-        const float padding = 10.0f * scale;
-        const glm::vec2 origin{ 16.0f * scale };
+        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        const UiTheme& theme = kit.Theme();
+        const float scale = kit.Scale();
+        const float padding = kit.Pad();
+        const glm::vec2 origin{ kit.Margin() };
 
         // The panel: what is shown, and how.
         char clipLine[200];
@@ -489,43 +485,39 @@ namespace Showcase
             m_viewer.ShowsWeights() ? "ON " : "off");
 
         const std::string title = "CHARACTER LAB  -  " + (subject ? subject->name : std::string{}) + (driving ? "  -  DRIVE" : "");
-        const glm::vec2 titleSize = ui.MeasureText(*m_smallFont, title, scale);
-        const glm::vec2 lineSize = ui.MeasureText(*m_smallFont, clipLine, scale);
-        const glm::vec2 toggleSize = ui.MeasureText(*m_smallFont, toggles, scale);
-        const float width = std::max({ titleSize.x, lineSize.x, toggleSize.x, 300.0f * scale }) + 2.0f * padding;
-        const float titleHeight = titleSize.y + padding;
+        const glm::vec2 titleSize = kit.Measure(title);
+        const glm::vec2 lineSize = kit.Measure(clipLine);
+        const glm::vec2 toggleSize = kit.Measure(toggles);
+        const float width = std::max({ titleSize.x, lineSize.x, toggleSize.x, 300.0f * scale }) + 3.0f * padding;
         const bool slider = !driving && m_viewer.GetMode() == ViewerMode::Blend && !m_viewer.ShowsBindPose();
         const float sliderHeight = slider ? 10.0f * scale + padding : 0.0f;
-        const float bodyHeight = lineSize.y + toggleSize.y + 2.5f * padding + sliderHeight;
+        const float height = titleSize.y + lineSize.y + toggleSize.y + 3.0f * padding + sliderHeight;
 
-        ui.DrawRect(origin, { width, titleHeight }, TitleColor);
-        ui.DrawRect(origin + glm::vec2{ 0.0f, titleHeight }, { width, bodyHeight }, PanelColor);
-        ui.DrawText(*m_smallFont, title, origin + glm::vec2{ padding, padding * 0.5f }, TextColor, scale);
-        glm::vec2 at = origin + glm::vec2{ padding, titleHeight + padding };
-        ui.DrawText(*m_smallFont, clipLine, at, TextColor, scale);
+        // The kit's panel (M89), as the lens's: the accent edge, the title in it.
+        kit.Panel(origin, { width, height }, &theme.accent);
+        glm::vec2 at = origin + glm::vec2{ 2.0f * padding, padding };
+        kit.Text(title, at, theme.accent);
+        at.y += titleSize.y + padding * 0.5f;
+        kit.Text(clipLine, at, theme.ink);
         at.y += lineSize.y + padding * 0.5f;
         if (slider)
         {
             // The walk/run slider: a track and a knob.
-            const float track = width - 2.0f * padding;
-            ui.DrawRect(at + glm::vec2{ 0.0f, 4.0f * scale }, { track, 2.0f * scale }, DimTextColor);
+            Atom::UIRenderer& ui = kit.Renderer();
+            const float track = width - 3.0f * padding;
+            ui.DrawRect(at + glm::vec2{ 0.0f, 4.0f * scale }, { track, 2.0f * scale }, theme.dim);
             const float knob = 8.0f * scale;
             ui.DrawRect(at + glm::vec2{ (track - knob) * m_viewer.GetBlendWeight(), 0.0f }, { knob, 10.0f * scale },
-                BoneColor);
+                theme.accent);
             at.y += sliderHeight;
         }
-        ui.DrawText(*m_smallFont, toggles, at, DimTextColor, scale);
+        kit.Text(toggles, at, theme.dim);
 
         // The help line along the bottom.
-        const char* help = driving
+        kit.HintBar(driving
             ? "WASD move   Shift run   Space jump   arrows / mouse camera   K skeleton   Tab viewer   E leave"
             : "1-4 clip   5 blend  Z/X slider   6 state machine   -/+ speed   Space pause   . step"
-              "   arrows / mouse orbit   wheel zoom   Tab drive   E leave";
-        const glm::vec2 helpSize = ui.MeasureText(*m_smallFont, help, scale);
-        const glm::vec2 helpAt{ (screen.x - helpSize.x) * 0.5f, screen.y - helpSize.y - 24.0f * scale };
-        ui.DrawRect(helpAt - glm::vec2{ padding, padding * 0.5f }, helpSize + glm::vec2{ 2.0f * padding, padding },
-            PanelColor);
-        ui.DrawText(*m_smallFont, help, helpAt, DimTextColor, scale);
+              "   arrows / mouse orbit   wheel zoom   Tab drive   E leave");
     }
 
     // --- The harness's lab hooks ------------------------------------------

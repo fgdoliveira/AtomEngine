@@ -429,14 +429,7 @@ namespace Showcase
 
     void ShowcaseApp::DrawCaption()
     {
-        Atom::UIRenderer& ui = GetRenderer().GetUI();
-        const glm::vec2 screen = ui.GetScreenSize();
-        const float scale = std::clamp(screen.y / 720.0f, 0.75f, 2.0f);
-        const float margin = 24.0f * scale;
-        const glm::vec4 ink{ 0.94f, 0.93f, 0.88f, 1.0f };
-        const glm::vec4 dim{ 0.94f, 0.93f, 0.88f, 0.7f };
-
-        // Bottom left: the area, what it shows; under it, the keys.
+        // Bottom left: the place, what's here; under it, the keys (the kit's caption).
         const Area* area = m_levels->GetLevel() ? AreaAt(m_player.GetFeetPosition()) : nullptr;
         const std::string title = area ? area->title : "By the lake";
         std::string shows = area ? area->shows : "1-5 go to a place";
@@ -448,18 +441,7 @@ namespace Showcase
         }
         const std::string keys = "1-5 places    P " + EnvironmentName() + (m_clockOn ? "" : " (paused)")
             + "    T pause time    Tab the lens    F1 numbers    F10 tools";
-        const float smallLine = m_smallFont->GetLineHeight() * scale;
-        const float keysY = screen.y - margin - smallLine;
-        const float showsY = keysY - smallLine * 1.4f;
-        const float titleY = showsY - m_font->GetLineHeight() * scale;
-        const glm::vec2 panel{ std::max(ui.MeasureText(*m_smallFont, keys, scale).x,
-                                        ui.MeasureText(*m_smallFont, shows, scale).x) + margin,
-                               screen.y - titleY + margin * 0.5f };
-        ui.DrawRect({ margin * 0.5f, titleY - margin * 0.5f }, { panel.x, panel.y - margin * 0.5f },
-                    { 0.04f, 0.04f, 0.05f, 0.55f });
-        ui.DrawText(*m_font, title, { margin, titleY }, ink, scale);
-        ui.DrawText(*m_smallFont, shows, { margin, showsY }, ink, scale);
-        ui.DrawText(*m_smallFont, keys, { margin, keysY }, dim, scale);
+        UiKit(GetRenderer().GetUI(), *m_font, *m_smallFont).Caption(title, shows, keys);
     }
 
     const Entity* ShowcaseApp::FindEntity(const std::string& name) const

@@ -23,6 +23,9 @@ add_library(
     # v0.0.14 (M89): the F10 panels every app shares.
     Debug/DevPanels.cpp
     Debug/DevPanels.h
+    # v0.0.14 (M89): the player UI every app shares.
+    UI/UiKit.cpp
+    UI/UiKit.h
     # v0.0.14 (M85): the world layer, moved from the demo - levels, the
     # world, interaction, environments, characters, the scenario harness.
     Character/Animator.cpp

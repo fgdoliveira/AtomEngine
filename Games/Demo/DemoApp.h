@@ -4,6 +4,7 @@
 #include "Environment/EnvironmentPresets.h"
 #include "AudioScape.h"
 #include "Debug/DevPanels.h"
+#include "UI/UiKit.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
 #include "Dialogue/Dialogue.h"

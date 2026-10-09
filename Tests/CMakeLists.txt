@@ -42,6 +42,7 @@ add_executable(
     SynthTests.cpp
     BoothSynthTests.cpp
     ShowcaseFeatureTests.cpp
+    UiKitTests.cpp
     FakeGame.h
     TestAssets.h
 )
