@@ -257,6 +257,10 @@ namespace Showcase
     {
         Atom::Renderer& renderer = const_cast<ShowcaseApp*>(this)->GetRenderer();
         const Atom::FrameStats& stats = renderer.GetLastFrameStats();
+        if (name == "menu") return m_screen == Screen::Menu ? 1.0f : 0.0f;
+        if (name == "benchmark_running") return m_screen == Screen::Benchmark ? 1.0f : 0.0f;
+        if (name == "benchmarks_done") return static_cast<float>(m_benchmarksDone);
+        if (name == "benchmark_frames") return static_cast<float>(m_benchmarkFrames.Count());
         if (name == "devtools_panels") return static_cast<float>(m_devPanels.PanelsDrawn());
         if (name == "water_draws") return static_cast<float>(stats.waterDraws);
         if (name == "reflection_draws") return static_cast<float>(stats.reflectionDrawn);

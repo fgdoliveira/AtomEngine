@@ -2,6 +2,7 @@
 
 #include "Level/Environment.h"
 #include "Renderer/Renderer.h"
+#include "Settings/GameSettings.h"
 
 #include <cstddef>
 #include <optional>
@@ -66,6 +67,11 @@ namespace AtomFramework
     // fov, shadows, sun, glow, particles, water, reflection, rain, weather.
     // Renderer settings are applied here; returns false for anything else
     // (the app's own switches). The caller reapplies SceneLightingFor.
+    // A quality tier's preset (M60; the framework's since M90): render
+    // scale, MSAA, the reflection allowed, shadows, particles. The caller
+    // reapplies SceneLightingFor.
+    void ApplyQualityTier(Atom::Renderer& renderer, ViewToggles& toggles, Atmosphere* particles, QualityTier tier);
+
     bool ApplyViewSwitch(Atom::Renderer& renderer, ViewToggles& toggles, Atom::Camera* camera,
                          Atmosphere* particles, const std::string& what, const std::string& value);
 }

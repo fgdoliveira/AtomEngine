@@ -1,6 +1,7 @@
 #include "DriftApp.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Diagnostics/DiagnosticsReport.h"
+#include "UI/UiKit.h"
 
 #include "Platform/Input.h"
 #include "Platform/Window.h"
@@ -58,13 +59,16 @@ namespace Drift
     Atom::Application::StartupConfig DriftApp::OnConfigure()
     {
         // The framework's command line (M82): --gpu and --diagnostics for
-        // players. DRIFT keeps no saved settings, so nothing else counts.
+        // players; since M90 the saved settings too (the pause menu's) -
+        // never for an automated run (ATOM_DRIFT_SECONDS) or --no-settings.
         m_commandLine = AtomFramework::ParseCommandLine(m_arguments);
         for (const std::string& error : m_commandLine.errors)
         {
             std::cerr << "Command line: " << error << " (ignored)\n";
         }
-        m_resolvedSettings = AtomFramework::ResolveSettings(m_commandLine, {}, nullptr);
+        const bool persist = !Atom::DevSwitch("ATOM_DRIFT_SECONDS") && !m_commandLine.noSettings;
+        m_store.Open("Drift", persist, m_commandLine.resetSettings);
+        m_resolvedSettings = AtomFramework::ResolveSettings(m_commandLine, {}, persist ? &m_store.Settings() : nullptr);
         StartupConfig config;
         config.gpuPreference = m_resolvedSettings.gpu == AtomFramework::GpuPreference::HighPerformance
             ? Atom::GPUPreference::HighPerformance
@@ -95,6 +99,8 @@ namespace Drift
         m_titleFont = Atom::Font::Load(renderer, font, 92.0f);
         m_comboFont = Atom::Font::Load(renderer, font, 46.0f);
         m_smallFont = Atom::Font::Load(renderer, font, 16.0f);
+        m_menuFont = Atom::Font::Load(renderer, font, 30.0f);
+        AtomFramework::ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), nullptr, m_store.Settings());
         if (!m_ship || !m_ring || !m_orb || !m_rock || !m_titleFont || !m_comboFont || !m_smallFont)
         {
             std::cerr << "Missing DRIFT assets in " << m_assetRoot << '\n';
@@ -235,20 +241,20 @@ namespace Drift
 
     void DriftApp::OnUpdate(float deltaSeconds)
     {
-        const float dt = std::min(deltaSeconds, 0.05f); // as the original clamps
+        float dt = std::min(deltaSeconds, 0.05f); // as the original clamps
         m_time += dt;
         if (m_autopilotSeconds && m_time > 1.0f)
         {
             m_frameTimes.AddSample(deltaSeconds * 1000.0); // unclamped: the real frame
         }
-        if (GetInput().WasKeyPressed(SDL_SCANCODE_ESCAPE))
+        // Esc: the pause menu (M90); paused, the flight stands still.
+        if (UpdatePause())
         {
-            RequestQuit(0);
-            return;
+            dt = 0.0f;
         }
 
         // The title screen: a click launches (the original's start overlay).
-        if (!m_running && GetInput().WasLeftClicked())
+        if (m_pause == PauseScreen::None && !m_running && GetInput().WasLeftClicked())
         {
             m_running = true;
         }
@@ -258,6 +264,10 @@ namespace Drift
             if (!m_audio->Start(m_music))
             {
                 std::cout << "DRIFT: no audio device - playing silent\n";
+            }
+            else
+            {
+                m_audio->SetGain(m_store.Settings().volume / 0.8f); // the player's volume (M90)
             }
         }
         const auto send = [&](MusicCommand command, int argument = 0, float value = 0.0f) {
@@ -333,6 +343,7 @@ namespace Drift
         m_speedField.Update(dt, forward);
         SubmitSpeedField(forward);
         DrawHud(dt);
+        DrawPause();
         DrawDevTools(dt);
 
         // The engine's glow: PointLight(0xffa050, 4 + boost*10 + sin(30t)*0.8,
@@ -500,7 +511,83 @@ namespace Drift
         m_titleFont.reset();
         m_comboFont.reset();
         m_smallFont.reset();
+        m_menuFont.reset();
         GetRenderer().SetParticleAtlas(nullptr, 1);
         m_white.reset();
+    }
+}
+
+namespace Drift
+{
+    bool DriftApp::UpdatePause()
+    {
+        using namespace AtomFramework;
+        const Atom::Input& input = GetInput();
+        const bool escape = input.WasKeyPressed(SDL_SCANCODE_ESCAPE);
+        switch (m_pause)
+        {
+        case PauseScreen::None:
+            if (escape)
+            {
+                m_pauseMenu = MenuScreen("DRIFT", "Paused", { "Resume", "Settings", "Quit" });
+                m_pause = PauseScreen::Menu;
+                return true;
+            }
+            return false;
+        case PauseScreen::Menu:
+        {
+            std::optional<int> chosen = m_pauseMenu.Update(input);
+            if (escape)
+            {
+                chosen = 0; // Esc again: resume
+            }
+            if (chosen == 0)
+            {
+                m_pause = PauseScreen::None;
+            }
+            else if (chosen == 1)
+            {
+                m_pauseSettings = SettingsScreen({ SettingRow::Display, SettingRow::Volume, SettingRow::Gpu, SettingRow::Back });
+                m_pause = PauseScreen::Settings;
+            }
+            else if (chosen == 2)
+            {
+                RequestQuit(0);
+            }
+            return true;
+        }
+        case PauseScreen::Settings:
+        {
+            const SettingsScreen::Result result = m_pauseSettings.Update(input, m_store.Settings());
+            if (result.changed)
+            {
+                ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), m_audio.get(), m_store.Settings());
+                m_store.Save();
+            }
+            if (result.back)
+            {
+                m_pause = PauseScreen::Menu;
+            }
+            return true;
+        }
+        }
+        return false;
+    }
+
+    void DriftApp::DrawPause()
+    {
+        if (m_pause == PauseScreen::None || !m_menuFont || !m_smallFont)
+        {
+            return;
+        }
+        AtomFramework::UiKit kit(GetRenderer().GetUI(), *m_menuFont, *m_smallFont);
+        if (m_pause == PauseScreen::Menu)
+        {
+            m_pauseMenu.Draw(kit);
+        }
+        else
+        {
+            m_pauseSettings.Draw(kit, m_store.Settings(), m_resolvedSettings.gpu);
+        }
     }
 }

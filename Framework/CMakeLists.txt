@@ -16,6 +16,8 @@ add_library(
     Platform/AssetRoots.h
     Settings/GameSettings.cpp
     Settings/GameSettings.h
+    Settings/SettingsStore.cpp
+    Settings/SettingsStore.h
     Settings/Calibration.cpp
     Settings/Calibration.h
     Diagnostics/DiagnosticsReport.cpp
@@ -26,6 +28,11 @@ add_library(
     # v0.0.14 (M89): the player UI every app shares.
     UI/UiKit.cpp
     UI/UiKit.h
+    # M90: the title/pause menu and the player's settings screen.
+    UI/MenuScreen.cpp
+    UI/MenuScreen.h
+    UI/SettingsScreen.cpp
+    UI/SettingsScreen.h
     # v0.0.14 (M85): the world layer, moved from the demo - levels, the
     # world, interaction, environments, characters, the scenario harness.
     Character/Animator.cpp

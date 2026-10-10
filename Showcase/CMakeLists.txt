@@ -28,6 +28,7 @@ add_executable(
     ShowcaseDevTools.cpp
     ShowcaseLab.cpp
     ShowcaseLens.cpp
+    ShowcaseMenus.cpp
 )
 target_link_libraries(
     Showcase
@@ -37,6 +38,7 @@ target_link_libraries(
         AtomFramework
         imgui # M89: its own F10 panels (ShowcaseDevTools.cpp)
 )
+target_compile_definitions(Showcase PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M90: the benchmark file
 add_dependencies(Showcase AtomShaders) # the engine's shaders, shared with every app
 if(ATOM_DISTRIBUTION)
     set_target_properties(Showcase PROPERTIES WIN32_EXECUTABLE ON)

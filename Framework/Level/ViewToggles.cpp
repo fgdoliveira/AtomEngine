@@ -198,3 +198,23 @@ namespace AtomFramework
         return true;
     }
 }
+
+namespace AtomFramework
+{
+    void ApplyQualityTier(Atom::Renderer& renderer, ViewToggles& toggles, Atmosphere* particles, QualityTier tier)
+    {
+        // A tier caps features (M60): High allows what levels ask for (the
+        // reflection is authored per level), Low turns it off.
+        const QualityPreset preset = PresetFor(tier);
+        Atom::RenderSettings settings = renderer.GetSettings();
+        settings.renderScale = preset.renderScale;
+        settings.msaaSamples = preset.msaaSamples;
+        renderer.SetSettings(settings);
+        renderer.SetReflectionEnabled(preset.reflection);
+        toggles.shadows = preset.shadows;
+        if (particles)
+        {
+            particles->SetEnabled(preset.particles);
+        }
+    }
+}

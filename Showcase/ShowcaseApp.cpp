@@ -96,13 +96,21 @@ namespace Showcase
         }
 
         std::cout << "Showcase: 1-5 places, P next time of day, T pause time, Tab the lens, WASD/Shift/mouse walk,"
-                     " F1 numbers, F2-F8 view, F10 tools, Esc release/quit\n";
+                     " F1 numbers, F2-F8 view, F10 tools, Esc menu\n";
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
             RequestQuit(*exitCode); // a script that can't run
         }
         // A scenario's time stands still unless it starts the clock ("set clock on").
         m_clockOn = !m_diagnostics.HasTestScript();
+        ApplySettings();
+        // M90: a player's run opens on the title, over the living village;
+        // a scenario or a chosen start (ATOM_START_LEVEL) goes straight in.
+        if (!m_diagnostics.HasTestScript() && !Atom::DevSwitch("ATOM_START_LEVEL"))
+        {
+            OpenMenu();
+            return true;
+        }
         const bool captured = GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
         return captured || m_diagnostics.HasTestScript();
     }
@@ -164,6 +172,7 @@ namespace Showcase
         m_time += deltaSeconds;
         // The lens's frame time: real, smoothed so it reads.
         m_smoothedMs += (static_cast<float>(m_diagnostics.RealFrameMs()) - m_smoothedMs) * 0.05f;
+        UpdateScreens(deltaSeconds); // the menus and the benchmark (M90)
 
         m_levels->Update(deltaSeconds);
         GetRenderer().SetFade(m_levels->GetFade());
@@ -177,12 +186,14 @@ namespace Showcase
         {
             UpdatePavilion();
         }
+        // Where the world is seen from: the player, or the benchmark's camera.
+        const glm::vec3 focus = m_screen == Screen::Benchmark ? m_camera.GetPosition() : m_player.GetFeetPosition();
         if (Level* level = m_levels->GetLevel())
         {
-            level->Update(deltaSeconds, m_player.GetFeetPosition());
+            level->Update(deltaSeconds, focus);
         }
 
-        if (!m_levels->IsTransitioning())
+        if (m_screen == Screen::None && !m_levels->IsTransitioning())
         {
             // E at the pavilion opens the character lab; in the lab, Tab
             // switches viewer and drive, E leaves.
@@ -232,14 +243,14 @@ namespace Showcase
         const Level* drawn = m_drawWorld ? m_levels->GetLevel() : nullptr;
         if (drawn)
         {
-            drawn->Submit(renderer, m_player.GetFeetPosition());
+            drawn->Submit(renderer, focus);
         }
 
         // Weather (M50): the environment's wind and, outdoors, its rain.
         const Atom::SceneLighting& lighting = renderer.GetLighting();
         m_atmosphere.SetWind(m_environment.Current().wind);
         m_atmosphere.SetRain(lighting.rain, lighting.skyColor * 0.55f + glm::vec3{ 0.18f });
-        m_atmosphere.Update(deltaSeconds, m_player.GetFeetPosition(), lighting.fogColor,
+        m_atmosphere.Update(deltaSeconds, focus, lighting.fogColor,
                             lighting.fogDensity > 0.0f ? 1.0f : 0.35f);
         if (m_drawWorld)
         {
@@ -247,7 +258,11 @@ namespace Showcase
         }
         renderer.SetWind(m_atmosphere.GetWind(), m_time);
 
-        if (m_mode != Mode::Walking)
+        if (m_screen != Screen::None)
+        {
+            DrawScreens();
+        }
+        else if (m_mode != Mode::Walking)
         {
             DrawLabOverlay(); // the skeleton always; the panel with the HUD
         }
@@ -371,7 +386,11 @@ namespace Showcase
             {
                 std::cout << "Synth booth: no audio device - playing silent\n";
             }
-            else if (!m_featureOn[FeatureIndex("synth")])
+            else
+            {
+                m_audio->SetGain(m_store.Settings().volume / 0.8f); // the player's volume (M90)
+            }
+            if (m_audio->IsRunning() && !m_featureOn[FeatureIndex("synth")])
             {
                 m_audio->Send({ static_cast<int>(BoothCommand::Mute), 1, 0.0f }); // switched off in the lens
             }
@@ -385,19 +404,9 @@ namespace Showcase
     void ShowcaseApp::UpdateMouseCapture()
     {
         Atom::Input& input = GetInput();
-        // Escape releases the mouse; again, quits. A click recaptures it.
-        if (input.WasKeyPressed(SDL_SCANCODE_ESCAPE))
-        {
-            if (input.IsMouseCaptured())
-            {
-                input.SetMouseCaptured(GetWindow().GetSDLWindow(), false);
-            }
-            else
-            {
-                RequestQuit();
-            }
-        }
-        else if (!input.IsMouseCaptured() && !GetDevTools().IsVisible()
+        // Escape opens the menu (M90, UpdateScreens), which releases the
+        // mouse; a click back in the village recaptures it.
+        if (m_screen == Screen::None && !input.IsMouseCaptured() && !GetDevTools().IsVisible()
                  && (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK))
         {
             input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
@@ -664,6 +673,10 @@ namespace Showcase
         else if (what == "unease" && value == "off") {} // the demo's moments; the Showcase has none
         else if (what == "lens" && onOff) m_lens = on;
         else if (what == "clock" && onOff) m_clockOn = on;
+        else if (what == "menu" && onOff) { if (on) OpenMenu(); else m_screen = Screen::None; }
+        else if (what == "menu" && value == "settings") { m_settingsScreen = SettingsScreen(); m_screen = Screen::Settings; }
+        else if (what == "benchmark" && value == "start") StartBenchmark();
+        else if (what == "benchmark_seconds" && isNumber && number >= 2.0f) m_benchmarkSeconds = number;
         else if (what == "clock" && value == "next") AdvanceClock(0.0f);
         else if (what == "clock_hold" && isNumber && number >= 0.5f) m_holdSeconds = number;
         else if (what.rfind("feature_", 0) == 0 && onOff && FeatureIndex(std::string_view(what).substr(8)) >= 0)

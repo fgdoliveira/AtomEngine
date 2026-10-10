@@ -53,6 +53,7 @@ namespace AtomFramework
         const UiTheme& Theme() const { return m_theme; }
         glm::vec2 Measure(std::string_view text) const; // in the body font
         Atom::UIRenderer& Renderer() { return m_ui; }
+        const Atom::Font* TitleFont() const { return &m_title; }
 
         // A panel; `edge` draws the accent bar down its left side.
         void Panel(glm::vec2 origin, glm::vec2 size, const glm::vec4* edge = nullptr);

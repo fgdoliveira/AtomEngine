@@ -4,6 +4,8 @@
 #include "Environment/EnvironmentPresets.h"
 #include "AudioScape.h"
 #include "Debug/DevPanels.h"
+#include "UI/MenuScreen.h"
+#include "UI/SettingsScreen.h"
 #include "UI/UiKit.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
@@ -87,6 +89,16 @@ namespace Demo
         void WatchLevelFiles();
 
         void UpdateMouseCapture();
+        // Esc's pause menu (M90): Resume, Settings (the framework's player
+        // settings screen, saved with the rest), Quit. True while it is open.
+        enum class PauseScreen { None, Menu, Settings };
+        void OpenPause();
+        bool UpdatePause();
+        void DrawPause();
+        PauseScreen m_pause = PauseScreen::None;
+        bool m_justPaused = false; // the Esc that opened it is not the Esc that closes it
+        AtomFramework::MenuScreen m_pauseMenu;
+        AtomFramework::SettingsScreen m_pauseSettings;
         void UpdateRenderSettings();
         void ApplyLighting();
         void UpdateWindowTitle(float deltaSeconds);

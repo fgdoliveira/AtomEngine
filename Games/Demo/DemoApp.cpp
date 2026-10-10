@@ -202,17 +202,7 @@ namespace Demo
 
     void DemoApp::ApplyQuality(QualityTier tier)
     {
-        // A tier caps features (M60): High allows what levels ask for (the
-        // reflection is authored per level), Low turns it off.
-        const QualityPreset preset = PresetFor(tier);
-        Atom::Renderer& renderer = GetRenderer();
-        Atom::RenderSettings settings = renderer.GetSettings();
-        settings.renderScale = preset.renderScale;
-        settings.msaaSamples = preset.msaaSamples;
-        renderer.SetSettings(settings);
-        renderer.SetReflectionEnabled(preset.reflection);
-        m_view.shadows = preset.shadows;
-        m_atmosphere.SetEnabled(preset.particles);
+        ApplyQualityTier(GetRenderer(), m_view, &m_atmosphere, tier); // the framework's (M90)
         m_qualityTier = tier;
         ApplyLighting();
     }
@@ -220,6 +210,8 @@ namespace Demo
     bool DemoApp::OnInitialize()
     {
         RegisterDevPanels();
+        // The player's display and volume (M90; defaults in a scripted run).
+        ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), nullptr, m_savedSettings);
         const char* basePath = SDL_GetBasePath();
         m_outputRoot = basePath ? basePath : "";
         m_assets = AtomFramework::AssetRoots({ m_outputRoot + "Assets/" });
@@ -596,6 +588,12 @@ namespace Demo
         {
             RequestQuit(*exitCode);
         }
+        // Paused: the world stands still and the keys are the menu's.
+        const bool paused = UpdatePause();
+        if (paused)
+        {
+            deltaSeconds = 0.0f;
+        }
 
         // The mode decides what the keys mean (M29).
         const InputContextId context = m_mode == Mode::InDialogue ? InputContextId::Dialogue
@@ -647,7 +645,7 @@ namespace Demo
             m_arriving = false; // the player may move from here on
         }
 
-        switch (m_mode)
+        if (!paused) switch (m_mode)
         {
         case Mode::Exploring:
         {
@@ -750,6 +748,7 @@ namespace Demo
 
         DrawOverlay(deltaSeconds);
         DrawMachineView(); // over everything: the machine fills the window
+        DrawPause();
         UpdateWindowTitle(deltaSeconds);
         DrawDevTools(deltaSeconds);
     }
@@ -869,7 +868,7 @@ namespace Demo
 
         // Controls hint: shown on arrival, then fades away.
         m_hintTime += deltaSeconds;
-        const float hintAlpha = m_showHud ? std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
+        const float hintAlpha = m_showHud && m_pause == PauseScreen::None ?std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
             const char* hint = m_flashlight.IsOwned()
@@ -1144,19 +1143,16 @@ namespace Demo
     {
         Atom::Input& input = GetInput();
 
-        // Escape releases the mouse; clicking back in recaptures it.
+        // Escape opens the pause menu (M90), which releases the mouse;
+        // clicking back in the game recaptures it.
         if (input.WasKeyPressed(SDL_SCANCODE_ESCAPE))
         {
-            if (input.IsMouseCaptured())
+            if (m_pause == PauseScreen::None)
             {
-                input.SetMouseCaptured(GetWindow().GetSDLWindow(), false);
-            }
-            else
-            {
-                RequestQuit();
+                OpenPause();
             }
         }
-        else if (!input.IsMouseCaptured() && !GetDevTools().IsVisible()
+        else if (m_pause == PauseScreen::None && !input.IsMouseCaptured() && !GetDevTools().IsVisible()
             && (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK))
         {
             input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
@@ -1566,6 +1562,8 @@ namespace Demo
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on); // M82: the shared F1 overlay
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
+        else if (what == "menu" && onOff) { if (on) OpenPause(); else m_pause = PauseScreen::None; } // M90
+        else if (what == "menu" && value == "settings") { OpenPause(); m_pause = PauseScreen::Settings; }
         else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on); // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
         else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
@@ -1627,5 +1625,89 @@ namespace Demo
     void DemoApp::Log(const std::string& text)
     {
         std::cout << "[test] " << text << '\n';
+    }
+}
+
+namespace Demo
+{
+    // --- The pause menu (M90) ---------------------------------------------
+
+    void DemoApp::OpenPause()
+    {
+        m_pauseMenu = MenuScreen("Paused", "The demo - AtomEngine", { "Resume", "Settings", "Quit" });
+        m_pauseSettings = SettingsScreen();
+        m_pause = PauseScreen::Menu;
+        m_justPaused = true;
+        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), false);
+    }
+
+    bool DemoApp::UpdatePause()
+    {
+        Atom::Input& input = GetInput();
+        const bool escape = input.WasKeyPressed(SDL_SCANCODE_ESCAPE);
+        switch (m_pause)
+        {
+        case PauseScreen::None:
+            return false;
+        case PauseScreen::Menu:
+        {
+            std::optional<int> chosen = m_pauseMenu.Update(input);
+            if (escape && !m_justPaused)
+            {
+                chosen = 0; // Esc again: resume
+            }
+            m_justPaused = false;
+            if (chosen == 0)
+            {
+                m_pause = PauseScreen::None;
+                input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+            }
+            else if (chosen == 1)
+            {
+                m_pause = PauseScreen::Settings;
+            }
+            else if (chosen == 2)
+            {
+                RequestQuit();
+            }
+            return true;
+        }
+        case PauseScreen::Settings:
+        {
+            const SettingsScreen::Result result = m_pauseSettings.Update(input, m_savedSettings);
+            if (result.changed == SettingRow::Quality)
+            {
+                SetQualityMode(m_savedSettings.quality, true); // applies and saves
+            }
+            else if (result.changed)
+            {
+                ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), nullptr, m_savedSettings);
+                SaveSettings();
+            }
+            if (result.back)
+            {
+                m_pause = PauseScreen::Menu;
+            }
+            return true;
+        }
+        }
+        return false;
+    }
+
+    void DemoApp::DrawPause()
+    {
+        if (m_pause == PauseScreen::None)
+        {
+            return;
+        }
+        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        if (m_pause == PauseScreen::Menu)
+        {
+            m_pauseMenu.Draw(kit);
+        }
+        else
+        {
+            m_pauseSettings.Draw(kit, m_savedSettings, m_resolvedSettings.gpu);
+        }
     }
 }

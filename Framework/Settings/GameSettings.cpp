@@ -2,6 +2,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
+
 namespace AtomFramework
 {
     using Json = nlohmann::json;
@@ -146,6 +148,16 @@ namespace AtomFramework
         {
             s.calibrateNextLaunch = calibrate->get<bool>();
         }
+        // M90: the player's settings screen. Optional keys: a file written
+        // before them reads as the defaults.
+        if (const auto fullscreen = root.find("fullscreen"); fullscreen != root.end() && fullscreen->is_boolean())
+        {
+            s.fullscreen = fullscreen->get<bool>();
+        }
+        if (const auto volume = root.find("volume"); volume != root.end() && volume->is_number())
+        {
+            s.volume = std::clamp(volume->get<float>(), 0.0f, 1.0f);
+        }
 
         if (const auto c = root.find("calibration"); c != root.end() && c->is_object())
         {
@@ -177,6 +189,8 @@ namespace AtomFramework
         root["schema"] = GameSettings::SchemaVersion;
         root["gpu"] = std::string(ToString(s.gpu));
         root["quality"] = std::string(ToString(s.quality));
+        root["fullscreen"] = s.fullscreen;
+        root["volume"] = s.volume;
         if (s.pendingFallback)
         {
             root["pendingFallback"] = std::string(ToString(*s.pendingFallback));

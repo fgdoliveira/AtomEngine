@@ -19,7 +19,11 @@
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "UI/Font.h"
+#include "UI/MenuScreen.h"
+#include "UI/SettingsScreen.h"
 #include "UI/UiKit.h"
+#include "Settings/SettingsStore.h"
+#include "Core/FrameStatsWindow.h"
 
 #include <SDL3/SDL_scancode.h>
 
@@ -41,6 +45,7 @@ namespace Showcase
     class ShowcaseApp : public Atom::Application, public TestHooks
     {
     protected:
+        StartupConfig OnConfigure() override;
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
         void OnShutdown() override;
@@ -138,6 +143,30 @@ namespace Showcase
 
         // F10 (M89, ShowcaseDevTools.cpp): the shared panels, plus Features
         // (the lens's switches) and Clock (the time of day).
+        // The menus (M90, ShowcaseMenus.cpp): a title over the living
+        // village - Explore, Benchmark, Settings, Quit - also Esc's pause
+        // menu; the player's settings screen; the benchmark flight.
+        enum class Screen { None, Menu, Settings, Benchmark };
+        void OpenMenu();
+        void UpdateScreens(float deltaSeconds); // true while a screen has the input
+        void DrawScreens();
+        void ApplySettings(); // display, volume, quality
+        void StartBenchmark();
+        void UpdateBenchmark(float deltaSeconds);
+        void FinishBenchmark();
+        Screen m_screen = Screen::None;
+        MenuScreen m_menu;
+        SettingsScreen m_settingsScreen;
+        SettingsStore m_store;
+        ResolvedSettings m_resolved;
+        bool m_explored = false;      // "Explore" once chosen reads "Resume"
+        std::string m_benchmarkResult; // the last run's summary, under the title
+        float m_benchmarkSeconds = 40.0f;
+        float m_benchmarkTime = 0.0f;
+        Atom::FrameStatsWindow m_benchmarkFrames;
+        std::array<Atom::FrameStatsWindow, 4> m_benchmarkPhases; // day, dusk, night, rain
+        int m_benchmarksDone = 0;
+
         void RegisterDevPanels();
         void DrawDevTools(float deltaSeconds);
         DevPanels m_devPanels;
