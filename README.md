@@ -17,18 +17,34 @@
 [![doctest 2.5.3](https://img.shields.io/badge/doctest-2.5.3-00838F)](https://github.com/doctest/doctest/releases/tag/v2.5.3)
 
 A small C++20 game engine built step by step as a learning and portfolio
-project, on **SDL3's GPU API (Direct3D 12)**.
+project, on **SDL3's GPU API (Direct3D 12)** - with a showcase that shows
+what it can do, two games made with it, and a sample to start your own.
 
-Current version: **0.0.13 "Drift"** — a second game. **DRIFT** is a
-faithful port of a three.js web game: fly an endless path at dusk through
-rings, orbs and rocks, to a soundtrack the engine synthesises live. It
-brought toon shading, outlines and a live synth into the engine, a
-framework layer the games share, and packages without developer tools.
-(0.0.12 was latency: 36 → 24 ms from click to screen; 0.0.11 distribution.)
-See [CHANGELOG.md](CHANGELOG.md); how it's built: [docs/Architecture.md](docs/Architecture.md).
-Play it on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
+Current version: **0.0.14 "Showcase"** - the engine gets a front door. The
+**Showcase** is a lakeside village through a day; press Tab and a lens shows
+how each part of it is made, what it costs and where to read about it.
+The repository is now three layers (engine, framework, apps), every app
+shares one UI, F10 tools and a player settings screen, and
+**HelloAtom** shows how to build an app in about 150 lines.
+(0.0.13 was DRIFT, a second game; 0.0.12 latency.)
+See [CHANGELOG.md](CHANGELOG.md) · [Features](docs/Features.md) ·
+[Architecture](docs/Architecture.md) · [Getting started](docs/Getting-Started.md).
+Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
 
-## What's in it
+```text
+Engine/      the engine (namespace Atom): window, GPU renderer, audio, input, physics, UI drawing
+Framework/   what every app shares (AtomFramework): levels, world, player, environments, UI kit, settings, testing
+Showcase/    the engine's front door: a lakeside village, and the lens
+Games/       the demo (a night street and its story) and DRIFT (a three.js port)
+Samples/     HelloAtom: the smallest app - start here to build your own
+Content/     assets several apps share: the kit, the sky, fonts, environment presets
+```
+
+## The engine
+
+Each capability below with its evidence (code, tests, cost, limits) is in
+[docs/Features.md](docs/Features.md); how each one works is in the
+[technical manual](docs/AtomEngine-Tech-Manual.md).
 
 **Rendering** — forward renderer on SDL_GPU / D3D12 with HLSL shaders compiled
 offline to DXIL; off-screen HDR target with configurable render scale and
@@ -40,61 +56,105 @@ exponential height fog; a directional shadow map (texel-snapped, PCF); alpha-tes
 and decals; emissive masks, a quarter-resolution glow and halo billboards;
 a night-sky panorama and a procedural day sky; stylized water (Fresnel
 toward the sky, a half-resolution planar reflection clipped by an oblique
-near plane, glint, foam, rain rings); rain streaks; wet surfaces (rippled sign reflections, and the ground in
-the rain); rigid node animation, skeletal skinning
+near plane, glint, foam, rain rings); rain streaks; wet surfaces; toon
+shading and inverted-hull outlines; rigid node animation, skeletal skinning
 (linear blend, up to 64 joints, in the vertex shader) and wind sway; ACES tonemapping, colour grade, film grain and vignette;
-instanced particles, including dust only the beam shows, and a faked
-visible beam; decals revealed only by the spot's light; chunk and cell culling with near/mid/far layers,
+instanced particles; chunk and cell culling with near/mid/far layers,
 impostors and skyline cards; draw sorting; render-to-texture; a 2D
-text/UI overlay.
+text/UI overlay, sharp at any window size.
 
-**World** — glTF models, collision proxies, light bakes and lightmaps
-generated procedurally by Blender scripts (deterministic, with a geometry
-lint); levels described in JSON with schemas (models, spawns, lighting,
-ambience, footstep surfaces, entities, animations, chunks and cells, lights,
-sequences, screens), placed with Blender markers; a level manager that
-loads, unloads (RAII), fades between levels and hot-reloads them; a shared
-model cache and a grid-accelerated collision world.
-
-**Gameplay** — a first-person controller with wall sliding and step-up;
-input contexts (named actions, keys mapped per mode); entities built from
-capabilities (drawn, interactable, animated, moving) instead of a class
-hierarchy; data-driven actions and timed action sequences; persistent story
-flags and counters; branching, flag-gated dialogue from JSON; a flashlight
-(found, toggled, held a little behind the view) and interactables found
-only in its beam; things that stay gone once taken.
+**World** (the framework) — glTF models, collision proxies, light bakes and
+lightmaps generated procedurally by Blender scripts; levels described in
+JSON with schemas (models, spawns, lighting, entities, animations, chunks
+and cells, lights, sequences, screens), placed with Blender markers; a
+level manager that loads, unloads (RAII), fades between levels and
+hot-reloads them; entities built from capabilities instead of a class
+hierarchy; a first-person controller with wall sliding and step-up.
 
 **Weather** — environment presets as data (sun, ambient, fog, sky, water,
-rain, wind), offered per level and blended deterministically at runtime;
-the wind drives sway, leaves and the rain's slant.
+rain, wind), blended deterministically at runtime; the wind drives sway,
+leaves and the rain's slant.
 
-**Tools** — Dear ImGui developer panels (F10: frame, render, lighting,
-environment and spot light tuning with Copy as JSON for the data files, level state), kept
-out of every screenshot; frame-time logging and paired A/B benchmarks
-(see Measuring performance).
+**Animation** — clips sampled into poses and blended per joint; an
+animation state machine as data; animation events; a third-person
+character with a spring-arm camera; debug views of the skeleton, skin
+weights and bind pose.
 
-**Animation** — clips sampled into explicit poses and blended per joint
-(crossfades, a walk/run blend kept in phase); an animation state machine
-as data (states, conditions, blend times, one-shots, in-place clips);
-animation events (footsteps from foot-down times); a third-person
-character on the player's body with a jump and a spring-arm camera;
-debug views of the skeleton, the skin weights and the bind pose.
+**Audio** — a software mixer with 3D attenuation, panning and a room
+reverb; and a live synth on the audio thread, played through a lock-free
+command queue (DRIFT's whole soundtrack).
 
-**Pachinko** — a playable machine: a deterministic 2D physics world (balls,
-nails, rails; fixed substeps, no tunnelling), playfields as data, a launcher
-with a strength knob, a seeded lottery with reaches and fever rounds as a
-state machine, presented fullscreen at an integer scale; idle machines play
-themselves on their screens.
-
-**Audio** — a software mixer with 3D attenuation and panning and a room
-reverb; ambience that crossfades per cell; every sound is synthesised in
-code at startup (wind, cicadas, footsteps per surface, vending machine hum,
-radio static, room tone, a windmill's creak, city traffic, neon buzz, a
-train, a bus, a pachinko hall and its machine: clicks, chimes, reels, the
-reach and the fanfare).
+**UI, settings and tools** — one UI kit and theme for every app (captions,
+hint bars, callouts, menus), a title/pause menu and a player settings
+screen (display, quality, volume, GPU), saved per app; Dear ImGui
+developer panels (F10) shared by every app; one F1 overlay; frame-time
+logging, paired A/B benchmarks and a Showcase benchmark mode.
 
 **Testing** — doctest unit tests for the pure logic, and an in-game
-scenario harness that drives the real game from scripts.
+scenario harness that drives the real apps from scripts.
+
+## The Showcase
+
+`build/bin/<config>/Showcase.exe` (the default startup project). A
+lakeside village through a day - clear day, sunset, night, rain - built
+only from the engine and the framework. It opens on a title: **Explore**,
+**Benchmark**, **Settings**, **Quit**.
+
+- **Explore:** walk the village: the lane and its lamps, the jetty, the
+  workshop (someone works there: E to watch them up close in the
+  character lab, Tab to drive them), the toon-shaded shrine under the
+  cedars, and the radio shed (J K L ; play the live synth, U I tone, O
+  echo). 1-5 jump to a place, P skips to the next time of day, T pauses
+  the clock.
+- **The lens (Tab):** callouts on what you're looking at - each a Feature
+  with its engine system, its live cost, its source file and manual
+  section; 1-9 and 0 switch a feature off to see what it contributes.
+- **Benchmark:** a fixed 40 s flight over the village through the four
+  times of day; writes `out/benchmark-<date>-<time>.txt` (graphics card,
+  resolution, settings, median / p95 / p99 frame times overall and per
+  time of day).
+- Esc brings the menu back; F1 numbers, F2-F8 view switches, F10 tools.
+
+## The games
+
+**The demo** (`Games/Demo`, `build/bin/<config>/Demo.exe`): a night street
+with a story. Talk to the shrine keeper by the torii, find a way through
+the shrine gate, try the door of the house at the east end of the street,
+and take the field path to the windmill. At the bus stop, wait for the
+night bus to the city: walk its street and alley, listen for the train,
+and step into the pachinko hall - one machine is free, and 300 balls buy
+something from the prize shelf. Back in the house, a flashlight lies on
+the entry step: with it, the dark corridor leads down into a cellar and a
+tunnel - follow the chalk only the beam shows.
+
+| Key | Action |
+|---|---|
+| WASD / Shift / Mouse | move / jog / look |
+| E | interact; in dialogue: continue / confirm |
+| F | flashlight on / off (once found) |
+| W S or 1–4 | choose a dialogue option |
+| Esc | pause menu: resume, settings, quit |
+| F1 / F2-F8 / F9 / M | overlay / view switches / unease events / mute |
+| F10 | developer tools |
+
+At the pachinko machine: Space (hold) launches balls, Up / Down or the
+wheel set the strength, B or Enter buys 50 balls for 10 tokens, Q or
+Backspace stands up.
+
+**DRIFT** (`Games/Drift`, `build/bin/<config>/Drift.exe`): a faithful port
+of a three.js web game - fly an endless path at dusk through rings, orbs
+and rocks, to music synthesised live. Click to launch; WASD, the arrows or
+the mouse steer; Shift boosts; M mutes; Esc pauses (resume, settings,
+quit).
+
+Both are packaged for players: `pwsh Tools/Dist/package.ps1 -Game Demo`
+or `-Game Drift` (see Distribution).
+
+## Build your own
+
+`Samples/HelloAtom` is a complete app in about 150 lines: a window, a
+level from JSON, walking, F1, F10 and scenarios.
+[docs/Getting-Started.md](docs/Getting-Started.md) walks through it.
 
 ## Building
 
@@ -105,7 +165,7 @@ Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.26, and
 git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cmake -B build -S .
 cmake --build build --config Release
-build/bin/Release/AtomGame.exe
+build/bin/Release/Showcase.exe     # or Demo.exe, Drift.exe, HelloAtom.exe
 ```
 
 Dependencies are git submodules in `external/`, each pinned to one commit
@@ -128,89 +188,19 @@ Build options (CMake `-D`):
 
 | Option | Default | What it builds |
 |---|---|---|
-| `ATOM_BUILD_GAME` | ON | the `AtomGame` executable and its shaders (needs `dxc`) |
+| `ATOM_BUILD_GAME` | ON | the apps' shaders, and the Showcase, the demo and DRIFT (needs `dxc`) |
 | `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
 | `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
 
-`-DATOM_BUILD_GAME=OFF` builds the engine and game libraries and the unit
-tests with no shader compiler - the configuration CI uses.
+`-DATOM_BUILD_GAME=OFF` builds the engine, framework and app libraries, the unit
+tests and HelloAtom with no shader compiler - the configuration CI uses.
 
 Something missing or failing? `pwsh Tools/Dev/doctor.ps1` checks the
 prerequisites (Windows, CMake, Visual Studio's C++ tools, `dxc`, the
 submodules) and says what to install. `-Configure` adds a trial configure
-in a throwaway folder; `-GamePath build/bin/Release/AtomGame.exe` adds the
+in a throwaway folder; `-GamePath build/bin/Release/Demo.exe` adds the
 game's own report. It only reads: no drivers, power plans or files change.
-
-## Playing
-
-**DRIFT** (`build/bin/<config>/Drift.exe`): click to launch; WASD, the
-arrows or the mouse steer; Shift boosts; M mutes; Esc quits. Its
-package: `pwsh Tools/Dist/package.ps1 -Game Drift`. The demo:
-
-| Key | Action |
-|---|---|
-| WASD / Shift / Mouse | move / jog / look |
-| E | interact; in dialogue: continue / confirm |
-| F | flashlight on / off (once found) |
-| W S or 1–4 | choose a dialogue option |
-| Esc | release the mouse (again: quit) |
-| F1 | debug overlay |
-| F2 / F3 / F4 | render scale / baked light / MSAA |
-| F5 / F6 / F7 | fog preset / shadows / post look |
-| F8 / F9 / M | particles / unease events / mute |
-| F10 | developer tools (Dear ImGui) |
-
-At the pachinko machine:
-
-| Key | Action |
-|---|---|
-| Space (hold) | launch balls |
-| Up / Down, mouse wheel | launch strength |
-| B or Enter | buy 50 balls for 10 tokens |
-| Q or Backspace | stand up |
-
-In the character lab (`ATOM_START_LEVEL=character_lab`), the viewer:
-
-| Key | Action |
-|---|---|
-| Arrows / mouse (click in), wheel or PgUp/PgDn | orbit / zoom |
-| 1–4 | clip (Idle, Jump, Run, Walk), crossfaded |
-| 5, then Z / X | walk/run blend, slider |
-| 6 | the state machine, driven by a demo script |
-| − / + , Space, . | speed, pause, one frame |
-| B / K / W | bind pose / skeleton / skin weights |
-| Tab | drive: WASD move, Shift run, Space jump, arrows / mouse camera, Tab back |
-
-The lakeshore lab (`ATOM_START_LEVEL=lakeshore`) is a lake in a meadow for
-stylized water and weather: a day sky, water tinted shallow to deep that
-reflects the sky at grazing angles, glints in the sun and foams at the
-shore, and a jetty to walk out on. Its look is authored in the level's
-`lighting` (`skyGradient`, `water`), live in the F10 Lighting panel.
-
-Weather and time of day are presets (`Assets/Environments/*.json`: clear
-day, overcast, rain, fog, sunset, night). Each one changes the sun, ambient
-light, fog, sky **and water** together, over whatever the level leaves the
-same. Rain (`rain`, 0..1) falls as streaks slanted by the `wind`, rings the
-water, darkens and wets the ground, and brings its own sound; the wind
-also sways the foliage. A level names the ones it offers and starts in (`"environment"`);
-switch and blend between them in the F10 Environment panel, tune what's
-showing, and Copy as JSON for a preset file. Harness: `environment <preset>
-[seconds]`, `expect_environment <preset>`.
-
-Keys are bound by position, not by the symbol printed on them: on non-US
-layouts − and + are the two keys left of Backspace.
-
-The demo: talk to the shrine keeper by the torii, find a way through the
-shrine gate, try the door of the house at the east end of the street, and
-take the field path at the west end to the windmill. At the bus stop past
-the house, wait for the night bus to the city: walk its street and alley,
-listen for the train, and step into the pachinko hall. The attendant has
-tokens for a first night; one machine is free - sit down and play, and 300
-balls buy something from the prize shelf. Back in the house, a flashlight
-lies on the entry step: with it, the dark corridor leads down into a cellar
-and a tunnel - follow the chalk only the beam shows, unbolt the trapdoor,
-and come up in the windmill field's shed.
 
 ## Settings and hardware
 
@@ -231,17 +221,19 @@ Two choices, kept apart on purpose:
 F2–F8 still change single settings; the tier then shows as *Custom*.
 `auto` uses the tier calibration chose, or High if it hasn't run.
 
-**The F10 Settings panel** shows the adapter actually in use, the GPU
-preference ("restart required"), the quality and the tier being drawn, the
-calibration result, and *Calibrate now*, *Calibrate next launch* and
-*Reset*. Choices are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json`;
-a damaged or unknown file is ignored, never fatal.
+**The Settings screen** (v0.0.14: the Showcase's title, Esc in the demo
+and DRIFT) changes the display (window or fullscreen), the quality, the
+volume and the GPU preference ("changes on the next launch"). The demo's
+F10 Settings panel adds the tier being drawn, the calibration result, and
+*Calibrate now*, *Calibrate next launch* and *Reset*. Choices are saved
+per app in `%APPDATA%\AtomEngine\<app>\settings.json` (`Showcase`, `Demo`,
+`Drift`); a damaged or unknown file is ignored, never fatal.
 
 **Log.** Development builds open a console with the game; the
 distributed build (`-DATOM_DISTRIBUTION=ON`, which the package command
 uses) is a windowed program with no console. Either way each run writes
-its output to `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log`,
-keeping the previous run as `AtomGame.previous.log`. It holds the version,
+its output to `%APPDATA%\AtomEngine\<app>\logs\<app>.log` (e.g.
+`Demo\logs\Demo.log`), keeping the previous run as `<app>.previous.log`. It holds the version,
 folder, SDL, the GPUs tried and why, the quality and every level load.
 Started from a terminal, it prints there too. Scripted runs (scenarios,
 benchmarks) print only, so they never overwrite the player's log. If the
@@ -295,12 +287,12 @@ every adapter.
 
 If the swapchain is lost while playing, the game
 saves a low-power fallback and quits cleanly (exit 3), and the next launch
-explains it. In Windows' *Settings → Display → Graphics*, leave AtomGame on
+explains it. In Windows' *Settings → Display → Graphics*, leave the game on
 *Let Windows decide*: forcing "High performance" there overrides both
 preferences, and on such a machine the game can't start.
 
-**Calibration** (opt-in) plays two heavy views - the night street, the
-lakeshore in rain - at each tier twice, and picks the highest tier whose
+**Calibration** (opt-in, the demo) plays two heavy views - the night
+street, the windmill field in rain - at each tier twice, and picks the highest tier whose
 worst 95th-percentile frame time is ≤ 13.3 ms (75 fps), then sets quality
 to `auto`. It takes about a minute. It refuses to run on battery, and
 reports no result when the display caps the frame rate. Calibrate plugged
@@ -313,7 +305,7 @@ as it does F1 and F10.
 
 | Variable | Effect |
 |---|---|
-| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level (`street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`, `passage`; outside the demo: `character_lab`, `lakeshore`, `first_render`) |
+| `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level, skipping the Showcase's title. The demo: `street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`, `passage`. The Showcase: `showcase` (spawns `village`, `jetty`, `lane`, `workshop`, `shrine`, `radio`) and the documentation stages `character_lab`, `first_render` |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
 | `ATOM_PRESENT=immediate` | with `ATOM_VSYNC=0`: tearing allowed, never waits (some displays hold the default to their refresh) |
@@ -340,14 +332,15 @@ pwsh Tools/Dist/package.ps1          # -NoSmoke on a machine without a GPU; -Gam
 
 It builds a Release game in its own folder (`build-dist/`, with
 `-DATOM_DISTRIBUTION=ON`: windowed, no console), installs it into
-`Dist/AtomGame/` with the CMake install rules, verifies it
+`Dist/<game>/` with the CMake install rules, verifies it
 (`Tools/Dist/verify.ps1`), starts it once from outside the repository,
-and zips `Dist/AtomGame-v<version>-win64.zip`. The install rules in
-`Game/CMakeLists.txt` are the one definition of what ships:
+and zips `Dist/<game>-v<version>-win64.zip`. The install rules in each
+game's `CMakeLists.txt` (`Games/Demo/`, `Games/Drift/`) are the one
+definition of what ships. The demo's package:
 
 ```text
-AtomGame/
-├── AtomGame.exe            C++ runtime linked in: no Visual C++ Redistributable needed
+Demo/
+├── Demo.exe                C++ runtime linked in: no Visual C++ Redistributable needed
 ├── SDL3.dll                the only DLL
 ├── shaders/*.dxil          precompiled and signed
 ├── Assets/                 the shipped asset folders (the character lab stays out)
@@ -367,11 +360,11 @@ whole flow, are in [docs/Architecture.md](docs/Architecture.md) §9. A
 release candidate is tested on a clean Windows VM (a local procedure).
 
 **Troubleshooting a player's report.** Ask for:
-1. `%APPDATA%\AtomEngine\AtomGame\logs\AtomGame.log` (and
-   `AtomGame.previous.log` if they started it again since). It holds
+1. `%APPDATA%\AtomEngine\<game>\logs\<game>.log` (and
+   `<game>.previous.log` if they started it again since). It holds
    the version, the folder, SDL, every GPU tried and why it failed, the
    quality, each level load.
-2. `AtomGame.exe --diagnostics report.txt`, run in the game's folder: the
+2. `<game>.exe --diagnostics report.txt`, run in the game's folder: the
    GPU, present modes, display, power and effective settings.
 
 Things they can try: `--gpu low-power` (laptops), `--quality low`,
@@ -577,17 +570,20 @@ pwsh Tools/Docs/capture_character_lab.ps1
 ## Layout
 
 ```text
-Engine/   Assets Audio Core Debug Physics Platform Renderer Scene UI
-Framework/ what every game shares: the run log, settings and command line, calibration, diagnostics
-Game/     Character Dialogue Environment Input Interaction Level Pachinko Testing World  + the demo (DemoApp, player, audio, atmosphere)
-Games/    other games: Drift/ (its rules and music in DriftLib, its assets, its package)
-Shaders/  HLSL, compiled to DXIL at build time
-Tools/    Blender content scripts, Perf (benchmark scripts), Docs, Machines
-Assets/   generated models, levels, dialogue, environments, data (flashlight), font;
-          the runtime payload - the folders copied next to the game - is
-          the list in Game/CMakeLists.txt (all but Schemas/)
-Tests/    unit tests and in-game scenarios
-docs/     the technical manual (concepts) and Architecture.md (structure)
+Engine/    Assets Audio Core Debug Physics Platform Renderer Scene UI
+Framework/ what every app shares: Character Debug (F10 panels) Diagnostics Environment Interaction
+           Level Platform Schemas Settings Testing UI (kit, menus, settings screen) World
+Showcase/  the engine's front door: the village, the lens and its Features, menus, benchmark;
+           its assets (Assets/) and scenarios (Scenarios/)
+Games/     Demo/ (dialogue, pachinko, the flashlight, its levels and assets, its package)
+           Drift/ (its rules and music in DriftLib, its assets, its package)
+Samples/   HelloAtom/ - the smallest app (docs/Getting-Started.md)
+Content/   assets several apps share: Kit, Sky, Fonts, Environments, First (the first-render stage)
+Shaders/   HLSL, compiled to DXIL at build time
+Tools/     Blender content scripts, Perf (benchmark scripts), Dev (check, doctor), Dist, Docs
+Tests/     unit tests and in-game scenarios
+docs/      the technical manual (concepts), Architecture.md (structure), Features.md (the catalog),
+           Getting-Started.md
 .github/  CI
 external/ pinned dependencies
 ```
@@ -596,7 +592,7 @@ external/ pinned dependencies
 
 Code: MIT, see [LICENSE.txt](LICENSE.txt). Third-party libraries keep their
 own licences (the table in [Building](#building)). Fonts: a Latin subset of
-Shippori Mincho for the demo (`Assets/Fonts/`) and Space Grotesk for DRIFT
+Shippori Mincho for the demo and the Showcase (`Content/Fonts/`) and Space Grotesk for DRIFT
 (`Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
 Third-party assets used as they came (the lab's character) are credited in
 [Assets/ThirdParty/README.md](Assets/ThirdParty/README.md).

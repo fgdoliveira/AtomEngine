@@ -14,7 +14,7 @@ Controls
   E                      interact; in dialogue: continue / confirm
   W S or 1-4             choose a dialogue option
   F                      flashlight (once found)
-  Esc                    release the mouse (again: quit)
+  Esc                    pause: resume, settings, quit
   F2 - F8                render scale, baked light, MSAA, fog, shadows,
                          post look, particles
   M                      mute
@@ -24,8 +24,9 @@ wheel) for strength, B or Enter to buy balls, Q or Backspace to stand up.
 
 Settings and logs
 -----------------
-Settings (chosen with the options below) and the log of each run are
-kept per user, not in this folder:
+Settings (Esc > Settings: display, quality, volume, graphics card; or the
+options below) and the log of each run are kept per user, not in this
+folder:
 
   %APPDATA%\AtomEngine\Demo\settings.json
   %APPDATA%\AtomEngine\Demo\logs\Demo.log      (this run)

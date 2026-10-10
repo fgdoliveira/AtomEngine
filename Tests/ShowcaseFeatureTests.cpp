@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <set>
 #include <string>
 
@@ -36,4 +37,18 @@ TEST_CASE("Every Showcase feature names a real source file and a real manual sec
         CHECK(sections.count(feature.manual) == 1);
     }
     CHECK(FeatureCatalog().size() <= 10); // the lens's keys: 1-9, 0
+}
+
+TEST_CASE("Every Showcase feature has its entry in docs/Features.md (ADR-009)")
+{
+    // A section headed "## <title> (`<id>`)" and a row in the table.
+    std::ifstream file(ATOM_SOURCE_DIR "/docs/Features.md");
+    REQUIRE(file);
+    const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+    for (const FeatureInfo& feature : FeatureCatalog())
+    {
+        INFO(feature.id);
+        CHECK(text.find("## " + std::string(feature.title) + " (`" + feature.id + "`)") != std::string::npos);
+        CHECK(text.find("| " + std::string(feature.title) + " | `" + feature.id + "` |") != std::string::npos);
+    }
 }

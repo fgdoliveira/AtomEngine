@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.13
+    VERSION 0.0.14
     LANGUAGES CXX
 )
 

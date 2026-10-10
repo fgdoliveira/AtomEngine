@@ -14,12 +14,14 @@ Controls
   WASD / Arrows / Mouse  steer
   Shift                  boost
   M                      mute
-  Esc                    quit
+  Esc                    pause: resume, settings, quit
 
-Logs
-----
-The log of each run is kept per user, not in this folder:
+Settings and logs
+-----------------
+Settings (Esc > Settings: display, volume, graphics card) and the log of
+each run are kept per user, not in this folder:
 
+  %APPDATA%\AtomEngine\Drift\settings.json
   %APPDATA%\AtomEngine\Drift\logs\Drift.log            (this run)
   %APPDATA%\AtomEngine\Drift\logs\Drift.previous.log
 
