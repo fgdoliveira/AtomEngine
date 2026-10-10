@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.13 / M83**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103).
+A study guide to every concept the engine uses, as of **v0.0.14 / M92**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -112,9 +112,18 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 101. [Lean packages, one overlay, one report (M82)](#101-lean-packages-one-overlay-one-report-m82)
 102. [Two old bugs a second game exposed](#102-two-old-bugs-a-second-game-exposed)
 103. [Releasing 0.0.13 (M83)](#103-releasing-0013-m83)
-104. [Anatomy of a frame and what it costs](#104-anatomy-of-a-frame-and-what-it-costs)
-105. [Build system and project layout](#105-build-system-and-project-layout)
-106. [Glossary](#106-glossary)
+104. [Three layers, and a home for each app (M84–M85)](#104-three-layers-and-a-home-for-each-app-m84m85)
+105. [The Showcase: from a collage to a place (M86, M88)](#105-the-showcase-from-a-collage-to-a-place-m86-m88)
+106. [Features and the lens (M87)](#106-features-and-the-lens-m87)
+107. [One UI for every app (M89)](#107-one-ui-for-every-app-m89)
+108. [Sharp text at any size](#108-sharp-text-at-any-size)
+109. [Menus, player settings and the mouse (M90)](#109-menus-player-settings-and-the-mouse-m90)
+110. [A benchmark mode (M90)](#110-a-benchmark-mode-m90)
+111. [HelloAtom: the smallest app (M91)](#111-helloatom-the-smallest-app-m91)
+112. [Releasing 0.0.14 (M92)](#112-releasing-0014-m92)
+113. [Anatomy of a frame and what it costs](#113-anatomy-of-a-frame-and-what-it-costs)
+114. [Build system and project layout](#114-build-system-and-project-layout)
+115. [Glossary](#115-glossary)
 
 ---
 
@@ -2755,7 +2764,182 @@ The GPU picks the mip level from the texel-to-pixel ratio: two texels per pixel 
 
 ---
 
-## 104. Anatomy of a frame and what it costs
+## 104. Three layers, and a home for each app (M84–M85)
+
+**The problem.** By v0.0.13 the demo *was* the repository: `Game/` held the levels, the entity world, interaction, dialogue, the character, environments and the test harness, all in the namespace `AtomGame`. DRIFT (§95) had already shown that a second app needs a layer between the engine and a game. A showcase, a sample and future games would need much of what was locked inside the demo.
+
+**Concept: layers and the direction of dependencies.** A layer may use the layers below it and never the ones above. Breaking that rule even once (the engine including a game header "just for this") ties the lower layer to one product, and reuse is gone. AtomEngine now has three:
+
+```
+Engine/      Atom::           window, GPU renderer, audio, input, physics, UI drawing
+Framework/   AtomFramework::  levels, world, player, environments, UI kit, settings, testing
+apps         Showcase/, Games/Demo, Games/Drift, Samples/HelloAtom
+```
+
+**How AtomEngine did it.**
+- **M84:** the demo moved to `Games/Demo` (namespace `Demo`, executable `Demo.exe`). A pure move first, behaviour unchanged, so any later breakage had one cause.
+- **M85:** the world layer moved into the framework: data-driven levels and the `LevelManager`, the entity world, interaction and action sequences, environments and `Atmosphere`, the player controller, animator and lab viewer, the scenario harness. The demo kept only what is its story: dialogue, pachinko, the flashlight, its sounds.
+
+**Concept: extension points.** Moving the level code exposed places where it named the demo: it asked the demo's sound synthesiser for "cicadas", and it built the demo's pachinko attract screen for a live screen. The framework can't name an app, so each such dependency became a small **interface the app implements**:
+- `SoundLibrary`: "give me the sound called *x*", or nothing.
+- `ScreenFactory`: "build the program for the screen called *y*" (`ScreenProgram`).
+- `TestHooks`: what a test script can see and do (§110).
+
+This is **dependency inversion**: the lower layer defines the interface it needs, and the upper layer supplies the implementation. The Showcase passes a `SoundLibrary` that returns nothing; the demo passes its synthesiser.
+
+**Concept: asset roots.** Shared assets (the kit, the sky, fonts, environment presets) moved to `Content/`; each app keeps its own in its `Assets/`. `AssetRoots` resolves a relative path ("Kit/torii.glb") by trying the app's folder first, then the shared ones. An app can override a shared asset just by having a file with the same name. The build copies both next to the executable (`Assets/<App>/` first, then `Assets/`).
+
+**Reading older sections.** Sections before this one name paths as they were when written. To find the code today:
+
+| Older sections say | Now |
+|---|---|
+| `Game/Level`, `World`, `Interaction`, `Environment`, `Character`, `Testing`; `Atmosphere`, `PlayerController` | `Framework/` (same folder names) |
+| `Game/Dialogue`, `Pachinko`, `Input`; `DemoApp*`, `Flashlight`, `AudioScape`, `SoundSynth`, `UneaseDirector` | `Games/Demo/` |
+| `DemoAppLab` (the character lab), the lakeshore | `Showcase/ShowcaseLab.cpp`, `Showcase/Assets/` |
+| `AtomGame`, `AtomGameLib`, `Game/CMakeLists.txt` | `Demo`, `DemoLib`, `Games/Demo/CMakeLists.txt` |
+| `Assets/Kit`, `Sky`, `Fonts`, `Environments` | `Content/` |
+| `%APPDATA%\AtomEngine\AtomGame\` | `%APPDATA%\AtomEngine\Demo\` (brought over once on first run) |
+
+**Code.** `Framework/` (Level, World, Interaction, Environment, Character, Testing), `Framework/Level/SoundLibrary.h`, `ScreenProgram.h`, `Framework/Platform/AssetRoots.*`, `Games/Demo/`, Architecture §1–§2.
+
+---
+
+## 105. The Showcase: from a collage to a place (M86, M88)
+
+**The first attempt.** M86 built the Showcase as one scene with an area per feature: animated cubes on a plaza, a corner of lights, toon-shaded objects beside plain twins, a booth for the synth. It worked, and it was a **collage**: nothing was there for a reason, so it showed meshes rather than what an engine is for.
+
+**Concept: features need a reason to exist in the scene.** A showcase convinces when every capability serves the place: the water is there because there is a lake, the lamps because night falls, the character because someone works in the workshop. M88 rebuilt the level as a **lakeside village** from the kit: houses along a lane, street lamps, a workshop, a shrine under cedars, the jetty, a radio shed. The captions name *places*, not features; the lens (§106) is where the engine is explained.
+
+**Concept: time of day as a clock over presets.** The village runs through a day: clear day, sunset, night, rain, overcast. Each is an environment preset (§66) held for 40 s, then blended into the next over 8 s by the existing `EnvironmentController`. The clock is a tiny state machine (holding, blending), not a simulated sun: the presets are authored looks, and blending between them gives the in-between states for free. P skips ahead, T pauses.
+
+**Concept: determinism in tests.** A scenario that checks "it's raining" can't race a clock. So in a scripted run the clock starts **stopped**, and scripts drive it explicitly (`set clock next`, `set clock on`, `set clock_hold 1` to shorten the hold). The same code runs; only who advances time changes.
+
+**Per-entity style.** Toon shading and outlines (§98) were per material. The shrine needed them per *entity* while the same model stays plain elsewhere, so a styled entity loads its own copy of the model (`LoadStyledModel`) with the style applied. An outline on an alpha-tested card (a tree's leaves) outlines the whole card, so those entities take toon shading without an outline.
+
+**Code.** `Showcase/Assets/Levels/showcase.json`, `Showcase/ShowcaseApp.cpp` (`Day`, `UpdateClock`, `AdvanceClock`), `Scenarios/showcase_tour.atomtest`.
+
+---
+
+## 106. Features and the lens (M87)
+
+**Concept: a capability as data.** Each thing the engine can do is a **Feature**: a stable id, a title, the system that produces it, its source file, its manual section, where it lives in the village, a switch and a live cost. The ten Features (water, reflection, shadows, fog, weather, live lights, glow, toon, character, synth) are a table in `FeatureCatalog()`, not code scattered through the app.
+
+**The lens (Tab).** The developer's view of the same place:
+- **Callouts** pinned on what you're looking at: each Feature's anchor (an entity, or a point) is **projected to the screen** (world → clip space with the view-projection matrix, then the perspective divide to normalised device coordinates, then to pixels). Points behind the camera or off screen get none.
+- **A panel** with every Feature, its switch and its live cost, and the focused one's system, source and manual section.
+- **A/B switches:** 1-9, 0 turn a Feature off and on. Each maps to one engine or level switch (water and reflection on the renderer, live lights and halos and styles on the level, glow and shadows in the view toggles, the synth's master gain).
+
+**Concept: claims checked by tests.** A catalog that says "source: `Shaders/Water.frag.hlsl`, manual §65" is only worth something if it's true. Unit tests check that every Feature names a file that exists, a manual section that is a heading, and has an entry in `docs/Features.md` (M92). The `showcase_lens` scenario switches each Feature off and checks its effect leaves the frame (water draws, reflection draws, shadow draws, particles, live lights, glow strength, fog density reach zero), then back on. **Evidence over claims:** the catalog can't drift from the code without a test failing.
+
+**Why it gives the engine a direction (ADR-009).** From now on a new capability is done when it is in the place, in the lens, in the catalog, tested and measured. The Showcase becomes a record of what the engine can do, kept true.
+
+**Code.** `Showcase/Features/Features.*`, `Showcase/ShowcaseLens.cpp` (`Project`, `SetFeature`, `FeatureCost`), `Tests/ShowcaseFeatureTests.cpp`, `docs/Features.md`, Architecture ADR-009.
+
+---
+
+## 107. One UI for every app (M89)
+
+**The problem.** F10 showed nothing in the Showcase or DRIFT: every panel was written inside the demo. And each app drew its player UI by hand: its own colours, margins, and the same scaling line copied five times.
+
+**Concept: share by passing what you have.** The F10 panels moved to the framework as `DevPanels`. An app describes what it has in a `DevContext`: pointers to the renderer, the camera, the view toggles, the level manager, the environment, and callbacks for its own switches. A panel whose subject is missing isn't drawn: DRIFT has no level, so it gets Frame and Render but no Lighting or Level. Apps add their own panels beside the shared ones (`DevPanels::Add`): the demo's Settings and Spot light, the Showcase's Features and Clock, DRIFT's Flight.
+
+**Concept: one path for widgets and tests.** Every widget applies its change through the app's `Set()`, the same function the scenario harness calls. The view switches every app accepted (msaa, scale, post, fog, fov, shadows, sun, glow, particles, water, reflection, rain, weather) had been copied per app; they became one framework function, `ApplyViewSwitch`. A panel, a key and a test script now change the same state the same way.
+
+**Concept: a theme as tokens.** `UiKit` holds one set of colours (panel, ink, dim, accent, warn), one margin and padding, and one scaling rule: lay out for a 720-line window and scale with the window's height, between 0.75× and 2× (`UiScale`). The widgets the apps drew by hand became the kit's: a caption, a hint bar, a callout, columns, a menu, a toast. The developer tools' ImGui style uses the same warm accent, so F10 and the game look like one product.
+
+**Concept: columns with a proportional font.** In a proportional font, spaces don't align text: "1" is narrower than "W". Columns are laid out by **measuring** each cell and starting each column where the widest cell before it ends, plus a gap (`ColumnOffsets`, unit-tested).
+
+**Code.** `Framework/Debug/DevPanels.*`, `Framework/Level/ViewToggles.*` (`ApplyViewSwitch`), `Framework/UI/UiKit.*`, `Engine/Debug/DevTools.cpp` (the style), `Tests/UiKitTests.cpp`.
+
+---
+
+## 108. Sharp text at any size
+
+**The symptom.** After the UI kit, text was soft again in fullscreen and in the menus' large headings, though §102 had fixed blurry text.
+
+**Concept: a bitmap font has one size.** A font atlas is rasterised at one pixel height (§28). Drawn at that height, each glyph maps texel to pixel. Drawn larger, the GPU **magnifies** the bitmap and interpolates between texels, which blurs edges: there is no extra detail to show. The kit loaded fonts at 30 and 19 px and scaled them with the window, 1.5× at 1080p, and 3× for a heading drawn at twice the title size.
+
+**The fix: rasterise at the size drawn.** `UiFonts` keeps the font file's path and rasterises the typeface at the exact on-screen height the first time it's asked for (rounded to whole pixels), then keeps that size. The kit asks for `30 × scale` and `19 × scale` and draws at 1:1. A resize or a fullscreen switch costs one rasterisation per new size, once.
+
+**Concept: two different blurs.** §102 was *minification*: a mipmapped atlas sampled at a lower level. This was *magnification*: a bitmap stretched. Both have the same symptom and opposite causes; both are fixed by drawing the atlas at its own size.
+
+**Code.** `Framework/UI/UiFonts.*`, `UiKit` (`TitlePixels`, `BodyPixels`, `FontAt`).
+
+---
+
+## 109. Menus, player settings and the mouse (M90)
+
+**Why.** Since M82 (§101), packaged games have no developer tools, and the settings screen had lived inside F10. Players of the packages had no way to change anything but command-line flags.
+
+**Concept: separate the logic from the drawing.** `MenuScreen` (a title or pause menu) and `SettingsScreen` (display, quality, volume, GPU) each split into a **pure** `Navigate(move, step, choose, cancel, settings)`, which changes state and says what changed, and a `Draw` on the UI kit. The navigation is unit-tested without a window: wrap-around, one value per step, volume clamped in tenths, an explicit GPU choice clearing a pending fallback, Esc leaving.
+
+**Concept: where settings live, and when not to write them.** `SettingsStore` keeps `settings.json` in SDL's per-user pref path, one folder per app (`%APPDATA%\AtomEngine\<app>\`). A scripted test, a benchmark or `--no-settings` opens it **without persisting**: defaults in, nothing written, so results don't depend on what someone last chose (§78). New keys (`fullscreen`, `volume`) are optional: a file written by an older build reads as the defaults.
+
+**Applying what changes at once.** The display mode is SDL's borderless fullscreen at the desktop's size. The volume sets the mixer's master gain and a synth stream's gain; the synth's is relative to the default 80 %, so a synth sounds as before until the player moves the slider. The GPU preference is read before the device exists (§77), so the screen says it changes on the next launch.
+
+**Concept: who owns the mouse.** First-person look uses **relative mouse mode** (the cursor hidden and pinned; the program reads movement). Three bugs came from losing track of it:
+- The menus released the mouse, which showed the OS cursor over screens that take only the keyboard. They now keep it captured.
+- A fullscreen switch can drop relative mode while the game still believes it's captured. The application re-asserts it each frame when the window has focus.
+- F10 released the mouse for the panels and never gave it back: the character stopped turning until a click. The application now remembers whether the game had the mouse when F10 opened and restores it when F10 closes.
+
+The lesson is the same in all three: when two parts of a program both change a piece of state, one of them must own its restoration.
+
+**Code.** `Framework/UI/MenuScreen.*`, `SettingsScreen.*` (`ApplyDisplayAndVolume`), `Framework/Settings/SettingsStore.*`, `GameSettings` (`fullscreen`, `volume`), `Engine/Core/Application.cpp` (`ProcessEvents`), `Engine/Audio/SynthStream` (`SetGain`).
+
+---
+
+## 110. A benchmark mode (M90)
+
+**Concept: a repeatable workload.** A benchmark's number means something only if every run does the same work. The Showcase's Benchmark fixes everything it can:
+- **The path:** eight waypoints (eye, yaw, pitch) visited at equal times, each leg eased with **smoothstep** (3t² − 2t³: zero speed at both ends, no jerk at the waypoints). Yaw is interpolated **the short way round** (the difference wrapped to ±180°), or a turn from 170° to −170° would spin the long way.
+- **The times of day:** a quarter each of clear day, sunset, night and rain, switched instantly; the clock stopped.
+- **The quality:** the player's settings, recorded in the file.
+
+**Concept: warm-up.** After each switch of the time of day, the first half second isn't measured: the frame that changes the lighting and the particle counts isn't typical of either look.
+
+**Concept: percentiles, not averages.** The report gives the median (the typical frame), p95 and p99 (how bad the slow frames get) and the worst, overall and per time of day (§63). The mean is kept as a diagnostic: one hitch moves it.
+
+**Concept: a stable report.** One `key: value` per line (version, date, graphics card, backend, window, scene size, MSAA, render scale, quality, frames, the percentiles), so two runs compare with a diff. It's written to `out/benchmark-<date>-<time>.txt`.
+
+**Concept: the view's focus point.** The level culls by distance and the rain box follows a point (§67). During the flight the player stays parked, so both had to follow the **camera** instead, or the benchmark would fly through dry air with distant chunks culled.
+
+**A measurement lesson.** The first Release run read 16.7 ms in every phase, with vsync on and off. The display was running at 60 Hz that day: the engine's own log said "hold the 60 Hz refresh". A frame time exactly equal to a refresh interval measures the display, not the engine. It was recorded as invalid, not reported.
+
+**Code.** `Showcase/ShowcaseMenus.cpp` (`Flight`, `UpdateBenchmark`, `FinishBenchmark`), `Scenarios/showcase_benchmark.atomtest`, `Atom::FrameStatsWindow`.
+
+---
+
+## 111. HelloAtom: the smallest app (M91)
+
+**Concept: a sample is a test of the layers.** If an app can be written from the engine and the framework alone, in a page, the layers are usable from outside. `Samples/HelloAtom` is about 150 lines: an `Application` with `OnInitialize` (asset roots, a `LevelManager`, the first level), `OnUpdate` (input to a `MoveIntent`, the player against the level's collision, the camera and the level's draws) and `OnShutdown`. F1 is the engine's, F10 the framework's `DevPanels`. `docs/Getting-Started.md` walks through it.
+
+**Concept: an interface with a default implementation.** The scenario harness's `TestHooks` has fifteen pure virtual functions: right for big apps, which answer each one their own way, too much for a sample. `BasicTestHooks` implements them all for an app that is a level, a player and a camera (teleport, face, the level's name, animation state, captures, the view switches, draw counts). An app owns one and overrides what it adds. The interface stays strict; the common case gets a base to start from.
+
+**Concept: compile in CI, run locally.** CI machines have no GPU and the CI configuration has no shader compiler. HelloAtom compiles without shaders (they're only needed to run it), so CI builds it on every pull request: an outside app can link the engine and the framework. `Scenario.hello_atom` runs it locally.
+
+**Shared content.** The sample loads the first-render stage (§47). Its geometry moved from the Showcase's folder to `Content/First` (a file move, no rebuild), and the asset build now writes it there.
+
+**Code.** `Samples/HelloAtom/Main.cpp`, `Assets/Levels/hello.json`, `Framework/Testing/BasicTestHooks.*`, `.github/workflows/ci.yml`, `docs/Getting-Started.md`.
+
+---
+
+## 112. Releasing 0.0.14 (M92)
+
+**The numbers** (Release, plugged in, on the laptop's 144 Hz panel):
+- **The demo against v0.0.13** (`ab.ps1`, night street, 8 interleaved rounds): median paired delta +0.051 ms, range −0.633..+0.745. The range straddles zero: moving the world layer into the framework cost nothing measurable.
+- **The Showcase** holds 144 Hz at night and in rain (median frame 6.94 ms, M88).
+- `check.ps1 -Level full`: every test and scenario (the unit tests and 20 scenarios) in Debug and in Release.
+- **Packages:** `Demo-v0.0.14-win64.zip` 15.5 MB (116 files), `Drift-v0.0.14-win64.zip` 2.1 MB (35 files).
+
+**Concept: building an old version to compare against.** `ab.ps1` needs the previous release's executable. It was built from its tag in a **git worktree** (a second checkout of the same repository at another commit) with its own submodules. The first attempt, in the system's temp folder, failed: the compiler couldn't build CMake's test program there. Under the repository's ignored `build/` folder it built.
+
+**Documentation as part of the release.** The README follows the order engine → Showcase → games → build your own; `docs/Features.md` is the catalog with evidence (§106); `docs/Architecture.md` describes the three layers and adds ADR-009; `docs/Getting-Started.md` is new (§111). Two coverage changes are written down: the lab's ramp climb became the unit test `DriveTests`, and the quality tiers' reflection assertions left with the lakeshore level, so nothing checks them now.
+
+**Code.** `CHANGELOG.md` 0.0.14, `Tools/Perf/ab.ps1`, `Tools/Dist/package.ps1`, the README, `docs/`.
+
+---
+
+## 113. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2801,22 +2985,22 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 105. Build system and project layout
+## 114. Build system and project layout
 
-- **CMake** (≥ 3.25), C++20. Targets: `AtomEngine` (static lib), `AtomFramework` (what every game shares, §95), `AtomGameLib` (the demo's gameplay as a static lib), `AtomGame` (exe), `DriftLib` and `Drift` (the second game, §96), `AtomTests` (doctest unit tests, linking both game libraries), `AtomShaders` (custom target compiling HLSL). Each `Tests/Scenarios/*.atomtest` is a ctest test that runs `AtomGame` with `ATOM_TEST_SCRIPT` (label `scenario`); `drift_fly` and `drift_diagnostics` run `Drift`.
+- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `AtomTests` (doctest unit tests, linking the app libraries), `AtomShaders` (custom target compiling HLSL). Each `*.atomtest` under `Tests/Scenarios/`, `Showcase/Scenarios/` and `Samples/HelloAtom/Scenarios/` is a ctest test that runs its app with `ATOM_TEST_SCRIPT` (label `scenario`); `drift_fly` and `drift_diagnostics` run `Drift`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the executable, shaders and scenarios; off, no `dxc` needed), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85). The runtime asset payload is the folder list in `Game/CMakeLists.txt` (§73), split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
-- **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game AtomGame|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build with developer tools, §101) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
-- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, and the package check for both games (no artifact kept). **Validation** (§75, §100): `Tools/Dev/check.ps1 -Level changed` per milestone (the table in `Tools/Dev/changed.psd1`), `-Level full` once per version.
+- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85). The demo's runtime asset payload is the folder list in `Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
+- **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game Demo|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build with developer tools, §101) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
+- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, HelloAtom's compile (§111), and the package check for both games (no artifact kept). **Validation** (§75, §100): `Tools/Dev/check.ps1 -Level changed` per milestone (the table in `Tools/Dev/changed.psd1`), `-Level full` once per version.
 - **Shader variants** (§69, §98): `BasicRain.frag` and `BasicToon.frag` include `Basic.frag` with a define; a change to `Basic.frag` rebuilds all three. Write float literals with `f` (§102).
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
-- Post-build step copies `Assets/` next to the executable; shaders are compiled into `bin/<Config>/shaders/`.
+- Post-build steps copy each app's `Assets/` to `Assets/<App>/` and the `Content/` folders it uses to `Assets/` next to the executable (§104); shaders are compiled into `bin/<Config>/shaders/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value; in v0.0.10 `expect_quality`, `move_window`, `set quality`.
-- **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved in `%APPDATA%\AtomEngine\AtomGame\settings.json` (§78); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value; in v0.0.10 `expect_quality`, `move_window`, `set quality`; in v0.0.14 `expect_stat <name> <op> <value>` (an app's named statistics), and `set lens|feature_<id>|clock|clock_hold|menu|benchmark|benchmark_seconds|fullscreen|devtools_collapsed|glow|baked` (§105–§110).
+- **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved per app in `%APPDATA%\AtomEngine\<app>\settings.json` (§78, §109); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
 - **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97). All are read through `Atom::DevSwitch` and ignored in a package (§101).
@@ -2824,21 +3008,26 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
 ```
-Engine/  Assets/ Audio/ Core/ Debug/ (ImGui) Physics/ Platform/ Renderer/ Scene/ UI/
+Engine/  Assets/ Audio/ Core/ Debug/ (ImGui host) Physics/ Platform/ Renderer/ Scene/ UI/
          Renderer/GPUDevice (device, window claim, presentation, fallback)
          Audio/Synth, SynthStream (the live synth); Core/DevSwitch (development switches)
-Framework/ Platform/RunLog, Settings/ (GameSettings, Calibration),
-         Diagnostics/DiagnosticsReport (--diagnostics, shared)
+Framework/ Platform/ (RunLog, AssetRoots), Settings/ (GameSettings, SettingsStore, Calibration),
+         Diagnostics/DiagnosticsReport, Debug/DevPanels (F10),
+         Level/ (LevelData, Level, LevelManager, ModelCache, SoundLibrary, ScreenProgram, ViewToggles),
+         World/ Interaction/ Environment/ (EnvironmentController, EnvironmentPresets, Atmosphere)
+         Character/ (PlayerController, Animator, LabViewer, SpringArm)
+         UI/ (UiKit, UiFonts, MenuScreen, SettingsScreen), Testing/ (TestScript, GameDiagnostics,
+         BasicTestHooks, PairedBench), Schemas/*.schema.json
+Showcase/ ShowcaseApp (the village, clock, captions), ShowcaseLens, ShowcaseLab, ShowcaseMenus
+         (title, settings, benchmark), ShowcaseDevTools, BoothSynth, Features/ (the catalog);
+         Assets/ (Levels/, Lakeshore/, Lab/, ThirdParty/), Scenarios/
+Games/Demo/ DemoApp, AudioScape, SoundSynth, UneaseDirector, Flashlight, Dialogue/, Pachinko/,
+         Input/, DemoAppDevTools, DemoAppCalibration; Assets/ (Street, Shrine, Interior, Fields,
+         City, Night, Pachinko, Passage, Levels, Dialogue, Data), README.txt.in
 Games/Drift/ DriftLib: Flight, World, SpeedField, Music; DriftApp, Main;
          Assets/ (ship, ring, orb, rock .glb; Fonts/SpaceGrotesk + OFL); README.txt.in
-Game/    DemoApp, PlayerController, AudioScape, SoundSynth,
-         Atmosphere, UneaseDirector, Main
-         World/ Interaction/ Dialogue/ Level/ Testing/
-         Input/ (contexts) Pachinko/ (physics, playfield, rules, game, machine mode)
-         Character/ (LabViewer, Animator, SpringArm); DemoAppLab (the lab's modes)
-         Flashlight; DemoAppDevTools (the ImGui panels)
-         Environment/ (EnvironmentController); Level/Environment (state, Blend)
-         DemoAppCalibration (settings and the log moved to Framework/ in v0.0.13)
+Samples/HelloAtom/ Main.cpp, Assets/Levels/hello.json, Scenarios/
+Content/ Kit/ Sky/ Fonts/ Environments/ First/ (shared by several apps)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain,
          BasicToon, Outline (.hlsl)
@@ -2846,34 +3035,33 @@ Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), latency.ps1 (input latency: Engine / PresentMon),
              benchmark scenarios (lights, water and weather)
-Tools/Dev/  check.ps1 (validation: changed, quick, feature, full), changed.psd1 (its table), doctor.ps1, common.ps1
-Tools/Dist/  package.ps1 (the package), verify.ps1 (its check), README.txt.in (players' README)
+Tools/Dev/  check.ps1 (validation: changed, quick, feature, full), changed.psd1 (its table),
+            doctor.ps1, privacy.ps1, common.ps1
+Tools/Dist/  package.ps1 (the package), verify.ps1 (its check)
 Tools/PresentationProbe/  PresentationProbe (SDL or raw D3D12, window moves),
                           SwapchainMatrix (every swapchain kind, D3D11/D3D12, every adapter)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + lakeshore + bakes (vertex, lightmap, cached) + impostors + markers
-                + export
-Assets/  Kit/ Street/ Shrine/ Interior/ Fields/ City/ Night/ Pachinko/ Lab/ Passage/ Lakeshore/
-         Data/ (flashlight.json), Environments/ (weather presets)
-         ThirdParty/ (used as they came: the lab's character, credits README)
-         Sky/ (.glb, lightmap .png, impostor atlas),
-         Levels/*.json (+ *.markers.json), Dialogue/*.json,
-         Schemas/*.schema.json, Fonts/
-docs/    this manual and Architecture.md
+                + export (each product to its app's Assets/ or to Content/)
+docs/    this manual, Architecture.md, Features.md, Getting-Started.md
 .github/ CI workflow; CLAUDE.md: working rules for agents
-Tests/   unit tests (*.cpp), Scenarios/*.atomtest
+Tests/   unit tests (*.cpp), Scenarios/*.atomtest (the demo's)
 external/ SDL glm cgltf stb json doctest imgui
 ```
 
-**Controls:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc release/quit · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · F10 developer tools · **F flashlight** (once found) · M mute.
+**The Showcase:** a title (Explore, Benchmark, Settings, Quit) · WASD, Shift jog, mouse look · 1–5 go to a place · P next time of day · T pause the clock · **Tab the lens** (1–9, 0 switch a Feature) · E at the workshop: the character lab · at the radio shed J K L ; play, U I tone, O echo · Esc the menu · F1 overlay · F2–F8 view · F10 tools.
 
-**DRIFT:** click to launch · WASD, arrows or the pointer's position steer · Shift boost · M mute · Esc quit · (development builds: F1 overlay, F10 tools).
+**The demo:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc pause menu · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · F10 developer tools · **F flashlight** (once found) · M mute.
 
-**Character lab:** arrows / mouse orbit, wheel zoom · 1–4 clip · 5 blend (Z/X slider) · 6 state machine · −/+ speed · Space pause · . step · B bind pose · K skeleton · W weights · Tab drive (WASD, Shift run, Space jump, Tab back).
+**DRIFT:** click to launch · WASD, arrows or the pointer's position steer · Shift boost · M mute · Esc pause menu · (development builds: F1 overlay, F10 tools).
+
+**Character lab** (the Showcase's workshop): arrows / mouse orbit, wheel zoom · 1–4 clip · 5 blend (Z/X slider) · 6 state machine · −/+ speed · Space pause · . step · B bind pose · K skeleton · W weights · Tab drive (WASD, Shift run, Space jump, Tab back) · E leave.
+
+**HelloAtom:** WASD, Shift jog, mouse look · F1 · F2–F8 · F10 · Esc quit.
 
 ---
 
-## 106. Glossary
+## 115. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -3101,3 +3289,14 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Sample-accurate scheduling** — starting each note on its exact sample inside an audio block, not at the block's start (§99).
 - **Test selection** — running only the tests a change can affect, chosen from the changed files (§100).
 - **Z-fighting** — flicker when two surfaces share the same (or nearly the same) depth, so the depth test picks a different winner per pixel and frame; in AtomEngine caused by coplanar overlapping faces (§33).
+- **A/B switch (lens)** — turning one capability off and back on to see, and measure, what it contributes to the frame (§106).
+- **Asset roots** — an ordered list of folders a relative asset path is looked up in; the app's own first, then the shared ones (§104).
+- **Dependency inversion** — the lower layer defines the interface it needs and the upper layer implements it, so the lower one never names the upper (§104).
+- **Extension point** — such an interface: where an app plugs its own behaviour into the framework (`SoundLibrary`, `ScreenFactory`, `TestHooks`) (§104).
+- **Feature (catalog)** — a capability recorded as data: id, system, source, manual section, switch and live cost, checked by tests (§106, ADR-009).
+- **Git worktree** — a second checkout of the same repository at another commit, in its own folder; used to build an old release beside the current one (§112).
+- **Magnification blur** — a bitmap drawn larger than its pixels, interpolated between texels; the opposite cause of minification blur (§108).
+- **Percentile (p95, p99)** — the frame time below which that share of frames falls; how bad the slow frames get, which an average hides (§110).
+- **Smoothstep** — 3t² − 2t³: an ease from 0 to 1 with zero speed at both ends (§110).
+- **Theme tokens** — a UI's colours and spacing named once and used everywhere, instead of literals in each draw call (§107).
+- **Warm-up (benchmark)** — the frames after a change that aren't measured because they're not typical of the steady state (§110).
