@@ -110,3 +110,56 @@ TEST_CASE("The spike: a batch of enemies arrives at once, at the edge")
     const float edge = sim.Config().arenaHalf - sim.Config().enemyRadius;
     CHECK((std::abs(std::abs(last.position.x) - edge) < 1e-4f || std::abs(std::abs(last.position.y) - edge) < 1e-4f));
 }
+
+// M94: the benchmark's scenarios and command line.
+#include "ArenaBenchmark.h"
+
+TEST_CASE("A benchmark scenario name says which workload and how big")
+{
+    const auto collision = FindScenario("collision_500");
+    REQUIRE(collision);
+    CHECK(collision->config.enemies == 500);
+    CHECK(collision->config.collide);
+    CHECK(collision->config.collision == CollisionMode::Grid);
+    CHECK_FALSE(collision->drawEnemies);
+    CHECK(FindScenario("collision_naive_500")->config.collision == CollisionMode::Naive);
+    CHECK_FALSE(FindScenario("update_250")->config.collide);
+    CHECK(FindScenario("projectiles_1000")->config.projectiles == 1000);
+    CHECK(FindScenario("spike_500")->spikeBatch == 500);
+    CHECK(FindScenario("draw_100")->drawEnemies);
+    CHECK_FALSE(FindScenario("bogus_10"));
+    CHECK_FALSE(FindScenario("collision"));
+    CHECK_FALSE(FindScenario("collision_x"));
+    for (const std::string& name : StandardScenarios())
+    {
+        INFO(name);
+        CHECK(FindScenario(name));
+    }
+}
+
+TEST_CASE("The benchmark's command line: values, defaults and errors")
+{
+    const BenchmarkOptions options = ParseBenchmarkArguments(
+        { "--benchmark", "--scenario", "collision_500", "--seed", "7", "--frames", "900", "--warmup", "60" });
+    CHECK(options.errors.empty());
+    CHECK(options.benchmark);
+    CHECK(options.scenario == "collision_500");
+    CHECK(options.seed == 7u);
+    CHECK(options.frames == 900);
+    CHECK(options.warmup == 60);
+    CHECK(ParseBenchmarkArguments({}).errors.empty()); // no arguments: just play
+    CHECK_FALSE(ParseBenchmarkArguments({ "--benchmark", "--scenario", "nope_1" }).errors.empty());
+    CHECK_FALSE(ParseBenchmarkArguments({ "--frames", "many" }).errors.empty());
+    CHECK_FALSE(ParseBenchmarkArguments({ "--what" }).errors.empty());
+}
+
+TEST_CASE("The spike's end: the batch goes, the rest stay")
+{
+    ArenaSim sim;
+    sim.SpawnBatch(400);
+    sim.Step(1.0f / 60.0f);
+    sim.Truncate(100);
+    CHECK(sim.Enemies().size() == 100);
+    CHECK(sim.EnemyContacts().empty()); // no pair names a removed enemy
+    sim.Step(1.0f / 60.0f);             // and the next step is fine
+}

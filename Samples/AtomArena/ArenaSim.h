@@ -60,6 +60,8 @@ namespace Arena
         void Step(float dt);
         // D: the spike - n more enemies at once, at the edge.
         void SpawnBatch(int count);
+        // Back to `count` enemies (the newest go): the spike's end.
+        void Truncate(int count);
 
         const ArenaConfig& Config() const { return m_config; }
         ArenaConfig& EditConfig() { return m_config; } // workload switches, live

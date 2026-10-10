@@ -2,12 +2,21 @@
 # evaluate CPU profiling (ADR-010). ArenaLib, the pure
 # simulation, is what the unit tests reach (built without the game too, as
 # CI does); the executable is HelloAtom's shape.
-add_library(ArenaLib STATIC ArenaSim.cpp ArenaSim.h)
+add_library(ArenaLib STATIC ArenaSim.cpp ArenaSim.h ArenaBenchmark.cpp ArenaBenchmark.h)
 target_include_directories(ArenaLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ArenaLib PUBLIC glm::glm)
 
 add_executable(AtomArena Main.cpp ArenaApp.cpp ArenaApp.h)
 target_link_libraries(AtomArena PRIVATE ArenaLib AtomEngine AtomFramework imgui)
+# M94: what a benchmark report names - the version, the commit (when CMake
+# last configured; Tools/Perf/arena.ps1 also records HEAD) and the build.
+execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                OUTPUT_VARIABLE ARENA_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT ARENA_GIT_COMMIT)
+    set(ARENA_GIT_COMMIT "unknown")
+endif()
+target_compile_definitions(AtomArena PRIVATE ATOM_VERSION="${PROJECT_VERSION}" ATOM_GIT_COMMIT="${ARENA_GIT_COMMIT}"
+                                             ATOM_BUILD_CONFIG="$<CONFIG>")
 if(TARGET AtomShaders)
     add_dependencies(AtomArena AtomShaders) # the engine's shaders, shared with every app
 endif()

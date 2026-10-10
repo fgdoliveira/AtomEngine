@@ -14,6 +14,9 @@
 #include <glm/trigonometric.hpp>
 
 #include <cstdio>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 
 namespace Arena
@@ -74,6 +77,20 @@ namespace Arena
         }
         std::cout << "ATOM ARENA: 1-5 enemies, P projectiles, C collision search, B spawn batch, R restart,"
                      " V view, F1 numbers, F10 tools (Arena panel), Esc quit\n";
+        m_options = ParseBenchmarkArguments(m_arguments);
+        for (const std::string& error : m_options.errors)
+        {
+            std::cerr << "ATOM ARENA: " << error << '\n';
+        }
+        if (!m_options.errors.empty())
+        {
+            return false;
+        }
+        if (m_options.benchmark)
+        {
+            StartBenchmark();
+            return true; // no mouse needed: nobody plays
+        }
         const bool captured = GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
         return captured || m_diagnostics.HasTestScript();
     }
@@ -87,6 +104,8 @@ namespace Arena
 
     void ArenaApp::OnUpdate(float deltaSeconds)
     {
+        const double updateStart = NowMs();
+        const float frameMs = deltaSeconds * 1000.0f; // the whole last frame, real
         m_diagnostics.RecordFrameTime(deltaSeconds, "arena");
         deltaSeconds = m_diagnostics.Step(deltaSeconds);
         if (const std::optional<int> exitCode = m_diagnostics.UpdateTestScript(deltaSeconds, *m_hooks))
@@ -106,8 +125,13 @@ namespace Arena
         m_levels->Update(deltaSeconds);
         Simulate(deltaSeconds);
         UpdateCamera(deltaSeconds);
+        const double submitStart = NowMs();
         SubmitArena();
-        DrawHud();
+        m_lastSubmitMs = NowMs() - submitStart;
+        if (!m_scenario)
+        {
+            DrawHud();
+        }
 
         DevContext tools;
         tools.renderer = &GetRenderer();
@@ -118,13 +142,34 @@ namespace Arena
         tools.set = [this](const std::string& what, const std::string& value) { return m_hooks->Set(what, value); };
         tools.applyLighting = [this] { ApplyLighting(); };
         m_panels.Draw(tools, deltaSeconds);
+        if (m_scenario)
+        {
+            UpdateBenchmark(NowMs() - updateStart, frameMs);
+        }
     }
 
     void ArenaApp::Simulate(float deltaSeconds)
     {
         // Fixed 60 Hz steps (the same simulation at any frame rate); the
-        // time they take is real time, measured around them.
-        const int steps = m_step.Advance(deltaSeconds);
+        // time they take is real time, measured around them. A benchmark
+        // runs exactly one step per frame: the same work every frame.
+        m_spawnedThisFrame = false;
+        if (m_scenario && m_scenario->spikeBatch > 0 && m_benchmarkFrame > 0)
+        {
+            // D: the batch arrives every period, and leaves `length` later.
+            if (m_benchmarkFrame % m_scenario->spikePeriod == 0)
+            {
+                const double spawnStart = NowMs();
+                m_sim.SpawnBatch(m_scenario->spikeBatch);
+                m_lastSpawnMs = NowMs() - spawnStart;
+                m_spawnedThisFrame = true;
+            }
+            else if (m_benchmarkFrame % m_scenario->spikePeriod == m_scenario->spikeLength)
+            {
+                m_sim.Truncate(m_scenario->config.enemies);
+            }
+        }
+        const int steps = m_scenario ? 1 : m_step.Advance(deltaSeconds);
         const double start = NowMs();
         for (int i = 0; i < steps; ++i)
         {
@@ -315,6 +360,118 @@ namespace Arena
         m_enemyModel.reset();
         m_fonts.reset();
         m_levels.reset(); // the level's GPU resources go before the device
+    }
+
+    // --- The benchmark (M94) ----------------------------------------------
+
+    void ArenaApp::StartBenchmark()
+    {
+        m_scenario = FindScenario(m_options.scenario);
+        m_config = m_scenario->config;
+        m_config.seed = m_options.seed;
+        m_drawEnemies = m_scenario->drawEnemies;
+        m_overview = true;
+        Restart();
+        std::cout << "Benchmark: " << m_scenario->name << ", seed " << m_options.seed << ", " << m_options.warmup
+                  << " warm-up + " << m_options.frames << " frames\n";
+    }
+
+    void ArenaApp::UpdateBenchmark(double updateMs, float frameMs)
+    {
+        ++m_benchmarkFrame;
+        if (m_benchmarkFrame > m_options.warmup + 1) // the first measured frame's period follows a warm-up frame
+        {
+            m_frameMs.AddSample(frameMs);
+            m_updateMs.AddSample(updateMs);
+            m_simWindow.AddSample(m_lastSimMs);
+            m_submitMs.AddSample(m_lastSubmitMs);
+            m_contactSum += static_cast<double>(m_sim.EnemyContacts().size());
+            if (m_spawnedThisFrame)
+            {
+                m_spikeUpdateMs.AddSample(updateMs);
+                m_spawnMs.AddSample(m_lastSpawnMs);
+            }
+        }
+        if (m_benchmarkFrame >= m_options.warmup + 1 + m_options.frames)
+        {
+            FinishBenchmark();
+        }
+    }
+
+    void ArenaApp::FinishBenchmark()
+    {
+        // One `key: value` per line, so runs compare with a diff and
+        // Tools/Perf/arena.ps1 reads them back.
+        Atom::Renderer& renderer = GetRenderer();
+        const Atom::Renderer::DeviceReport device = renderer.GetDeviceReport();
+        const Atom::FrameStats& stats = renderer.GetLastFrameStats();
+        const glm::vec2 window = renderer.GetUI().GetScreenSize();
+        std::string report;
+        const auto line = [&](const std::string& key, const std::string& value) { report += key + ": " + value + "\n"; };
+        const auto ms = [](double value) {
+            char text[32];
+            std::snprintf(text, sizeof(text), "%.4f", value);
+            return std::string(text);
+        };
+        const auto distribution = [&](const std::string& key, const Atom::FrameStatsWindow& w) {
+            line(key + "_median_ms", ms(w.Median()));
+            line(key + "_p95_ms", ms(w.Percentile(0.95)));
+            line(key + "_p99_ms", ms(w.Percentile(0.99)));
+            line(key + "_worst_ms", ms(w.Percentile(1.0)));
+            line(key + "_mean_ms", ms(w.Mean()));
+        };
+        line("benchmark", "ATOM ARENA");
+        line("scenario", m_scenario->name);
+        line("version", ATOM_VERSION);
+        line("commit", ATOM_GIT_COMMIT); // at configure time
+        line("config", ATOM_BUILD_CONFIG);
+        line("profiling", "none");
+        line("adapter", device.adapter);
+        line("backend", device.backend);
+        line("present_mode", device.presentMode);
+        line("frames_in_flight", std::to_string(device.framesInFlight));
+        line("window", std::to_string(static_cast<int>(window.x)) + "x" + std::to_string(static_cast<int>(window.y)));
+        line("scene", std::to_string(stats.sceneWidth) + "x" + std::to_string(stats.sceneHeight));
+        line("msaa", std::to_string(stats.msaaSamples));
+        line("seed", std::to_string(m_options.seed));
+        line("warmup_frames", std::to_string(m_options.warmup));
+        line("frames", std::to_string(m_frameMs.Count()));
+        line("enemies", std::to_string(m_scenario->config.enemies));
+        line("projectiles", std::to_string(m_scenario->config.projectiles));
+        line("collision", !m_scenario->config.collide ? "off"
+                          : m_scenario->config.collision == CollisionMode::Grid ? "grid" : "naive");
+        line("draw_enemies", m_scenario->drawEnemies ? "on" : "off");
+        line("spike_batch", std::to_string(m_scenario->spikeBatch));
+        line("contacts_mean", ms(m_frameMs.Count() ? m_contactSum / static_cast<double>(m_frameMs.Count()) : 0.0));
+        line("draws_last_frame", std::to_string(stats.drawn));
+        line("state_hash", std::to_string(m_sim.StateHash()));
+        distribution("frame", m_frameMs);   // the whole frame, start to start
+        distribution("update", m_updateMs); // the app's CPU work in OnUpdate
+        distribution("sim", m_simWindow);   // the simulation step
+        distribution("submit", m_submitMs); // the app's draw submission
+        if (m_scenario->spikeBatch > 0)
+        {
+            line("spikes", std::to_string(m_spikeUpdateMs.Count()));
+            distribution("spike_update", m_spikeUpdateMs);
+            distribution("spike_spawn", m_spawnMs);
+        }
+
+        std::filesystem::path file = m_options.out;
+        if (file.empty())
+        {
+            char stamp[32];
+            const std::time_t now = std::time(nullptr);
+            std::tm local{};
+            localtime_s(&local, &now);
+            std::strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%S", &local);
+            file = std::filesystem::path(m_root) / "out" / "arena" / (m_scenario->name + "-" + stamp + ".txt");
+        }
+        std::error_code error;
+        std::filesystem::create_directories(file.parent_path(), error);
+        std::ofstream(file, std::ios::binary) << report;
+        std::cout << report << "Benchmark written to " << file.string() << '\n';
+        RequestQuit(0);
+        m_scenario.reset();
     }
 
     // --- The harness ------------------------------------------------------

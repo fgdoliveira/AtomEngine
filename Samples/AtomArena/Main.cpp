@@ -4,8 +4,13 @@
 
 #include <SDL3/SDL_main.h> // the Windows entry point of a windowed program
 
-int main(int /*argc*/, char** /*argv*/)
+#include <string>
+#include <vector>
+
+int main(int argc, char** argv)
 {
-    Arena::ArenaApp app;
+    // --benchmark --scenario <name> [--seed N] [--frames N] [--warmup N] [--out file]
+    std::vector<std::string> arguments(argv + 1, argv + argc);
+    Arena::ArenaApp app(std::move(arguments));
     return app.Run();
 }

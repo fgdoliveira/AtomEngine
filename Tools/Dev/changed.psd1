@@ -22,7 +22,7 @@
         # M91: the sample, and the framework hooks it rests on.
         @{ Pattern = '^(Samples/HelloAtom/|Framework/Testing/BasicTestHooks)'; Scenarios = @('hello_atom') }
         # M93: ATOM ARENA, the profiling benchmark (its simulation: the unit tests).
-        @{ Pattern = '^(Samples/AtomArena/|Tests/ArenaSimTests)'; Scenarios = @('arena_smoke') }
+        @{ Pattern = '^(Samples/AtomArena/|Tests/ArenaSimTests|Tools/Perf/arena\.ps1)'; Scenarios = @('arena_smoke') }
         @{ Pattern = '^Showcase/'; Scenarios = @('showcase_tour', 'showcase_lens', 'showcase_benchmark') }
 
         # The engine

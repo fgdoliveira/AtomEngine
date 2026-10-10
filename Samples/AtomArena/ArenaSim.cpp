@@ -82,6 +82,16 @@ namespace Arena
         }
     }
 
+    void ArenaSim::Truncate(int count)
+    {
+        if (count >= 0 && static_cast<std::size_t>(count) < m_enemies.size())
+        {
+            m_enemies.resize(static_cast<std::size_t>(count));
+            m_enemyContacts.clear(); // they named enemies that are gone
+            m_projectileHits.clear();
+        }
+    }
+
     void ArenaSim::Step(float dt)
     {
         ++m_steps;

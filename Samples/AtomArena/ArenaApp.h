@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ArenaBenchmark.h"
 #include "ArenaSim.h"
 
 #include "Character/PlayerController.h"
@@ -35,6 +36,9 @@ namespace Arena
     // profiler can be judged on what it shows about each.
     class ArenaApp : public Atom::Application
     {
+    public:
+        explicit ArenaApp(std::vector<std::string> arguments) : m_arguments(std::move(arguments)) {}
+
     protected:
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
@@ -68,7 +72,22 @@ namespace Arena
         void SubmitArena();
         void DrawHud();
         void DrawArenaPanel();
+        // The benchmark (M94): a named scenario for a fixed number of
+        // frames, one simulation step per frame, then a report and quit.
+        void StartBenchmark();
+        void UpdateBenchmark(double updateMs, float frameMs);
+        void FinishBenchmark();
         friend class Hooks;
+
+        std::vector<std::string> m_arguments;
+        BenchmarkOptions m_options;
+        std::optional<BenchmarkScenario> m_scenario; // set while benchmarking
+        int m_benchmarkFrame = 0;                    // counts warm-up frames too
+        double m_lastSubmitMs = 0.0;
+        double m_lastSpawnMs = 0.0;
+        bool m_spawnedThisFrame = false;
+        Atom::FrameStatsWindow m_frameMs, m_updateMs, m_simWindow, m_submitMs, m_spikeUpdateMs, m_spawnMs;
+        double m_contactSum = 0.0;
 
         std::string m_root;
         AssetRoots m_assets;
