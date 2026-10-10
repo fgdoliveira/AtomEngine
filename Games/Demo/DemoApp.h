@@ -6,6 +6,7 @@
 #include "Debug/DevPanels.h"
 #include "UI/MenuScreen.h"
 #include "UI/SettingsScreen.h"
+#include "UI/UiFonts.h"
 #include "UI/UiKit.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
@@ -324,6 +325,7 @@ namespace Demo
 
         std::unique_ptr<Atom::Font> m_font;      // prompts, hints, dialogue
         std::unique_ptr<Atom::Font> m_smallFont; // debug overlay, speaker names
+        std::unique_ptr<AtomFramework::UiFonts> m_uiFonts; // the UI kit's, sharp at any size (M90)
 
         float m_hintTime = 0.0f;
         float m_smoothedFrameMs = 0.0f;

@@ -106,7 +106,8 @@ namespace Showcase
                             { m_explored ? "Resume" : "Explore", "Benchmark", "Settings", "Quit" });
         m_screen = Screen::Menu;
         m_lens = false;
-        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), false);
+        // Keyboard-only: the pointer stays captured, so no cursor shows (M90).
+        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
     }
 
     void ShowcaseApp::UpdateScreens(float deltaSeconds)
@@ -289,7 +290,7 @@ namespace Showcase
 
     void ShowcaseApp::DrawScreens()
     {
-        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
         switch (m_screen)
         {
         case Screen::Menu:

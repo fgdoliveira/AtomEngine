@@ -26,6 +26,8 @@ add_library(
     Debug/DevPanels.cpp
     Debug/DevPanels.h
     # v0.0.14 (M89): the player UI every app shares.
+    UI/UiFonts.cpp
+    UI/UiFonts.h
     UI/UiKit.cpp
     UI/UiKit.h
     # M90: the title/pause menu and the player's settings screen.

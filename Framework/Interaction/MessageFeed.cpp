@@ -19,7 +19,7 @@ namespace AtomFramework
         m_remaining = std::max(0.0f, m_remaining - deltaSeconds);
     }
 
-    void MessageFeed::Draw(Atom::UIRenderer& ui, const Atom::Font& font, float scale) const
+    void MessageFeed::Draw(UiKit& kit, float textScale) const
     {
         if (m_remaining <= 0.0f)
         {
@@ -28,7 +28,6 @@ namespace AtomFramework
 
         // The kit's toast (M89): the shared panel and ink, fading out.
         const float alpha = std::clamp(m_remaining / 0.6f, 0.0f, 1.0f);
-        UiKit kit(ui, font, font);
-        kit.Toast(m_text, alpha, scale / kit.Scale());
+        kit.Toast(m_text, alpha, textScale);
     }
 }

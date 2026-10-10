@@ -118,13 +118,13 @@ namespace AtomFramework
         kit.Renderer().DrawRect({ 0.0f, 0.0f }, screen, { 0.0f, 0.0f, 0.0f, 0.6f });
         const glm::vec2 at{ screen.x * 0.12f, screen.y * 0.22f };
         kit.TitleText("Settings", at, theme.ink);
-        const float lineHeight = kit.TitleFont()->GetLineHeight() * kit.Scale();
+        const float lineHeight = kit.TitleFont().GetLineHeight();
 
         // Two columns: the setting, and its value between arrows.
         float labelWidth = 0.0f;
         for (const SettingRow row : m_rows)
         {
-            labelWidth = std::max(labelWidth, kit.Renderer().MeasureText(*kit.TitleFont(), Label(row), kit.Scale()).x);
+            labelWidth = std::max(labelWidth, kit.Renderer().MeasureText(kit.TitleFont(), Label(row)).x);
         }
         const float valueX = labelWidth + 4.0f * kit.Pad();
         const glm::vec2 origin = at + glm::vec2{ 0.0f, lineHeight * 1.6f };

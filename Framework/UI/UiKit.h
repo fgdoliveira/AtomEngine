@@ -15,6 +15,8 @@ namespace Atom
 
 namespace AtomFramework
 {
+    class UiFonts;
+
     // The look every app's player UI shares (v0.0.14, M89): one set of
     // colours (sRGB, straight alpha, as UIRenderer takes them), one margin,
     // one rule for scaling with the window. The accent is the developer
@@ -38,12 +40,17 @@ namespace AtomFramework
 
     // A frame's player UI: the theme's widgets on the engine's UIRenderer.
     // Immediate mode, like everything UIRenderer draws: made, drawn with
-    // and dropped within a frame.
+    // and dropped within a frame. Text is drawn 1:1 from fonts rasterised at
+    // the scaled size (UiFonts), never a bitmap stretched: it stays sharp at
+    // any window size.
     class UiKit
     {
     public:
-        UiKit(Atom::UIRenderer& ui, const Atom::Font& title, const Atom::Font& body,
-              const UiTheme& theme = DefaultUiTheme());
+        // The theme's two sizes, at scale 1 (a 720-line window).
+        static constexpr float TitlePixels = 30.0f;
+        static constexpr float BodyPixels = 19.0f;
+
+        UiKit(Atom::UIRenderer& ui, UiFonts& fonts, const UiTheme& theme = DefaultUiTheme());
 
         float Scale() const { return m_scale; }
         glm::vec2 Screen() const { return m_screen; }
@@ -53,7 +60,11 @@ namespace AtomFramework
         const UiTheme& Theme() const { return m_theme; }
         glm::vec2 Measure(std::string_view text) const; // in the body font
         Atom::UIRenderer& Renderer() { return m_ui; }
-        const Atom::Font* TitleFont() const { return &m_title; }
+        const Atom::Font& TitleFont() const { return *m_title; }
+        const Atom::Font& BodyFont() const { return *m_body; }
+        // The typeface at `pixels` (at scale 1), rasterised for this window.
+        const Atom::Font& FontAt(float pixels);
+        bool IsReady() const { return m_title && m_body; } // false if the font file didn't load
 
         // A panel; `edge` draws the accent bar down its left side.
         void Panel(glm::vec2 origin, glm::vec2 size, const glm::vec4* edge = nullptr);
@@ -80,8 +91,9 @@ namespace AtomFramework
 
     private:
         Atom::UIRenderer& m_ui;
-        const Atom::Font& m_title;
-        const Atom::Font& m_body;
+        UiFonts& m_fonts;
+        const Atom::Font* m_title;
+        const Atom::Font* m_body;
         const UiTheme& m_theme;
         glm::vec2 m_screen;
         float m_scale;

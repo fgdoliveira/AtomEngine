@@ -1,6 +1,7 @@
 #include "UI/UiKit.h"
 
 #include "UI/Font.h"
+#include "UI/UiFonts.h"
 #include "UI/UIRenderer.h"
 
 #include <algorithm>
@@ -31,20 +32,27 @@ namespace AtomFramework
         return offsets;
     }
 
-    UiKit::UiKit(Atom::UIRenderer& ui, const Atom::Font& title, const Atom::Font& body, const UiTheme& theme)
-        : m_ui(ui), m_title(title), m_body(body), m_theme(theme), m_screen(ui.GetScreenSize()),
-          m_scale(UiScale(m_screen))
+    UiKit::UiKit(Atom::UIRenderer& ui, UiFonts& fonts, const UiTheme& theme)
+        : m_ui(ui), m_fonts(fonts), m_theme(theme), m_screen(ui.GetScreenSize()), m_scale(UiScale(m_screen))
     {
+        m_title = m_fonts.Get(TitlePixels * m_scale);
+        m_body = m_fonts.Get(BodyPixels * m_scale);
+    }
+
+    const Atom::Font& UiKit::FontAt(float pixels)
+    {
+        const Atom::Font* font = m_fonts.Get(pixels * m_scale);
+        return font ? *font : *m_body;
     }
 
     float UiKit::LineHeight() const
     {
-        return m_body.GetLineHeight() * m_scale;
+        return m_body->GetLineHeight();
     }
 
     glm::vec2 UiKit::Measure(std::string_view text) const
     {
-        return m_ui.MeasureText(m_body, text, m_scale);
+        return m_ui.MeasureText(*m_body, text);
     }
 
     void UiKit::Panel(glm::vec2 origin, glm::vec2 size, const glm::vec4* edge)
@@ -58,12 +66,12 @@ namespace AtomFramework
 
     void UiKit::Text(std::string_view text, glm::vec2 at, const glm::vec4& color)
     {
-        m_ui.DrawText(m_body, text, at, color, m_scale);
+        m_ui.DrawText(*m_body, text, at, color);
     }
 
     void UiKit::TitleText(std::string_view text, glm::vec2 at, const glm::vec4& color)
     {
-        m_ui.DrawText(m_title, text, at, color, m_scale);
+        m_ui.DrawText(*m_title, text, at, color);
     }
 
     void UiKit::Caption(const std::string& title, const std::string& line, const std::string& keys)
@@ -76,9 +84,9 @@ namespace AtomFramework
         const float bottom = m_screen.y - margin;
         const float keysY = bottom - pad - lineHeight;
         const float lineY = keysY - lineHeight * 1.4f;
-        const float titleY = lineY - m_title.GetLineHeight() * m_scale;
+        const float titleY = lineY - m_title->GetLineHeight();
         const float width = std::max({ Measure(keys).x, Measure(line).x,
-                                       m_ui.MeasureText(m_title, title, m_scale).x });
+                                       m_ui.MeasureText(*m_title, title).x });
         const glm::vec2 origin{ margin, titleY - pad };
         Panel(origin, { width + 4.0f * pad, bottom - origin.y }, &m_theme.accent);
         const float x = margin + 2.0f * pad;
@@ -158,11 +166,11 @@ namespace AtomFramework
 
     glm::vec2 UiKit::Menu(glm::vec2 at, const std::vector<std::string>& items, int selected)
     {
-        const float lineHeight = m_title.GetLineHeight() * m_scale;
+        const float lineHeight = m_title->GetLineHeight();
         float width = 0.0f;
         for (const std::string& item : items)
         {
-            width = std::max(width, m_ui.MeasureText(m_title, item, m_scale).x);
+            width = std::max(width, m_ui.MeasureText(*m_title, item).x);
         }
         const glm::vec2 size{ width + 4.0f * Pad(), lineHeight * static_cast<float>(items.size()) + 2.0f * Pad() };
         Panel(at, size);
@@ -186,9 +194,10 @@ namespace AtomFramework
             return;
         }
         const float scale = m_scale * textScale;
+        const Atom::Font& font = FontAt(TitlePixels * textScale);
         const float maxWidth = std::min(m_screen.x * 0.7f, 900.0f * scale);
-        const std::string wrapped = m_ui.WrapText(m_title, text, maxWidth, scale);
-        const glm::vec2 size = m_ui.MeasureText(m_title, wrapped, scale);
+        const std::string wrapped = m_ui.WrapText(font, text, maxWidth);
+        const glm::vec2 size = m_ui.MeasureText(font, wrapped);
         const glm::vec2 padding{ 22.0f * scale, 12.0f * scale };
         const glm::vec2 position{ (m_screen.x - size.x) * 0.5f, m_screen.y - size.y - 70.0f * scale };
         glm::vec4 panel = m_theme.panel;
@@ -196,6 +205,6 @@ namespace AtomFramework
         glm::vec4 ink = m_theme.ink;
         ink.a *= alpha;
         m_ui.DrawRect(position - padding, size + padding * 2.0f, panel);
-        m_ui.DrawText(m_title, wrapped, position, ink, scale);
+        m_ui.DrawText(font, wrapped, position, ink);
     }
 }

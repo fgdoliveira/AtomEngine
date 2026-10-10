@@ -178,7 +178,7 @@ namespace Showcase
 
     void ShowcaseApp::DrawLens()
     {
-        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
         const UiTheme& theme = kit.Theme();
         const float pad = kit.Pad();
         const std::vector<FeatureInfo>& features = FeatureCatalog();

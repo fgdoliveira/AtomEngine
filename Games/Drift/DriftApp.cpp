@@ -99,7 +99,7 @@ namespace Drift
         m_titleFont = Atom::Font::Load(renderer, font, 92.0f);
         m_comboFont = Atom::Font::Load(renderer, font, 46.0f);
         m_smallFont = Atom::Font::Load(renderer, font, 16.0f);
-        m_menuFont = Atom::Font::Load(renderer, font, 30.0f);
+        m_uiFonts = std::make_unique<AtomFramework::UiFonts>(renderer, font); // the menus, at every size (M90)
         AtomFramework::ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), nullptr, m_store.Settings());
         if (!m_ship || !m_ring || !m_orb || !m_rock || !m_titleFont || !m_comboFont || !m_smallFont)
         {
@@ -511,7 +511,7 @@ namespace Drift
         m_titleFont.reset();
         m_comboFont.reset();
         m_smallFont.reset();
-        m_menuFont.reset();
+        m_uiFonts.reset();
         GetRenderer().SetParticleAtlas(nullptr, 1);
         m_white.reset();
     }
@@ -576,11 +576,11 @@ namespace Drift
 
     void DriftApp::DrawPause()
     {
-        if (m_pause == PauseScreen::None || !m_menuFont || !m_smallFont)
+        if (m_pause == PauseScreen::None || !m_uiFonts)
         {
             return;
         }
-        AtomFramework::UiKit kit(GetRenderer().GetUI(), *m_menuFont, *m_smallFont);
+        AtomFramework::UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
         if (m_pause == PauseScreen::Menu)
         {
             m_pauseMenu.Draw(kit);

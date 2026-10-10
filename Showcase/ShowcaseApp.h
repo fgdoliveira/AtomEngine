@@ -21,6 +21,7 @@
 #include "UI/Font.h"
 #include "UI/MenuScreen.h"
 #include "UI/SettingsScreen.h"
+#include "UI/UiFonts.h"
 #include "UI/UiKit.h"
 #include "Settings/SettingsStore.h"
 #include "Core/FrameStatsWindow.h"
@@ -196,6 +197,7 @@ namespace Showcase
         GameDiagnostics m_diagnostics;
         std::unique_ptr<Atom::Font> m_font;
         std::unique_ptr<Atom::Font> m_smallFont;
+        std::unique_ptr<UiFonts> m_uiFonts; // the UI kit's: sharp at any window size
         // The lab: the viewer's state, the driven body and its camera arm,
         // and where the subject stood (put back when the lab closes).
         Mode m_mode = Mode::Walking;

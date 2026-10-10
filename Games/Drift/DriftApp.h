@@ -14,6 +14,7 @@
 #include "Settings/GameSettings.h"
 #include "Settings/SettingsStore.h"
 #include "UI/MenuScreen.h"
+#include "UI/UiFonts.h"
 #include "UI/SettingsScreen.h"
 #include "Renderer/Particles.h"
 #include "Renderer/Texture.h"
@@ -55,7 +56,7 @@ namespace Drift
         AtomFramework::SettingsScreen m_pauseSettings{ { AtomFramework::SettingRow::Display, AtomFramework::SettingRow::Volume,
                                                          AtomFramework::SettingRow::Gpu, AtomFramework::SettingRow::Back } };
         AtomFramework::SettingsStore m_store;
-        std::unique_ptr<Atom::Font> m_menuFont; // 30 px: the menus
+        std::unique_ptr<AtomFramework::UiFonts> m_uiFonts; // the menus' typeface, at every size
         void DrawDevTools(float dt); // F10 (M89): the shared Frame and Render panels, and Flight
 
         std::vector<std::string> m_arguments;

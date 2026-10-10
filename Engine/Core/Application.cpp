@@ -217,6 +217,16 @@ namespace Atom
                 m_running = false;
             }
         }
+
+        // M90: a fullscreen switch (or a lost and regained focus) can drop
+        // the window's relative mouse mode, and with it the hidden cursor,
+        // while the game still counts the mouse as captured: put it back.
+        SDL_Window* window = m_window.GetSDLWindow();
+        if (m_input.IsMouseCaptured() && !SDL_GetWindowRelativeMouseMode(window)
+            && (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS))
+        {
+            m_input.SetMouseCaptured(window, true);
+        }
     }
 
     void Application::Shutdown()

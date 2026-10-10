@@ -436,7 +436,7 @@ namespace Showcase
             return;
         }
 
-        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
         const UiTheme& theme = kit.Theme();
         const float scale = kit.Scale();
         const float padding = kit.Pad();

@@ -253,6 +253,7 @@ namespace Demo
         const std::string fontPath = m_assets.Resolve("Fonts/ShipporiMincho-Medium-Latin.ttf");
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
         m_smallFont = Atom::Font::Load(GetRenderer(), fontPath, 19.0f);
+        m_uiFonts = std::make_unique<UiFonts>(GetRenderer(), fontPath); // the kit's, at every size (M90)
         if (!m_font || !m_smallFont)
         {
             return false;
@@ -809,6 +810,7 @@ namespace Demo
         GetRenderer().SetParticleAtlas(nullptr, 1);
         m_unease.Configure({}, nullptr);
         m_levels.reset(); // the current level cleans itself up
+        m_uiFonts.reset();
         m_smallFont.reset();
         m_font.reset();
         m_unease.Shutdown();
@@ -875,7 +877,7 @@ namespace Demo
                 ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
                 : "WASD move   Shift jog   Mouse look   E interact   F1 debug";
             // The kit's hint bar (M89), as every app shows its keys.
-            UiKit(ui, *m_font, *m_smallFont).HintBar(hint, hintAlpha);
+            UiKit(ui, *m_uiFonts).HintBar(hint, hintAlpha);
         }
 
         if (m_mode == Mode::InDialogue)
@@ -887,7 +889,8 @@ namespace Demo
             DrawInteractionPrompt(scale);
             if (hintAlpha <= 0.0f)
             {
-                m_messages.Draw(ui, *m_font, scale * 0.85f);
+                UiKit kit(ui, *m_uiFonts);
+                m_messages.Draw(kit, 0.85f);
             }
         }
 
@@ -1638,7 +1641,8 @@ namespace Demo
         m_pauseSettings = SettingsScreen();
         m_pause = PauseScreen::Menu;
         m_justPaused = true;
-        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), false);
+        // Keyboard-only: the pointer stays captured, so no cursor shows (M90).
+        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
     }
 
     bool DemoApp::UpdatePause()
@@ -1700,7 +1704,7 @@ namespace Demo
         {
             return;
         }
-        UiKit kit(GetRenderer().GetUI(), *m_font, *m_smallFont);
+        UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
         if (m_pause == PauseScreen::Menu)
         {
             m_pauseMenu.Draw(kit);

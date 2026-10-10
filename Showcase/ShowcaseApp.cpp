@@ -63,6 +63,7 @@ namespace Showcase
         const std::string fontPath = m_assets.Resolve("Fonts/ShipporiMincho-Medium-Latin.ttf");
         m_font = Atom::Font::Load(GetRenderer(), fontPath, 30.0f);
         m_smallFont = Atom::Font::Load(GetRenderer(), fontPath, 19.0f);
+        m_uiFonts = std::make_unique<UiFonts>(GetRenderer(), fontPath); // the kit's, at every size (M90)
         if (!m_font || !m_smallFont)
         {
             return false;
@@ -450,7 +451,7 @@ namespace Showcase
         }
         const std::string keys = "1-5 places    P " + EnvironmentName() + (m_clockOn ? "" : " (paused)")
             + "    T pause time    Tab the lens    F1 numbers    F10 tools";
-        UiKit(GetRenderer().GetUI(), *m_font, *m_smallFont).Caption(title, shows, keys);
+        UiKit(GetRenderer().GetUI(), *m_uiFonts).Caption(title, shows, keys);
     }
 
     const Entity* ShowcaseApp::FindEntity(const std::string& name) const
@@ -485,6 +486,7 @@ namespace Showcase
         m_audio.reset(); // the audio thread stops before the booth it plays goes
         GetRenderer().SetParticleAtlas(nullptr, 1); // the atmosphere's atlas goes next
         m_levels.reset(); // the level's GPU resources go before the device
+        m_uiFonts.reset();
         m_smallFont.reset();
         m_font.reset();
         m_atmosphere.Shutdown();
@@ -675,6 +677,7 @@ namespace Showcase
         else if (what == "clock" && onOff) m_clockOn = on;
         else if (what == "menu" && onOff) { if (on) OpenMenu(); else m_screen = Screen::None; }
         else if (what == "menu" && value == "settings") { m_settingsScreen = SettingsScreen(); m_screen = Screen::Settings; }
+        else if (what == "fullscreen" && onOff) { m_store.Settings().fullscreen = on; ApplySettings(); } // not saved in a script
         else if (what == "benchmark" && value == "start") StartBenchmark();
         else if (what == "benchmark_seconds" && isNumber && number >= 2.0f) m_benchmarkSeconds = number;
         else if (what == "clock" && value == "next") AdvanceClock(0.0f);

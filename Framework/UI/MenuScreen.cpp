@@ -52,17 +52,17 @@ namespace AtomFramework
         const UiTheme& theme = kit.Theme();
         // Left third, a little above the middle: the title, a line, the list.
         const glm::vec2 at{ screen.x * 0.12f, screen.y * 0.28f };
-        const float titleScale = 2.0f;
+        // The heading at twice the title size - its own raster, not a stretch.
+        const Atom::Font& heading = kit.FontAt(UiKit::TitlePixels * 2.0f);
         // A band down the left behind the text, so it reads over any frame.
-        float width = std::max(kit.Renderer().MeasureText(*kit.TitleFont(), m_title, kit.Scale() * titleScale).x,
-                               kit.Measure(m_subtitle).x);
+        float width = std::max(kit.Renderer().MeasureText(heading, m_title).x, kit.Measure(m_subtitle).x);
         for (const std::string& item : m_items)
         {
-            width = std::max(width, kit.Renderer().MeasureText(*kit.TitleFont(), item, kit.Scale()).x);
+            width = std::max(width, kit.Renderer().MeasureText(kit.TitleFont(), item).x);
         }
         kit.Renderer().DrawRect({ 0.0f, 0.0f }, { at.x + width + 4.0f * kit.Margin(), screen.y }, theme.panel);
-        kit.Renderer().DrawText(*kit.TitleFont(), m_title, at, theme.ink, kit.Scale() * titleScale);
-        const float titleHeight = kit.TitleFont()->GetLineHeight() * kit.Scale() * titleScale;
+        kit.Renderer().DrawText(heading, m_title, at, theme.ink);
+        const float titleHeight = heading.GetLineHeight();
         kit.Text(m_subtitle, at + glm::vec2{ 4.0f * kit.Scale(), titleHeight }, theme.dim);
         kit.Menu(at + glm::vec2{ 0.0f, titleHeight + kit.LineHeight() * 2.0f }, m_items, m_selected);
         kit.HintBar("Up / Down choose    Enter select");
