@@ -107,6 +107,12 @@ namespace Atom
         );
         bool Render();
 
+        // M98: builds every pipeline variant and the scene targets now
+        // (loading), instead of on the first frames that need them. Call
+        // after the settings are applied; false if something couldn't be
+        // built (it is retried on first use, as before).
+        bool Prewarm();
+
         // Why the last Render() failed (M63): a lost swapchain is what the
         // high-performance adapter of a hybrid laptop did when the window
         // crossed to the other adapter's display.

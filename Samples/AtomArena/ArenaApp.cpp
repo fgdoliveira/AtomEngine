@@ -143,7 +143,7 @@ namespace Arena
         tools.set = [this](const std::string& what, const std::string& value) { return m_hooks->Set(what, value); };
         tools.applyLighting = [this] { ApplyLighting(); };
         m_panels.Draw(tools, deltaSeconds);
-        if (m_scenario)
+        if (m_scenario && frameMs > 0.0f) // M98: not the frame drawn during loading
         {
             UpdateBenchmark(NowMs() - updateStart, frameMs);
         }

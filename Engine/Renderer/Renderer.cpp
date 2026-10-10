@@ -353,6 +353,60 @@ namespace Atom
             && GetScenePipeline(m_targets.ClampSampleCount(m_settings.msaaSamples));
     }
 
+    bool Renderer::Prewarm()
+    {
+        // M98: pipelines are built on first use, and on D3D12 building one
+        // compiles it - so the first frames that drew each kind of thing
+        // paid for it (~30 ms on frames 0-2). Built here instead, during
+        // loading: every variant at the scene's sample count (and the
+        // reflection's single sample), and the targets at the window's size.
+        ATOM_PROFILE_SCOPE("Prewarm");
+        if (!m_device || !m_window)
+        {
+            return false;
+        }
+        int width = 0;
+        int height = 0;
+        SDL_GetWindowSizeInPixels(m_window, &width, &height);
+        const auto scaled = [&](int size) {
+            return std::max<std::uint32_t>(1, static_cast<std::uint32_t>(std::lround(size * m_settings.renderScale)));
+        };
+        bool ok = m_targets.Ensure(scaled(width), scaled(height), m_settings.msaaSamples);
+        ok = ok && EnsureReflectionTargets(std::max(1u, m_targets.GetWidth() / 2), std::max(1u, m_targets.GetHeight() / 2));
+
+        const std::uint32_t sceneSamples = m_targets.GetSamples();
+        const float rain = m_lighting.rain; // the rain variant is chosen by the lighting: warm it too
+        for (const std::uint32_t samples : { sceneSamples, 1u })
+        {
+            for (const float wet : { 0.0f, 1.0f })
+            {
+                m_lighting.rain = wet;
+                for (int combination = 0; combination < 16; ++combination)
+                {
+                    const bool doubleSided = combination & 1;
+                    const bool alphaToCoverage = combination & 2;
+                    const bool skinned = combination & 4;
+                    const bool toon = combination & 8;
+                    if (toon && wet > 0.0f)
+                    {
+                        continue; // toon has no wet look: the same pipeline
+                    }
+                    ok = GetScenePipeline(samples, doubleSided, alphaToCoverage, skinned, toon) != nullptr && ok;
+                }
+            }
+            ok = GetDecalPipeline(samples, false) && GetDecalPipeline(samples, true) && GetWaterPipeline(samples)
+                && GetOutlinePipeline(samples) && GetSkyPipeline(samples) && GetParticlePipeline(samples)
+                && GetParticlePipeline(samples, true) && GetBeamPipeline(samples) && ok;
+        }
+        m_lighting.rain = rain;
+        ok = GetShadowPipeline(false) && GetShadowPipeline(true) && ok;
+        if (!ok)
+        {
+            std::cerr << "Prewarm: some pipelines could not be built (they'll be tried again on first use)\n";
+        }
+        return ok;
+    }
+
     void Renderer::SetSettings(const RenderSettings& settings)
     {
         m_settings = settings;

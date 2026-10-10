@@ -5,6 +5,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <string>
@@ -120,6 +121,36 @@ namespace Atom
         {
             Shutdown();
             return false;
+        }
+        {
+            // M98: the app has applied its settings and loaded what it
+            // starts with: build the renderer's pipelines now, not on the
+            // first frames. ATOM_PREWARM=0 skips it (to measure the difference).
+            const char* prewarm = Atom::DevSwitch("ATOM_PREWARM");
+            if (!(prewarm && SDL_strcmp(prewarm, "0") == 0))
+            {
+                const std::uint64_t start = SDL_GetTicksNS();
+                m_renderer.Prewarm();
+                // The first frames' own first-use costs were the rest of the
+                // hitch: the driver's first submission of the scene's
+                // resources, the app's first update, and - one frame later -
+                // the second set of per-frame buffers SDL creates when the
+                // first is still in flight. So draw as many frames as can be
+                // in flight here, with no time passing, and wait for the GPU.
+                const std::uint32_t warmFrames = std::max<std::uint32_t>(1, m_renderer.GetDeviceReport().framesInFlight);
+                for (std::uint32_t i = 0; i < warmFrames && m_running; ++i)
+                {
+                    ATOM_PROFILE_SCOPE("PrewarmFrame");
+                    OnUpdate(0.0f);
+                    if (!m_renderer.Render())
+                    {
+                        break;
+                    }
+                    ATOM_PROFILE_FRAME(); // frames of their own in a trace: the loading ones
+                }
+                SDL_WaitForGPUIdle(m_renderer.GetDevice());
+                std::cout << "Prewarm: " << static_cast<double>(SDL_GetTicksNS() - start) / 1e6 << " ms\n";
+            }
         }
 
         m_time.Reset();

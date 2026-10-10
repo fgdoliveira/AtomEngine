@@ -309,6 +309,7 @@ as it does F1 and F10.
 | `ATOM_START_LEVEL=<level>[:<spawn>]` | start in another level, skipping the Showcase's title. The demo: `street`, `shrine_grounds`, `machiya_interior`, `windmill_field`, `night_street`, `pachinko_hall`, `night_test`, `passage`. The Showcase: `showcase` (spawns `village`, `jetty`, `lane`, `workshop`, `shrine`, `radio`) and the documentation stages `character_lab`, `first_render` |
 | `ATOM_TEST_SCRIPT=<file>` | run a scenario script and exit with 0 (pass) / 1 (fail) |
 | `ATOM_VSYNC=0` | uncapped frame rate for profiling |
+| `ATOM_PREWARM=0` | skip the loading-time prewarm (v0.0.15: every pipeline built, and the first frames drawn, before the game starts) - to measure what it saves |
 | `ATOM_PRESENT=immediate` | with `ATOM_VSYNC=0`: tearing allowed, never waits (some displays hold the default to their refresh) |
 | `ATOM_PERF_LOG=1` | after an engine warm-up, one line per block of frames: `PERF block … samples … median … p95 … mean … label …` |
 | `ATOM_PERF_BLOCK=<frames>` / `ATOM_PERF_CSV=<file>` | block size (default 240) / the same rows as CSV |
