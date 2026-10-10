@@ -3,8 +3,8 @@
 Headless:
     blender -b --factory-startup -P Tools/Blender/build_assets.py
 
-Writes Assets/Kit/<piece>.glb, Assets/Street/street.glb (visuals) and
-Assets/Street/street_col.glb (collision proxies, no materials).
+Writes Content/Kit/<piece>.glb, Games/Demo/Assets/Street/street.glb (visuals) and
+Games/Demo/Assets/Street/street_col.glb (collision proxies, no materials).
 
 Options (after "--"): --no-cache re-bakes every lightmap; --gpu bakes them
 on the NVIDIA GPU for fast iteration (never commit those).
@@ -54,10 +54,33 @@ importlib.reload(atom_city)
 importlib.reload(atom_night)
 
 
+# v0.0.14: the levels that moved to the Showcase write there.
+SHOWCASE_FOLDERS = {"first", "lab", "lakeshore"}
+
+
+def out_for(args, folder):
+    return args.showcase if folder in SHOWCASE_FOLDERS else args.out
+
+
+# M91: the first-render stage's geometry is shared (Content/First): the
+# Showcase's documentation stage and Samples/HelloAtom both load it. Its
+# level file and markers stay the Showcase's.
+CONTENT_LEVEL_FOLDERS = {"first"}
+
+
+def geometry_out_for(args, folder):
+    return args.content if folder in CONTENT_LEVEL_FOLDERS else out_for(args, folder)
+
+
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Assets"))
+    # v0.0.14: the demo's own products in Games/Demo/Assets; the generic kit
+    # pieces and sky, which other apps use too, in the shared Content/.
+    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Games", "Demo", "Assets"))
+    parser.add_argument("--content", default=os.path.join(REPO_ROOT, "Content"))
+    # The Showcase's stages and terrain (first render, the lab, the lakeshore).
+    parser.add_argument("--showcase", default=os.path.join(REPO_ROOT, "Showcase", "Assets"))
     parser.add_argument("--no-export", action="store_true")
     # Lightmaps whose inputs are unchanged since the last bake are kept
     # (fingerprints in build/bake_cache/); --no-cache bakes everything.
@@ -288,7 +311,7 @@ def main():
         lights = atom_levels.LIGHTMAPS.get(folder)
         if lights:
             mesh = next(obj for obj in level.visual if obj.name == folder)
-            level_dir = os.path.join(args.out, folder.capitalize())
+            level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
             os.makedirs(level_dir, exist_ok=True)
             atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"),
                                **atom_levels.LIGHTMAP_OPTIONS.get(folder, {}))
@@ -314,7 +337,7 @@ def main():
 
     # Night sky panorama (M23), written like the lightmaps: our own PNG
     # writer, so it's byte-identical across rebuilds.
-    sky_dir = os.path.join(args.out, "Sky")
+    sky_dir = os.path.join(args.content, "Sky")
     os.makedirs(sky_dir, exist_ok=True)
     sky = atom_textures.night_sky()
     height, width = sky.shape[:2]
@@ -325,7 +348,7 @@ def main():
     atom_lightmap._write_png(os.path.join(sky_dir, "night_sky.png"), width, encoded, height)
     print("Exported", os.path.relpath(os.path.join(sky_dir, "night_sky.png"), REPO_ROOT))
 
-    kit_dir = os.path.join(args.out, "Kit")
+    kit_dir = os.path.join(args.content, "Kit")
     street_dir = os.path.join(args.out, "Street")
     os.makedirs(kit_dir, exist_ok=True)
     os.makedirs(street_dir, exist_ok=True)
@@ -362,13 +385,13 @@ def main():
     write_markers(night.collection, os.path.join(args.out, "Levels", "night_street.markers.json"))
 
     for folder, level in levels:
-        level_dir = os.path.join(args.out, folder.capitalize())
+        level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
         os.makedirs(level_dir, exist_ok=True)
         export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
         export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),
                        materials=False)
         write_markers(level.collection, os.path.join(
-            args.out, "Levels", atom_levels.LEVEL_FILES[folder] + ".markers.json"))
+            out_for(args, folder), "Levels", atom_levels.LEVEL_FILES[folder] + ".markers.json"))
 
 
 # Blender exits 0 even when the script raises; make a failed build fail.

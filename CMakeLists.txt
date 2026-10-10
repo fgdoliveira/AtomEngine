@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.13
+    VERSION 0.0.14
     LANGUAGES CXX
 )
 
@@ -68,8 +68,10 @@ if(ATOM_BUILD_GAME)
 endif()
 add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
-add_subdirectory(Game)
+add_subdirectory(Showcase) # v0.0.14: the engine's front door, every feature in one scene
+add_subdirectory(Games/Demo) # v0.0.14: the demo, beside DRIFT
 add_subdirectory(Games/Drift) # M77: a second game
+add_subdirectory(Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)

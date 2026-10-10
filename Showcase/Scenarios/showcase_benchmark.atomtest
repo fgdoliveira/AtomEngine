@@ -1,0 +1,20 @@
+# The Showcase's menu and benchmark (v0.0.14, M90). A scenario starts in
+# the village; the menu opens on demand. The benchmark flies its fixed path
+# through day, dusk, night and rain (shortened here from 40 s), writes its
+# file and comes back to the menu.
+expect_level showcase
+set menu on
+wait 0.2
+expect_stat menu == 1
+set benchmark_seconds 4
+set benchmark start
+wait 0.5
+expect_stat benchmark_running == 1
+wait 4
+expect_stat benchmark_running == 0
+expect_stat benchmarks_done == 1
+expect_stat benchmark_frames > 30
+expect_stat menu == 1
+set menu off
+expect_stat menu == 0
+log showcase benchmark done

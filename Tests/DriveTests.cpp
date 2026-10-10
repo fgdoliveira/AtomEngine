@@ -1,6 +1,6 @@
 #include "Character/Animator.h"
 #include "Character/SpringArm.h"
-#include "PlayerController.h"
+#include "Character/PlayerController.h"
 #include "Physics/CollisionWorld.h"
 
 #include <doctest/doctest.h>
@@ -10,7 +10,7 @@
 #include <map>
 #include <string>
 
-using namespace AtomGame;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {
@@ -115,6 +115,26 @@ TEST_CASE("The body walks up a step")
     }
     CHECK(body.GetFeetPosition().x > 3.0f);
     CHECK(body.GetFeetPosition().y == doctest::Approx(0.15f));
+    CHECK(body.IsGrounded());
+}
+
+TEST_CASE("The body walks up a ramp onto a platform")
+{
+    // v0.0.14: what the character lab's scenario climbed (its 0.6 m ramp)
+    // until the lab moved into the Showcase's flat pavilion. A floor, a
+    // ramp rising 0.6 m from x = 2 to x = 6, a platform beyond.
+    Atom::CollisionWorld world;
+    AddQuad(world, { -10, 0, -10 }, { -10, 0, 10 }, { 2, 0, 10 }, { 2, 0, -10 });
+    AddQuad(world, { 2, 0, -10 }, { 2, 0, 10 }, { 6, 0.6f, 10 }, { 6, 0.6f, -10 });
+    AddQuad(world, { 6, 0.6f, -10 }, { 6, 0.6f, 10 }, { 12, 0.6f, 10 }, { 12, 0.6f, -10 });
+    PlayerController body;
+    body.Place({ 0.0f, 0.0f, 0.0f });
+    for (int i = 0; i < 240; ++i)
+    {
+        body.Move({ 2.0f, 0.0f, 0.0f }, false, &world, 1.0f / 60.0f);
+    }
+    CHECK(body.GetFeetPosition().x > 7.0f);
+    CHECK(body.GetFeetPosition().y == doctest::Approx(0.6f).epsilon(0.02));
     CHECK(body.IsGrounded());
 }
 

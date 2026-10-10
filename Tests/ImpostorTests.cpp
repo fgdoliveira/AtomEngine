@@ -1,4 +1,5 @@
 #include "Level/LevelData.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "World/Impostors.h"
 
 #include <doctest/doctest.h>
@@ -10,7 +11,7 @@
 #include <sstream>
 #include <string>
 
-using namespace AtomGame;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {
@@ -47,7 +48,7 @@ TEST_CASE("Impostor views: hysteresis keeps the current view near a boundary")
 
 TEST_CASE("The shipped impostor descriptor parses; broken ones don't")
 {
-    std::ifstream file(ATOM_SOURCE_DIR "/Assets/City/tower_impostor.json");
+    std::ifstream file(AtomTests::Asset("City/tower_impostor.json"));
     std::stringstream text;
     text << file.rdbuf();
     std::string error;

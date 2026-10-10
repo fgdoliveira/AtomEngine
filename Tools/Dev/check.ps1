@@ -3,7 +3,7 @@
 #
 #   pwsh Tools/Dev/check.ps1 -Level docs
 #   pwsh Tools/Dev/check.ps1 -Level quick   [-Config Debug|Release]
-#   pwsh Tools/Dev/check.ps1 -Level feature -Scenario lakeshore,environment [-Config ...]
+#   pwsh Tools/Dev/check.ps1 -Level feature -Scenario showcase_tour,environment [-Config ...]
 #   pwsh Tools/Dev/check.ps1 -Level changed [-Base origin/master] [-DryRun]
 #   pwsh Tools/Dev/check.ps1 -Level full
 #
@@ -70,6 +70,8 @@ if ($Level -eq "changed") {
         # $file -match ran last on the matching rule: $Matches holds its groups.
         [void]($file -match $rule.Pattern)
         $names = @($rule.Scenarios | ForEach-Object { if ($_ -eq '$scenario') { $Matches['scenario'] } else { $_ } })
+        # A scenario file the branch deleted runs nothing (its test is gone).
+        if (($rule.Scenarios -contains '$scenario') -and -not (Test-Path -LiteralPath $file)) { $names = @() }
         if ($rule.Build -ne $false) { $needsBuild = $true }
         foreach ($s in $names) { [void]$chosen.Add($s) }
         if ($rule.Package -and $packages -notcontains $rule.Package) { $packages += $rule.Package }

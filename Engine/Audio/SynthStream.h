@@ -53,6 +53,8 @@ namespace Atom
         bool Start(SynthSequencer& sequencer);
         void Stop();
         bool IsRunning() const { return m_stream != nullptr; }
+        // The player's volume (M90), on the device stream: 0..1.
+        void SetGain(float gain);
 
         // Game thread: queue a command; false if the queue is full (dropped).
         bool Send(const SynthCommand& command);

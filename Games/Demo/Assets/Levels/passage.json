@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
+  "name": "passage",
+  "model": "Passage/passage.glb",
+  "collision": "Passage/passage_col.glb",
+  "lightmap": { "texture": "Passage/passage_lm.png", "intensity": 1.0 },
+  "defaultSpawn": "from_house",
+  "spawns": {
+    "from_house": {},
+    "from_shed": {}
+  },
+  "lighting": {
+    "sunDirection": [0.0, 1.0, 0.0],
+    "sunColor": [0.0, 0.0, 0.0],
+    "skyColor": [0.05, 0.05, 0.06],
+    "groundColor": [0.02, 0.02, 0.02],
+    "fogColor": [0.01, 0.01, 0.012],
+    "shadows": false,
+    "bakedLight": 1.0,
+    "glow": { "strength": 0.45, "threshold": 0.9 }
+  },
+  "outdoor": false,
+  "audio": {
+    "beds": [
+      { "sound": "room_tone", "gain": 0.3 },
+      { "sound": "drone", "gain": 0.12 }
+    ]
+  },
+  "surfaces": { "default": "dirt" },
+  "particles": { "leaves": false, "fogBanks": false, "dust": true, "beam": 0.06 },
+  "unease": { "figure": false },
+  "lights": [
+    { "position": [2.8, -1.25, -7.4], "color": [1.0, 0.6, 0.28], "intensity": 0.7, "radius": 3.5, "flicker": 0.35 },
+    { "position": [-2.75, -0.93, -9.0], "color": [0.85, 0.92, 1.0], "intensity": 0.6, "radius": 4.0 },
+    { "position": [5.5, -0.3, -24.05], "color": [0.3, 1.0, 0.4], "intensity": 0.45, "radius": 3.5 }
+  ],
+  "halos": [
+    { "position": [2.8, -1.24, -7.4], "size": 0.22, "color": [1.0, 0.65, 0.3], "intensity": 1.2, "flicker": 0.35 },
+    { "position": [-2.75, -0.93, -9.0], "size": 0.4, "color": [0.85, 0.92, 1.0], "intensity": 0.5 },
+    { "position": [5.5, -0.3, -24.1], "size": 0.6, "color": [0.3, 1.0, 0.4], "intensity": 0.35 }
+  ],
+  "entities": [
+    {
+      "name": "stairs_up",
+      "interactable": {
+        "prompt": "Go back up", "focus": [0.0, 1.0, 0.0], "radius": 2.0,
+        "action": { "type": "changeLevel", "level": "machiya_interior", "spawn": "from_passage" }
+      }
+    },
+    {
+      "name": "candle",
+      "interactable": {
+        "prompt": "Look at the candle", "focus": [0.0, 0.15, 0.0], "radius": 2.0,
+        "action": { "type": "message", "text": "A candle, not long lit. Someone still comes down here." }
+      }
+    },
+    {
+      "name": "fork_marks",
+      "interactable": {
+        "prompt": "Look at the marks", "focus": [0.0, 1.25, 0.0], "radius": 3.0,
+        "requiresLight": true,
+        "action": { "type": "message", "text": "Chalk again, the same hand: an arrow pointing east. West, the tunnel is choked with fallen earth." }
+      }
+    },
+    {
+      "name": "bolt",
+      "interactable": {
+        "prompt": "Slide the bolt", "focus": [0.0, 0.0, 0.0], "radius": 3.0,
+        "requiresLight": true,
+        "action": { "type": "setFlag", "flag": "hatch_unbolted", "message": "The bolt scrapes back. The trapdoor shifts in its frame." }
+      }
+    },
+    {
+      "name": "ladder",
+      "interactable": {
+        "prompt": "Climb the ladder", "focus": [0.0, 1.4, 0.0], "radius": 2.0,
+        "requires": "hatch_unbolted",
+        "action": { "type": "changeLevel", "level": "windmill_field", "spawn": "from_hatch" },
+        "locked": { "type": "message", "text": "The trapdoor above won't lift. Something holds it from this side." }
+      }
+    }
+  ]
+}

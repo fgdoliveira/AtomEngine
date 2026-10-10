@@ -1,6 +1,6 @@
 # Is a staged distribution complete, and nothing more? (M68; M76: any game)
 #
-#   pwsh Tools/Dist/verify.ps1 [-Path Dist/AtomGame]
+#   pwsh Tools/Dist/verify.ps1 [-Path Dist/Demo]
 #
 # Reads what the package must hold from its .payload file, which the game's
 # CMake install rules write from the same lists that define the package -
@@ -15,7 +15,7 @@
 #   - every shader is signed (a DXIL container whose digest isn't zero),
 #     or retail drivers refuse it.
 # Exit 0 if all pass; 1 otherwise, with every failure listed.
-param([string]$Path = "Dist/AtomGame")
+param([string]$Path = "Dist/Demo")
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot/../Dev/common.ps1"
 

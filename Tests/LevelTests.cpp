@@ -1,10 +1,11 @@
 #include "Level/LevelData.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 
 #include <doctest/doctest.h>
 
 #include <filesystem>
 
-using namespace AtomGame;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {
@@ -72,6 +73,34 @@ TEST_CASE("Actions of every type come out of level data")
 
     REQUIRE(level.entities[0].collider.has_value());
     CHECK(level.entities[0].collider->halfExtents.x == doctest::Approx(1.5f));
+}
+
+TEST_CASE("An entity may have a look of its own: toon shading and an outline (v0.0.14)")
+{
+    const LevelData level = ParseOrFail(R"({
+        "name": "x", "model": "m", "collision": "c", "spawns": { "s": { "position": [0, 0, 0] } },
+        "entities": [
+            { "name": "plain", "model": "Kit/toro.glb" },
+            { "name": "toon", "model": "Kit/toro.glb", "toon": true, "outline": 0.03, "outlineColor": [0.1, 0.2, 0.3] },
+            { "name": "outlined", "model": "Kit/toro.glb", "outline": 0.05 }
+        ]
+    })");
+    REQUIRE(level.entities.size() == 3);
+    CHECK_FALSE(level.entities[0].style.has_value());
+    REQUIRE(level.entities[1].style.has_value());
+    CHECK(level.entities[1].style->toon);
+    CHECK(level.entities[1].style->outline == doctest::Approx(0.03f));
+    CHECK(level.entities[1].style->outlineColor.z == doctest::Approx(0.3f));
+    REQUIRE(level.entities[2].style.has_value());
+    CHECK_FALSE(level.entities[2].style->toon);
+
+    // A style needs a model to style, and an outline can't be negative.
+    const auto noModel = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "s": { "position": [0, 0, 0] } }, "entities": [ { "name": "e", "toon": true } ] })");
+    CHECK_FALSE(noModel.level.has_value());
+    const auto negative = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "s": { "position": [0, 0, 0] } }, "entities": [ { "name": "e", "model": "m", "outline": -1 } ] })");
+    CHECK_FALSE(negative.level.has_value());
 }
 
 TEST_CASE("Surface zones match in order, with a default")
@@ -180,38 +209,40 @@ TEST_CASE("Dust and the flashlight's beam are per level")
 
 TEST_CASE("Every shipped level file is valid")
 {
-    const std::filesystem::path folder = ATOM_SOURCE_DIR "/Assets/Levels";
+    // The demo's and the Showcase's (v0.0.14).
     int count = 0;
-    for (const auto& entry : std::filesystem::directory_iterator(folder))
+    for (const char* folder : AtomTests::LevelFolders)
     {
-        if (entry.path().extension() != ".json"
-            || entry.path().filename().string().ends_with(".markers.json"))
+        for (const auto& entry : std::filesystem::directory_iterator(folder))
         {
-            continue; // markers are read with their level
-        }
-        const LevelParseResult result = LoadLevelFile(entry.path().string());
-        INFO(entry.path().filename().string() << ": " << result.error);
-        CHECK(result.level.has_value());
-        // Referenced files exist (a level naming a missing lightmap would
-        // fail to load in the game).
-        if (result.level)
-        {
-            const std::string assets = ATOM_SOURCE_DIR "/Assets/";
-            CHECK(std::filesystem::exists(assets + result.level->model));
-            CHECK(std::filesystem::exists(assets + result.level->collision));
-            if (result.level->lightmap)
+            if (entry.path().extension() != ".json"
+                || entry.path().filename().string().ends_with(".markers.json"))
             {
-                CHECK(std::filesystem::exists(assets + result.level->lightmap->texture));
+                continue; // markers are read with their level
             }
+            const LevelParseResult result = LoadLevelFile(entry.path().string());
+            INFO(entry.path().filename().string() << ": " << result.error);
+            CHECK(result.level.has_value());
+            // Referenced files exist (a level naming a missing lightmap would
+            // fail to load in the game).
+            if (result.level)
+            {
+                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->model)));
+                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->collision)));
+                if (result.level->lightmap)
+                {
+                    CHECK(std::filesystem::exists(AtomTests::Asset(result.level->lightmap->texture)));
+                }
+            }
+            ++count;
         }
-        ++count;
     }
-    CHECK(count >= 1);
+    CHECK(count >= 10);
 }
 
 TEST_CASE("The street level keeps its content")
 {
-    const LevelParseResult result = LoadLevelFile(ATOM_SOURCE_DIR "/Assets/Levels/street.json");
+    const LevelParseResult result = LoadLevelFile(AtomTests::Asset("Levels/street.json"));
     REQUIRE(result.level.has_value());
     const LevelData& street = *result.level;
 

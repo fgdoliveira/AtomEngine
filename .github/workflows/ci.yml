@@ -63,6 +63,11 @@ jobs:
       - name: Build AtomTests
         run: cmake --build build --config Release --target AtomTests --parallel
 
+      # M91: the sample compiles against the engine and the framework as a
+      # new app would (running it needs the shaders: a local scenario).
+      - name: Build Samples/HelloAtom
+        run: cmake --build build --config Release --target HelloAtom --parallel
+
       - name: Run the unit tests
         run: ctest --test-dir build -C Release --output-on-failure
 
@@ -93,7 +98,7 @@ jobs:
 
       - name: Build, stage, verify and zip
         shell: pwsh
-        run: pwsh Tools/Dist/package.ps1 -NoSmoke
+        run: pwsh Tools/Dist/package.ps1 -Game Demo -NoSmoke
 
       - name: The same for DRIFT (M83)
         shell: pwsh

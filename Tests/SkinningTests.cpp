@@ -1,4 +1,5 @@
 #include "Assets/Model.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Assets/Skin.h"
 
 #include <doctest/doctest.h>
@@ -12,7 +13,7 @@ using namespace Atom;
 
 namespace
 {
-    const std::string Rudy = ATOM_SOURCE_DIR "/Assets/ThirdParty/rudy.glb";
+    const std::string Rudy = AtomTests::Asset("ThirdParty/rudy.glb");
 
     bool Near(const glm::vec3& a, const glm::vec3& b, float tolerance = 1e-4f)
     {

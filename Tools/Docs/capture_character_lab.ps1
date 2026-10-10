@@ -11,12 +11,12 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path "$PSScriptRoot\..\..").Path
-$game = "$repo\build\bin\$Config\AtomGame.exe"
+$game = "$repo\build\bin\$Config\Showcase.exe"
 $out = "$repo\out\img\character_lab"
 
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 
-$env:ATOM_ASSET_ROOT = $repo                      # read Assets/ and write out/ in the repo
+$env:ATOM_ASSET_ROOT = $repo                      # read the source assets and write out/ in the repo
 $env:ATOM_START_LEVEL = "character_lab"
 $env:ATOM_TEST_SCRIPT = "$PSScriptRoot\character_lab.atomtest"
 $process = Start-Process $game -WorkingDirectory (Split-Path $game) -PassThru -Wait -NoNewWindow

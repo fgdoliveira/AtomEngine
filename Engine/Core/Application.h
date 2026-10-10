@@ -71,6 +71,7 @@ namespace Atom
         AudioSystem m_audio;
         Input m_input;
         DevTools m_devTools;
+        bool m_capturedBeforeTools = false; // F10 gives the mouse back as it found it
         Time m_time;
     };
 }

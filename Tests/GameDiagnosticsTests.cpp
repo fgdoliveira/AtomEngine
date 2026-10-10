@@ -6,8 +6,8 @@
 #include <sstream>
 #include <string>
 
-using namespace AtomGame;
-using AtomGameTests::FakeGame;
+using namespace AtomFramework; // v0.0.14: the world layer
+using AtomTests::FakeGame;
 
 // Characterization tests (M57): what the frame-time log and the scripted
 // tests did inside DemoApp, they still do in GameDiagnostics - the PERF line

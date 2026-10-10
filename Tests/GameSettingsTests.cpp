@@ -73,6 +73,23 @@ TEST_CASE("Settings round-trip through their file")
     CHECK(load.settings.calibration->p95Ms == doctest::Approx(12.1));
 }
 
+TEST_CASE("The player's display and volume (M90) round-trip; an older file reads as the defaults")
+{
+    GameSettings settings;
+    settings.fullscreen = true;
+    settings.volume = 0.3f;
+    const SettingsLoad load = ParseSettings(WriteSettings(settings));
+    CHECK(load.warning.empty());
+    CHECK(load.settings.fullscreen);
+    CHECK(load.settings.volume == doctest::Approx(0.3f));
+
+    const SettingsLoad older = ParseSettings(R"({ "schema": 1, "gpu": "low-power", "quality": "high" })");
+    CHECK(older.warning.empty());
+    CHECK_FALSE(older.settings.fullscreen);
+    CHECK(older.settings.volume == doctest::Approx(0.8f));
+    CHECK(ParseSettings(R"({ "schema": 1, "volume": 7 })").settings.volume == doctest::Approx(1.0f)); // clamped
+}
+
 TEST_CASE("A bad settings file never stops the game: defaults and a warning")
 {
     const SettingsLoad none = ParseSettings("");

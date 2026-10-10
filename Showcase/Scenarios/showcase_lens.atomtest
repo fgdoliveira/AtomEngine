@@ -1,0 +1,78 @@
+# The lens (v0.0.14): every feature it lists can be switched off to show
+# what it contributes - and switching it off really removes it from the
+# frame (A/B), then back.
+expect_level showcase
+set lens on
+expect_stat lens == 1
+
+# At the jetty: water, its reflection, shadows, fog.
+teleport 0 0.5 -17 0
+wait 0.5
+expect_stat water_draws >= 1
+set feature_water off
+wait 0.2
+expect_stat water_draws == 0
+set feature_water on
+expect_stat reflection_draws >= 1
+set feature_reflection off
+wait 0.2
+expect_stat reflection_draws == 0
+set feature_reflection on
+expect_stat shadow_draws >= 1
+set feature_shadows off
+wait 0.2
+expect_stat shadow_draws == 0
+set feature_shadows on
+expect_stat fog_density > 0
+set feature_fog off
+wait 0.1
+expect_stat fog_density == 0
+set feature_fog on
+
+# Weather: rain falls as particles; switched off, none.
+environment rain 0
+wait 0.4
+expect_stat particles > 100
+set feature_weather off
+wait 0.2
+expect_stat particles <= 5                # only the level's 5 halos (drawn as particles too)
+set feature_weather on
+environment clear_day 0
+
+# The lane: its lamps and the neon sign - live lights and glow.
+teleport 10 0.25 2 90
+wait 0.4
+expect_stat live_lights >= 1
+set feature_lights off
+wait 0.2
+expect_stat live_lights == 0
+set feature_lights on
+expect_stat glow_strength > 0
+set feature_glow off
+wait 0.1
+expect_stat glow_strength == 0
+set feature_glow on
+
+# The rest switch and come back (their effect is visual: the screenshots).
+set feature_toon off
+expect_stat feature_toon == 0
+set feature_toon on
+set feature_character off
+set feature_character on
+set feature_synth off
+set feature_synth on
+set lens off
+
+# F10, the developer tools: the shared panels and the Showcase's own
+# (Features, Clock) draw, collapsed and open.
+set devtools on
+wait 0.2
+expect_stat devtools_panels >= 7
+set devtools_collapsed on
+wait 0.1
+set devtools_collapsed off
+wait 0.1
+set devtools off
+wait 0.1
+expect_stat devtools_panels == 0
+log showcase lens done

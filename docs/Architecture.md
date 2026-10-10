@@ -7,74 +7,79 @@ when a change alters a diagram or a rule here, the change updates this page.
 
 ## 1. Targets and dependency direction
 
+Since v0.0.14 the repository has three layers and four kinds of app:
+
 ```text
-AtomGame (exe) ──→ AtomGameLib ──→ AtomFramework ──→ AtomEngine, SDL3
-                        │
-                        └────────→ AtomEngine ──→ SDL3, GLM
-Drift (exe) ─────→ DriftLib ─────→ AtomEngine
-      └──────────→ AtomFramework
-AtomTests ───────→ AtomGameLib, DriftLib
+Engine/      AtomEngine     (namespace Atom)           window, GPU renderer, audio, input, physics, UI drawing, dev tools host
+Framework/   AtomFramework  (namespace AtomFramework)  levels, world, player, environments, UI kit and menus,
+                                                       settings, diagnostics, F10 panels, the scenario harness
+Showcase/    ShowcaseLib + Showcase                    the engine's front door: a lakeside village and the lens
+Games/Demo/  DemoLib + Demo                            the demo: a night street, its story
+Games/Drift/ DriftLib + Drift                          DRIFT, a port of a three.js game
+Samples/     HelloAtom                                 the smallest app (docs/Getting-Started.md)
 ```
 
 ```mermaid
 graph TD
-    Exe[AtomGame executable] --> Game[AtomGameLib]
-    Tests[AtomTests] --> Game
-    DriftExe[Drift executable] --> DriftLib[DriftLib]
-    DriftExe --> Framework
+    Showcase[Showcase] --> ShowcaseLib
+    Demo[Demo] --> DemoLib
+    Drift[Drift] --> DriftLib
+    Hello[HelloAtom] --> Framework
+    Showcase --> Framework
+    DemoLib --> Framework
+    Drift --> Framework
+    ShowcaseLib --> Engine
     DriftLib --> Engine
-    Tests --> DriftLib
-    Framework --> Engine
-    Game --> Engine[AtomEngine]
-    Game --> Framework[AtomFramework]
-    Framework --> SDL
-    Framework -.->|private| JSON
-    Game -.->|private| JSON[nlohmann/json]
-    Game -.->|private| ImGui
+    Framework[AtomFramework] --> Engine[AtomEngine]
+    Tests[AtomTests] --> DemoLib & DriftLib & ShowcaseLib & Framework
+    Framework -.->|private| JSON[nlohmann/json]
+    Framework -.->|private| ImGui[Dear ImGui]
     Engine --> SDL[SDL3]
     Engine --> GLM
-    Engine -.->|private| ImGuiE[Dear ImGui]
+    Engine -.->|private| ImGui
     Engine -.->|private| CGLTF[cgltf + stb]
-    Exe -.->|build order| Shaders[AtomShaders / DXIL]
 ```
 
-- **The one rule that matters most:** the engine never includes game code.
-  `Engine/` (namespace `Atom`) is reusable; `Game/` (namespace `AtomGame`)
-  is the concrete demo.
-- **The framework (M76):** `Framework/` (namespace `AtomFramework`) is what
-  every game made with AtomEngine shares but the engine doesn't own: the
-  run's log (`RunLog`, named per game), the settings model and command
-  line (`GameSettings`), the calibration decision. Games link it; they never
-  share each other's code. Install rules are per game (a CMake component
-  named like the game), so `Tools/Dist/package.ps1 -Game <name>` packages
-  any of them. Since M82 it also holds the shared `--diagnostics` report.
-- **The second game (v0.0.13):** `Games/Drift/` (namespace `Drift`) is a
-  port of a three.js web game: `DriftLib` holds its rules, course, speed
-  field and music (pure, unit-tested), the `Drift` executable its
-  application. It uses the engine and the framework and nothing of the
-  demo's (ADR-007). What it needed went into the engine in general form:
-  a toon shading variant and inverted-hull outlines (M79), a live synth
-  (`Atom::Synth`, `SynthStream`, M80). Its fidelity to the original was
-  checked part by part at release (CHANGELOG 0.0.13).
-- **Static libraries** let the tests exercise exactly the game code the
-  executable runs.
+- **The one rule that matters most:** a layer never includes the one above
+  it. The engine knows nothing of levels or players; the framework names no
+  app; apps never link each other (ADR-007). What only an app has comes in
+  through interfaces (`SoundLibrary`, `ScreenFactory`, `TestHooks`).
+- **The framework** (M76, grown in v0.0.14): the run log, settings
+  (`GameSettings`, `SettingsStore`), the calibration decision and the
+  `--diagnostics` report; since M85 the world layer moved from the demo -
+  data-driven levels, the entity world, interaction, environments, the
+  character and the scenario harness; since M89-M91 the UI every app shares
+  (`DevPanels` for F10, `UiKit`, `MenuScreen`, `SettingsScreen`) and
+  `BasicTestHooks`.
+- **The Showcase** (v0.0.14) is the engine's front door, built only from the
+  engine and the framework. Each capability it shows is a *Feature* in its
+  catalog (`Showcase/Features/`) with a source file, a manual section, a
+  switch and a cost (ADR-009, `docs/Features.md`).
+- **The games** (`Games/Demo`, `Games/Drift`) are products with their own
+  packages. **The sample** (`Samples/HelloAtom`) is the proof that an app
+  can be built from the two lower layers alone; CI compiles it.
+- **Content** shared by several apps (the kit, the sky, fonts, environment
+  presets, the first-render stage) lives in `Content/`; an app's own in its
+  `Assets/`. `AssetRoots` looks a path up in the app's folder first.
+- **Static libraries** let the tests exercise exactly the code the
+  executables run.
 - **Usage requirements are honest** (M54): PUBLIC only for what a target's
   headers expose (SDL types, GLM maths and its settings); PRIVATE for what
   only its `.cpp` files use (ImGui, JSON, cgltf, stb, the version string).
-- **Build options:** `ATOM_BUILD_GAME` (the executable and shaders, needs
-  `dxc`), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. CI builds
-  with the game off (§11).
+- **Build options:** `ATOM_BUILD_GAME` (the apps' shaders, needs `dxc`),
+  `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. CI builds with the
+  game off, the unit tests and HelloAtom (§11).
 
-## 2. Application, engine and game: the real layering
+## 2. Application, engine and app: the real layering
 
 There is **no runtime `Engine` object**, and none should be added.
 
 ```mermaid
 graph LR
-    Main[main] -->|constructs| Demo[AtomGame::DemoApp]
-    Demo -->|inherits| App[Atom::Application]
-    App -->|owns| Window & Renderer & Audio & Input & DevTools & Time
-    Demo -->|owns| Levels[LevelManager] & Systems[game systems] & Diag[GameDiagnostics]
+    Main[main] -->|constructs| App[an app: ShowcaseApp, DemoApp, DriftApp, HelloApp]
+    App -->|inherits| Base[Atom::Application]
+    Base -->|owns| Window & Renderer & Audio & Input & DevTools & Time
+    App -->|owns| Levels[LevelManager] & Systems[its systems] & Diag[GameDiagnostics]
     Levels -->|owns| Level
 ```
 
@@ -82,11 +87,10 @@ graph LR
   owner of every process-lifetime subsystem (window, renderer, audio,
   input, developer tools, time) and the composition root that creates them
   in order. It is not a service locator: there is no global lookup.
-- **`AtomGame::DemoApp`** is the concrete game: it derives from
-  `Application`, receives its hooks (`OnInitialize`, `OnUpdate`,
-  `OnShutdown`) and coordinates the game's systems in an explicit frame
-  order. Measurement and scripted tests live beside it in
-  `GameDiagnostics` (M57).
+- **An app** derives from `Application`, receives its hooks
+  (`OnConfigure`, `OnInitialize`, `OnUpdate`, `OnShutdown`) and coordinates
+  its systems in an explicit frame order. Measurement and scripted tests
+  live beside it in `GameDiagnostics` (M57).
 - Inheritance keeps the ownership order visible in one place. An `IGame`
   interface or a dependency-injection layer would add indirection without
   solving a present problem.
@@ -95,7 +99,7 @@ graph LR
 
 **Start:** `OnConfigure` (settings resolved, adapter chosen - §8) → SDL
 video → window → GPU renderer → audio (optional) → ImGui →
-`DemoApp::OnInitialize` (asset root, sound library, persistent GPU assets
+the app's `OnInitialize` (asset roots, sound library, persistent GPU assets
 and fonts, data libraries, the `LevelManager` and the first level,
 diagnostics).
 
@@ -114,7 +118,7 @@ flowchart TD
     Submit --> Render[Renderer: sort, cull, passes, present]
 ```
 
-**Shutdown** is the start in reverse: `DemoApp::OnShutdown` releases levels,
+**Shutdown** is the start in reverse: the app's `OnShutdown` releases levels,
 game GPU objects and fonts; then the base shuts down ImGui, audio, the
 renderer and its device, the window and SDL.
 
@@ -202,7 +206,7 @@ runtime dependency; most of them disappear into the executable:
 
 | Class | What | Reaches the player as |
 |---|---|---|
-| **Compile-time only** | GLM, nlohmann/json, cgltf, stb (headers or compiled-in sources), Dear ImGui (a static library), the MSVC C++ runtime (linked statically) | code inside `AtomGame.exe` |
+| **Compile-time only** | GLM, nlohmann/json, cgltf, stb (headers or compiled-in sources), Dear ImGui (a static library), the MSVC C++ runtime (linked statically) | code inside each app's executable |
 | **Runtime library** | SDL3 | `SDL3.dll`, the only DLL shipped |
 | **Operating system** | Direct3D 12, DXGI, Win32 (kernel32, user32, gdi32, shell32, winmm, imm32, ole32, …) | already on Windows 10/11 |
 | **Runtime asset** | the shipped asset folders, DXIL shaders | files beside the executable |
@@ -233,7 +237,7 @@ flowchart LR
     Cfg --> Dev[Renderer: create device + swapchain]
     Dev -->|high-performance failed| Retry[retry low-power, record why]
     R -->|quality mode| Tier[TierFor: Auto uses calibration]
-    Tier --> Apply[DemoApp::ApplyQuality: scale, MSAA, shadows, particles, reflection]
+    Tier --> Apply[ApplyQualityTier: scale, MSAA, shadows, particles, reflection]
 ```
 
 - **Precedence:** command line > `ATOM_*` > saved file > defaults
@@ -281,11 +285,11 @@ flowchart LR
     Src[Source: C++, HLSL, JSON, Blender scripts] --> Build[build-dist/: Release, ATOM_DISTRIBUTION=ON]
     Products[Committed products: .glb, .png] --> Install
     Build --> Install[cmake --install: the install rules]
-    Install --> Stage[Dist/AtomGame/]
+    Install --> Stage[Dist/Demo/, Dist/Drift/]
     Stage --> Verify[verify.ps1]
-    Verify --> Zip[AtomGame-v…-win64.zip]
+    Verify --> Zip[Demo-v…-win64.zip, Drift-v…-win64.zip]
     Zip --> Player[Player: extract, double-click]
-    Player -.->|writes only| User[%APPDATA%/AtomEngine/AtomGame: settings, logs]
+    Player -.->|writes only| User[%APPDATA%/AtomEngine/app name: settings, logs]
 ```
 
 - **One definition of what ships:** the install rules in
@@ -440,6 +444,25 @@ starts. Players keep the log, the start-failure box and `--diagnostics`.
 **Cost:** the package is not byte for byte the tested build; the switch
 gates entry points only, so game code paths are the same. **Revisit when**
 a player-facing diagnostic needs a developer facility.
+
+### ADR-009 — A capability enters the engine as a Feature, with a test and a measurement
+**Context:** by v0.0.13 the engine's capabilities were scattered across the
+demo's levels, and the first Showcase (M86) was a collage of them: nothing
+said what each one was, what it cost, or where to read about it. **Decision
+(v0.0.14):** each capability the engine offers is a *Feature* in the
+Showcase's catalog (`Showcase/Features/Features.cpp`): a stable id, the
+system that produces it, its source file, its manual section, where it
+lives in the village, a switch (the lens, Tab; `set feature_<id>`) and a
+live cost (`Stat`). It is listed in `docs/Features.md` with its status,
+limits and tests. Unit tests check that every Feature names a real source
+file, a real manual heading and an entry in `docs/Features.md`; the
+`showcase_lens` scenario switches each one off and checks its effect
+leaves the frame. A new capability is done when it is in the place, in
+the lens, in the catalog, tested and measured. **Rejected:** a menu of
+per-feature demo rooms (navigation, not purpose); a feature list kept
+only in the README (claims without evidence). **Revisit when** a
+capability can't be shown in the village (an editor, a tool, a platform),
+or the catalog outgrows one place.
 
 ## 13. When to add what
 

@@ -1,0 +1,51 @@
+# The Showcase (v0.0.14, M88): a lakeside village through a day. Walks
+# its places and its clock - day, dusk, night, rain - and checks that
+# what each needs is running.
+expect_level showcase
+expect_near 0 0.25 8 0.3
+expect_environment clear_day
+
+# The workshop: someone at work - the character's state machine walks it
+# through its loop (stand 0-2 s, then speed up): by now it moves.
+wait 4
+teleport -16 0.25 3 -90
+expect_state rudy move
+
+# The jetty by day: water and its planar reflection are drawn.
+teleport 0 0.5 -10 180
+wait 0.5
+expect_water 1
+expect_reflection 1
+
+# The clock: dusk, then night - the lane's lamps light the street.
+set clock next
+wait 0.2
+expect_environment sunset
+set clock next
+wait 0.2
+expect_environment night
+teleport 0 0.25 2 90
+wait 0.5
+expect_stat live_lights >= 1
+
+# Then rain over the village: the drops are particles.
+set clock next
+wait 1
+expect_environment rain
+expect_particles > 100
+
+# The clock runs by itself (its hold shortened here from 40 s): started,
+# the rain blends into the next time.
+set clock on
+set clock_hold 1
+wait 1.5
+expect_environment (blending)
+set clock off
+
+# The shrine and the radio shed; the radio is silent until played.
+teleport -25.5 0.25 -1 180
+wait 0.3
+teleport 26 0.25 -1 180
+wait 0.3
+expect_voices_max 0
+log showcase tour done

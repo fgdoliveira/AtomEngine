@@ -1,4 +1,4 @@
-"""Writes Assets/Machines/night_fever.json: the playable pachinko machine's
+"""Writes Games/Demo/Assets/Machines/night_fever.json: the playable pachinko machine's
 layout (v0.0.5). The machine file is the data the game reads; this script
 is only how it was laid out - nail rows as chords of the board's circle,
 with gaps left for the reels and the pockets. Edit and rerun:
@@ -109,7 +109,7 @@ def machine():
 
 if __name__ == "__main__":
     root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-    path = os.path.join(root, "Assets", "Machines", "night_fever.json")
+    path = os.path.join(root, "Games", "Demo", "Assets", "Machines", "night_fever.json")
     with open(path, "w", encoding="utf-8", newline="\n") as file:
         json.dump(machine(), file, indent=2)
         file.write("\n")

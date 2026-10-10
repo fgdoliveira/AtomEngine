@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
+  "name": "pachinko_hall",
+  "model": "Pachinko/pachinko.glb",
+  "collision": "Pachinko/pachinko_col.glb",
+  "lightmap": { "texture": "Pachinko/pachinko_lm.png", "intensity": 1.0 },
+  "defaultSpawn": "entrance",
+  "spawns": {
+    "entrance": {}
+  },
+  "lighting": {
+    "sunDirection": [0.0, 1.0, 0.0],
+    "sunColor": [0.0, 0.0, 0.0],
+    "skyColor": [0.30, 0.26, 0.26],
+    "groundColor": [0.12, 0.06, 0.06],
+    "fogColor": [0.06, 0.04, 0.05],
+    "shadows": false,
+    "glow": { "strength": 0.8, "threshold": 0.75 }
+  },
+  "outdoor": false,
+  "screens": [
+    { "material": "atom_pachinko_screen", "seed": 1, "machine": "Machines/night_fever.json" },
+    { "material": "atom_pachinko_screen_b", "seed": 7, "machine": "Machines/night_fever.json" },
+    { "material": "atom_pachinko_screen_play", "seed": 3, "machine": "Machines/night_fever.json" }
+  ],
+  "audio": {
+    "beds": [
+      { "sound": "pachinko_hall", "gain": 0.55 },
+      { "sound": "drone", "gain": 0.05 }
+    ],
+    "reverb": { "mix": 0.3, "size": 1.6, "feedback": 0.6 }
+  },
+  "surfaces": { "default": "dirt" },
+  "particles": { "leaves": false, "fogBanks": false },
+  "unease": { "figure": false },
+  "entities": [
+    {
+      "name": "exit_doors",
+      "interactable": {
+        "prompt": "Go back outside", "focus": [0.0, 1.3, 0.0], "radius": 2.6,
+        "action": { "type": "changeLevel", "level": "night_street", "spawn": "from_pachinko" }
+      }
+    },
+    {
+      "name": "machine",
+      "interactable": {
+        "prompt": "Play", "focus": [-0.55, 1.4, 0.0], "radius": 2.2,
+        "action": { "type": "playMachine", "screen": "atom_pachinko_screen_play", "machine": "Machines/night_fever.json",
+                    "view": { "position": [-0.83, 1.4, -9.0], "yaw": -90, "pitch": 0 } }
+      }
+    },
+    {
+      "name": "attendant",
+      "position": [-3.6, 0.0, -16.3],
+      "interactable": {
+        "prompt": "Talk to the attendant", "focus": [0.0, 1.25, 0.0], "radius": 2.6,
+        "action": { "type": "addCounter", "counter": "tokens", "amount": 50, "once": "hall_welcome_tokens",
+                    "message": "The attendant slides fifty tokens across the counter without looking up. \"First night. On the house.\"",
+                    "again": "The attendant is counting balls. Whatever you had coming, you've had." }
+      }
+    },
+    {
+      "name": "prize_counter",
+      "position": [3.6, 0.0, -16.3],
+      "interactable": {
+        "prompt": "Exchange 300 balls for a prize", "focus": [0.0, 1.25, 0.0], "radius": 2.6,
+        "action": { "type": "exchange", "counter": "balls", "cost": 300, "flag": "prize_ofuda",
+                    "message": "Behind the prizes, pinned to the shelf, the same ofuda as the alley's. The attendant takes it down and hands it to you.",
+                    "short": "Three hundred balls for the one on the shelf. You haven't got them." }
+      }
+    }
+  ]
+}

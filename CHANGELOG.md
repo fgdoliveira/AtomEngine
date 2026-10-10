@@ -1,5 +1,90 @@
 # Changelog
 
+## 0.0.14 — Showcase
+
+The engine gets a front door, and a direction. The **Showcase** is a
+lakeside village through a day, built only from the engine and the
+framework; press Tab and a **lens** shows how each part of it is made,
+what it costs and where to read about it. Each capability is a *Feature*
+in a catalog checked by tests (ADR-009): from now on, that is how a
+capability enters the engine. The repository is reorganised into three
+layers - engine, framework, apps - and every app shares one UI, the F10
+tools, a title or pause menu and a player settings screen. **HelloAtom**
+shows how to build an app in about 150 lines.
+
+### Added
+- **The Showcase (M86-M88):** `Showcase/`, the default startup project. A
+  village by the lake: a lane of houses and lamps, the jetty, a workshop
+  where the character works (E: the character lab, Tab: drive), a
+  toon-shaded shrine, a radio shed (the live synth). Time passes: clear
+  day, sunset, night, rain, overcast, each held 40 s then blended (P skips,
+  T pauses). Captions name places, not features.
+- **Features and the lens (M87):** ten Features (water, reflection,
+  shadows, fog, weather, live lights, glow, toon, character, synth), each
+  with its engine system, source file, manual section, a switch and a live
+  cost. Tab shows callouts and a panel; 1-9, 0 switch one off to see what
+  it contributes. `docs/Features.md` lists each with its status, limits,
+  tests and cost; unit tests check every Feature names a real file, a real
+  manual heading and has its entry. ADR-009.
+- **A title, a benchmark and settings for players (M90):** the Showcase
+  opens on Explore / Benchmark / Settings / Quit, and Esc brings it back.
+  Benchmark flies a fixed path through the four times of day and writes
+  `out/benchmark-<date>-<time>.txt` (graphics card, resolution, settings,
+  median/p95/p99/worst/mean, per time of day). The demo and DRIFT get the
+  same pause menu and settings screen (display mode, quality, volume, GPU),
+  which gives packaged players their settings back (gone with F10 in M82).
+  DRIFT saves settings for the first time.
+- **The framework's UI (M89-M90):** `DevPanels` - the F10 panels (Frame,
+  Render, Lighting, Environment, Level) for any app, which adds its own
+  beside them; `UiKit` - one theme and the widgets every app drew by hand
+  (caption, hint bar, callout, columns, menu, toast); `UiFonts` - text
+  rasterised at the size it's drawn, sharp at any window size;
+  `MenuScreen`, `SettingsScreen`, `SettingsStore`. F10 now works in the
+  Showcase and DRIFT, not only the demo.
+- **Samples/HelloAtom (M91):** the smallest complete app - a window, a
+  level from JSON, walking, F1, F10, scenarios - compiled in CI, run by
+  `Scenario.hello_atom`; `docs/Getting-Started.md` walks through it.
+  `BasicTestHooks` gives any such app the scenario harness.
+- `showcase_tour`, `showcase_lab`, `showcase_lens`, `showcase_benchmark`
+  and `hello_atom` scenarios.
+
+### Changed
+- **Three layers (M84-M85).** The demo moved to `Games/Demo` (namespace
+  `Demo`, executable `Demo.exe`, package `Demo-v…-win64.zip`). The world
+  layer moved into the framework: levels, the entity world, interaction,
+  environments, the character and the scenario harness; the level stops
+  naming the demo (`SoundLibrary`, `ScreenFactory`). Shared assets live in
+  `Content/`, an app's own in its `Assets/`, looked up in that order
+  (`AssetRoots`).
+- **The labs fold into the Showcase (M86):** the character lab and the
+  lakeshore are the Showcase's; the demo keeps its story.
+- **Esc pauses** in the demo (it released the mouse) and DRIFT (it quit).
+- The view switches every app accepted were copied per app; now
+  `ApplyViewSwitch` (and `ApplyQualityTier`) in the framework.
+- One style for the developer tools: the warm accent of the games' UI.
+- `docs/Architecture.md` describes the new layering; the README is in the
+  order engine → Showcase → games → build your own.
+
+### Fixed
+- Closing F10 left the mouse released: the character stopped turning
+  until a click. The application now gives the mouse back.
+- UI text drawn at a scale (fullscreen, large headings) was soft; the
+  menus showed the OS cursor though they take only the keyboard; a
+  fullscreen switch could drop the hidden cursor.
+
+### Coverage moved
+- The lab's ramp climb is the unit test `DriveTests` ("The body walks up a
+  ramp onto a platform"). The quality tiers' reflection assertions went
+  with the lakeshore level; no scenario checks them now.
+
+### Performance
+- **The demo against 0.0.13** (`ab.ps1`, night street, 8 interleaved
+  rounds, Release, plugged in, on the laptop's own screen): median paired
+  delta +0.051 ms (range −0.633..+0.745), within the spread - no
+  regression from moving the world layer into the framework.
+- **The Showcase** holds the 144 Hz refresh at its heaviest times of day
+  (night, rain: median frame 6.94 ms, Release, M88).
+
 ## 0.0.13 — Drift
 
 A second game. **DRIFT** is a faithful port of a three.js web game: fly an

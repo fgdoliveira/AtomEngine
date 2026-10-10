@@ -47,7 +47,7 @@ param(
     [int]$Rounds = 4,
     [double]$Seconds = 10,
     [string]$Level = "street",
-    [string]$Game = "build/bin/Release/AtomGame.exe",
+    [string]$Game = "build/bin/Release/Demo.exe",
     [string]$PresentMonPath = "",
     [switch]$EngineLog,
     [switch]$NoElevate,

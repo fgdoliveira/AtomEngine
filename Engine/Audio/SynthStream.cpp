@@ -43,6 +43,14 @@ namespace Atom
         m_sequencer = nullptr;
     }
 
+    void SynthStream::SetGain(float gain)
+    {
+        if (m_stream)
+        {
+            SDL_SetAudioStreamGain(m_stream, gain);
+        }
+    }
+
     bool SynthStream::Send(const SynthCommand& command)
     {
         const std::uint32_t head = m_head.load(std::memory_order_relaxed);

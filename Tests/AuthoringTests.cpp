@@ -1,4 +1,5 @@
 #include "Dialogue/Dialogue.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Level/FileWatcher.h"
 #include "Level/LevelData.h"
 
@@ -10,11 +11,11 @@
 #include <iterator>
 #include <string>
 
-using namespace AtomGame;
+using namespace Demo;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {
-    const std::string Assets = ATOM_SOURCE_DIR "/Assets/";
 
     constexpr const char* Base = R"({ "name": "x", "model": "m", "collision": "c", )";
 
@@ -108,19 +109,22 @@ TEST_CASE("Markers place spawns and entities; the level file still wins")
 TEST_CASE("Shipped levels and dialogues declare their schema, which knows their keys")
 {
     const auto properties = [](const std::string& schema) {
-        return ReadJson(Assets + "Schemas/" + schema)["properties"];
+        return ReadJson(AtomTests::Schema(schema))["properties"];
     };
     const nlohmann::json level = properties("level.schema.json");
     const nlohmann::json dialogue = properties("dialogue.schema.json");
     const nlohmann::json machine = properties("machine.schema.json");
+    const std::string demoLevelSchema = std::string(AtomTests::FrameworkSchemaFromDemo) + "level.schema.json";
+    const std::string showcaseLevelSchema = std::string(AtomTests::FrameworkSchemaFromShowcase) + "level.schema.json";
 
     int files = 0;
     for (const auto& [folder, schema, keys] : {
-             std::tuple{ "Levels", "../Schemas/level.schema.json", &level },
-             std::tuple{ "Dialogue", "../Schemas/dialogue.schema.json", &dialogue },
-             std::tuple{ "Machines", "../Schemas/machine.schema.json", &machine } })
+             std::tuple{ std::string(AtomTests::LevelFolders[0]), demoLevelSchema.c_str(), &level },
+             std::tuple{ std::string(AtomTests::LevelFolders[1]), showcaseLevelSchema.c_str(), &level },
+             std::tuple{ AtomTests::Asset("Dialogue"), "../Schemas/dialogue.schema.json", &dialogue },
+             std::tuple{ AtomTests::Asset("Machines"), "../Schemas/machine.schema.json", &machine } })
     {
-        for (const auto& entry : std::filesystem::directory_iterator(Assets + folder))
+        for (const auto& entry : std::filesystem::directory_iterator(folder))
         {
             const std::string name = entry.path().filename().string();
             if (entry.path().extension() != ".json" || name.ends_with(".markers.json"))
@@ -255,18 +259,21 @@ TEST_CASE("Committed lightmaps were baked on the CPU (byte-identical builds)")
     // build_assets --gpu marks its lightmaps: fast to iterate with, but not
     // reproducible, so they must be rebuilt on the CPU before committing.
     int lightmaps = 0;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(Assets))
+    for (const std::string& root : AtomTests::SourceAssets().Roots())
     {
-        const std::string name = entry.path().filename().string();
-        if (!name.ends_with("_lm.png"))
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
         {
-            continue;
+            const std::string name = entry.path().filename().string();
+            if (!name.ends_with("_lm.png"))
+            {
+                continue;
+            }
+            ++lightmaps;
+            std::ifstream file(entry.path(), std::ios::binary);
+            const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            INFO(name);
+            CHECK(bytes.find("atom-gpu-bake") == std::string::npos);
         }
-        ++lightmaps;
-        std::ifstream file(entry.path(), std::ios::binary);
-        const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        INFO(name);
-        CHECK(bytes.find("atom-gpu-bake") == std::string::npos);
     }
     CHECK(lightmaps >= 6);
 }

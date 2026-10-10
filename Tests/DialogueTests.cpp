@@ -1,10 +1,11 @@
 #include "Dialogue/Dialogue.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Dialogue/DialogueRunner.h"
 #include "World/GameState.h"
 
 #include <doctest/doctest.h>
 
-using namespace AtomGame;
+using namespace Demo;
 
 namespace
 {
@@ -158,7 +159,7 @@ TEST_CASE("Choosing an option can set a flag, and selection wraps")
 TEST_CASE("The shipped shrine keeper dialogue is valid")
 {
     const DialogueParseResult result =
-        LoadDialogueFile(ATOM_SOURCE_DIR "/Assets/Dialogue/shrine_keeper.json");
+        LoadDialogueFile(AtomTests::Asset("Dialogue/shrine_keeper.json"));
     INFO(result.error);
     REQUIRE(result.dialogue.has_value());
     CHECK(result.dialogue->id == "shrine_keeper");

@@ -1,4 +1,5 @@
 #include "Assets/Model.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 
 #include <doctest/doctest.h>
 
@@ -13,7 +14,6 @@ using namespace Atom;
 
 namespace
 {
-    const std::string Assets = ATOM_SOURCE_DIR "/Assets/";
 
     float Luminance(const Vertex& vertex)
     {
@@ -26,7 +26,7 @@ TEST_CASE("Every shipped visual model carries baked light")
     int models = 0;
     for (const char* folder : { "Kit", "Street", "Shrine", "Interior" })
     {
-        for (const auto& entry : std::filesystem::directory_iterator(Assets + folder))
+        for (const auto& entry : std::filesystem::directory_iterator(AtomTests::Asset(folder)))
         {
             const std::string name = entry.path().filename().string();
             if (entry.path().extension() != ".glb" || name.find("_col") != std::string::npos)
@@ -68,7 +68,7 @@ TEST_CASE("Every shipped visual model carries baked light")
 TEST_CASE("Models without COLOR_0 read as white and unbaked")
 {
     // Collision proxies are exported without colours.
-    const auto primitives = LoadModelGeometry(Assets + "Street/street_col.glb");
+    const auto primitives = LoadModelGeometry(AtomTests::Asset("Street/street_col.glb"));
     REQUIRE_FALSE(primitives.empty());
     for (const PrimitiveGeometry& primitive : primitives)
     {
@@ -80,7 +80,7 @@ TEST_CASE("Models without COLOR_0 read as white and unbaked")
 
 TEST_CASE("The interior carries lightmap UVs inside the texture")
 {
-    const auto primitives = LoadModelGeometry(Assets + "Interior/interior.glb");
+    const auto primitives = LoadModelGeometry(AtomTests::Asset("Interior/interior.glb"));
     REQUIRE_FALSE(primitives.empty());
     for (const PrimitiveGeometry& primitive : primitives)
     {
@@ -113,7 +113,7 @@ TEST_CASE("Masks ship double-sided, decals as blend, everything else opaque")
                               "Street/street_east.glb", "Shrine/shrine.glb", "Kit/bush.glb", "Kit/machiya.glb",
                               "Interior/interior.glb", "Kit/shrine_gate.glb" })
     {
-        const auto materials = LoadModelMaterials(Assets + file);
+        const auto materials = LoadModelMaterials(AtomTests::Asset(file));
         REQUIRE_FALSE(materials.empty());
         for (const MaterialInfo& material : materials)
         {
@@ -150,7 +150,7 @@ TEST_CASE("Night lights ship an emissive mask and cut through fog")
     {
         INFO(file);
         int lights = 0;
-        for (const MaterialInfo& material : LoadModelMaterials(Assets + file))
+        for (const MaterialInfo& material : LoadModelMaterials(AtomTests::Asset(file)))
         {
             INFO(material.name);
             if (material.name == "atom_neon_sign" || material.name == "atom_lamp_glass")
@@ -167,7 +167,7 @@ TEST_CASE("Night lights ship an emissive mask and cut through fog")
         CHECK(lights == 1);
     }
     // Older glowing pieces keep glowing by their base colour.
-    for (const MaterialInfo& material : LoadModelMaterials(Assets + "Kit/vending_machine.glb"))
+    for (const MaterialInfo& material : LoadModelMaterials(AtomTests::Asset("Kit/vending_machine.glb")))
     {
         CHECK(material.fogAmount == doctest::Approx(1.0f));
     }
@@ -175,5 +175,5 @@ TEST_CASE("Night lights ship an emissive mask and cut through fog")
 
 TEST_CASE("A missing model file loads no geometry")
 {
-    CHECK(LoadModelGeometry(Assets + "nope.glb").empty());
+    CHECK(LoadModelGeometry(AtomTests::Asset("nope.glb")).empty());
 }

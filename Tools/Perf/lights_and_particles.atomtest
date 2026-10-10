@@ -2,7 +2,7 @@
 # in-process (see README, Measuring performance). Each bench is "off on",
 # so the reported B - A is that feature's cost.
 #
-#   ATOM_VSYNC=0 ATOM_START_LEVEL=night_street ATOM_TEST_SCRIPT=Tools/Perf/lights_and_particles.atomtest AtomGame.exe
+#   ATOM_VSYNC=0 ATOM_START_LEVEL=night_street ATOM_TEST_SCRIPT=Tools/Perf/lights_and_particles.atomtest Demo.exe
 #
 # v0.0.7, laptop plugged in (Iris Xe, 1280x720), two runs:
 #   particles     +0.279 / +0.263 ms   (consistent)

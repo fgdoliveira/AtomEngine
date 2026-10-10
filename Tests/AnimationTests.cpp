@@ -1,4 +1,5 @@
 #include "Assets/Animation.h"
+#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "Assets/Model.h"
 
 #include <doctest/doctest.h>
@@ -22,7 +23,6 @@ namespace
         return channel;
     }
 
-    const std::string Assets = ATOM_SOURCE_DIR "/Assets/";
 }
 
 TEST_CASE("Linear channels interpolate between keys and clamp outside them")
@@ -73,7 +73,7 @@ TEST_CASE("Cubic splines pass through their keys")
 TEST_CASE("The animated kit pieces ship their clips")
 {
     const auto find = [](const std::string& file, const std::string& clip) {
-        for (const AnimationClip& c : LoadModelAnimations(Assets + file))
+        for (const AnimationClip& c : LoadModelAnimations(AtomTests::Asset(file)))
         {
             if (c.name == clip)
             {
@@ -85,14 +85,14 @@ TEST_CASE("The animated kit pieces ship their clips")
     CHECK(find("Kit/windmill.glb", "spin") == doctest::Approx(8.0f));
     CHECK(find("Kit/shed.glb", "open") == doctest::Approx(1.5f));
     CHECK(find("Kit/hanging_sign.glb", "swing") == doctest::Approx(3.0f));
-    CHECK(LoadModelAnimations(Assets + "Kit/road.glb").empty());
+    CHECK(LoadModelAnimations(AtomTests::Asset("Kit/road.glb")).empty());
 }
 
 TEST_CASE("Sway weights: cards move at their free end, solid pieces not at all")
 {
     // Alpha = 1 - sway weight (Shaders/Sway.hlsli).
     float lowest = 1.0f;
-    for (const PrimitiveGeometry& primitive : LoadModelGeometry(Assets + "Kit/grass_tuft.glb"))
+    for (const PrimitiveGeometry& primitive : LoadModelGeometry(AtomTests::Asset("Kit/grass_tuft.glb")))
     {
         for (const Vertex& vertex : primitive.vertices)
         {
@@ -105,7 +105,7 @@ TEST_CASE("Sway weights: cards move at their free end, solid pieces not at all")
     }
     CHECK(lowest < 0.1f); // blade tips swing fully
 
-    for (const PrimitiveGeometry& primitive : LoadModelGeometry(Assets + "Kit/road.glb"))
+    for (const PrimitiveGeometry& primitive : LoadModelGeometry(AtomTests::Asset("Kit/road.glb")))
     {
         for (const Vertex& vertex : primitive.vertices)
         {

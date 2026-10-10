@@ -70,6 +70,9 @@ namespace AtomFramework // M76: shared by every game
         // the next launch uses this preference instead, and says why.
         std::optional<GpuPreference> pendingFallback;
         bool calibrateNextLaunch = false; // asked for in F10 (M61); run by M64
+        // M90: the player's settings screen.
+        bool fullscreen = false; // borderless, at the desktop's size
+        float volume = 0.8f;     // the master gain, 0..1
     };
 
     // Never fails: a missing, malformed or unknown-version file gives the

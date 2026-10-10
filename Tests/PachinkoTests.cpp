@@ -1,14 +1,15 @@
 #include "Audio/Reverb.h"
 #include "Level/LevelData.h"
 #include "World/FixedStep.h"
-#include "World/PachinkoAttract.h"
+#include "Pachinko/PachinkoAttract.h"
 
 #include <doctest/doctest.h>
 
 #include <cmath>
 #include <string>
 
-using namespace AtomGame;
+using namespace Demo;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 TEST_CASE("Fixed step: whole steps from any frame rate, leftovers carried, hitches capped")
 {

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-using namespace AtomGame;
+using namespace AtomFramework; // v0.0.14: the world layer
 
 namespace
 {

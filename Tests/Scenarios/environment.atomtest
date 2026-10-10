@@ -1,10 +1,11 @@
-# Environment presets (M49): the lakeshore starts in its default, switches
-# at once and blended, through every preset it offers, and back to its own
-# light. A level without presets can still be given one. Rain (M50)
-# fills the air with drops; dry, they're gone.
-goto_level lakeshore
-wait_for_level lakeshore
-expect_environment clear_day
+# Environment presets (M49): the windmill field (v0.0.14: the lakeshore
+# until it moved to the Showcase) starts in its own light, switches at once
+# and blended through the presets, and back to its own light. Rain (M50)
+# fills the air with drops; dry, they're gone. Water and its reflection
+# under the presets: the Showcase's tour.
+goto_level windmill_field
+wait_for_level windmill_field
+expect_environment level
 
 environment rain
 expect_environment rain
@@ -27,16 +28,8 @@ wait 0.2
 environment clear_day 0.5            # a change of mind mid-blend
 wait 0.7
 expect_environment clear_day
-expect_water 1
 
 environment level
 expect_environment level
 wait 0.3
-expect_particles < 100               # dry again
-
-goto_level windmill_field
-wait_for_level windmill_field
-expect_environment level
-environment fog 0.5
-wait 0.7
-expect_environment fog
+expect_particles < 500               # dry again: the field's leaves (~200), no rain

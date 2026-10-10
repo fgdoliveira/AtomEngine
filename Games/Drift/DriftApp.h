@@ -10,7 +10,12 @@
 #include "Assets/Model.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
+#include "Debug/DevPanels.h"
 #include "Settings/GameSettings.h"
+#include "Settings/SettingsStore.h"
+#include "UI/MenuScreen.h"
+#include "UI/UiFonts.h"
+#include "UI/SettingsScreen.h"
 #include "Renderer/Particles.h"
 #include "Renderer/Texture.h"
 #include "UI/Font.h"
@@ -41,6 +46,18 @@ namespace Drift
         void SubmitWorld();
         void SubmitSpeedField(float forward);
         void DrawHud(float dt);
+        // Esc's pause menu (M90): Resume, Settings (display, volume, GPU -
+        // saved since M90), Quit. True while it is open.
+        bool UpdatePause();
+        void DrawPause();
+        enum class PauseScreen { None, Menu, Settings };
+        PauseScreen m_pause = PauseScreen::None;
+        AtomFramework::MenuScreen m_pauseMenu;
+        AtomFramework::SettingsScreen m_pauseSettings{ { AtomFramework::SettingRow::Display, AtomFramework::SettingRow::Volume,
+                                                         AtomFramework::SettingRow::Gpu, AtomFramework::SettingRow::Back } };
+        AtomFramework::SettingsStore m_store;
+        std::unique_ptr<AtomFramework::UiFonts> m_uiFonts; // the menus' typeface, at every size
+        void DrawDevTools(float dt); // F10 (M89): the shared Frame and Render panels, and Flight
 
         std::vector<std::string> m_arguments;
         AtomFramework::CommandLine m_commandLine;          // M82: --gpu, --diagnostics
@@ -83,5 +100,6 @@ namespace Drift
         Atom::FrameStatsWindow m_frameTimes; // M83: reported with the summary
         std::string m_capturePath;
         bool m_captured = false;
+        AtomFramework::DevPanels m_devPanels;
     };
 }

@@ -40,14 +40,19 @@ add_executable(
     DriftFlightTests.cpp
     DriftWorldTests.cpp
     SynthTests.cpp
+    BoothSynthTests.cpp
+    ShowcaseFeatureTests.cpp
+    UiKitTests.cpp
     FakeGame.h
+    TestAssets.h
 )
 
 target_link_libraries(
     AtomTests
     PRIVATE
-        AtomGameLib
+        DemoLib
         DriftLib # M77: the second game's pure logic
+        ShowcaseLib # v0.0.14: the synth booth
         nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 
@@ -67,7 +72,7 @@ target_compile_definitions(
 )
 
 # In-game scenarios need the game (ATOM_BUILD_GAME).
-if(NOT TARGET AtomGame)
+if(NOT TARGET Demo)
     return()
 endif()
 
@@ -77,7 +82,7 @@ endif()
 file(GLOB ATOM_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios/*.atomtest")
 foreach(scenario IN LISTS ATOM_SCENARIOS)
     get_filename_component(name "${scenario}" NAME_WE)
-    add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:AtomGame>)
+    add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:Demo>)
     set_tests_properties(
         "Scenario.${name}"
         PROPERTIES
@@ -89,18 +94,34 @@ foreach(scenario IN LISTS ATOM_SCENARIOS)
     )
 endforeach()
 
+# v0.0.14: the Showcase's scenarios (Showcase/Scenarios/*.atomtest) run the
+# Showcase the same way.
+file(GLOB ATOM_SHOWCASE_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Showcase/Scenarios/*.atomtest")
+foreach(scenario IN LISTS ATOM_SHOWCASE_SCENARIOS)
+    get_filename_component(name "${scenario}" NAME_WE)
+    add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:Showcase>)
+    set_tests_properties(
+        "Scenario.${name}"
+        PROPERTIES
+            ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
+            LABELS scenario
+            FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
+            TIMEOUT 240
+    )
+endforeach()
+
 # M62: --diagnostics starts the engine, writes its report and exits (a GPU
 # run like the scenarios, so it carries their label).
 add_test(
     NAME Scenario.diagnostics
-    COMMAND $<TARGET_FILE:AtomGame> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics.txt"
+    COMMAND $<TARGET_FILE:Demo> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics.txt"
 )
 # M64: a short calibration runs to its end and reports - which tier it picks
 # depends on the machine, so only completion is checked. On battery it
 # refuses, which is also a correct end.
 add_test(
     NAME Scenario.calibration
-    COMMAND $<TARGET_FILE:AtomGame> --calibrate --no-settings
+    COMMAND $<TARGET_FILE:Demo> --calibrate --no-settings
 )
 set_tests_properties(
     Scenario.calibration
@@ -117,7 +138,7 @@ set_tests_properties(
 # only completion and clean shutdown are checked.
 add_test(
     NAME Scenario.gpu_fallback
-    COMMAND $<TARGET_FILE:AtomGame> --gpu high-performance --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics_hp.txt"
+    COMMAND $<TARGET_FILE:Demo> --gpu high-performance --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics_hp.txt"
 )
 set_tests_properties(
     Scenario.gpu_fallback
@@ -136,6 +157,23 @@ set_tests_properties(
         FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
         TIMEOUT 120
 )
+
+# M91: the sample's scenarios run the sample.
+if(TARGET HelloAtom)
+    file(GLOB ATOM_HELLO_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Samples/HelloAtom/Scenarios/*.atomtest")
+    foreach(scenario IN LISTS ATOM_HELLO_SCENARIOS)
+        get_filename_component(name "${scenario}" NAME_WE)
+        add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:HelloAtom>)
+        set_tests_properties(
+            "Scenario.${name}"
+            PROPERTIES
+                ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
+                LABELS scenario
+                FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
+                TIMEOUT 120
+        )
+    endforeach()
+endif()
 
 # M77: DRIFT flies on autopilot for a few seconds and reports the distance:
 # the second game starts, loads its assets, renders and shuts down clean.
