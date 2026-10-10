@@ -75,6 +75,8 @@ add_library(
     Level/SoundLibrary.h
     Level/ViewToggles.cpp
     Level/ViewToggles.h
+    Testing/BasicTestHooks.cpp
+    Testing/BasicTestHooks.h
     Testing/GameDiagnostics.cpp
     Testing/GameDiagnostics.h
     Testing/PairedBench.cpp

@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../Framework/Schemas/level.schema.json",
+  "name": "hello",
+  "model": "First/first.glb",
+  "collision": "First/first_col.glb",
+  "defaultSpawn": "start",
+  "spawns": {
+    "start": { "position": [0.0, 0.0, 9.0], "yaw": 0 }
+  },
+  "lighting": {
+    "sunDirection": [0.45, 0.7, -0.35],
+    "sunColor": [1.0, 0.94, 0.82],
+    "skyColor": [0.55, 0.62, 0.75],
+    "groundColor": [0.24, 0.22, 0.2],
+    "fogColor": [0.62, 0.68, 0.76],
+    "fogDensity": 0.01,
+    "skyGradient": { "zenith": [0.2, 0.38, 0.7], "horizon": [0.64, 0.74, 0.86], "sunSize": 1.4, "sunGlow": 0.5 },
+    "shadows": true,
+    "bakedLight": 0.0,
+    "glow": { "strength": 0.4, "threshold": 1.0 }
+  },
+  "outdoor": true,
+  "entities": [
+    { "name": "cube_1", "position": [-3.2, 0.0, 2.0], "model": "Kit/demo_cube_red.glb", "animation": { "clip": "spin_red" } },
+    { "name": "cube_2", "position": [0.0, 0.0, 0.0], "model": "Kit/demo_cube_gold.glb", "animation": { "clip": "spin_gold" } },
+    { "name": "cube_3", "position": [3.4, 0.0, -1.5], "model": "Kit/demo_cube_teal.glb", "animation": { "clip": "spin_teal" } },
+    { "name": "torii", "position": [0.0, 0.0, -6.0], "model": "Kit/torii.glb" },
+    { "name": "lantern_left", "position": [-2.0, 0.0, -4.0], "model": "Kit/toro.glb" },
+    { "name": "lantern_right", "position": [2.0, 0.0, -4.0], "model": "Kit/toro.glb" }
+  ]
+}

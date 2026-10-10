@@ -19,6 +19,8 @@
         # The Showcase (v0.0.14): a scenario script runs itself; anything else, the tour.
         @{ Pattern = '^Showcase/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('$scenario') }
         @{ Pattern = '^Showcase/(ShowcaseLab.cpp|Assets/(Lab|ThirdParty)/)'; Scenarios = @('showcase_lab', 'showcase_tour') }
+        # M91: the sample, and the framework hooks it rests on.
+        @{ Pattern = '^(Samples/HelloAtom/|Framework/Testing/BasicTestHooks)'; Scenarios = @('hello_atom') }
         @{ Pattern = '^Showcase/'; Scenarios = @('showcase_tour', 'showcase_lens', 'showcase_benchmark') }
 
         # The engine
@@ -45,7 +47,7 @@
         @{ Pattern = '^Games/Demo/Assets/(Machines|Pachinko)/'; Scenarios = @('pachinko_session') }
         @{ Pattern = '^Games/Demo/Assets/'; Scenarios = @('street_keeper', 'levels_roundtrip') }
         # Shared content: kit pieces, sky, fonts.
-        @{ Pattern = '^Content/'; Scenarios = @('levels_roundtrip', 'night_street', 'showcase_tour') }
+        @{ Pattern = '^Content/'; Scenarios = @('levels_roundtrip', 'night_street', 'showcase_tour', 'hello_atom') }
 
         # The demo, by system
         @{ Pattern = '^Games/Demo/Pachinko/'; Scenarios = @('pachinko_session') }

@@ -62,6 +62,16 @@ def out_for(args, folder):
     return args.showcase if folder in SHOWCASE_FOLDERS else args.out
 
 
+# M91: the first-render stage's geometry is shared (Content/First): the
+# Showcase's documentation stage and Samples/HelloAtom both load it. Its
+# level file and markers stay the Showcase's.
+CONTENT_LEVEL_FOLDERS = {"first"}
+
+
+def geometry_out_for(args, folder):
+    return args.content if folder in CONTENT_LEVEL_FOLDERS else out_for(args, folder)
+
+
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
@@ -301,7 +311,7 @@ def main():
         lights = atom_levels.LIGHTMAPS.get(folder)
         if lights:
             mesh = next(obj for obj in level.visual if obj.name == folder)
-            level_dir = os.path.join(out_for(args, folder), folder.capitalize())
+            level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
             os.makedirs(level_dir, exist_ok=True)
             atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"),
                                **atom_levels.LIGHTMAP_OPTIONS.get(folder, {}))
@@ -375,7 +385,7 @@ def main():
     write_markers(night.collection, os.path.join(args.out, "Levels", "night_street.markers.json"))
 
     for folder, level in levels:
-        level_dir = os.path.join(out_for(args, folder), folder.capitalize())
+        level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
         os.makedirs(level_dir, exist_ok=True)
         export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
         export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),

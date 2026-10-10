@@ -71,6 +71,7 @@ add_subdirectory(Framework) # M76: shared by every game
 add_subdirectory(Showcase) # v0.0.14: the engine's front door, every feature in one scene
 add_subdirectory(Games/Demo) # v0.0.14: the demo, beside DRIFT
 add_subdirectory(Games/Drift) # M77: a second game
+add_subdirectory(Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)

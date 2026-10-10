@@ -158,6 +158,23 @@ set_tests_properties(
         TIMEOUT 120
 )
 
+# M91: the sample's scenarios run the sample.
+if(TARGET HelloAtom)
+    file(GLOB ATOM_HELLO_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Samples/HelloAtom/Scenarios/*.atomtest")
+    foreach(scenario IN LISTS ATOM_HELLO_SCENARIOS)
+        get_filename_component(name "${scenario}" NAME_WE)
+        add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:HelloAtom>)
+        set_tests_properties(
+            "Scenario.${name}"
+            PROPERTIES
+                ENVIRONMENT "ATOM_TEST_SCRIPT=${scenario}"
+                LABELS scenario
+                FAIL_REGULAR_EXPRESSION "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline"
+                TIMEOUT 120
+        )
+    endforeach()
+endif()
+
 # M77: DRIFT flies on autopilot for a few seconds and reports the distance:
 # the second game starts, loads its assets, renders and shuts down clean.
 if(TARGET Drift)

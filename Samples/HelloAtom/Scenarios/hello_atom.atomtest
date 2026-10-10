@@ -1,0 +1,14 @@
+# HelloAtom (v0.0.14, M91): the sample starts, loads its level from data,
+# draws it, animates it, takes the view switches, and shuts down clean.
+expect_level hello
+expect_near 0 0 9 0.3
+wait 0.5
+expect_stat draws >= 5
+expect_animating cube_2
+teleport 0 0 4 0
+wait 0.3
+expect_near 0 0 4 0.3
+set msaa 2
+set fog light
+wait 0.3
+log hello atom done
