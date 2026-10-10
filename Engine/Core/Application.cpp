@@ -209,7 +209,15 @@ namespace Atom
             }
             if (m_devTools.IsVisible() && !wasVisible)
             {
-                m_input.SetMouseCaptured(m_window.GetSDLWindow(), false); // the panels need a pointer
+                // The panels need a pointer; the game gets the mouse back as
+                // it had it when F10 closes them.
+                m_capturedBeforeTools = m_input.IsMouseCaptured();
+                m_input.SetMouseCaptured(m_window.GetSDLWindow(), false);
+            }
+            else if (!m_devTools.IsVisible() && wasVisible && m_capturedBeforeTools)
+            {
+                m_input.SetMouseCaptured(m_window.GetSDLWindow(), true);
+                m_capturedBeforeTools = false;
             }
 
             if (event.type == SDL_EVENT_QUIT)
