@@ -1,4 +1,5 @@
 #include "Level/Level.h"
+#include "Core/Profile.h"
 
 #include "Assets/Model.h"
 #include "Character/PlayerController.h"
@@ -486,6 +487,7 @@ namespace AtomFramework
 
     void Level::Submit(Atom::Renderer& renderer, const glm::vec3& viewer) const
     {
+        ATOM_PROFILE_SCOPE("LevelSubmit");
         SubmitChunk(renderer, *m_scene, Atom::RenderLayer::Near, true);
 
         // Near chunks of far-away cells are skipped altogether; the layout
@@ -584,6 +586,7 @@ namespace AtomFramework
 
     void Level::Update(float deltaSeconds, const glm::vec3& listener)
     {
+        ATOM_PROFILE_SCOPE("LevelUpdate");
         m_time += deltaSeconds;
 
         // Movers (M25): the entity shuttles along its line; its sound

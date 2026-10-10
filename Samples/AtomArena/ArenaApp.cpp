@@ -1,6 +1,7 @@
 #include "ArenaApp.h"
 
 #include "Assets/Model.h"
+#include "Core/Profile.h"
 #include "Platform/Input.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
@@ -251,6 +252,7 @@ namespace Arena
 
     void ArenaApp::SubmitArena()
     {
+        ATOM_PROFILE_SCOPE("ArenaSubmit");
         Atom::Renderer& renderer = GetRenderer();
         renderer.SetCamera(m_camera.GetViewMatrix(), m_camera.verticalFov, m_camera.nearPlane, 120.0f);
         if (Level* level = m_levels->GetLevel())
@@ -261,6 +263,7 @@ namespace Arena
         // E: a draw per enemy, facing where it walks.
         if (m_drawEnemies)
         {
+            ATOM_PROFILE_SCOPE("EnemyDraws"); // E: a Model::Submit per enemy
             for (const Enemy& enemy : m_sim.Enemies())
             {
                 const float yaw = glm::dot(enemy.velocity, enemy.velocity) > 1e-6f
@@ -386,6 +389,10 @@ namespace Arena
             m_simWindow.AddSample(m_lastSimMs);
             m_submitMs.AddSample(m_lastSubmitMs);
             m_contactSum += static_cast<double>(m_sim.EnemyContacts().size());
+            if (ATOM_PROFILE_CONNECTED())
+            {
+                ++m_connectedFrames;
+            }
             if (m_spawnedThisFrame)
             {
                 m_spikeUpdateMs.AddSample(updateMs);
@@ -425,7 +432,10 @@ namespace Arena
         line("version", ATOM_VERSION);
         line("commit", ATOM_GIT_COMMIT); // at configure time
         line("config", ATOM_BUILD_CONFIG);
-        line("profiling", "none");
+        // M95: the build's profiler, and how many measured frames it was
+        // recording for.
+        line("profiling", ATOM_PROFILE_NAME);
+        line("profiling_connected_frames", std::to_string(m_connectedFrames));
         line("adapter", device.adapter);
         line("backend", device.backend);
         line("present_mode", device.presentMode);

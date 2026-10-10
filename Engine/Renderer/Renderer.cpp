@@ -1,5 +1,6 @@
 #include "Renderer/Renderer.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Core/Profile.h" // v0.0.15: CPU profiling zones (off: nothing)
 #include "Core/AssetLog.h"
 
 #include "Renderer/GpuResources.h"
@@ -841,6 +842,7 @@ namespace Atom
 
     void Renderer::SortDrawCommands()
     {
+        ATOM_PROFILE_SCOPE("SortDrawCommands");
         const auto key = [](const DrawCommand& c) {
             const Material& m = *c.material;
             return std::tuple{
@@ -897,6 +899,8 @@ namespace Atom
 
     bool Renderer::Render()
     {
+        // The CPU's side of the frame: recording passes, not the GPU's work.
+        ATOM_PROFILE_SCOPE("Render");
         if (!m_device || !m_window || !m_gpu.IsWindowClaimed())
         {
             std::cerr << "Cannot render before the renderer is initialized.\n";
@@ -948,13 +952,17 @@ namespace Atom
         {
             m_latency.Poll(m_device, waitStart);
         }
-        const bool acquired = !simulatedLoss && SDL_WaitAndAcquireGPUSwapchainTexture(
-            commandBuffer,
-            m_window,
-            &swapchainTexture,
-            &swapchainWidth,
-            &swapchainHeight
-        );
+        bool acquired = false;
+        {
+            ATOM_PROFILE_SCOPE("AcquireSwapchain");
+            acquired = !simulatedLoss && SDL_WaitAndAcquireGPUSwapchainTexture(
+                commandBuffer,
+                m_window,
+                &swapchainTexture,
+                &swapchainWidth,
+                &swapchainHeight
+            );
+        }
         if (timing)
         {
             const Uint64 waitEnd = SDL_GetTicksNS();
@@ -1077,6 +1085,7 @@ namespace Atom
             m_latency.Submitted(submitNs, fence);
             return ok;
         }
+        ATOM_PROFILE_SCOPE("SubmitCommandBuffer");
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
             std::cerr
@@ -1561,6 +1570,7 @@ namespace Atom
         const glm::mat4& lightViewProjection
     )
     {
+        ATOM_PROFILE_SCOPE("ShadowPass");
         if (!m_lighting.shadowsEnabled)
         {
             return true;
@@ -1600,6 +1610,7 @@ namespace Atom
         const glm::mat4& spotViewProjection
     )
     {
+        ATOM_PROFILE_SCOPE("SpotShadowPass");
         if (!m_spotActive || !m_spot.castsShadows)
         {
             return true;
@@ -1674,6 +1685,7 @@ namespace Atom
         const glm::mat4& spotViewProjection
     )
     {
+        ATOM_PROFILE_SCOPE("ReflectionPass");
         // The near scene seen from below the water's plane (M51), so the
         // water can show it instead of only the sky. Only where the water's
         // look asks for it, and only when a water surface is in view.
@@ -1778,6 +1790,7 @@ namespace Atom
         const glm::mat4& spotViewProjection
     )
     {
+        ATOM_PROFILE_SCOPE("ScenePass");
         SDL_GPUGraphicsPipeline* pipeline =
             GetScenePipeline(m_targets.GetSamples());
         if (!pipeline)
@@ -2286,6 +2299,7 @@ namespace Atom
 
     bool Renderer::UploadParticles(SDL_GPUCommandBuffer* commandBuffer)
     {
+        ATOM_PROFILE_SCOPE("UploadParticles");
         m_uploadedParticles = 0;
         m_uploadedHalos = 0;
         if ((m_particles.empty() && m_halos.empty()) || !m_particleAtlas)
@@ -2551,6 +2565,7 @@ namespace Atom
         std::uint32_t outputHeight
     )
     {
+        ATOM_PROFILE_SCOPE("PostPass");
         SDL_GPUColorTargetInfo colorTarget{};
         colorTarget.texture = swapchainTexture;
         colorTarget.load_op = SDL_GPU_LOADOP_DONT_CARE; // fully overwritten

@@ -104,5 +104,6 @@ namespace Arena
         mutable std::vector<int> m_cellItems;
         mutable std::vector<int> m_itemCell;  // per enemy, its cell
         mutable std::vector<int> m_cursor;    // per cell, the next slot to fill
+        mutable std::vector<int> m_neighbours; // one enemy's contacts, sorted (M96)
     };
 }

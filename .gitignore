@@ -34,3 +34,6 @@ audits/
 # Distribution (M68): its build folder and the staged package
 /build-dist/
 /Dist/
+
+# M96: the build with the minimal tracer
+/build-trace/

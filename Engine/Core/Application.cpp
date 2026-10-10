@@ -1,5 +1,7 @@
 #include "Core/Application.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Core/Profile.h" // v0.0.15: CPU profiling zones (off: nothing)
+#include "Core/Trace.h"   // M96: the minimal tracer, started and written here when chosen
 
 #include <SDL3/SDL.h>
 
@@ -103,6 +105,16 @@ namespace Atom
         m_running = true;
 
         std::cout << "AtomEngine initialized.\n";
+#if ATOM_PROFILE_TRACE
+        // M96 (-DATOM_TRACE=ON): ATOM_TRACE=<file prefix> records the
+        // profiling zones from here to shutdown (Core/Trace.h).
+        if (const char* trace = Atom::DevSwitch("ATOM_TRACE"); trace && *trace)
+        {
+            m_tracePrefix = trace;
+            Trace::Start();
+            std::cout << "Trace: recording to " << m_tracePrefix << ".json\n";
+        }
+#endif
 
         if (!OnInitialize())
         {
@@ -127,10 +139,16 @@ namespace Atom
         {
             // M74 (ATOM_LATENCY_WAIT=early): wait for the swapchain first, so
             // input is read after the wait rather than before it.
-            m_renderer.WaitForPresentSlot();
+            {
+                ATOM_PROFILE_SCOPE("WaitForPresentSlot");
+                m_renderer.WaitForPresentSlot();
+            }
             // M73 (ATOM_LATENCY_LOG): when the frame began, and the click it read.
             const std::uint64_t frameStartNs = SDL_GetTicksNS();
-            ProcessEvents();
+            {
+                ATOM_PROFILE_SCOPE("Events");
+                ProcessEvents();
+            }
             m_renderer.GetLatencyProbe().BeginFrame(frameStartNs, m_input.GetLeftClickTimeNS());
             m_devTools.BeginFrame();
             const float deltaSeconds = m_time.Tick();
@@ -139,7 +157,10 @@ namespace Atom
                 AddEngineOverlayLines(deltaSeconds); // M82: the game appends its own in OnUpdate
             }
 
-            OnUpdate(deltaSeconds);
+            {
+                ATOM_PROFILE_SCOPE("Update"); // the app's frame
+                OnUpdate(deltaSeconds);
+            }
 
             if (!m_running)
             {
@@ -155,6 +176,7 @@ namespace Atom
                 m_exitCode = 3; // not a clean exit: scripts and ctest can tell
                 m_running = false;
             }
+            ATOM_PROFILE_FRAME(); // v0.0.15: a frame ends here
         }
 
         Shutdown();
@@ -245,6 +267,14 @@ namespace Atom
         }
 
         m_initialized = false;
+#if ATOM_PROFILE_TRACE
+        if (!m_tracePrefix.empty())
+        {
+            const bool written = Trace::StopAndWrite(m_tracePrefix);
+            std::cout << "Trace: " << Trace::Events().size() << " zones over " << Trace::Frames() << " frames"
+                      << (Trace::Overflowed() ? " (buffer full)" : "") << (written ? ", written" : ", NOT written") << '\n';
+        }
+#endif
 
         OnShutdown();
 

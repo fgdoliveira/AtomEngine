@@ -464,6 +464,29 @@ only in the README (claims without evidence). **Revisit when** a
 capability can't be shown in the village (an editor, a tool, a platform),
 or the catalog outgrows one place.
 
+### ADR-010 — CPU profiling: a minimal built-in tracer
+**Context (v0.0.15):** nothing showed where CPU time goes inside a frame.
+Following ADR-005, an external profiler was evaluated against the existing
+tools and a minimal built-in tracer on ATOM ARENA's deterministic
+workloads, with the criteria fixed before measuring. **Decision:**
+profiling zones are `ATOM_PROFILE_SCOPE` / `ATOM_PROFILE_FRAME`
+(`Engine/Core/Profile.h`), compiled to nothing by default; `-DATOM_TRACE=ON`
+records them with the engine's own tracer (`Engine/Core/Trace.h`: Perfetto
+JSON, zone CSV, slowest frames), never in a distribution build.
+**Evidence:** both had overhead below what the machine resolves at ~28
+zones per frame; both found why the arena's grid collision was slower
+than its all-pairs search (a sort taking 60 % of it; fixing it cut the
+simulation by 22 %, state unchanged); the built-in tracer also answered
+*when* the worst frames happen (the first frames: first-use pipeline and
+resource creation) by script. **Rejected:** the external profiler as a
+dependency now - it answered nothing better, cost a submodule and about an
+hour of fragile tool-building, and its strengths (threads, live view,
+sampling, memory, GPU) aren't needed by a single-threaded engine; a full
+custom profiler (the tracer stays minimal: one thread, no live view).
+**Revisit when** work runs on more than one thread, a problem needs live
+inspection or sampling, or GPU timing becomes reachable - measured again
+with ATOM ARENA.
+
 ## 13. When to add what
 
 | Architecture or library | Not yet, because | Reconsider when |

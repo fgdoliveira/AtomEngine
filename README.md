@@ -191,6 +191,7 @@ Build options (CMake `-D`):
 | `ATOM_BUILD_GAME` | ON | the apps' shaders, and the Showcase, the demo and DRIFT (needs `dxc`) |
 | `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
 | `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
+| `ATOM_TRACE` | OFF | records the CPU profiling zones with the built-in tracer when `ATOM_TRACE=<prefix>` is set (development builds only) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
 
 `-DATOM_BUILD_GAME=OFF` builds the engine, framework and app libraries, the unit
@@ -419,6 +420,16 @@ AtomEngine compares A and B **close together in time** and reports the
   each switch settle (rebuilt targets aren't steady state), and reports the
   median of the rounds' differences (it always ends with the switch on B):
   `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
+- **Where does the CPU time go inside a frame?** (v0.0.15) Build with
+  `-DATOM_TRACE=ON` and run with `ATOM_TRACE=<file prefix>`: the profiling
+  zones (`ATOM_PROFILE_SCOPE`, `Engine/Core/Profile.h`) are recorded and
+  written at exit as a trace for ui.perfetto.dev, a per-zone CSV and the
+  slowest frames with their zones. Off by default (the zones compile to
+  nothing), never in a package (ADR-010).
+- **How does a workload scale?** ATOM ARENA (`Samples/AtomArena`) runs
+  named, seeded workloads - `AtomArena.exe --benchmark --scenario
+  collision_500 --frames 1200` - and `pwsh Tools/Perf/arena.ps1` runs the
+  matrix in rounds (`-Trace` records each run).
 - **Did a build get slower?** `pwsh Tools/Perf/ab.ps1 -A <exe> -B <exe> -Level <level>`
   alternates the two executables (ABBA) and reports the median paired
   difference. Both need `ATOM_PERF_LOG` (v0.0.7 onward). Each run has a

@@ -7,6 +7,8 @@
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
 
+#include <string>
+
 namespace Atom
 {
     class Application
@@ -64,6 +66,7 @@ namespace Atom
         bool m_running = false;
         int m_exitCode = 0;
         bool m_startFailed = false;
+        std::string m_tracePrefix; // M96: where the minimal tracer writes (ATOM_TRACE), if recording
         bool m_initialized = false;
 
         Window m_window;

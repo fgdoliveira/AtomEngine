@@ -1,4 +1,5 @@
 #include "UI/UIRenderer.h"
+#include "Core/Profile.h"
 
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
@@ -368,6 +369,7 @@ namespace Atom
         std::uint32_t height
     )
     {
+        ATOM_PROFILE_SCOPE("UiPass");
         m_screenSize = { static_cast<float>(width), static_cast<float>(height) };
         if (m_uploadedVertices == 0)
         {

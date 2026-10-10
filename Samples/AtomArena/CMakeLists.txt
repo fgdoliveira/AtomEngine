@@ -4,7 +4,7 @@
 # CI does); the executable is HelloAtom's shape.
 add_library(ArenaLib STATIC ArenaSim.cpp ArenaSim.h ArenaBenchmark.cpp ArenaBenchmark.h)
 target_include_directories(ArenaLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(ArenaLib PUBLIC glm::glm)
+target_link_libraries(ArenaLib PUBLIC glm::glm AtomProfile) # M95: its zones
 
 add_executable(AtomArena Main.cpp ArenaApp.cpp ArenaApp.h)
 target_link_libraries(AtomArena PRIVATE ArenaLib AtomEngine AtomFramework imgui)

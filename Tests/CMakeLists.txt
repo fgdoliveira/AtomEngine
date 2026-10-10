@@ -43,6 +43,7 @@ add_executable(
     BoothSynthTests.cpp
     ShowcaseFeatureTests.cpp
     ArenaSimTests.cpp
+    TraceTests.cpp
     UiKitTests.cpp
     FakeGame.h
     TestAssets.h

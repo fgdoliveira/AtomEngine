@@ -1,5 +1,7 @@
 #include "ArenaSim.h"
 
+#include "Core/Profile.h"
+
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 
@@ -76,6 +78,7 @@ namespace Arena
 
     void ArenaSim::SpawnBatch(int count)
     {
+        ATOM_PROFILE_SCOPE("SpawnBatch");
         for (int i = 0; i < count; ++i)
         {
             m_enemies.push_back(NewEnemy());
@@ -94,6 +97,7 @@ namespace Arena
 
     void ArenaSim::Step(float dt)
     {
+        ATOM_PROFILE_SCOPE("Simulation");
         ++m_steps;
         if (m_config.updateEnemies)
         {
@@ -116,6 +120,7 @@ namespace Arena
 
     void ArenaSim::UpdateEnemies(float dt)
     {
+        ATOM_PROFILE_SCOPE("EnemyUpdate");
         // Seek the target (the centre), stop short of it.
         const float stopAt = 2.0f;
         for (Enemy& enemy : m_enemies)
@@ -130,6 +135,7 @@ namespace Arena
 
     void ArenaSim::UpdateProjectiles(float dt)
     {
+        ATOM_PROFILE_SCOPE("ProjectileUpdate");
         const float half = m_config.arenaHalf;
         for (Projectile& projectile : m_projectiles)
         {
@@ -143,6 +149,7 @@ namespace Arena
 
     void ArenaSim::BuildGrid(float cellSize) const
     {
+        ATOM_PROFILE_SCOPE("BuildGrid");
         // Enemies sorted into cells by a counting sort: two passes, no
         // allocation once the vectors have grown.
         m_gridCell = cellSize;
@@ -176,6 +183,7 @@ namespace Arena
 
     void ArenaSim::FindEnemyContacts(std::vector<std::pair<int, int>>& out) const
     {
+        ATOM_PROFILE_SCOPE("EnemyContacts");
         out.clear();
         const float reach = m_config.enemyRadius * 2.0f;
         const float reach2 = reach * reach;
@@ -196,8 +204,14 @@ namespace Arena
             return; // already in (i, j) order
         }
         BuildGrid(reach);
+        // M96 (Investigation 3): the pairs come out in (i, j) order - the
+        // naive search's, so both resolve identically - by sorting each
+        // enemy's few neighbours, not the whole list afterwards (that sort
+        // was 60 % of the grid's collision time at 1000 enemies).
+        ATOM_PROFILE_SCOPE("GridQuery");
         for (int i = 0; i < count; ++i)
         {
+            m_neighbours.clear();
             const int cell = m_itemCell[static_cast<std::size_t>(i)];
             const int cx = cell % m_gridSide;
             const int cy = cell / m_gridSide;
@@ -216,18 +230,22 @@ namespace Arena
                         const glm::vec2 d = m_enemies[static_cast<std::size_t>(j)].position - m_enemies[static_cast<std::size_t>(i)].position;
                         if (glm::dot(d, d) < reach2)
                         {
-                            out.emplace_back(i, j);
+                            m_neighbours.push_back(j);
                         }
                     }
                 }
             }
+            std::sort(m_neighbours.begin(), m_neighbours.end());
+            for (const int j : m_neighbours)
+            {
+                out.emplace_back(i, j);
+            }
         }
-        // The same order as the naive search, so both resolve identically.
-        std::sort(out.begin(), out.end());
     }
 
     void ArenaSim::FindProjectileHits(std::vector<std::pair<int, int>>& out) const
     {
+        ATOM_PROFILE_SCOPE("ProjectileHits");
         out.clear();
         const float reach = m_config.enemyRadius + m_config.projectileRadius;
         const float reach2 = reach * reach;
@@ -276,6 +294,7 @@ namespace Arena
 
     void ArenaSim::Collide()
     {
+        ATOM_PROFILE_SCOPE("Collision");
         // Enemies push each other apart, half the overlap each.
         FindEnemyContacts(m_enemyContacts);
         const float reach = m_config.enemyRadius * 2.0f;

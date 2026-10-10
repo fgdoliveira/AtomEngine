@@ -1,4 +1,5 @@
 #include "Renderer/Glow.h"
+#include "Core/Profile.h"
 
 #include "Renderer/Shader.h"
 
@@ -159,6 +160,7 @@ namespace Atom
     bool Glow::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* scene,
                       std::uint32_t width, std::uint32_t height, float threshold)
     {
+        ATOM_PROFILE_SCOPE("GlowPass");
         const std::uint32_t w = std::max<std::uint32_t>(1, width / 4);
         const std::uint32_t h = std::max<std::uint32_t>(1, height / 4);
         if (!EnsureTextures(w, h))

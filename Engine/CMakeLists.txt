@@ -44,6 +44,9 @@ target_sources(
         Audio/AudioSystem.h
         Core/Application.h
         Core/FrameStatsWindow.h
+    Core/Profile.h
+    Core/Trace.cpp
+    Core/Trace.h
         Core/LatencyProbe.h
         Core/Time.h
         Debug/DevTools.h
@@ -85,6 +88,7 @@ target_link_libraries(
     PUBLIC
         SDL3::SDL3
         glm::glm
+        AtomProfile # M95: the profiling switch (and the built-in tracer, when on) for every user
     PRIVATE
         imgui
 )

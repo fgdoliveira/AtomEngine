@@ -63,6 +63,19 @@ add_library(
 target_include_directories(imgui PUBLIC ${ATOM_IMGUI_DIR} ${ATOM_IMGUI_DIR}/backends)
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
+# v0.0.15 (M95-M97): CPU profiling zones (Engine/Core/Profile.h) compile to
+# nothing by default. -DATOM_TRACE=ON records them with the engine's own
+# minimal tracer (Engine/Core/Trace.h): ATOM_TRACE=<prefix> writes a
+# Perfetto trace, a zone CSV and the slowest frames. Never in a package.
+# ADR-010. AtomProfile carries the switch to every target with zones.
+option(ATOM_TRACE "Record the CPU profiling zones with the built-in tracer (development builds only)" OFF)
+if(ATOM_TRACE AND ATOM_DISTRIBUTION)
+    message(FATAL_ERROR "ATOM_TRACE is for development builds; a distribution build carries no developer tools (ADR-008)")
+endif()
+add_library(AtomProfile INTERFACE)
+target_include_directories(AtomProfile INTERFACE ${CMAKE_SOURCE_DIR}/Engine)
+target_compile_definitions(AtomProfile INTERFACE ATOM_PROFILE_TRACE=$<BOOL:${ATOM_TRACE}>)
+
 if(ATOM_BUILD_GAME)
     add_subdirectory(Shaders)
 endif()

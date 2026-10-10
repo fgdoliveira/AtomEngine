@@ -25,6 +25,9 @@ param(
     [int]$Warmup = 120,
     [int]$Seed = 42,
     [string]$Label = "baseline",
+    # M96: a build with the minimal tracer (-DATOM_TRACE=ON) records each run
+    # (ATOM_TRACE): <scenario>-r<round>.json (Perfetto), -zones.csv, -frames.txt.
+    [switch]$Trace,
     [double]$TimeoutSeconds = 120
 )
 $ErrorActionPreference = "Stop"
@@ -80,6 +83,7 @@ try {
             $report = Join-Path $outDir "$scenario-r$round.txt"
             $arguments = @("--benchmark", "--scenario", $scenario, "--seed", $Seed, "--frames", $Frames,
                            "--warmup", $Warmup, "--out", "`"$report`"") # quoted: the path may have spaces
+            if ($Trace) { [Environment]::SetEnvironmentVariable("ATOM_TRACE", (Join-Path $outDir "$scenario-r$round")) }
             $process = Start-Process -FilePath $exePath -ArgumentList $arguments -PassThru -WindowStyle Normal `
                 -RedirectStandardOutput (Join-Path $outDir "last_stdout.txt") -RedirectStandardError (Join-Path $outDir "last_stderr.txt")
             if (-not $process.WaitForExit([int]($TimeoutSeconds * 1000))) {
@@ -94,7 +98,8 @@ try {
             $r = Read-Report $report
             $rows += [pscustomobject]@{
                 label = $Label; round = $round; scenario = $scenario; commit = "$head$dirty"
-                profiling = $r["profiling"]; present_mode = $r["present_mode"]; frames = [int]$r["frames"]
+                profiling = $r["profiling"]; connected_frames = [int]$r["profiling_connected_frames"]
+                present_mode = $r["present_mode"]; frames = [int]$r["frames"]
                 frame_median = [double]$r["frame_median_ms"]; frame_p95 = [double]$r["frame_p95_ms"]
                 frame_p99 = [double]$r["frame_p99_ms"]; frame_worst = [double]$r["frame_worst_ms"]
                 update_median = [double]$r["update_median_ms"]; sim_median = [double]$r["sim_median_ms"]
@@ -108,6 +113,7 @@ try {
     }
 } finally {
     foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
+    if ($Trace) { [Environment]::SetEnvironmentVariable("ATOM_TRACE", $null) }
 }
 
 $csv = Join-Path $repo "out/arena/$Label.csv"
