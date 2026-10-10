@@ -1,0 +1,33 @@
+# ATOM ARENA (v0.0.15, M93): the arena starts, every workload runs and can
+# be switched and sized, and the app shuts down clean.
+expect_level arena
+wait 0.5
+expect_stat arena_enemies == 250
+expect_stat arena_projectiles == 500
+expect_stat arena_steps > 10
+expect_stat particles >= 500
+# B: a crowd at the centre touches; both searches find contacts.
+set arena_enemies 500
+wait 6
+expect_stat arena_contacts > 0
+set arena_collision naive
+wait 0.5
+expect_stat arena_contacts > 0
+set arena_collision grid
+# C: projectiles hit enemies.
+expect_stat arena_hits > 0
+# D: the spike.
+set arena_spawn 500
+wait 0.2
+expect_stat arena_enemies == 1000
+# Each workload off.
+set arena_collide off
+wait 0.2
+expect_stat arena_contacts == 0
+set arena_draw off
+set arena_update off
+set arena_projectiles_move off
+wait 0.2
+set arena_view walk
+wait 0.2
+log arena smoke done
