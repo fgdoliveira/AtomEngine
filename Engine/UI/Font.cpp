@@ -1,4 +1,5 @@
 #include "UI/Font.h"
+#include "Core/Log.h"
 #include "Core/AssetLog.h"
 
 #include "Renderer/Renderer.h"
@@ -40,7 +41,7 @@ namespace Atom
         void* file = SDL_LoadFile(path.c_str(), &size);
         if (!file)
         {
-            std::cerr << "Failed to load font '" << path << "': " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("UI") << "Failed to load font '" << path << "': " << SDL_GetError() << '\n';
             return nullptr;
         }
         std::vector<unsigned char> ttf(
@@ -51,7 +52,7 @@ namespace Atom
         stbtt_fontinfo info{};
         if (!stbtt_InitFont(&info, ttf.data(), stbtt_GetFontOffsetForIndex(ttf.data(), 0)))
         {
-            std::cerr << "Not a usable TrueType font: " << path << '\n';
+            ATOM_LOG_ERROR("UI") << "Not a usable TrueType font: " << path << '\n';
             return nullptr;
         }
 
@@ -84,7 +85,7 @@ namespace Atom
         stbtt_PackEnd(&pack);
         if (!packed)
         {
-            std::cerr << "Font atlas too small for " << pixelHeight << " px: " << path << '\n';
+            ATOM_LOG_ERROR("UI") << "Font atlas too small for " << pixelHeight << " px: " << path << '\n';
             return nullptr;
         }
 
@@ -147,7 +148,7 @@ namespace Atom
             return nullptr;
         }
 
-        std::cout
+        ATOM_LOG_INFO("UI")
             << "Loaded font '" << path << "' at " << pixelHeight << " px ("
             << font->m_glyphs.size() << " glyphs, "
             << font->m_kerning.size() << " kerning pairs)\n";

@@ -1,4 +1,5 @@
 #include "Renderer/RenderTargets.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -40,7 +41,7 @@ namespace Atom
             SDL_GPUTexture* texture = SDL_CreateGPUTexture(device, &createInfo);
             if (!texture)
             {
-                std::cerr
+                ATOM_LOG_ERROR("Renderer")
                     << "Failed to create render target: "
                     << SDL_GetError()
                     << '\n';
@@ -76,7 +77,7 @@ namespace Atom
 
         if (m_colorFormat == SDL_GPU_TEXTUREFORMAT_INVALID)
         {
-            std::cerr << "GPU supports no HDR scene colour format.\n";
+            ATOM_LOG_ERROR("Renderer") << "GPU supports no HDR scene colour format.\n";
             return false;
         }
 
@@ -86,7 +87,7 @@ namespace Atom
             SDL_GPU_TEXTURETYPE_2D,
             SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET))
         {
-            std::cerr << "GPU does not support a D32 depth target.\n";
+            ATOM_LOG_ERROR("Renderer") << "GPU does not support a D32 depth target.\n";
             return false;
         }
 
@@ -101,7 +102,7 @@ namespace Atom
             }
         }
 
-        std::cout
+        ATOM_LOG_INFO("Renderer")
             << "Scene target: format="
             << (m_colorFormat == SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT
                 ? "R11G11B10_UFLOAT"

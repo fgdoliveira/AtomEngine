@@ -1,4 +1,5 @@
 #include "Core/Application.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/Profile.h" // v0.0.15: CPU profiling zones (off: nothing)
 #include "Core/Trace.h"   // M96: the minimal tracer, started and written here when chosen
@@ -14,25 +15,25 @@ namespace Atom
 {
     bool Application::Initialize()
     {
-        std::cout << "Starting AtomEngine " ATOM_VERSION "...\n";
+        ATOM_LOG_INFO("Engine") << "Starting AtomEngine " ATOM_VERSION "...\n";
 
         // SDL's versions first, so a GPU failure below reads as a report:
         // version, device, presentation, fallback.
         const int compiledVersion = SDL_VERSION;
         const int runtimeVersion = SDL_GetVersion();
-        std::cout
+        ATOM_LOG_INFO("Engine")
             << "SDL compiled version: "
             << SDL_VERSIONNUM_MAJOR(compiledVersion) << '.'
             << SDL_VERSIONNUM_MINOR(compiledVersion) << '.'
             << SDL_VERSIONNUM_MICRO(compiledVersion)
             << '\n';
-        std::cout
+        ATOM_LOG_INFO("Engine")
             << "SDL runtime version: "
             << SDL_VERSIONNUM_MAJOR(runtimeVersion) << '.'
             << SDL_VERSIONNUM_MINOR(runtimeVersion) << '.'
             << SDL_VERSIONNUM_MICRO(runtimeVersion)
             << '\n';
-        std::cout
+        ATOM_LOG_INFO("Engine")
             << "SDL revision: "
             << SDL_GetRevision()
             << '\n';
@@ -41,7 +42,7 @@ namespace Atom
 
         if (!SDL_Init(SDL_INIT_VIDEO))
         {
-            std::cerr
+            ATOM_LOG_ERROR("Engine")
                 << "SDL initialization failed: "
                 << SDL_GetError()
                 << '\n';
@@ -99,13 +100,13 @@ namespace Atom
                 m_devTools.Render(commandBuffer, target);
             });
         }
-        std::cout << (Atom::DevToolsEnabled ? "Developer tools: on (F1 overlay, F10 panels, ATOM_* switches)\n"
+        ATOM_LOG_INFO("Engine") << (Atom::DevToolsEnabled ? "Developer tools: on (F1 overlay, F10 panels, ATOM_* switches)\n"
                                             : "Developer tools: off (distribution build)\n");
 
         m_initialized = true;
         m_running = true;
 
-        std::cout << "AtomEngine initialized.\n";
+        ATOM_LOG_INFO("Engine") << "AtomEngine initialized.\n";
 #if ATOM_PROFILE_TRACE
         // M96 (-DATOM_TRACE=ON): ATOM_TRACE=<file prefix> records the
         // profiling zones from here to shutdown (Core/Trace.h).
@@ -113,7 +114,7 @@ namespace Atom
         {
             m_tracePrefix = trace;
             Trace::Start();
-            std::cout << "Trace: recording to " << m_tracePrefix << ".json\n";
+            ATOM_LOG_INFO("Engine") << "Trace: recording to " << m_tracePrefix << ".json\n";
         }
 #endif
 
@@ -149,7 +150,7 @@ namespace Atom
                     ATOM_PROFILE_FRAME(); // frames of their own in a trace: the loading ones
                 }
                 SDL_WaitForGPUIdle(m_renderer.GetDevice());
-                std::cout << "Prewarm: " << static_cast<double>(SDL_GetTicksNS() - start) / 1e6 << " ms\n";
+                ATOM_LOG_INFO("Engine") << "Prewarm: " << static_cast<double>(SDL_GetTicksNS() - start) / 1e6 << " ms\n";
             }
         }
 
@@ -202,7 +203,7 @@ namespace Atom
             const std::uint64_t renderStartNs = SDL_GetTicksNS();
             if (!m_renderer.Render())
             {
-                std::cerr
+                ATOM_LOG_ERROR("Engine")
                     << "Renderer encountered a fatal error. Shutting down.\n";
 
                 OnRenderFailure(m_renderer.GetLastFailure()); // M63
@@ -318,7 +319,7 @@ namespace Atom
         if (!m_tracePrefix.empty())
         {
             const bool written = Trace::StopAndWrite(m_tracePrefix);
-            std::cout << "Trace: " << Trace::Events().size() << " zones over " << Trace::Frames() << " frames"
+            ATOM_LOG_INFO("Engine") << "Trace: " << Trace::Events().size() << " zones over " << Trace::Frames() << " frames"
                       << (Trace::Overflowed() ? " (buffer full)" : "") << (written ? ", written" : ", NOT written") << '\n';
         }
 #endif
@@ -328,7 +329,7 @@ namespace Atom
         m_renderer.SetOverlayPass({});
         m_devTools.Shutdown();
 
-        std::cout << "Shutting down AtomEngine...\n";
+        ATOM_LOG_INFO("Engine") << "Shutting down AtomEngine...\n";
 
         m_audio.Shutdown();
         m_renderer.Shutdown();

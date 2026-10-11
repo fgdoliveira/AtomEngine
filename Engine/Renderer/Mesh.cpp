@@ -1,4 +1,5 @@
 #include "Renderer/Mesh.h"
+#include "Core/Log.h"
 
 #include "Renderer/GpuResources.h"
 
@@ -27,7 +28,7 @@ namespace Atom
             SDL_GPUBuffer* buffer = SDL_CreateGPUBuffer(device, &createInfo);
             if (!buffer)
             {
-                std::cerr
+                ATOM_LOG_ERROR("Renderer")
                     << "Failed to create GPU buffer: "
                     << SDL_GetError()
                     << '\n';
@@ -46,12 +47,12 @@ namespace Atom
     {
         if (!device || vertices.empty() || indices.empty())
         {
-            std::cerr << "Cannot create a mesh without a device and data.\n";
+            ATOM_LOG_ERROR("Renderer") << "Cannot create a mesh without a device and data.\n";
             return nullptr;
         }
         if (!skin.empty() && skin.size() != vertices.size())
         {
-            std::cerr << "Skin data must match the vertex count.\n";
+            ATOM_LOG_ERROR("Renderer") << "Skin data must match the vertex count.\n";
             return nullptr;
         }
 
@@ -95,7 +96,7 @@ namespace Atom
             SDL_CreateGPUTransferBuffer(device, &transferInfo);
         if (!transfer)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create GPU transfer buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -106,7 +107,7 @@ namespace Atom
             SDL_MapGPUTransferBuffer(device, transfer, false));
         if (!mapped)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to map GPU transfer buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -126,7 +127,7 @@ namespace Atom
             SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to acquire upload command buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -162,7 +163,7 @@ namespace Atom
         const bool submitted = SDL_SubmitGPUCommandBuffer(commandBuffer);
         if (!submitted)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to submit mesh upload: "
                 << SDL_GetError()
                 << '\n';

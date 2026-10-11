@@ -1,4 +1,5 @@
 #include "Renderer/Renderer.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/Profile.h" // v0.0.15: CPU profiling zones (off: nothing)
 #include "Core/AssetLog.h"
@@ -291,7 +292,7 @@ namespace Atom
 
         if (!window)
         {
-            std::cerr << "Cannot initialize renderer with a null window.\n";
+            ATOM_LOG_ERROR("Renderer") << "Cannot initialize renderer with a null window.\n";
             return false;
         }
 
@@ -330,7 +331,7 @@ namespace Atom
         // ATOM_LATENCY_WAIT=late restores the old order, for comparison.
         const char* wait = Atom::DevSwitch("ATOM_LATENCY_WAIT");
         m_waitEarly = !(wait && SDL_strcmp(wait, "late") == 0);
-        std::cout << "Swapchain wait: " << (m_waitEarly ? "early (before input is read)" : "late (in Render)") << '\n';
+        ATOM_LOG_INFO("Renderer") << "Swapchain wait: " << (m_waitEarly ? "early (before input is read)" : "late (in Render)") << '\n';
         // M74: 2 frames in flight unless chosen - watched once, with vsync,
         // in case 2 can't hold the refresh rate here (as on v0.0.10's driver).
         m_framesGuard = !framesChosen && m_gpu.GetInfo().framesInFlight == 2;
@@ -338,7 +339,7 @@ namespace Atom
         if (const char* latency = Atom::DevSwitch("ATOM_LATENCY_LOG"); latency && SDL_strcmp(latency, "1") == 0)
         {
             m_latency.SetEnabled(true, &std::cout);
-            std::cout << "Latency log on: a LAT block every " << LatencyProbe::BlockSamples << " clicks\n";
+            ATOM_LOG_INFO("Renderer") << "Latency log on: a LAT block every " << LatencyProbe::BlockSamples << " clicks\n";
         }
 
         return m_targets.Initialize(m_device)
@@ -402,7 +403,7 @@ namespace Atom
         ok = GetShadowPipeline(false) && GetShadowPipeline(true) && ok;
         if (!ok)
         {
-            std::cerr << "Prewarm: some pipelines could not be built (they'll be tried again on first use)\n";
+            ATOM_LOG_WARN("Renderer") << "Prewarm: some pipelines could not be built (they'll be tried again on first use)\n";
         }
         return ok;
     }
@@ -453,7 +454,7 @@ namespace Atom
 
         if (!m_sampler || !m_postSampler || !m_lightmapSampler || !m_pixelSampler)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create samplers: "
                 << SDL_GetError()
                 << '\n';
@@ -567,7 +568,7 @@ namespace Atom
         SDL_ReleaseGPUShader(m_device, fragmentShader);
         if (!m_outlinePipelines[slot])
         {
-            std::cerr << "Failed to create outline pipeline: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to create outline pipeline: " << SDL_GetError() << '\n';
         }
         return m_outlinePipelines[slot];
     }
@@ -733,7 +734,7 @@ namespace Atom
 
         if (!pipeline)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create scene pipeline: "
                 << SDL_GetError()
                 << '\n';
@@ -791,7 +792,7 @@ namespace Atom
 
         if (!m_postPipeline)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create post pipeline: "
                 << SDL_GetError()
                 << '\n';
@@ -831,7 +832,7 @@ namespace Atom
         stbi_uc* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
         if (!pixels)
         {
-            std::cerr << "Failed to load texture '" << path << "': " << stbi_failure_reason() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to load texture '" << path << "': " << stbi_failure_reason() << '\n';
             return nullptr;
         }
         auto texture = CreateTexture(
@@ -940,13 +941,13 @@ namespace Atom
         const double median = m_guardIntervals.Median();
         if (NeedsThirdFrame(median, refresh))
         {
-            std::cout << "Frames in flight: 2 can't hold the " << refresh << " Hz refresh here (median frame "
+            ATOM_LOG_INFO("Renderer") << "Frames in flight: 2 can't hold the " << refresh << " Hz refresh here (median frame "
                       << median << " ms); using 3\n";
             m_gpu.SetFramesInFlight(3);
         }
         else
         {
-            std::cout << "Frames in flight: 2 hold the " << refresh << " Hz refresh (median frame " << median << " ms)\n";
+            ATOM_LOG_INFO("Renderer") << "Frames in flight: 2 hold the " << refresh << " Hz refresh (median frame " << median << " ms)\n";
         }
         m_guardIntervals.Clear();
     }
@@ -957,7 +958,7 @@ namespace Atom
         ATOM_PROFILE_SCOPE("Render");
         if (!m_device || !m_window || !m_gpu.IsWindowClaimed())
         {
-            std::cerr << "Cannot render before the renderer is initialized.\n";
+            ATOM_LOG_ERROR("Renderer") << "Cannot render before the renderer is initialized.\n";
             return false;
         }
         if (m_framesGuard)
@@ -989,7 +990,7 @@ namespace Atom
             SDL_AcquireGPUCommandBuffer(m_device);
         if (!commandBuffer)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to acquire GPU command buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -1036,13 +1037,13 @@ namespace Atom
                 ? ""
                 : SDL_GetError();
 
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to acquire GPU swapchain texture: "
                 << acquisitionError
                 << '\n';
             if (!cancelled)
             {
-                std::cerr
+                ATOM_LOG_ERROR("Renderer")
                     << "Failed to cancel GPU command buffer: "
                     << cancellationError
                     << '\n';
@@ -1055,7 +1056,7 @@ namespace Atom
             // Minimised or occluded: nothing to draw into this frame.
             if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
             {
-                std::cerr
+                ATOM_LOG_ERROR("Renderer")
                     << "Failed to submit empty GPU command buffer: "
                     << SDL_GetError()
                     << '\n';
@@ -1123,7 +1124,7 @@ namespace Atom
             SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
             if (!fence)
             {
-                std::cerr << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                ATOM_LOG_ERROR("Renderer") << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
                 return false;
             }
             FinishCapture(fence);
@@ -1137,7 +1138,7 @@ namespace Atom
             SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
             if (!fence)
             {
-                std::cerr << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                ATOM_LOG_ERROR("Renderer") << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
                 return false;
             }
             m_latency.Submitted(submitNs, fence);
@@ -1146,7 +1147,7 @@ namespace Atom
         ATOM_PROFILE_SCOPE("SubmitCommandBuffer");
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to submit GPU command buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -1164,7 +1165,7 @@ namespace Atom
         if (!SDL_GPUTextureSupportsFormat(
             m_device, ShadowMapFormat, SDL_GPU_TEXTURETYPE_2D, usage))
         {
-            std::cerr << "GPU cannot sample a D32 shadow map.\n";
+            ATOM_LOG_ERROR("Renderer") << "GPU cannot sample a D32 shadow map.\n";
             return false;
         }
 
@@ -1196,7 +1197,7 @@ namespace Atom
 
         if (!m_shadowMap || !m_spotShadowMap || !m_shadowSampler)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create shadow map resources: "
                 << SDL_GetError()
                 << '\n';
@@ -1298,7 +1299,7 @@ namespace Atom
 
         if (!pipeline)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create shadow pipeline: "
                 << SDL_GetError()
                 << '\n';
@@ -1647,7 +1648,7 @@ namespace Atom
             SDL_BeginGPURenderPass(commandBuffer, nullptr, 0, &depthTarget);
         if (!renderPass)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to begin shadow render pass: "
                 << SDL_GetError()
                 << '\n';
@@ -1687,7 +1688,7 @@ namespace Atom
             SDL_BeginGPURenderPass(commandBuffer, nullptr, 0, &depthTarget);
         if (!renderPass)
         {
-            std::cerr << "Failed to begin spot shadow pass: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to begin spot shadow pass: " << SDL_GetError() << '\n';
             return false;
         }
 
@@ -1731,7 +1732,7 @@ namespace Atom
         m_reflectionHeight = height;
         if (!m_reflectionColor || !m_reflectionDepth)
         {
-            std::cerr << "Cannot create the reflection targets: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Cannot create the reflection targets: " << SDL_GetError() << '\n';
             return false;
         }
         return true;
@@ -1819,7 +1820,7 @@ namespace Atom
         SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, &depthTarget);
         if (!renderPass)
         {
-            std::cerr << "Failed to begin the reflection pass: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to begin the reflection pass: " << SDL_GetError() << '\n';
             return false;
         }
 
@@ -1875,7 +1876,7 @@ namespace Atom
         );
         if (!renderPass)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to begin scene render pass: "
                 << SDL_GetError()
                 << '\n';
@@ -1980,7 +1981,7 @@ namespace Atom
             m_captureHeight = height;
             if (!m_captureTexture || !m_captureTransfer)
             {
-                std::cerr << "Cannot capture: " << SDL_GetError() << '\n';
+                ATOM_LOG_ERROR("Renderer") << "Cannot capture: " << SDL_GetError() << '\n';
                 m_capturePath.clear();
                 return true; // the frame itself is fine
             }
@@ -2016,7 +2017,7 @@ namespace Atom
             SDL_MapGPUTransferBuffer(m_device, m_captureTransfer, false));
         if (!mapped)
         {
-            std::cerr << "Cannot read the capture back: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Cannot read the capture back: " << SDL_GetError() << '\n';
             m_capturePath.clear();
             return;
         }
@@ -2047,10 +2048,10 @@ namespace Atom
         if (!stbi_write_png(path.string().c_str(), static_cast<int>(m_captureWidth), static_cast<int>(m_captureHeight),
                             4, pixels.data(), static_cast<int>(m_captureWidth) * 4))
         {
-            std::cerr << "Cannot write " << path.string() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Cannot write " << path.string() << '\n';
             return;
         }
-        std::cout << "Captured " << path.string() << '\n';
+        ATOM_LOG_INFO("Renderer") << "Captured " << path.string() << '\n';
     }
 
     std::unique_ptr<RenderTexture> Renderer::CreateRenderTexture(std::uint32_t width, std::uint32_t height)
@@ -2060,7 +2061,7 @@ namespace Atom
         if (!target->m_texture
             || !target->m_canvas.Initialize(m_device, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB))
         {
-            std::cerr << "Failed to create a " << width << "x" << height << " render texture\n";
+            ATOM_LOG_ERROR("Renderer") << "Failed to create a " << width << "x" << height << " render texture\n";
             return nullptr;
         }
         target->m_owner = this;
@@ -2139,7 +2140,7 @@ namespace Atom
             m_skyPipelines[slot] = SDL_CreateGPUGraphicsPipeline(m_device, &createInfo);
             if (!m_skyPipelines[slot])
             {
-                std::cerr << "Failed to create sky pipeline: " << SDL_GetError() << '\n';
+                ATOM_LOG_ERROR("Renderer") << "Failed to create sky pipeline: " << SDL_GetError() << '\n';
             }
         }
         if (vertexShader)
@@ -2236,7 +2237,7 @@ namespace Atom
 
         if (!m_particleBuffer || !m_particleTransfer)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create particle buffers: "
                 << SDL_GetError()
                 << '\n';
@@ -2340,7 +2341,7 @@ namespace Atom
 
         if (!pipeline)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create particle pipeline: "
                 << SDL_GetError()
                 << '\n';
@@ -2390,7 +2391,7 @@ namespace Atom
         void* mapped = SDL_MapGPUTransferBuffer(m_device, m_particleTransfer, true);
         if (!mapped)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to map particle transfer buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -2516,7 +2517,7 @@ namespace Atom
         SDL_ReleaseGPUShader(m_device, fragmentShader);
         if (!m_beamPipelines[slot])
         {
-            std::cerr << "Failed to create beam pipeline: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to create beam pipeline: " << SDL_GetError() << '\n';
         }
         return m_beamPipelines[slot];
     }
@@ -2637,7 +2638,7 @@ namespace Atom
         );
         if (!renderPass)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to begin post render pass: "
                 << SDL_GetError()
                 << '\n';
@@ -2803,7 +2804,7 @@ namespace Atom
             const std::string live = GpuResources::Report(m_device);
             if (!live.empty() || !m_renderTextures.empty())
             {
-                std::cerr << "GPU resources still alive at shutdown: "
+                ATOM_LOG_ERROR("Renderer") << "GPU resources still alive at shutdown: "
                           << (live.empty() ? std::string("none") : live) << "; "
                           << m_renderTextures.size() << " render textures registered\n";
                 assert(false && "GPU resources outlive the renderer (see the log)");

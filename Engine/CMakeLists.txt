@@ -45,6 +45,8 @@ target_sources(
         Core/Application.h
         Core/FrameStatsWindow.h
     Core/FrameTiming.h
+    Core/Log.cpp
+    Core/Log.h
     Core/Profile.h
     Core/Trace.cpp
     Core/Trace.h

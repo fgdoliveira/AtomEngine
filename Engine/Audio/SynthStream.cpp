@@ -1,4 +1,5 @@
 #include "Audio/SynthStream.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -17,7 +18,7 @@ namespace Atom
         Stop();
         if (!SDL_WasInit(SDL_INIT_AUDIO) && !SDL_InitSubSystem(SDL_INIT_AUDIO))
         {
-            std::cerr << "Synth: no audio (" << SDL_GetError() << "); running silent\n";
+            ATOM_LOG_WARN("Audio") << "Synth: no audio (" << SDL_GetError() << "); running silent\n";
             return false;
         }
         m_sequencer = &sequencer;
@@ -25,7 +26,7 @@ namespace Atom
         m_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, &SynthStream::Callback, this);
         if (!m_stream)
         {
-            std::cerr << "Synth: no playback device (" << SDL_GetError() << "); running silent\n";
+            ATOM_LOG_WARN("Audio") << "Synth: no playback device (" << SDL_GetError() << "); running silent\n";
             m_sequencer = nullptr;
             return false;
         }
