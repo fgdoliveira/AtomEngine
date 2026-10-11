@@ -87,6 +87,7 @@ namespace Arena
         double m_lastSpawnMs = 0.0;
         bool m_spawnedThisFrame = false;
         Atom::FrameStatsWindow m_frameMs, m_updateMs, m_simWindow, m_submitMs, m_spikeUpdateMs, m_spawnMs;
+        Atom::FrameStatsWindow m_cpuMs, m_gpuWaitMs; // M99
         double m_contactSum = 0.0;
         int m_connectedFrames = 0; // M95: measured frames with a profiler capture connected
 

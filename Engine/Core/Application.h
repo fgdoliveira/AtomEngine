@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Audio/AudioSystem.h"
+#include "Core/FrameTiming.h"
 #include "Core/Time.h"
 #include "Debug/DevTools.h"
 #include "Platform/Input.h"
@@ -56,12 +57,18 @@ namespace Atom
         AudioSystem& GetAudio() { return m_audio; }
         DevTools& GetDevTools() { return m_devTools; }
         const Time& GetTime() const { return m_time; }
+        // M99: where the last completed frame's time went (read in OnUpdate:
+        // the frame before this one), and the same, averaged for display.
+        const FrameTiming& GetFrameTiming() const { return m_frameTiming; }
+        const FrameTiming& GetAverageFrameTiming() const { return m_frameTimingAverage.value; }
 
     private:
         void ProcessEvents();
         // M82: the F1 overlay's engine section (frame, renderer, device).
         void AddEngineOverlayLines(float deltaSeconds);
         float m_smoothedFrameMs = 0.0f;
+        FrameTiming m_frameTiming;               // M99
+        FrameTimingAverage m_frameTimingAverage;
 
         bool m_running = false;
         int m_exitCode = 0;

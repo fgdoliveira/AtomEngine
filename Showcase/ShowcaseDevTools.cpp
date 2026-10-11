@@ -48,6 +48,7 @@ namespace Showcase
         DevContext context;
         context.renderer = &GetRenderer();
         context.tools = &GetDevTools();
+        context.timing = &GetAverageFrameTiming(); // M99
         context.camera = &m_camera;
         context.view = &m_view;
         context.particles = &m_atmosphere;

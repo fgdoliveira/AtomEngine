@@ -448,6 +448,7 @@ namespace Drift
         AtomFramework::DevContext context;
         context.renderer = &GetRenderer();
         context.tools = &GetDevTools();
+        context.timing = &GetAverageFrameTiming(); // M99
         m_devPanels.Draw(context, dt);
     }
 

@@ -1009,6 +1009,9 @@ namespace Atom
         bool acquired = false;
         {
             ATOM_PROFILE_SCOPE("AcquireSwapchain");
+            // M99: how long the CPU waited here for the GPU (always timed:
+            // two clock reads).
+            const Uint64 acquireStart = SDL_GetTicksNS();
             acquired = !simulatedLoss && SDL_WaitAndAcquireGPUSwapchainTexture(
                 commandBuffer,
                 m_window,
@@ -1016,6 +1019,7 @@ namespace Atom
                 &swapchainWidth,
                 &swapchainHeight
             );
+            m_lastAcquireWaitNs = SDL_GetTicksNS() - acquireStart;
         }
         if (timing)
         {

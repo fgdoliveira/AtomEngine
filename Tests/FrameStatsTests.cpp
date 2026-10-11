@@ -56,3 +56,28 @@ TEST_CASE("Empty, single and cleared windows")
     CHECK(window.Count() == 0);
     CHECK(window.Median() == 0.0);
 }
+
+// M99: where a frame's time went, and its average for display.
+#include "Core/FrameTiming.h"
+
+TEST_CASE("A frame's timing: CPU work is update + render, the rest is waiting; the average settles")
+{
+    Atom::FrameTiming t;
+    t.updateMs = 0.5;
+    t.renderMs = 1.0;
+    t.waitMs = 2.0;
+    CHECK(t.CpuMs() == doctest::Approx(1.5));
+    CHECK(t.TotalMs() == doctest::Approx(3.5));
+
+    Atom::FrameTimingAverage average;
+    average.Add(t); // the first sample is taken as it is
+    CHECK(average.value.waitMs == doctest::Approx(2.0));
+    Atom::FrameTiming slower = t;
+    slower.waitMs = 4.0;
+    for (int i = 0; i < 200; ++i)
+    {
+        average.Add(slower);
+    }
+    CHECK(average.value.waitMs == doctest::Approx(4.0).epsilon(0.001)); // converged
+    CHECK(average.value.updateMs == doctest::Approx(0.5));
+}

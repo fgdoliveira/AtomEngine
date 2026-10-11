@@ -14,6 +14,7 @@
 #include "Level/LevelManager.h"
 #include "Level/ViewToggles.h"
 
+#include "Core/FrameTiming.h"
 #include "Debug/DevTools.h"
 #include "Renderer/Renderer.h"
 #include "Scene/Camera.h"
@@ -130,6 +131,17 @@ namespace AtomFramework
             average /= static_cast<float>(m_frameHistory.size());
             ImGui::Text("%.2f ms average (%.0f fps), worst %.2f ms", average,
                         average > 0.0f ? 1000.0f / average : 0.0f, worst);
+            if (const Atom::FrameTiming* t = context.timing)
+            {
+                // M99: the CPU's work and its wait for the GPU; the bar is
+                // the CPU's share of the frame.
+                ImGui::Text("CPU %.2f ms (update %.2f, render %.2f)   waiting for GPU %.2f ms", t->CpuMs(), t->updateMs,
+                            t->renderMs, t->waitMs);
+                const double total = t->TotalMs();
+                char label[48];
+                std::snprintf(label, sizeof(label), "CPU %.0f %%", total > 0.0 ? 100.0 * t->CpuMs() / total : 0.0);
+                ImGui::ProgressBar(total > 0.0 ? static_cast<float>(t->CpuMs() / total) : 0.0f, { -1.0f, 0.0f }, label);
+            }
             ImGui::PlotLines("##frames", m_frameHistory.data(), static_cast<int>(m_frameHistory.size()),
                              static_cast<int>(m_frameHistoryNext), "frame time (ms)", 0.0f, std::max(20.0f, worst),
                              { -1.0f, 60.0f });

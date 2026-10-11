@@ -187,6 +187,8 @@ namespace Showcase
         m_screen = Screen::Benchmark;
         m_benchmarkTime = 0.0f;
         m_benchmarkFrames.Clear();
+        m_benchmarkCpu.Clear();
+        m_benchmarkWait.Clear();
         for (Atom::FrameStatsWindow& phase : m_benchmarkPhases)
         {
             phase.Clear();
@@ -212,6 +214,9 @@ namespace Showcase
             const double ms = m_diagnostics.RealFrameMs();
             m_benchmarkFrames.AddSample(ms);
             m_benchmarkPhases[phase].AddSample(ms);
+            // M99: the last completed frame's CPU work and wait for the GPU.
+            m_benchmarkCpu.AddSample(GetFrameTiming().CpuMs());
+            m_benchmarkWait.AddSample(GetFrameTiming().waitMs);
         }
 
         // The camera along the path: each leg eased in and out.
@@ -262,6 +267,11 @@ namespace Showcase
         report += "p99_ms: " + ms(m_benchmarkFrames.Percentile(0.99)) + "\n";
         report += "worst_ms: " + ms(m_benchmarkFrames.Percentile(1.0)) + "\n";
         report += "mean_ms: " + ms(m_benchmarkFrames.Mean()) + "\n";
+        // M99: the CPU's work (update + render) and its wait for the GPU.
+        report += "cpu_median_ms: " + ms(m_benchmarkCpu.Median()) + "\n";
+        report += "cpu_p95_ms: " + ms(m_benchmarkCpu.Percentile(0.95)) + "\n";
+        report += "gpu_wait_median_ms: " + ms(m_benchmarkWait.Median()) + "\n";
+        report += "gpu_wait_p95_ms: " + ms(m_benchmarkWait.Percentile(0.95)) + "\n";
         for (std::size_t i = 0; i < std::size(Phases); ++i)
         {
             report += std::string(Phases[i]) + "_median_ms: " + ms(m_benchmarkPhases[i].Median()) + "\n";

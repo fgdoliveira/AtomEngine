@@ -137,6 +137,7 @@ namespace Arena
         DevContext tools;
         tools.renderer = &GetRenderer();
         tools.tools = &GetDevTools();
+        tools.timing = &GetAverageFrameTiming(); // M99
         tools.camera = &m_camera;
         tools.view = &m_view;
         tools.levels = m_levels.get();
@@ -387,6 +388,8 @@ namespace Arena
             m_frameMs.AddSample(frameMs);
             m_updateMs.AddSample(updateMs);
             m_simWindow.AddSample(m_lastSimMs);
+            m_cpuMs.AddSample(GetFrameTiming().CpuMs()); // M99: the last completed frame's
+            m_gpuWaitMs.AddSample(GetFrameTiming().waitMs);
             m_submitMs.AddSample(m_lastSubmitMs);
             m_contactSum += static_cast<double>(m_sim.EnemyContacts().size());
             if (ATOM_PROFILE_CONNECTED())
@@ -459,6 +462,8 @@ namespace Arena
         distribution("update", m_updateMs); // the app's CPU work in OnUpdate
         distribution("sim", m_simWindow);   // the simulation step
         distribution("submit", m_submitMs); // the app's draw submission
+        distribution("cpu", m_cpuMs);       // M99: the CPU's whole work (update + render)
+        distribution("gpu_wait", m_gpuWaitMs); // M99: the CPU waiting for the GPU
         if (m_scenario->spikeBatch > 0)
         {
             line("spikes", std::to_string(m_spikeUpdateMs.Count()));

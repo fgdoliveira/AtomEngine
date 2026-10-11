@@ -212,6 +212,8 @@ namespace Atom
         );
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
+        // M99: the last frame's wait for a swapchain image inside Render (ns).
+        std::uint64_t GetLastAcquireWaitNs() const { return m_lastAcquireWaitNs; }
 
         // Developer overlay (M41): called each frame after the game's UI,
         // with the window's image to draw on. Screenshots and captures are
@@ -509,6 +511,7 @@ namespace Atom
         std::vector<ChunkInfo> m_chunks; // this frame's
         int m_currentChunk = -1;
         FrameStats m_stats;
+        std::uint64_t m_lastAcquireWaitNs = 0; // M99
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;
         bool m_skinWeightsView = false;

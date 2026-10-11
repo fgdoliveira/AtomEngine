@@ -114,6 +114,7 @@ namespace
             DevContext tools;
             tools.renderer = &renderer;
             tools.tools = &GetDevTools();
+            tools.timing = &GetAverageFrameTiming(); // M99
             tools.camera = &m_camera;
             tools.view = &m_view;
             tools.levels = m_levels.get();

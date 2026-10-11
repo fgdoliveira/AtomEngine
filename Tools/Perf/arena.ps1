@@ -104,6 +104,7 @@ try {
                 frame_p99 = [double]$r["frame_p99_ms"]; frame_worst = [double]$r["frame_worst_ms"]
                 update_median = [double]$r["update_median_ms"]; sim_median = [double]$r["sim_median_ms"]
                 sim_p95 = [double]$r["sim_p95_ms"]; submit_median = [double]$r["submit_median_ms"]
+                cpu_median = [double]$r["cpu_median_ms"]; gpu_wait_median = [double]$r["gpu_wait_median_ms"] # M99
                 spike_update_median = if ($r.ContainsKey("spike_update_median_ms")) { [double]$r["spike_update_median_ms"] } else { $null }
                 contacts_mean = [double]$r["contacts_mean"]; state_hash = $r["state_hash"]
             }
@@ -130,15 +131,17 @@ function Median([double[]]$values) {
 Write-Host ""
 Write-Host ("{0} - commit {1}{2}, {3}, {4} rounds x {5} frames (+{6} warm-up), seed {7}, {8:F1} min" -f `
     $Label, $head, $dirty, $power, $Rounds, $Frames, $Warmup, $Seed, ((Get-Date) - $started).TotalMinutes)
-Write-Host ("{0,-22} {1,10} {2,18} {3,10} {4,10} {5,10} {6,10}" -f "scenario", "frame ms", "(range)", "p99 ms", "sim ms", "submit ms", "hash ok")
+Write-Host ("{0,-22} {1,10} {2,18} {3,10} {4,10} {5,10} {6,10} {7,10} {8,8}" -f "scenario", "frame ms", "(range)", "p99 ms",
+    "cpu ms", "gpu wait", "sim ms", "submit ms", "hash ok")
 foreach ($scenario in $Scenarios) {
     $set = @($rows | Where-Object { $_.scenario -eq $scenario })
     if ($set.Count -eq 0) { continue }
     $frame = @($set | ForEach-Object { $_.frame_median })
     $hashes = @($set | ForEach-Object { $_.state_hash } | Sort-Object -Unique)
-    Write-Host ("{0,-22} {1,10:F3} {2,18} {3,10:F3} {4,10:F3} {5,10:F3} {6,10}" -f $scenario, (Median $frame),
+    Write-Host ("{0,-22} {1,10:F3} {2,18} {3,10:F3} {4,10:F3} {5,10:F3} {6,10:F3} {7,10:F3} {8,8}" -f $scenario, (Median $frame),
         ("{0:F3}..{1:F3}" -f ($frame | Measure-Object -Minimum).Minimum, ($frame | Measure-Object -Maximum).Maximum),
-        (Median @($set | ForEach-Object { $_.frame_p99 })), (Median @($set | ForEach-Object { $_.sim_median })),
+        (Median @($set | ForEach-Object { $_.frame_p99 })), (Median @($set | ForEach-Object { $_.cpu_median })),
+        (Median @($set | ForEach-Object { $_.gpu_wait_median })), (Median @($set | ForEach-Object { $_.sim_median })),
         (Median @($set | ForEach-Object { $_.submit_median })), $(if ($hashes.Count -eq 1) { "yes" } else { "NO" }))
 }
 Write-Host "Rows: $csv"

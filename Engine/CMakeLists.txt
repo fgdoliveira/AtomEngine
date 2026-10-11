@@ -44,6 +44,7 @@ target_sources(
         Audio/AudioSystem.h
         Core/Application.h
         Core/FrameStatsWindow.h
+    Core/FrameTiming.h
     Core/Profile.h
     Core/Trace.cpp
     Core/Trace.h

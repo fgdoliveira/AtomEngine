@@ -421,6 +421,12 @@ AtomEngine compares A and B **close together in time** and reports the
   each switch settle (rebuilt targets aren't steady state), and reports the
   median of the rounds' differences (it always ends with the switch on B):
   `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
+- **Is a frame CPU-bound or GPU-bound?** (v0.0.15) F1 and the F10 Frame
+  panel show the CPU's work (update + render) and its wait for the GPU;
+  the Showcase's and ATOM ARENA's benchmark reports record both
+  (`cpu_*`, `gpu_wait_*`). Mostly waiting: the GPU (or vsync) sets the
+  pace, and CPU work is free; no waiting: the CPU is the limit. There is
+  no GPU timing itself (SDL_GPU has no timestamp queries).
 - **Where does the CPU time go inside a frame?** (v0.0.15) Build with
   `-DATOM_TRACE=ON` and run with `ATOM_TRACE=<file prefix>`: the profiling
   zones (`ATOM_PROFILE_SCOPE`, `Engine/Core/Profile.h`) are recorded and

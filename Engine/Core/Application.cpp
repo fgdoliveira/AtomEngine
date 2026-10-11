@@ -170,6 +170,7 @@ namespace Atom
         {
             // M74 (ATOM_LATENCY_WAIT=early): wait for the swapchain first, so
             // input is read after the wait rather than before it.
+            const std::uint64_t waitStartNs = SDL_GetTicksNS(); // M99: the frame's timing
             {
                 ATOM_PROFILE_SCOPE("WaitForPresentSlot");
                 m_renderer.WaitForPresentSlot();
@@ -198,6 +199,7 @@ namespace Atom
                 break;
             }
 
+            const std::uint64_t renderStartNs = SDL_GetTicksNS();
             if (!m_renderer.Render())
             {
                 std::cerr
@@ -207,6 +209,15 @@ namespace Atom
                 m_exitCode = 3; // not a clean exit: scripts and ctest can tell
                 m_running = false;
             }
+            // M99: where the frame's time went - the CPU's work, and its
+            // waits for the GPU (before the frame, and inside Render for a
+            // swapchain image).
+            const std::uint64_t endNs = SDL_GetTicksNS();
+            const std::uint64_t acquireNs = std::min(m_renderer.GetLastAcquireWaitNs(), endNs - renderStartNs);
+            m_frameTiming.waitMs = static_cast<double>(frameStartNs - waitStartNs + acquireNs) / 1e6;
+            m_frameTiming.updateMs = static_cast<double>(renderStartNs - frameStartNs) / 1e6;
+            m_frameTiming.renderMs = static_cast<double>(endNs - renderStartNs - acquireNs) / 1e6;
+            m_frameTimingAverage.Add(m_frameTiming);
             ATOM_PROFILE_FRAME(); // v0.0.15: a frame ends here
         }
 
@@ -231,6 +242,11 @@ namespace Atom
         char line[256];
         std::snprintf(line, sizeof(line), "%.2f ms  (%.0f fps)", m_smoothedFrameMs,
                       m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f);
+        m_devTools.AddOverlayLine(line);
+        // M99: the CPU's work and its wait for the GPU (averaged).
+        const FrameTiming& t = m_frameTimingAverage.value;
+        std::snprintf(line, sizeof(line), "CPU %.2f ms (update %.2f, render %.2f)   waiting for GPU %.2f ms", t.CpuMs(),
+                      t.updateMs, t.renderMs, t.waitMs);
         m_devTools.AddOverlayLine(line);
         std::snprintf(line, sizeof(line), "Scene %ux%u  MSAA %ux   draws %u / %u   tris %.1fk", stats.sceneWidth,
                       stats.sceneHeight, stats.msaaSamples, stats.drawn, stats.submitted, triangles / 1000.0f);
