@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.14 / M92**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112).
+A study guide to every concept the engine uses, as of **v0.0.15 / M102**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -121,9 +121,17 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 110. [A benchmark mode (M90)](#110-a-benchmark-mode-m90)
 111. [HelloAtom: the smallest app (M91)](#111-helloatom-the-smallest-app-m91)
 112. [Releasing 0.0.14 (M92)](#112-releasing-0014-m92)
-113. [Anatomy of a frame and what it costs](#113-anatomy-of-a-frame-and-what-it-costs)
-114. [Build system and project layout](#114-build-system-and-project-layout)
-115. [Glossary](#115-glossary)
+113. [A workload built to measure: ATOM ARENA (M93–M94)](#113-a-workload-built-to-measure-atom-arena-m93m94)
+114. [Profiling zones and a minimal tracer (M95–M97)](#114-profiling-zones-and-a-minimal-tracer-m95m97)
+115. [The first-frame hitch, moved into loading (M98)](#115-the-first-frame-hitch-moved-into-loading-m98)
+116. [CPU work and the wait for the GPU (M99)](#116-cpu-work-and-the-wait-for-the-gpu-m99)
+117. [Log lines with a time, a level and who speaks (M100)](#117-log-lines-with-a-time-a-level-and-who-speaks-m100)
+118. [Why it stopped: a lost device, a crash dump, symbols (M101)](#118-why-it-stopped-a-lost-device-a-crash-dump-symbols-m101)
+119. [Process and GPU memory (M101)](#119-process-and-gpu-memory-m101)
+120. [Releasing 0.0.15 (M102)](#120-releasing-0015-m102)
+121. [Anatomy of a frame and what it costs](#121-anatomy-of-a-frame-and-what-it-costs)
+122. [Build system and project layout](#122-build-system-and-project-layout)
+123. [Glossary](#123-glossary)
 
 ---
 
@@ -2939,7 +2947,151 @@ The lesson is the same in all three: when two parts of a program both change a p
 
 ---
 
-## 113. Anatomy of a frame and what it costs
+## 113. A workload built to measure: ATOM ARENA (M93–M94)
+
+**Concept: judge a tool on a known problem.** To decide whether a profiler is worth adding (ADR-005: a new library needs a trigger), you need a workload whose parts you can switch on and off, and whose answer you could check by other means. A real game mixes everything; a purpose-built one isolates. **ATOM ARENA** (`Samples/AtomArena`) is a survival arena on the first-render stage: enemies close in on the centre, projectiles fly out and send the enemy they hit back to the edge. Five workloads, each sized and switched alone:
+- **A** enemy update (steering), **B** collision (enemies pushing apart, projectile hits), **C** projectiles, **D** a spawn spike (a batch at once), **E** the per-enemy draw submission.
+
+**Concept: two algorithms, one answer.** Collision runs either as a **naive all-pairs search** (O(n²), every pair tested) or a **uniform grid**: the floor is cut into cells, each enemy is binned into its cell with a **counting sort** (count per cell, prefix sums, scatter: no allocation once warm), and only neighbouring cells are tested. The grid is built to return *exactly* the naive search's contacts, in the same order, so both modes run the same simulation bit for bit. A measurement then compares the searches, never two different simulations.
+
+**Concept: determinism by construction.** `ArenaLib`, the simulation, is pure: seeded random numbers, a fixed 60 Hz step, no clock, no GPU. The same seed gives the same final **state hash** (a hash over every enemy's and projectile's position and state), so a report can prove two runs did the same work. Unit tests check it, and that naive and grid agree on every contact.
+
+**Concept: a benchmark mode with a fixed workload.** `AtomArena.exe --benchmark --scenario collision_500 [--seed --frames --warmup --out]` runs one named workload (`update_N`, `collision_N`, `collision_naive_N`, `projectiles_N`, `spike_N`, `draw_N`, `full_N`) for a fixed number of frames, one simulation step per frame, fixed camera, no HUD, and writes a `key: value` report: machine, settings, counts, the state hash, and median/p95/p99/worst/mean of the frame, the update, the simulation and the submission. `Tools/Perf/arena.ps1` runs the matrix **in rounds** (every scenario once per round, so a laptop's drift spreads over all of them, §63) and checks each scenario's hashes agree.
+
+**The baseline, without any profiler** (Release, 3 rounds × 1200 frames):
+- a ~2.6 ms **frame floor** (renderer, GPU, present) that no existing tool could divide;
+- drawing 1000 enemies adds ~2.2 ms, of which the app's own loop is 0.08 ms;
+- the grid search was **slower** than the all-pairs one (7.08 vs 2.89 ms at 1000 enemies) — an unexplained cost, kept as a question for the profiling tools;
+- the spawn spike is cheap (500 enemies: microseconds).
+
+**Code.** `Samples/AtomArena/` (`ArenaSim`, `ArenaBenchmark`, `ArenaApp`), `Tests/ArenaSimTests.cpp`, `Tools/Perf/arena.ps1`, `Scenario.arena_smoke`.
+
+---
+
+## 114. Profiling zones and a minimal tracer (M95–M97)
+
+**Concept: instrumentation vs sampling.** A **sampling** profiler interrupts the program many times a second and records where it was: no code changes, statistical answers. An **instrumenting** profiler records named **zones** the programmer places: begin and end times of exactly the code you care about, frame by frame. Games favour instrumentation, because the question is usually "what happened in *that* slow frame", not "where does time go on average".
+
+**Concept: zero cost when off.** `ATOM_PROFILE_SCOPE("Shadows")` and `ATOM_PROFILE_FRAME()` (`Engine/Core/Profile.h`) are macros. By default they expand to nothing: no instruction, no data. An interface target, `AtomProfile`, carries the switch to every user. 28 zones sit at real boundaries: the frame loop (wait, events, update), the renderer's passes (the **CPU's recording** of each pass, not the GPU's execution), the level's update and submission, the arena's steps.
+
+**Concept: an RAII scope.** With `-DATOM_TRACE=ON` each zone becomes a small object: its constructor reads the clock, its destructor reads it again and appends `{name, start, duration}` to a buffer. C++ runs the destructor on every exit from the block — a `return`, an exception — so a zone can't be left open. The buffer is **reserved once** (a million events) and recording **stops** when it's full rather than growing it: a reallocation in the middle of a frame would be measured as part of that frame.
+
+**Concept: write traces in a format others read.** At exit the tracer writes `<prefix>.json` in the **Chrome trace event** format, which ui.perfetto.dev opens as a timeline; `<prefix>-zones.csv` (count, total, mean, max per zone); and `<prefix>-frames.txt`, the slowest frames with their zones — the answer to "what made that frame slow" by script, without opening a viewer. `ATOM_TRACE=<prefix>` turns recording on. About 250 lines, `Engine/Core/Trace.{h,cpp}`.
+
+**Concept: overhead below resolution.** Measured the §63 way (interleaved, paired), recording 28 zones a frame changed nothing beyond the run-to-run spread. Overhead that the machine can't resolve is, for practical purposes, none — but say it that way, not "zero".
+
+**What the zones found.**
+- **The grid's mystery (§113):** 60 % of the grid's time was *sorting its contact list* (to match the naive order). Sorting each enemy's few neighbours instead of the whole list cut the simulation by **22 %** at 1000 enemies (7.10 → 5.54 ms), the state hash unchanged. The grid is still slower than all-pairs in this dense crowd (the crowd is so packed that cells don't prune much): recorded, not chased.
+- **When the worst frames happen:** the per-frame list showed frames 0–2, at 30–50 ms: pipelines and resources created on first use (§115).
+
+**The decision (ADR-010).** An external profiler was evaluated against the same questions, with the criteria fixed *before* measuring (adopt if it answers something materially better; defer if it works but doesn't; reject if it can't). It worked, with low overhead, but answered nothing the minimal tracer didn't, and its strengths — many threads, a live view, sampling, memory and GPU timing — aren't needed by a single-threaded engine yet. Its tools also cost about an hour of fragile building. **Decision:** keep the built-in tracer; revisit when work runs on several threads, a problem needs live inspection, or GPU timing becomes reachable. Fixing the criteria first is what makes such a decision honest: otherwise the answer tends to follow the effort already spent.
+
+**Code.** `Engine/Core/Profile.h`, `Engine/Core/Trace.*`, `Tests/TraceTests.cpp`, `Tools/Perf/arena.ps1 -Trace`, `docs/Architecture.md` ADR-010.
+
+---
+
+## 115. The first-frame hitch, moved into loading (M98)
+
+**Concept: first use is expensive.** A graphics pipeline (§7) is created lazily, the first time a draw needs it, and creating one **compiles** its shaders into the GPU's own instructions. Render targets are made when the scene first asks for them. The driver's first submission also does one-time work. So frame 0 of every app took 29–49 ms instead of ~3 ms: a visible stutter right after the loading screen.
+
+**Concept: prewarming.** Do the expensive first-use work while the player is already waiting: `Renderer::Prewarm()` builds every pipeline variant (the scene shader × rain/toon × skinned × double-sided × alpha-to-coverage, decals, water, outline, sky, particles, beam, shadows) at the sample counts in use, and the scene and reflection targets at the window's size. Then the application draws as many frames as can be **in flight** (§81) with no time passing — the driver's first submissions, the app's first update, the second set of per-frame buffers — and waits for the GPU.
+
+**Concept: the driver's pipeline cache.** Drivers keep compiled pipelines on disk. Only the first run on a machine (or after a driver update) really compiles: prewarm took 0.6–1.1 s that once, 38 ms after.
+
+**Measured** (`ATOM_TRACE`, 3 runs each, Release, warm cache): frame 0 from 29–49 ms to ~2 ms; the worst of the first three real frames from 31–49 ms to 5–23 ms; loading 57–90 ms longer. A trade: the same work, moved where nobody sees it.
+
+**Not solved, and written down.** One ~20 ms frame remains on the second real frame in most runs, the CPU held up inside the shadow and scene passes with every pipeline and buffer already made. Presentation start-up is the likely cause; without a GPU tool it isn't confirmed. `ATOM_PREWARM=0` turns prewarming off to measure what it saves.
+
+**Code.** `Renderer::Prewarm` in `Engine/Renderer/Renderer.cpp`, `Application::Run` in `Engine/Core/Application.cpp`.
+
+---
+
+## 116. CPU work and the wait for the GPU (M99)
+
+**Concept: CPU-bound or GPU-bound.** The CPU and the GPU work in parallel, one or two frames apart (§81). A frame's time is set by whichever is slower. If the CPU finishes its work early, it **waits** — for a free frame in flight, for a swapchain image — and that wait is time the GPU (or the display, with vsync) imposed. So: *mostly waiting* means GPU-bound, and CPU work is free; *no waiting* means CPU-bound, and the GPU is idle part of the time. Optimising the side that isn't the limit changes nothing.
+
+**Concept: measure without the GPU's clock.** The direct way is GPU **timestamp queries**: the GPU writes its own clock at points in the command buffer. SDL_GPU has none. But the CPU can time its own waits, with a few clock reads per frame: `Atom::FrameTiming` splits each frame into **update** (events, tools, the app's `OnUpdate`), **render** (recording and submitting, minus the wait inside it for a swapchain image) and **wait** (before the frame, and inside Render). update + render is the CPU's work.
+
+**Shown** in F1 (as `CPU x ms (update a, render b)   waiting for GPU y ms`, averaged), the F10 Frame panel with a bar of the CPU's share, the Showcase benchmark report (`cpu_*`, `gpu_wait_*`) and the arena's report.
+
+**What it said** (ATOM ARENA, Release): `update_50` CPU 0.59 ms, wait 2.38 ms (the frame floor is the GPU); `collision_1000` CPU 5.73, wait 0.06 (CPU-bound: here optimising the collision pays); the Showcase CPU 1.1, wait 2.7. CPU + wait matches the frame time, which is the check that nothing is missing.
+
+**Code.** `Engine/Core/FrameTiming.h`, `Application::Run`, `Renderer::GetLastAcquireWaitNs`, `Framework/Debug/DevPanels.cpp`, `Tests/FrameStatsTests.cpp`.
+
+---
+
+## 117. Log lines with a time, a level and who speaks (M100)
+
+**Concept: structured log lines.** A log read by someone else (a player's, sent with a bug report) must answer *when*, *how serious* and *which part* without context:
+
+```
+[14:03:07.412] [ERROR] [Renderer] Failed to begin the reflection pass: ...
+```
+
+- **Levels:** INFO (what happened), WARN (something recoverable: audio silent, a GPU fallback, an unsupported format), ERROR (something failed), and GAME — a game's own events (the demo's story beats, the arena's results), kept apart from the engine's.
+- **Subsystem:** a tag naming the part that speaks (Renderer, GPU, Audio, Level, Settings, Demo...).
+- **Time:** local time to the millisecond, so a line lines up with what the player saw.
+
+**Concept: one line, whole, from any thread.** `ATOM_LOG_ERROR("Renderer") << "..." << value;` builds a temporary `Log::Line` that collects the message in a string stream and writes it **when the statement ends** (its destructor), under a mutex. Two threads can't interleave halves of their lines. A trailing newline is dropped (the line adds its own), so converted `std::cerr << ... << '\n'` sites keep working. INFO and GAME go to `std::cout`, WARN and ERROR to `std::cerr`, so the per-user log file and its rotation (§85) stay as they were.
+
+**Concept: relative paths.** A message holding `C:\Users\<name>\...` leaks a user name and is long. `Log::AddRoot` registers the executable's folder (and `ATOM_ASSET_ROOT`'s); every message has them removed, `\` and `/` alike, whole folders only, longest first: `Assets/Kit/torii.glb`.
+
+**Concept: the human sees the message.** The start-failure message box (§85) shows the message without its prefix (`WithoutLogPrefix`): a player needs the reason, not the timestamp.
+
+**Code.** `Engine/Core/Log.{h,cpp}`, `Framework/Platform/RunLog.cpp`, `Tests/LogTests.cpp`. All 116 engine output sites were converted; the framework's and apps' too.
+
+---
+
+## 118. Why it stopped: a lost device, a crash dump, symbols (M101)
+
+**Concept: device removal.** On Direct3D 12 the GPU can be **removed** from under a running program: the driver reset it after a hang (a command buffer that ran too long — Windows' TDR, timeout detection and recovery), the driver crashed or was updated, or the GPU itself went away (an external GPU unplugged). Every call then fails; the device can tell *why* (`GetDeviceRemovedReason`: hung, reset, driver internal error, invalid call). SDL's D3D12 backend already turns that into its error text, so the renderer keeps `SDL_GetError()` at the moment a frame fails, and the application logs the failure kind, that reason, the adapter, the **driver version** and memory. Most removals are driver- or machine-specific, so the driver version is the first thing to ask about.
+
+**Concept: an unhandled exception.** A C++ program that dereferences a null pointer doesn't throw a C++ exception: the CPU raises a hardware fault, Windows turns it into a **structured exception** (`0xC0000005`, access violation), and if nothing handles it the process ends — the log just stops. `SetUnhandledExceptionFilter` installs a last-chance function Windows calls first.
+
+**Concept: a minidump.** `MiniDumpWriteDump` (dbghelp, part of Windows) writes a file holding every thread's registers and stack, the loaded modules, and the memory those point at. Opened in Visual Studio or WinDbg *with the matching symbols*, it shows the crashing thread's call stack and its variables, as if a debugger had been attached at that moment. AtomEngine writes `crash-<date>-<time>.dmp` and a `.txt` (app, version, exception name, **module + offset**) to the per-user log folder, and ends the log with a line naming them. Nothing is sent anywhere (ADR-011).
+
+**Concept: writing from a crashed process.** The handler runs inside a process that just failed, possibly with a damaged heap. So it prepares in advance (the folder and names copied into fixed buffers at install time), allocates little, and refuses to run twice (a crash *while* reporting a crash falls through to Windows).
+
+**Concept: symbols and the PDB.** Optimised machine code has no names. The compiler and linker can write a **PDB** (program database): which address range is which function, file and line. `/Zi` makes the compiler emit debug information, `/DEBUG` makes the linker write the PDB, and `/OPT:REF /OPT:ICF` keep the Release optimisations `/DEBUG` would turn off. The executable records the PDB's name and a GUID; a debugger matches a dump to the PDB with the same GUID — which is why you keep each release's PDB. AtomEngine keeps it in the build folder, never in a package (`verify.ps1` refuses one): symbols reveal the source's structure and paths, and players don't need them.
+
+**Concept: module + offset.** A crash address like `0x7FF7AFFB252A` changes every run (Windows loads modules at random addresses: ASLR). The offset from the module's start — `Demo.exe+0xC252A` — doesn't. With the PDB, `llvm-symbolizer --obj=Demo.exe --relative-address 0xC252A` names the function and line.
+
+**How it was tested.** A temporary null-pointer write at frame 120 of a Release build (removed afterwards). The report read `access violation at Demo.exe+0xC252A`; the symbolizer resolved it to `Application::Run`, the exact line; the dump held 18 threads, 85 modules and the exception at the same address. The test found two bugs: MSBuild escaped the linker's `%_PDB%` placeholder (the executable recorded `%Demo.pdb%`, so no debugger would have found the symbols; each app now names its PDB explicitly), and the crash line went to C's `stderr`, which the log file doesn't copy (it now goes through `std::cerr`). A feature that only runs when things go wrong must be made to run once on purpose.
+
+**Code.** `Engine/Platform/CrashReport.*`, `Framework/Platform/RunLog.cpp` (installs it), `Renderer::GetLastFailureReason`, `GPUDeviceInfo::driver`, the root `CMakeLists.txt` (the PDB flags), `Tests/CrashReportTests.cpp`, `docs/Architecture.md` ADR-011.
+
+---
+
+## 119. Process and GPU memory (M101)
+
+**Concept: what "memory used" means.** Windows reports several numbers for a process. The **working set** is the part of its memory currently in physical RAM (its peak, the most it ever had); **private bytes** is what it has committed for itself, in RAM or paged out. The working set is what competes with other programs for RAM, so it's the one shown.
+
+**Concept: GPU memory and its budget.** DXGI (`IDXGIAdapter3::QueryVideoMemoryInfo`) gives, per adapter, the process's **current usage** and its **budget**: how much Windows will let it keep resident before it starts evicting (moving resources out, which shows up as stutter). On a **discrete** GPU the interesting segment is its own memory ("local"); an **integrated** GPU has almost none and uses shared system memory ("non-local"), so the engine reads that one and says "shared".
+
+**Concept: finding the adapter by name.** SDL_GPU doesn't expose its DXGI adapter. The adapter's name SDL reports is DXGI's description, so the engine enumerates DXGI's adapters and matches by name. Enumerating costs more than a frame should spend, so F1 refreshes the line about once a second.
+
+**Shown** in F1 (as `RAM <now> (peak <max>)   GPU <usage> of <budget> (shared)`), `--diagnostics` (`memory:`, beside `gpu.driver:`), both benchmark reports, and the log line of a failed frame.
+
+**Code.** `Engine/Platform/Memory.*` (`QueryProcess`, `QueryGpu`, `Describe`), `Application::AddEngineOverlayLines`, `Framework/Diagnostics/DiagnosticsReport.cpp`.
+
+---
+
+## 120. Releasing 0.0.15 (M102)
+
+**The numbers** (Release, plugged in, on the laptop's own screen):
+- **The demo against v0.0.14** (`ab.ps1`, night street, 8 interleaved rounds): median paired delta +0.038 ms, range −0.188..+0.817. Within the spread: the always-on frame timing, the log lines and the memory line cost nothing measurable. Two rounds were ~0.8 ms slower; the median, the robust statistic, didn't move — which is why it's the one reported (§63).
+- `check.ps1 -Level full`: the unit tests and every scenario (22 tests) in Debug and in Release.
+- **Packages:** `Demo-v0.0.15-win64.zip` 15.5 MB (116 files), `Drift-v0.0.15-win64.zip` 2.1 MB (35 files). They now need `dbghelp.dll` and `psapi.dll`, which every Windows 10/11 has; `verify.ps1`'s list of system libraries says so.
+
+**Concept: Windows' path limit.** The old version to compare against was again built from its tag in a git worktree (§112). In the session's temp folder MSBuild failed: the full path of an intermediate file passed **260 characters**, the classic `MAX_PATH` limit many Windows tools still obey. A shorter folder next to the repository built it; the worktree was removed afterwards.
+
+**Concept: clean history before sharing.** Commits that were never pushed can still be rewritten. The evaluation's commits held the external profiler as a submodule and in their messages; since it was rejected, they were rebuilt — the arena's two commits kept, the evaluation's three folded into one — with a check that the final tree is byte-identical to the original. Once pushed, history is shared and stays as it is.
+
+**Code.** `CHANGELOG.md` 0.0.15, the README, `docs/Architecture.md` (ADR-010, ADR-011), `Tools/Dist/verify.ps1`.
+
+---
+
+## 121. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -2981,15 +3133,16 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **v0.0.11** adds no rendering work: against v0.0.10 (interleaved builds, §89) the night street +0.07 ms and the lakeshore +0.004 ms, within noise. The static C++ runtime and the new log cost nothing measurable.
 - **v0.0.12** (§94): click to display 36 → 24 ms at 144 fps. Uncapped, the 2-frame default is ~0.3 ms slower per frame than 0.0.11's 3 (the code alone: −0.004 ms). Baselines across 0.0.10–0.0.11 and 0.0.12 differ in frames in flight; set `ATOM_FRAMES_IN_FLIGHT` alike to compare code.
 - **v0.0.13** (§103): against v0.0.12 (interleaved builds) the night street −0.22 ms and the lakeshore −0.002 ms, within noise: toon shading, outlines and the synth cost the demo nothing. DRIFT itself, with vsync on the 144 Hz panel: median frame 6.95 ms, p95 7.83 ms (its autopilot's summary).
+- **v0.0.15** (§120): against v0.0.14 (interleaved builds) the night street +0.038 ms, within the spread. The frame's split (§116): the Showcase spends ~1.1 ms of CPU work and ~2.7 ms waiting for the GPU — GPU-bound; ATOM ARENA's ~2.6 ms floor is the GPU's, and its 1000-enemy collision is the one CPU-bound case (5.7 ms of work, 0.06 ms waiting). Loading is 57–90 ms longer, and the first frames no longer stutter (§115).
 - **The night levels** draw nothing in the shadow pass (night lighting turns sun shadows off); their extra work is glow, live lights and, in the hall, the render-texture screens.
 
 ---
 
-## 114. Build system and project layout
+## 122. Build system and project layout
 
-- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `AtomTests` (doctest unit tests, linking the app libraries), `AtomShaders` (custom target compiling HLSL). Each `*.atomtest` under `Tests/Scenarios/`, `Showcase/Scenarios/` and `Samples/HelloAtom/Scenarios/` is a ctest test that runs its app with `ATOM_TEST_SCRIPT` (label `scenario`); `drift_fly` and `drift_diagnostics` run `Drift`.
+- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomTests` (doctest unit tests, linking the app libraries), `AtomShaders` (custom target compiling HLSL). Each `*.atomtest` under `Tests/Scenarios/`, `Showcase/Scenarios/` and `Samples/HelloAtom/Scenarios/` is a ctest test that runs its app with `ATOM_TEST_SCRIPT` (label `scenario`); `drift_fly` and `drift_diagnostics` run `Drift`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85). The demo's runtime asset payload is the folder list in `Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
+- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
 - **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game Demo|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build with developer tools, §101) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
 - **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, HelloAtom's compile (§111), and the package check for both games (no artifact kept). **Validation** (§75, §100): `Tools/Dev/check.ps1 -Level changed` per milestone (the table in `Tools/Dev/changed.psd1`), `-Level full` once per version.
 - **Shader variants** (§69, §98): `BasicRain.frag` and `BasicToon.frag` include `Basic.frag` with a define; a change to `Basic.frag` rebuilds all three. Write float literals with `f` (§102).
@@ -3003,7 +3156,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved per app in `%APPDATA%\AtomEngine\<app>\settings.json` (§78, §109); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
 - **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
-- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97). All are read through `Atom::DevSwitch` and ignored in a package (§101).
+- **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97); since v0.0.15 `ATOM_TRACE=<prefix>` (§114), `ATOM_PREWARM=0` (§115). All are read through `Atom::DevSwitch` and ignored in a package (§101).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
 
@@ -3011,6 +3164,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 Engine/  Assets/ Audio/ Core/ Debug/ (ImGui host) Physics/ Platform/ Renderer/ Scene/ UI/
          Renderer/GPUDevice (device, window claim, presentation, fallback)
          Audio/Synth, SynthStream (the live synth); Core/DevSwitch (development switches)
+         Core/Log, Profile, Trace, FrameTiming; Platform/Memory, CrashReport (v0.0.15)
 Framework/ Platform/ (RunLog, AssetRoots), Settings/ (GameSettings, SettingsStore, Calibration),
          Diagnostics/DiagnosticsReport, Debug/DevPanels (F10),
          Level/ (LevelData, Level, LevelManager, ModelCache, SoundLibrary, ScreenProgram, ViewToggles),
@@ -3027,6 +3181,7 @@ Games/Demo/ DemoApp, AudioScape, SoundSynth, UneaseDirector, Flashlight, Dialogu
 Games/Drift/ DriftLib: Flight, World, SpeedField, Music; DriftApp, Main;
          Assets/ (ship, ring, orb, rock .glb; Fonts/SpaceGrotesk + OFL); README.txt.in
 Samples/HelloAtom/ Main.cpp, Assets/Levels/hello.json, Scenarios/
+Samples/AtomArena/ ArenaLib: ArenaSim, ArenaBenchmark; ArenaApp, Main; Scenarios/
 Content/ Kit/ Sky/ Fonts/ Environments/ First/ (shared by several apps)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain,
@@ -3034,6 +3189,7 @@ Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), latency.ps1 (input latency: Engine / PresentMon),
+             arena.ps1 (ATOM ARENA's matrix, -Trace),
              benchmark scenarios (lights, water and weather)
 Tools/Dev/  check.ps1 (validation: changed, quick, feature, full), changed.psd1 (its table),
             doctor.ps1, privacy.ps1, common.ps1
@@ -3061,7 +3217,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 115. Glossary
+## 123. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -3300,3 +3456,15 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Smoothstep** — 3t² − 2t³: an ease from 0 to 1 with zero speed at both ends (§110).
 - **Theme tokens** — a UI's colours and spacing named once and used everywhere, instead of literals in each draw call (§107).
 - **Warm-up (benchmark)** — the frames after a change that aren't measured because they're not typical of the steady state (§110).
+- **ASLR** — address space layout randomisation: Windows loads modules at a different address each run, so crash addresses are given as module + offset (§118).
+- **Counting sort** — sorting by key in linear time: count each key, prefix-sum the counts into positions, scatter; how the arena's grid bins enemies into cells (§113).
+- **CPU-bound / GPU-bound** — which side sets the frame's pace; the other waits. Tell them apart by the CPU's wait for the GPU (§116).
+- **Device removal** — Direct3D 12's GPU device becoming unusable mid-run (a reset after a hang, a driver failure); the device can say why (§118).
+- **Instrumentation vs sampling** — recording named zones placed in the code vs interrupting the program periodically to see where it is (§114).
+- **Minidump** — a file holding a process's threads, stacks, modules and the memory they point at, read later in a debugger (§118).
+- **PDB** — program database: the symbols mapping machine code addresses to functions, files and lines; matched to an executable by a GUID (§118).
+- **Prewarm** — doing first-use work (pipeline compilation, resource creation) during loading instead of in the first frames (§115).
+- **RAII** — resource acquisition is initialisation: an object's destructor releases what its constructor took, on every exit from the scope (§114).
+- **State hash** — a hash over a simulation's whole state, to prove two runs did the same work (§113).
+- **TDR** — timeout detection and recovery: Windows resetting a GPU that stopped responding, which removes the device (§118).
+- **Working set** — the part of a process's memory currently in physical RAM (§119).
