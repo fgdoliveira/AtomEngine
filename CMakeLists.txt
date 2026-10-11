@@ -104,7 +104,9 @@ add_subdirectory(Samples/AtomArena) # M93: a benchmark arena, to evaluate profil
 # MSBuild escapes the linker's own %_PDB% into a wrong name.
 if(MSVC)
     foreach(app Showcase Demo Drift HelloAtom AtomArena)
-        target_link_options(${app} PRIVATE $<$<CONFIG:Release>:/PDBALTPATH:$<TARGET_PDB_FILE_NAME:${app}>>)
+        if(TARGET ${app}) # ATOM_BUILD_GAME=OFF (CI) defines only some of them
+            target_link_options(${app} PRIVATE $<$<CONFIG:Release>:/PDBALTPATH:$<TARGET_PDB_FILE_NAME:${app}>>)
+        endif()
     endforeach()
 endif()
 
