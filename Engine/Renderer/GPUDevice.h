@@ -47,6 +47,7 @@ namespace Atom
     {
         std::string backend;
         std::string adapter;
+        std::string driver; // M101: the driver's version and name, as SDL reports them (empty if not)
         GPUPreference requestedPreference = GPUPreference::LowPower;
         GPUPreference activePreference = GPUPreference::LowPower;
         std::optional<StartupFallback> fallback;

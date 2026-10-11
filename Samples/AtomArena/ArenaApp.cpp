@@ -4,6 +4,7 @@
 #include "Assets/Model.h"
 #include "Core/Profile.h"
 #include "Platform/Input.h"
+#include "Platform/Memory.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
 #include "UI/UIRenderer.h"
@@ -459,6 +460,7 @@ namespace Arena
         line("contacts_mean", ms(m_frameMs.Count() ? m_contactSum / static_cast<double>(m_frameMs.Count()) : 0.0));
         line("draws_last_frame", std::to_string(stats.drawn));
         line("state_hash", std::to_string(m_sim.StateHash()));
+        line("memory", Atom::Memory::Describe(Atom::Memory::QueryProcess(), Atom::Memory::QueryGpu(device.adapter))); // M101
         distribution("frame", m_frameMs);   // the whole frame, start to start
         distribution("update", m_updateMs); // the app's CPU work in OnUpdate
         distribution("sim", m_simWindow);   // the simulation step

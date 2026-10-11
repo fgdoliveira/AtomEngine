@@ -67,6 +67,8 @@ namespace Atom
         // M82: the F1 overlay's engine section (frame, renderer, device).
         void AddEngineOverlayLines(float deltaSeconds);
         float m_smoothedFrameMs = 0.0f;
+        std::string m_memoryLine;          // M101: F1's memory line,
+        std::uint64_t m_memoryQueryNs = 0; // queried about once a second
         FrameTiming m_frameTiming;               // M99
         FrameTimingAverage m_frameTimingAverage;
 

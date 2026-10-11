@@ -118,6 +118,11 @@ namespace Atom
         // crossed to the other adapter's display.
         enum class Failure { None, SwapchainLost, Other };
         Failure GetLastFailure() const { return m_lastFailure; }
+        // M101: SDL's text at the moment Render() failed. When D3D12 removed
+        // the device, SDL has already turned it into the removal reason
+        // (hung, reset, driver internal error...).
+        const std::string& GetLastFailureReason() const { return m_lastFailureReason; }
+        const std::string& GetDriverDescription() const { return m_gpu.GetInfo().driver; }
         // The preference the device was really created with: low-power if
         // high-performance failed and Initialize fell back (M63), and why -
         // the device couldn't be created, or couldn't present to the window.
@@ -486,6 +491,7 @@ namespace Atom
         UIRenderer m_ui;
         SceneLighting m_lighting;
         Failure m_lastFailure = Failure::None;
+        std::string m_lastFailureReason; // M101
         bool m_simulateSwapchainLoss = false;
         LatencyProbe m_latency;
         bool m_waitEarly = true; // M74

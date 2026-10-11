@@ -18,7 +18,9 @@ target_sources(
         Core/Time.cpp
         Debug/DevTools.cpp
         Physics/CollisionWorld.cpp
+        Platform/CrashReport.cpp
         Platform/Input.cpp
+        Platform/Memory.cpp
         Platform/Window.cpp
         Renderer/Glow.cpp
         Renderer/GPUDevice.cpp
@@ -54,7 +56,9 @@ target_sources(
         Core/Time.h
         Debug/DevTools.h
         Physics/CollisionWorld.h
+        Platform/CrashReport.h
         Platform/Input.h
+        Platform/Memory.h
         Platform/Window.h
         Renderer/Glow.h
         Renderer/Lighting.h
@@ -95,6 +99,12 @@ target_link_libraries(
     PRIVATE
         imgui
 )
+
+# M101: process and GPU memory (psapi, DXGI) and crash minidumps (dbghelp),
+# all part of Windows.
+if(WIN32)
+    target_link_libraries(AtomEngine PRIVATE psapi dxgi dbghelp)
+endif()
 
 # The GLM settings change what GLM's headers mean, so every user needs
 # them; the version string is the engine's own.

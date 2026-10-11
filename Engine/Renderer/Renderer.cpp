@@ -990,9 +990,10 @@ namespace Atom
             SDL_AcquireGPUCommandBuffer(m_device);
         if (!commandBuffer)
         {
+            m_lastFailureReason = SDL_GetError();
             ATOM_LOG_ERROR("Renderer")
                 << "Failed to acquire GPU command buffer: "
-                << SDL_GetError()
+                << m_lastFailureReason
                 << '\n';
             return false;
         }
@@ -1032,6 +1033,7 @@ namespace Atom
         {
             m_lastFailure = Failure::SwapchainLost; // M63: the game may fall back next launch
             const std::string acquisitionError = simulatedLoss ? std::string("simulated (ATOM_SIMULATE_SWAPCHAIN_LOSS)") : SDL_GetError();
+            m_lastFailureReason = acquisitionError;
             const bool cancelled = SDL_CancelGPUCommandBuffer(commandBuffer);
             const std::string cancellationError = cancelled
                 ? ""
@@ -1124,7 +1126,8 @@ namespace Atom
             SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
             if (!fence)
             {
-                ATOM_LOG_ERROR("Renderer") << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                m_lastFailureReason = SDL_GetError();
+                ATOM_LOG_ERROR("Renderer") << "Failed to submit GPU command buffer: " << m_lastFailureReason << '\n';
                 return false;
             }
             FinishCapture(fence);
@@ -1138,7 +1141,8 @@ namespace Atom
             SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
             if (!fence)
             {
-                ATOM_LOG_ERROR("Renderer") << "Failed to submit GPU command buffer: " << SDL_GetError() << '\n';
+                m_lastFailureReason = SDL_GetError();
+                ATOM_LOG_ERROR("Renderer") << "Failed to submit GPU command buffer: " << m_lastFailureReason << '\n';
                 return false;
             }
             m_latency.Submitted(submitNs, fence);
@@ -1147,9 +1151,10 @@ namespace Atom
         ATOM_PROFILE_SCOPE("SubmitCommandBuffer");
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
+            m_lastFailureReason = SDL_GetError();
             ATOM_LOG_ERROR("Renderer")
                 << "Failed to submit GPU command buffer: "
-                << SDL_GetError()
+                << m_lastFailureReason
                 << '\n';
             return false;
         }

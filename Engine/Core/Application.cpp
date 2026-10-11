@@ -3,6 +3,7 @@
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/Profile.h" // v0.0.15: CPU profiling zones (off: nothing)
 #include "Core/Trace.h"   // M96: the minimal tracer, started and written here when chosen
+#include "Platform/Memory.h" // M101: memory in F1 and in a failure's report
 
 #include <SDL3/SDL.h>
 
@@ -215,6 +216,18 @@ namespace Atom
             {
                 ATOM_LOG_ERROR("Engine")
                     << "Renderer encountered a fatal error. Shutting down.\n";
+                // M101: why, on which GPU and driver - what a player's log
+                // must carry for a lost device to be understood.
+                const std::string reason = m_renderer.GetLastFailureReason().empty()
+                    ? std::string(SDL_GetError())
+                    : m_renderer.GetLastFailureReason();
+                ATOM_LOG_ERROR("Engine")
+                    << "Failure: "
+                    << (m_renderer.GetLastFailure() == Renderer::Failure::SwapchainLost ? "swapchain lost" : "frame failed")
+                    << "; reason: " << (reason.empty() ? "unknown" : reason) << "; adapter: \""
+                    << m_renderer.GetAdapterName() << "\"; driver: "
+                    << (m_renderer.GetDriverDescription().empty() ? "unknown" : m_renderer.GetDriverDescription())
+                    << "; " << Memory::Describe(Memory::QueryProcess(), Memory::QueryGpu(m_renderer.GetAdapterName()));
 
                 OnRenderFailure(m_renderer.GetLastFailure()); // M63
                 m_exitCode = 3; // not a clean exit: scripts and ctest can tell
@@ -271,6 +284,15 @@ namespace Atom
         {
             m_devTools.AddOverlayLine(latency);
         }
+        // M101: memory, from the OS and DXGI - not every frame (DXGI's
+        // adapter search costs more than a frame should spend on it).
+        const std::uint64_t nowNs = SDL_GetTicksNS();
+        if (m_memoryLine.empty() || nowNs - m_memoryQueryNs >= 1'000'000'000ull)
+        {
+            m_memoryLine = Memory::Describe(Memory::QueryProcess(), Memory::QueryGpu(m_renderer.GetAdapterName()));
+            m_memoryQueryNs = nowNs;
+        }
+        m_devTools.AddOverlayLine(m_memoryLine);
     }
 
     void Application::ProcessEvents()

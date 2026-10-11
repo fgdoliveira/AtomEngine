@@ -66,7 +66,7 @@ $dumpbin = if ($vs) { Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin
 if (-not $dumpbin) { Fail "dumpbin not found (Visual Studio C++ tools): dependencies unchecked" }
 else {
     # Windows system DLLs and API sets that every Windows 10/11 has.
-    $system = 'kernel32|user32|gdi32|shell32|imm32|winmm|ole32|oleaut32|version|advapi32|setupapi|dxgi|d3d12|ws2_32|cfgmgr32|hid|dwmapi|uxtheme|shcore|comdlg32'
+    $system = 'kernel32|user32|gdi32|shell32|imm32|winmm|ole32|oleaut32|version|advapi32|setupapi|dxgi|d3d12|ws2_32|cfgmgr32|hid|dwmapi|uxtheme|shcore|comdlg32|dbghelp|psapi'  # M101: dbghelp writes crash minidumps
     foreach ($binary in $payload.exe, "SDL3.dll") {
         $dlls = & $dumpbin.FullName /nologo /dependents (Join-Path $root $binary) |
             ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^[\w.-]+\.dll$' } # names only, not the "Dump of file" header

@@ -1,5 +1,6 @@
 #include "Platform/RunLog.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Platform/CrashReport.h" // M101
 
 #include <SDL3/SDL.h>
 
@@ -111,6 +112,10 @@ namespace AtomFramework
                 {
                     m_path = current.string();
                 }
+                // M101: a crash leaves a minidump and a short report beside
+                // the log - in the player's folder, never next to the game.
+                const std::u8string utf8 = folder.u8string();
+                Atom::CrashReport::Install(std::string(utf8.begin(), utf8.end()), app);
             }
         }
 

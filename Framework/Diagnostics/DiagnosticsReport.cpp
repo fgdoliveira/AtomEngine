@@ -1,6 +1,7 @@
 #include "Diagnostics/DiagnosticsReport.h"
 #include "Core/Log.h"
 
+#include "Platform/Memory.h"
 #include "Renderer/Renderer.h"
 
 #include <SDL3/SDL.h>
@@ -50,6 +51,10 @@ namespace AtomFramework
             << "sdl.runtime: " << version(runtime) << "\n"
             << "gpu.adapter: " << r.adapter << "\n"
             << "gpu.backend: " << r.backend << "\n"
+            << "gpu.driver: " << (renderer.GetDriverDescription().empty() ? "unknown" : renderer.GetDriverDescription())
+            << "\n"
+            << "memory: " << Atom::Memory::Describe(Atom::Memory::QueryProcess(), Atom::Memory::QueryGpu(r.adapter))
+            << "\n"
             << "gpu.preference.requested: " << r.preference << "\n"
             << "gpu.preference.reason: " << gpuReason << "\n";
         if (const auto& fallback = renderer.GetStartupFallback())

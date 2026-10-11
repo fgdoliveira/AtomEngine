@@ -9,6 +9,7 @@
 
 #include "Core/DevSwitch.h"
 #include "Platform/Input.h"
+#include "Platform/Memory.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
 
@@ -278,6 +279,10 @@ namespace Showcase
             report += std::string(Phases[i]) + "_median_ms: " + ms(m_benchmarkPhases[i].Median()) + "\n";
             report += std::string(Phases[i]) + "_p95_ms: " + ms(m_benchmarkPhases[i].Percentile(0.95)) + "\n";
         }
+        // M101: memory at the end of the run (RAM peak over the whole run).
+        report += "memory: " + Atom::Memory::Describe(Atom::Memory::QueryProcess(),
+                                                      Atom::Memory::QueryGpu(GetRenderer().GetAdapterName()))
+            + "\n";
 
         const std::filesystem::path folder = std::filesystem::path(m_outputRoot) / "out";
         std::error_code error;

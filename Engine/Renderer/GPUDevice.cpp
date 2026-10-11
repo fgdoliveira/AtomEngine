@@ -145,6 +145,15 @@ namespace Atom
             SDL_GetGPUDeviceProperties(m_device), SDL_PROP_GPU_DEVICE_NAME_STRING, "unavailable");
         m_info.backend = backend ? backend : "unavailable";
         m_info.adapter = adapter;
+        // M101: which driver, so a report of a lost device says which one lost it.
+        const SDL_PropertiesID deviceProperties = SDL_GetGPUDeviceProperties(m_device);
+        const char* driverVersion = SDL_GetStringProperty(deviceProperties, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "");
+        const char* driverInfo = SDL_GetStringProperty(deviceProperties, SDL_PROP_GPU_DEVICE_DRIVER_INFO_STRING, "");
+        m_info.driver = driverVersion;
+        if (*driverInfo)
+        {
+            m_info.driver += (m_info.driver.empty() ? "" : " (") + std::string(driverInfo) + (m_info.driver.empty() ? "" : ")");
+        }
         ATOM_LOG_INFO("GPU") << "GPU device created: backend=" << m_info.backend << " adapter=\"" << m_info.adapter << '"'
                   << " preference=" << GetPreferenceName(preference) << '\n';
 

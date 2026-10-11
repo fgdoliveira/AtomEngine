@@ -45,6 +45,7 @@ add_executable(
     ArenaSimTests.cpp
     TraceTests.cpp
     LogTests.cpp
+    CrashReportTests.cpp
     UiKitTests.cpp
     FakeGame.h
     TestAssets.h

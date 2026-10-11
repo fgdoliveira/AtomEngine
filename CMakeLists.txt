@@ -41,6 +41,17 @@ option(
 # game. Set before the first target, so nothing mixes runtimes.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+# M101: Release builds keep their symbols (.pdb) beside the build, so a
+# player's crash dump can be read - never installed or packaged. /OPT keeps
+# the linker's Release optimisations that /DEBUG would turn off, and
+# /PDBALTPATH records only the .pdb's name in the executable, not the
+# developer's folder.
+if(MSVC)
+    add_compile_options($<$<CONFIG:Release>:/Zi>)
+    add_link_options($<$<CONFIG:Release>:/DEBUG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>
+                     $<$<CONFIG:Release>:/PDBALTPATH:%_PDB%>)
+endif()
+
 # third party libraries
 add_subdirectory(external/SDL)
 add_subdirectory(external/glm)
