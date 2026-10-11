@@ -1,4 +1,5 @@
 #include "AudioScape.h"
+#include "Core/Log.h"
 
 #include "Level/LevelData.h"
 #include "Scene/Camera.h"
@@ -72,7 +73,7 @@ namespace Demo
         // Rain (M50): played while it rains (SetRainLevel).
         m_library["rain"] = SoundSynth::Rain();
 
-        std::cout << "AudioScape: " << m_library.size() << " library sounds synthesised\n";
+        ATOM_LOG_GAME("Demo") << "AudioScape: " << m_library.size() << " library sounds synthesised\n";
     }
 
     Atom::SoundHandle AudioScape::GetSound(std::string_view name) const
@@ -82,7 +83,7 @@ namespace Demo
         {
             if (m_audio && m_audio->IsAvailable())
             {
-                std::cerr << "Unknown sound '" << name << "'\n";
+                ATOM_LOG_ERROR("Demo") << "Unknown sound '" << name << "'\n";
             }
             return nullptr;
         }

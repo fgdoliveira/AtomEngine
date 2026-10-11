@@ -1,4 +1,6 @@
 #include "Renderer/Glow.h"
+#include "Core/Log.h"
+#include "Core/Profile.h"
 
 #include "Renderer/Shader.h"
 
@@ -35,7 +37,7 @@ namespace Atom
                 pipeline = SDL_CreateGPUGraphicsPipeline(device, &createInfo);
                 if (!pipeline)
                 {
-                    std::cerr << "Failed to create glow pipeline " << fragment << ": " << SDL_GetError() << '\n';
+                    ATOM_LOG_ERROR("Renderer") << "Failed to create glow pipeline " << fragment << ": " << SDL_GetError() << '\n';
                 }
             }
             if (vertexShader)
@@ -124,7 +126,7 @@ namespace Atom
             texture = SDL_CreateGPUTexture(m_device, &info);
             if (!texture)
             {
-                std::cerr << "Failed to create glow target: " << SDL_GetError() << '\n';
+                ATOM_LOG_ERROR("Renderer") << "Failed to create glow target: " << SDL_GetError() << '\n';
                 return false;
             }
         }
@@ -144,7 +146,7 @@ namespace Atom
         SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
         if (!pass)
         {
-            std::cerr << "Failed to begin glow pass: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to begin glow pass: " << SDL_GetError() << '\n';
             return false;
         }
         SDL_BindGPUGraphicsPipeline(pass, pipeline);
@@ -159,6 +161,7 @@ namespace Atom
     bool Glow::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* scene,
                       std::uint32_t width, std::uint32_t height, float threshold)
     {
+        ATOM_PROFILE_SCOPE("GlowPass");
         const std::uint32_t w = std::max<std::uint32_t>(1, width / 4);
         const std::uint32_t h = std::max<std::uint32_t>(1, height / 4);
         if (!EnsureTextures(w, h))

@@ -1,4 +1,5 @@
 #include "Platform/Input.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -74,7 +75,7 @@ namespace Atom
     {
         if (!SDL_SetWindowRelativeMouseMode(window, captured))
         {
-            std::cerr
+            ATOM_LOG_ERROR("Platform")
                 << "Failed to set relative mouse mode: "
                 << SDL_GetError()
                 << '\n';

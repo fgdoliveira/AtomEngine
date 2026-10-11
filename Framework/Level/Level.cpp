@@ -1,4 +1,6 @@
 #include "Level/Level.h"
+#include "Core/Log.h"
+#include "Core/Profile.h"
 
 #include "Assets/Model.h"
 #include "Character/PlayerController.h"
@@ -69,7 +71,7 @@ namespace AtomFramework
         {
             m_audio.SetReverb(0.0f, 1.0f, 0.0f); // the room stays behind
         }
-        std::cout << "Level '" << m_data.name << "' unloaded (" << m_voices.size() << " voices stopped)\n";
+        ATOM_LOG_INFO("Level") << "Level '" << m_data.name << "' unloaded (" << m_voices.size() << " voices stopped)\n";
     }
 
     std::unique_ptr<Level> Level::Create(LevelData data, Services& services)
@@ -88,7 +90,7 @@ namespace AtomFramework
         level->m_scene = services.models.Get(services.renderer, assets.Resolve(d.model));
         if (!level->m_scene || !level->m_collision.Load(assets.Resolve(d.collision)))
         {
-            std::cerr << "Level '" << d.name << "': failed to load its scene or collision\n";
+            ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': failed to load its scene or collision\n";
             return nullptr;
         }
 
@@ -97,7 +99,7 @@ namespace AtomFramework
             level->m_skyPanorama = services.renderer.LoadTexture(assets.Resolve(d.sky->panorama));
             if (!level->m_skyPanorama)
             {
-                std::cerr << "Level '" << d.name << "': missing sky " << d.sky->panorama << '\n';
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': missing sky " << d.sky->panorama << '\n';
                 return nullptr;
             }
         }
@@ -111,7 +113,7 @@ namespace AtomFramework
                 set = ImpostorSet::Load(services.renderer, assets.Resolve(data.set));
                 if (!set)
                 {
-                    std::cerr << "Level '" << d.name << "': impostor " << data.set << " failed to load\n";
+                    ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': impostor " << data.set << " failed to load\n";
                     return nullptr;
                 }
             }
@@ -128,12 +130,12 @@ namespace AtomFramework
             chunk.model = services.models.Get(services.renderer, assets.Resolve(data.model));
             if (!chunk.model)
             {
-                std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' failed to load\n";
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': chunk '" << data.name << "' failed to load\n";
                 return nullptr;
             }
             if (!data.collision.empty() && !level->m_collision.Append(assets.Resolve(data.collision)))
             {
-                std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' has no collision\n";
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': chunk '" << data.name << "' has no collision\n";
                 return nullptr;
             }
             if (!data.lightmap.empty())
@@ -143,7 +145,7 @@ namespace AtomFramework
                 auto lightmap = services.renderer.LoadTexture(assets.Resolve(data.lightmap));
                 if (!lightmap)
                 {
-                    std::cerr << "Level '" << d.name << "': chunk '" << data.name << "' is missing its lightmap "
+                    ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': chunk '" << data.name << "' is missing its lightmap "
                               << data.lightmap << '\n';
                     return nullptr;
                 }
@@ -168,7 +170,7 @@ namespace AtomFramework
             level->m_lightmap = services.renderer.LoadTexture(assets.Resolve(d.lightmap->texture));
             if (!level->m_lightmap)
             {
-                std::cerr << "Level '" << d.name << "': missing lightmap " << d.lightmap->texture << '\n';
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': missing lightmap " << d.lightmap->texture << '\n';
                 return nullptr;
             }
             level->m_scene->SetLightmap(level->m_lightmap.get(), d.lightmap->intensity);
@@ -204,7 +206,7 @@ namespace AtomFramework
                 const int clip = model ? model->FindClip(data.animation->clip) : -1;
                 if (clip < 0)
                 {
-                    std::cerr << "Level '" << d.name << "': entity '" << data.name
+                    ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': entity '" << data.name
                               << "' has no animation '" << data.animation->clip << "'\n";
                     return nullptr;
                 }
@@ -237,7 +239,7 @@ namespace AtomFramework
                 }, [model](std::string_view name) { return model ? model->FindNode(name) : -1; });
                 if (error)
                 {
-                    std::cerr << "Level '" << d.name << "': entity '" << data.name
+                    ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': entity '" << data.name
                               << "' animator: " << *error << '\n';
                     return nullptr;
                 }
@@ -251,7 +253,7 @@ namespace AtomFramework
         {
             if (const std::string problem = CheckSpawn(level->m_collision, spawn); !problem.empty())
             {
-                std::cerr << "Level '" << d.name << "': spawn '" << name << "' is invalid: " << problem << '\n';
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': spawn '" << name << "' is invalid: " << problem << '\n';
                 return nullptr;
             }
         }
@@ -287,7 +289,7 @@ namespace AtomFramework
             std::unique_ptr<ScreenProgram> program = services.screens ? services.screens(data, assets, error) : nullptr;
             if (!program)
             {
-                std::cerr << "Level '" << d.name << "': screen '" << data.material << "': " << error << '\n';
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': screen '" << data.material << "': " << error << '\n';
                 return nullptr;
             }
             Screen screen{ services.renderer.CreateRenderTexture(program->Width(), program->Height()),
@@ -295,7 +297,7 @@ namespace AtomFramework
             const std::vector<Atom::Material*> materials = level->FindSceneMaterials(data.material);
             if (!screen.target || materials.empty())
             {
-                std::cerr << "Level '" << d.name << "': no screen material '" << data.material << "'\n";
+                ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': no screen material '" << data.material << "'\n";
                 return nullptr;
             }
             for (Atom::Material* material : materials)
@@ -364,7 +366,7 @@ namespace AtomFramework
                 }
                 if (light.materials.empty())
                 {
-                    std::cerr << "Level '" << d.name << "': no material '" << data.material << "' to flicker\n";
+                    ATOM_LOG_ERROR("Level") << "Level '" << d.name << "': no material '" << data.material << "' to flicker\n";
                     return nullptr;
                 }
             }
@@ -383,7 +385,7 @@ namespace AtomFramework
             times.uploadMs - timesBefore.uploadMs,
             modelMs - (times.parseMs - timesBefore.parseMs) - (times.decodeMs - timesBefore.decodeMs)
                 - (times.uploadMs - timesBefore.uploadMs));
-        std::cout
+        ATOM_LOG_INFO("Level")
             << "Level '" << d.name << "' loaded: " << level->m_world.Count() << " entities, "
             << level->m_models.size() << " extra models, " << level->m_voices.size() << " voices"
             << timing << '\n';
@@ -486,6 +488,7 @@ namespace AtomFramework
 
     void Level::Submit(Atom::Renderer& renderer, const glm::vec3& viewer) const
     {
+        ATOM_PROFILE_SCOPE("LevelSubmit");
         SubmitChunk(renderer, *m_scene, Atom::RenderLayer::Near, true);
 
         // Near chunks of far-away cells are skipped altogether; the layout
@@ -584,6 +587,7 @@ namespace AtomFramework
 
     void Level::Update(float deltaSeconds, const glm::vec3& listener)
     {
+        ATOM_PROFILE_SCOPE("LevelUpdate");
         m_time += deltaSeconds;
 
         // Movers (M25): the entity shuttles along its line; its sound

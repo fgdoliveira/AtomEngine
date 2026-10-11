@@ -11,6 +11,7 @@ namespace Atom
 {
     class Camera;
     class DevTools;
+    struct FrameTiming;
     class Renderer;
 }
 
@@ -28,6 +29,7 @@ namespace AtomFramework
     struct DevContext
     {
         Atom::Renderer* renderer = nullptr;
+        const Atom::FrameTiming* timing = nullptr; // M99: the app's GetAverageFrameTiming()
         Atom::DevTools* tools = nullptr;
         Atom::Camera* camera = nullptr;
         ViewToggles* view = nullptr;

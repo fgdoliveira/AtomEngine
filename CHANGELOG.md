@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.0.15 — Observability
+
+The engine learns to say what it is doing, and why it stopped. A seeded
+benchmark, **ATOM ARENA**, gave a profiler something exact to be judged
+on; the result is a minimal built-in tracer, not a dependency (ADR-010).
+Every frame now tells CPU work from waiting for the GPU; log lines carry
+a time, a level and who speaks; memory is reported; and when a frame
+fails or the program crashes, the player's folder holds the reason, a
+minidump and a report (ADR-011). The first-frame hitch every app had is
+moved into loading.
+
+### Added
+- **ATOM ARENA (M93-M94):** `Samples/AtomArena`, a survival arena built
+  to measure. Five workloads switched on their own - enemy update,
+  collision (an all-pairs search or a uniform grid giving the same
+  contacts in the same order), projectiles, a spawn spike, the per-enemy
+  draw - over a pure, seeded simulation (`ArenaLib`). `AtomArena.exe
+  --benchmark --scenario <kind_N>` runs one for a fixed number of frames
+  and writes a report (machine, settings, state hash, frame / update /
+  sim / submit / CPU / GPU-wait distributions, memory);
+  `Tools/Perf/arena.ps1` runs the matrix in rounds. `arena_smoke`
+  scenario; `ArenaSimTests`.
+- **Profiling zones and a built-in tracer (M95-M97):**
+  `ATOM_PROFILE_SCOPE` / `ATOM_PROFILE_FRAME` (`Engine/Core/Profile.h`)
+  at 28 real boundaries, compiled to nothing by default.
+  `-DATOM_TRACE=ON` and `ATOM_TRACE=<prefix>` record them and write a
+  Perfetto trace, a per-zone CSV and the slowest frames with their zones
+  (`Engine/Core/Trace.h`, ~250 lines). An external profiler was evaluated
+  on the arena and rejected for now: it answered nothing the tracer
+  didn't (ADR-010). Never in a package.
+- **CPU work and the wait for the GPU (M99):** every frame measures
+  update, render (recording and submitting) and the wait for a free
+  frame or swapchain image (`Atom::FrameTiming`). F1, the F10 Frame
+  panel (with a bar), the Showcase benchmark (`cpu_*`, `gpu_wait_*`) and
+  the arena's report show it. Mostly waiting: the GPU sets the pace;
+  no waiting: the CPU does.
+- **Log lines with a time, a level and who speaks (M100):** `[hh:mm:ss.mmm]
+  [LEVEL] [Subsystem] message` (`Engine/Core/Log.h`, `ATOM_LOG_INFO /
+  WARN / ERROR / GAME`), every engine, framework and app output site
+  converted; GAME is a game's own events (the demo's story, the arena's
+  results). Paths in a message read relative to the game's folder, so no
+  user folder appears in a log a player sends. The start-failure message
+  box shows the message without the prefix.
+- **Why it stopped (M101):** a failed frame logs SDL's reason (D3D12's
+  removal reason when the device was lost), the adapter, the driver
+  version and memory. A crash writes `crash-<date>-<time>.dmp` (a
+  minidump) and `.txt` (app, version, exception, module + offset) to the
+  per-user log folder and names them on the log's last line - tested
+  with a forced access violation whose offset resolved to its source
+  line. Release builds keep a `.pdb` in the build folder, never packaged,
+  and name it without a path (ADR-011).
+- **Memory (M101):** the process's RAM (now and peak) and its GPU memory
+  against Windows' budget (DXGI; shared memory on an integrated GPU), in
+  F1, `--diagnostics` (with `gpu.driver`) and both benchmark reports.
+
+### Changed
+- **The first-frame hitch moves into loading (M98):** the tracer showed
+  30-50 ms on every app's first frames (pipelines compiled on first use).
+  `Renderer::Prewarm()` builds every pipeline variant and the scene
+  targets after the app's `OnInitialize`, then draws the frames in
+  flight with no time passing. Frame 0 went from 29-49 ms to ~2 ms; the
+  worst of the first three from 31-49 ms to 5-23 ms; loading takes 57-90
+  ms longer. `ATOM_PREWARM=0` skips it.
+- The players' READMEs name the crash files to send with a report.
+- `verify.ps1` accepts `dbghelp.dll` and `psapi.dll` (part of every
+  Windows 10/11).
+
+### Fixed
+- The arena's grid collision sorted the whole contact list each step;
+  sorting each enemy's few neighbours cut the simulation by 22 % at 1000
+  enemies, with the same final state.
+
+### Known
+- One ~20 ms frame remains on the second real frame in most runs, the
+  CPU held up inside the shadow and scene passes with everything already
+  built; presentation start-up is the likely cause, not confirmed.
+- The arena's grid search is still slower than the all-pairs one in its
+  dense crowd (recorded, not chased).
+
+### Performance
+- **The demo against 0.0.14** (`ab.ps1`, night street, 8 interleaved
+  rounds, Release, plugged in, on the laptop's own screen): median paired
+  delta +0.038 ms (range −0.188..+0.817), within the spread - the
+  always-on frame timing, the log lines and the memory line cost nothing
+  measurable. Two rounds of eight were ~0.8 ms slower; the median is
+  unmoved.
+
 ## 0.0.14 — Showcase
 
 The engine gets a front door, and a direction. The **Showcase** is a

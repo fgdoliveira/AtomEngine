@@ -2,6 +2,7 @@
 // pure and tested (Settings/Calibration.*); this file drives the game
 // through the views and records what it saw.
 #include "DemoApp.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 
 #include <SDL3/SDL.h>
@@ -56,7 +57,7 @@ namespace Demo
         {
             // Refused before anything runs: on battery this laptop measured
             // ~3x slower (M46) - Auto would wrongly pick Low.
-            std::cout << "Calibration: refused - on battery. Plug in and calibrate again." << std::endl;
+            ATOM_LOG_GAME("Demo") << "Calibration: refused - on battery. Plug in and calibrate again." << std::endl;
             m_messages.Show("Calibration needs mains power: plug in and try again.");
             m_savedSettings.calibrateNextLaunch = false;
             SaveSettings();
@@ -81,7 +82,7 @@ namespace Demo
         GetRenderer().SetUncappedPresentation(true);
         // Measured at the frames in flight the player runs: calibrating with
         // a deeper queue than play would overrate the machine.
-        std::cout << "Calibration: started (" << Views.size() << " views x 3 tiers, each twice, "
+        ATOM_LOG_GAME("Demo") << "Calibration: started (" << Views.size() << " views x 3 tiers, each twice, "
                   << GetRenderer().GetDeviceReport().framesInFlight << " frames in flight"
                   << "; keep the window on this screen and don't touch it)" << std::endl;
         m_messages.Show("Calibrating... hands off for about a minute.");
@@ -195,7 +196,7 @@ namespace Demo
 
         const bool measured = decision.outcome == CalibrationDecision::Outcome::Selected
             || decision.outcome == CalibrationDecision::Outcome::NonePassed;
-        std::cout << "Calibration: " << (measured ? ToString(decision.tier) : std::string_view("no result"))
+        ATOM_LOG_GAME("Demo") << "Calibration: " << (measured ? ToString(decision.tier) : std::string_view("no result"))
                   << " - " << decision.message << std::endl;
         m_messages.Show("Calibration: " + decision.message);
 

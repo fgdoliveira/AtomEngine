@@ -1,4 +1,5 @@
 #include "Debug/DevTools.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -66,7 +67,7 @@ namespace Atom
         info.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
         if (!ImGui_ImplSDL3_InitForSDLGPU(window) || !ImGui_ImplSDLGPU3_Init(&info))
         {
-            std::cerr << "Failed to initialise the developer tools (ImGui).\n";
+            ATOM_LOG_ERROR("DevTools") << "Failed to initialise the developer tools (ImGui).\n";
             ImGui::DestroyContext();
             return false;
         }

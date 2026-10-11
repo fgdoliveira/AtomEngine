@@ -31,6 +31,7 @@ folder:
   %APPDATA%\AtomEngine\Demo\settings.json
   %APPDATA%\AtomEngine\Demo\logs\Demo.log      (this run)
   %APPDATA%\AtomEngine\Demo\logs\Demo.previous.log
+  %APPDATA%\AtomEngine\Demo\logs\crash-*.txt, .dmp   (if it crashed)
 
 If it doesn't start
 -------------------
@@ -44,6 +45,7 @@ in this folder:
                                   writes what the game found (GPU,
                                   display, settings) and quits
 
-When reporting a problem, send Demo.log and that report.
+When reporting a problem, send Demo.log and that report - and, after a
+crash, the crash-*.txt and crash-*.dmp files.
 
 Licences: LICENSE.txt (AtomEngine) and THIRD_PARTY_NOTICES.txt.

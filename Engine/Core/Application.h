@@ -1,11 +1,14 @@
 #pragma once
 
 #include "Audio/AudioSystem.h"
+#include "Core/FrameTiming.h"
 #include "Core/Time.h"
 #include "Debug/DevTools.h"
 #include "Platform/Input.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
+
+#include <string>
 
 namespace Atom
 {
@@ -54,16 +57,25 @@ namespace Atom
         AudioSystem& GetAudio() { return m_audio; }
         DevTools& GetDevTools() { return m_devTools; }
         const Time& GetTime() const { return m_time; }
+        // M99: where the last completed frame's time went (read in OnUpdate:
+        // the frame before this one), and the same, averaged for display.
+        const FrameTiming& GetFrameTiming() const { return m_frameTiming; }
+        const FrameTiming& GetAverageFrameTiming() const { return m_frameTimingAverage.value; }
 
     private:
         void ProcessEvents();
         // M82: the F1 overlay's engine section (frame, renderer, device).
         void AddEngineOverlayLines(float deltaSeconds);
         float m_smoothedFrameMs = 0.0f;
+        std::string m_memoryLine;          // M101: F1's memory line,
+        std::uint64_t m_memoryQueryNs = 0; // queried about once a second
+        FrameTiming m_frameTiming;               // M99
+        FrameTimingAverage m_frameTimingAverage;
 
         bool m_running = false;
         int m_exitCode = 0;
         bool m_startFailed = false;
+        std::string m_tracePrefix; // M96: where the minimal tracer writes (ATOM_TRACE), if recording
         bool m_initialized = false;
 
         Window m_window;

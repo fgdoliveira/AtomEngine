@@ -29,6 +29,10 @@ namespace AtomFramework
         std::string m_lastLine;
     };
 
+    // M100: a log line's message without its "[time] [LEVEL] [Subsystem] "
+    // prefix (Atom::Log); a line without one comes back as it is.
+    std::string WithoutLogPrefix(const std::string& line);
+
     // The run's output for a distributed, windowed game (M67). A
     // Windows-subsystem program has no console: started from a terminal it
     // re-attaches to it; with redirected output (ctest, ab.ps1) it keeps the

@@ -24,6 +24,7 @@ each run are kept per user, not in this folder:
   %APPDATA%\AtomEngine\Drift\settings.json
   %APPDATA%\AtomEngine\Drift\logs\Drift.log            (this run)
   %APPDATA%\AtomEngine\Drift\logs\Drift.previous.log
+  %APPDATA%\AtomEngine\Drift\logs\crash-*.txt, .dmp    (if it crashed)
 
 If it doesn't start
 -------------------
@@ -36,6 +37,7 @@ in this folder:
                                    writes what the game found (GPU,
                                    display) and quits
 
-When reporting a problem, send Drift.log and that report.
+When reporting a problem, send Drift.log and that report - and, after a
+crash, the crash-*.txt and crash-*.dmp files.
 
 Licences: LICENSE.txt (AtomEngine) and THIRD_PARTY_NOTICES.txt.

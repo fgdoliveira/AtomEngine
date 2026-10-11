@@ -5,9 +5,11 @@
 // frame times to a file, Settings is the framework's player settings
 // screen, Quit. Esc while exploring brings the same menu back as a pause.
 #include "ShowcaseApp.h"
+#include "Core/Log.h"
 
 #include "Core/DevSwitch.h"
 #include "Platform/Input.h"
+#include "Platform/Memory.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
 
@@ -187,6 +189,8 @@ namespace Showcase
         m_screen = Screen::Benchmark;
         m_benchmarkTime = 0.0f;
         m_benchmarkFrames.Clear();
+        m_benchmarkCpu.Clear();
+        m_benchmarkWait.Clear();
         for (Atom::FrameStatsWindow& phase : m_benchmarkPhases)
         {
             phase.Clear();
@@ -194,7 +198,7 @@ namespace Showcase
         m_clockOn = false;
         m_lens = false;
         SetEnvironment(Phases[0], 0.0f);
-        std::cout << "Benchmark: " << m_benchmarkSeconds << " s over the village\n";
+        ATOM_LOG_GAME("Showcase") << "Benchmark: " << m_benchmarkSeconds << " s over the village\n";
     }
 
     void ShowcaseApp::UpdateBenchmark(float deltaSeconds)
@@ -212,6 +216,9 @@ namespace Showcase
             const double ms = m_diagnostics.RealFrameMs();
             m_benchmarkFrames.AddSample(ms);
             m_benchmarkPhases[phase].AddSample(ms);
+            // M99: the last completed frame's CPU work and wait for the GPU.
+            m_benchmarkCpu.AddSample(GetFrameTiming().CpuMs());
+            m_benchmarkWait.AddSample(GetFrameTiming().waitMs);
         }
 
         // The camera along the path: each leg eased in and out.
@@ -262,18 +269,27 @@ namespace Showcase
         report += "p99_ms: " + ms(m_benchmarkFrames.Percentile(0.99)) + "\n";
         report += "worst_ms: " + ms(m_benchmarkFrames.Percentile(1.0)) + "\n";
         report += "mean_ms: " + ms(m_benchmarkFrames.Mean()) + "\n";
+        // M99: the CPU's work (update + render) and its wait for the GPU.
+        report += "cpu_median_ms: " + ms(m_benchmarkCpu.Median()) + "\n";
+        report += "cpu_p95_ms: " + ms(m_benchmarkCpu.Percentile(0.95)) + "\n";
+        report += "gpu_wait_median_ms: " + ms(m_benchmarkWait.Median()) + "\n";
+        report += "gpu_wait_p95_ms: " + ms(m_benchmarkWait.Percentile(0.95)) + "\n";
         for (std::size_t i = 0; i < std::size(Phases); ++i)
         {
             report += std::string(Phases[i]) + "_median_ms: " + ms(m_benchmarkPhases[i].Median()) + "\n";
             report += std::string(Phases[i]) + "_p95_ms: " + ms(m_benchmarkPhases[i].Percentile(0.95)) + "\n";
         }
+        // M101: memory at the end of the run (RAM peak over the whole run).
+        report += "memory: " + Atom::Memory::Describe(Atom::Memory::QueryProcess(),
+                                                      Atom::Memory::QueryGpu(GetRenderer().GetAdapterName()))
+            + "\n";
 
         const std::filesystem::path folder = std::filesystem::path(m_outputRoot) / "out";
         std::error_code error;
         std::filesystem::create_directories(folder, error);
         const std::filesystem::path file = folder / ("benchmark-" + Stamp("%Y%m%d-%H%M%S") + ".txt");
         std::ofstream(file, std::ios::binary) << report;
-        std::cout << report << "Benchmark written to " << file.string() << '\n';
+        ATOM_LOG_GAME("Showcase") << report << "Benchmark written to " << file.string() << '\n';
 
         char summary[200];
         std::snprintf(summary, sizeof(summary), "Benchmark: median %.2f ms, p95 %.2f ms - out/%s",

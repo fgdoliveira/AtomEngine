@@ -1,4 +1,6 @@
 #include "UI/UIRenderer.h"
+#include "Core/Log.h"
+#include "Core/Profile.h"
 
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
@@ -142,7 +144,7 @@ namespace Atom
 
         if (!m_pipeline || !m_sampler || !m_pixelSampler || !m_vertexBuffer || !m_transferBuffer || !m_white)
         {
-            std::cerr << "Failed to create UI renderer: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("UI") << "Failed to create UI renderer: " << SDL_GetError() << '\n';
             return false;
         }
         return true;
@@ -345,7 +347,7 @@ namespace Atom
         void* mapped = SDL_MapGPUTransferBuffer(m_device, m_transferBuffer, true);
         if (!mapped)
         {
-            std::cerr << "Failed to map UI transfer buffer: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("UI") << "Failed to map UI transfer buffer: " << SDL_GetError() << '\n';
             return false;
         }
         std::memcpy(mapped, m_vertices.data(), bytes);
@@ -368,6 +370,7 @@ namespace Atom
         std::uint32_t height
     )
     {
+        ATOM_PROFILE_SCOPE("UiPass");
         m_screenSize = { static_cast<float>(width), static_cast<float>(height) };
         if (m_uploadedVertices == 0)
         {
@@ -384,7 +387,7 @@ namespace Atom
             SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
         if (!renderPass)
         {
-            std::cerr << "Failed to begin UI render pass: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("UI") << "Failed to begin UI render pass: " << SDL_GetError() << '\n';
             return false;
         }
 

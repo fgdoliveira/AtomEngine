@@ -165,6 +165,7 @@ namespace Showcase
         float m_benchmarkSeconds = 40.0f;
         float m_benchmarkTime = 0.0f;
         Atom::FrameStatsWindow m_benchmarkFrames;
+        Atom::FrameStatsWindow m_benchmarkCpu, m_benchmarkWait; // M99
         std::array<Atom::FrameStatsWindow, 4> m_benchmarkPhases; // day, dusk, night, rain
         int m_benchmarksDone = 0;
 

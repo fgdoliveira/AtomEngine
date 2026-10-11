@@ -1,4 +1,5 @@
 #include "Assets/Model.h"
+#include "Core/Log.h"
 #include "Core/AssetLog.h"
 
 #include "Renderer/Renderer.h"
@@ -70,7 +71,7 @@ namespace Atom
 
             if (!pixels)
             {
-                std::cerr
+                ATOM_LOG_ERROR("Assets")
                     << "Failed to decode glTF image '"
                     << (image.name ? image.name : "<unnamed>") << "': "
                     << stbi_failure_reason()
@@ -107,7 +108,7 @@ namespace Atom
             if (cgltf_parse_file(&options, path.c_str(), &rawData)
                 != cgltf_result_success)
             {
-                std::cerr << "Failed to parse glTF '" << path << "'.\n";
+                ATOM_LOG_ERROR("Assets") << "Failed to parse glTF '" << path << "'.\n";
                 return nullptr;
             }
 
@@ -116,7 +117,7 @@ namespace Atom
                 != cgltf_result_success
                 || cgltf_validate(data.get()) != cgltf_result_success)
             {
-                std::cerr << "Failed to load/validate glTF '" << path << "'.\n";
+                ATOM_LOG_ERROR("Assets") << "Failed to load/validate glTF '" << path << "'.\n";
                 return nullptr;
             }
             return data;
@@ -618,7 +619,7 @@ namespace Atom
         {
             if (skin.joints.size() > MaxSkinJoints)
             {
-                std::cerr << "Model '" << path << "': a skin has " << skin.joints.size()
+                ATOM_LOG_ERROR("Assets") << "Model '" << path << "': a skin has " << skin.joints.size()
                           << " joints; at most " << MaxSkinJoints << " are supported.\n";
                 return nullptr;
             }
@@ -761,7 +762,7 @@ namespace Atom
             }
         }
 
-        std::cout
+        ATOM_LOG_INFO("Assets")
             << "Loaded model '" << path << "': "
             << model->m_parts.size() << " parts, "
             << model->m_textures.size() << " textures\n";

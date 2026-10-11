@@ -1,5 +1,6 @@
 #include "Platform/RunLog.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Platform/CrashReport.h" // M101
 
 #include <SDL3/SDL.h>
 
@@ -111,6 +112,10 @@ namespace AtomFramework
                 {
                     m_path = current.string();
                 }
+                // M101: a crash leaves a minidump and a short report beside
+                // the log - in the player's folder, never next to the game.
+                const std::u8string utf8 = folder.u8string();
+                Atom::CrashReport::Install(std::string(utf8.begin(), utf8.end()), app);
             }
         }
 
@@ -134,6 +139,27 @@ namespace AtomFramework
 
     std::string RunLog::GetLastError() const
     {
-        return m_error ? m_error->LastLine() : std::string();
+        return m_error ? WithoutLogPrefix(m_error->LastLine()) : std::string();
+    }
+
+    std::string WithoutLogPrefix(const std::string& line)
+    {
+        // M100: "[14:03:07.412] [ERROR] [Renderer] message" -> "message", for
+        // a player's message box; a line without the three groups is kept.
+        std::size_t at = 0;
+        for (int group = 0; group < 3; ++group)
+        {
+            if (at >= line.size() || line[at] != '[')
+            {
+                return line;
+            }
+            const std::size_t close = line.find("] ", at);
+            if (close == std::string::npos)
+            {
+                return line;
+            }
+            at = close + 2;
+        }
+        return line.substr(at);
     }
 }

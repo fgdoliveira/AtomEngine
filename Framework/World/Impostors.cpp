@@ -1,4 +1,5 @@
 #include "World/Impostors.h"
+#include "Core/Log.h"
 #include "Core/AssetLog.h"
 
 #include "Level/JsonText.h"
@@ -58,7 +59,7 @@ namespace AtomFramework
         std::ifstream file(descriptorPath, std::ios::binary);
         if (!file)
         {
-            std::cerr << "Cannot open impostor '" << descriptorPath << "'\n";
+            ATOM_LOG_ERROR("World") << "Cannot open impostor '" << descriptorPath << "'\n";
             return nullptr;
         }
         std::stringstream text;
@@ -67,7 +68,7 @@ namespace AtomFramework
         const auto descriptor = ParseImpostorDescriptor(text.str(), error);
         if (!descriptor)
         {
-            std::cerr << "Impostor '" << descriptorPath << "': " << error << '\n';
+            ATOM_LOG_ERROR("World") << "Impostor '" << descriptorPath << "': " << error << '\n';
             return nullptr;
         }
 
@@ -114,7 +115,7 @@ namespace AtomFramework
             }
             set->m_views.push_back(std::move(mesh));
         }
-        std::cout << "Loaded impostor '" << descriptorPath << "' (" << descriptor->views << " views)\n";
+        ATOM_LOG_INFO("World") << "Loaded impostor '" << descriptorPath << "' (" << descriptor->views << " views)\n";
         return set;
     }
 }

@@ -1,4 +1,5 @@
 #include "Testing/GameDiagnostics.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 
 #include <SDL3/SDL.h>
@@ -39,17 +40,17 @@ namespace AtomFramework
         void* text = SDL_LoadFile(path, &size);
         if (!text)
         {
-            std::cerr << "[test] cannot read script '" << path << "'\n";
+            ATOM_LOG_ERROR("Testing") << "[test] cannot read script '" << path << "'\n";
             return 2;
         }
         TestScriptParseResult parsed = ParseTestScript(std::string_view(static_cast<const char*>(text), size));
         SDL_free(text);
         if (!parsed.error.empty())
         {
-            std::cerr << "[test] invalid script: " << parsed.error << '\n';
+            ATOM_LOG_ERROR("Testing") << "[test] invalid script: " << parsed.error << '\n';
             return 2;
         }
-        std::cout << "[test] running '" << path << "' (" << parsed.commands.size() << " commands)\n";
+        ATOM_LOG_INFO("Testing") << "[test] running '" << path << "' (" << parsed.commands.size() << " commands)\n";
         SetTestScript(std::move(parsed.commands));
         return std::nullopt;
     }
@@ -130,10 +131,10 @@ namespace AtomFramework
         m_reported = true;
         if (m_testRunner->Passed())
         {
-            std::cout << "[test] PASS\n";
+            ATOM_LOG_INFO("Testing") << "[test] PASS\n";
             return 0;
         }
-        std::cout << "[test] FAIL " << m_testRunner->GetFailure() << '\n';
+        ATOM_LOG_INFO("Testing") << "[test] FAIL " << m_testRunner->GetFailure() << '\n';
         return 1;
     }
 }

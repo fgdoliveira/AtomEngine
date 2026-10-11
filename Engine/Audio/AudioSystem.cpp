@@ -1,4 +1,5 @@
 #include "Audio/AudioSystem.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/AssetLog.h"
 
@@ -55,7 +56,7 @@ namespace Atom
     {
         if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
         {
-            std::cerr << "Audio unavailable: " << SDL_GetError() << '\n';
+            ATOM_LOG_WARN("Audio") << "Audio unavailable: " << SDL_GetError() << '\n';
             return false;
         }
 
@@ -68,7 +69,7 @@ namespace Atom
         );
         if (!m_stream)
         {
-            std::cerr << "Failed to open audio device: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Audio") << "Failed to open audio device: " << SDL_GetError() << '\n';
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
             return false;
         }
@@ -80,7 +81,7 @@ namespace Atom
         }
 
         SDL_ResumeAudioStreamDevice(m_stream);
-        std::cout << "Audio: 48 kHz stereo float mixer ready\n";
+        ATOM_LOG_INFO("Audio") << "Audio: 48 kHz stereo float mixer ready\n";
         return true;
     }
 
@@ -108,7 +109,7 @@ namespace Atom
         SDL_IOStream* file = SDL_IOFromFile(m_capturePath.c_str(), "wb");
         if (!file)
         {
-            std::cerr << "Failed to write audio capture: " << SDL_GetError() << '\n';
+            ATOM_LOG_WARN("Audio") << "Failed to write audio capture: " << SDL_GetError() << '\n';
             return;
         }
 
@@ -131,7 +132,7 @@ namespace Atom
         SDL_WriteIO(file, m_capture.data(), dataBytes);
         SDL_CloseIO(file);
 
-        std::cout << "Audio capture written: " << m_capturePath << '\n';
+        ATOM_LOG_INFO("Audio") << "Audio capture written: " << m_capturePath << '\n';
     }
 
     SoundHandle AudioSystem::LoadWav(const std::string& path)
@@ -142,7 +143,7 @@ namespace Atom
         AssetLog::Opened(path);
         if (!SDL_LoadWAV(path.c_str(), &sourceSpec, &sourceData, &sourceLength))
         {
-            std::cerr << "Failed to load WAV '" << path << "': " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Audio") << "Failed to load WAV '" << path << "': " << SDL_GetError() << '\n';
             return nullptr;
         }
 
@@ -161,7 +162,7 @@ namespace Atom
 
         if (!ok)
         {
-            std::cerr << "Failed to convert WAV '" << path << "': " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Audio") << "Failed to convert WAV '" << path << "': " << SDL_GetError() << '\n';
             return nullptr;
         }
 

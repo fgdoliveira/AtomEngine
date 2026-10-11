@@ -107,11 +107,22 @@ namespace Atom
         );
         bool Render();
 
+        // M98: builds every pipeline variant and the scene targets now
+        // (loading), instead of on the first frames that need them. Call
+        // after the settings are applied; false if something couldn't be
+        // built (it is retried on first use, as before).
+        bool Prewarm();
+
         // Why the last Render() failed (M63): a lost swapchain is what the
         // high-performance adapter of a hybrid laptop did when the window
         // crossed to the other adapter's display.
         enum class Failure { None, SwapchainLost, Other };
         Failure GetLastFailure() const { return m_lastFailure; }
+        // M101: SDL's text at the moment Render() failed. When D3D12 removed
+        // the device, SDL has already turned it into the removal reason
+        // (hung, reset, driver internal error...).
+        const std::string& GetLastFailureReason() const { return m_lastFailureReason; }
+        const std::string& GetDriverDescription() const { return m_gpu.GetInfo().driver; }
         // The preference the device was really created with: low-power if
         // high-performance failed and Initialize fell back (M63), and why -
         // the device couldn't be created, or couldn't present to the window.
@@ -206,6 +217,8 @@ namespace Atom
         );
 
         const FrameStats& GetLastFrameStats() const { return m_stats; }
+        // M99: the last frame's wait for a swapchain image inside Render (ns).
+        std::uint64_t GetLastAcquireWaitNs() const { return m_lastAcquireWaitNs; }
 
         // Developer overlay (M41): called each frame after the game's UI,
         // with the window's image to draw on. Screenshots and captures are
@@ -478,6 +491,7 @@ namespace Atom
         UIRenderer m_ui;
         SceneLighting m_lighting;
         Failure m_lastFailure = Failure::None;
+        std::string m_lastFailureReason; // M101
         bool m_simulateSwapchainLoss = false;
         LatencyProbe m_latency;
         bool m_waitEarly = true; // M74
@@ -503,6 +517,7 @@ namespace Atom
         std::vector<ChunkInfo> m_chunks; // this frame's
         int m_currentChunk = -1;
         FrameStats m_stats;
+        std::uint64_t m_lastAcquireWaitNs = 0; // M99
         std::uint64_t m_frameIndex = 0; // animates film grain
         float m_fade = 0.0f;
         bool m_skinWeightsView = false;

@@ -1,4 +1,5 @@
 #include "UneaseDirector.h"
+#include "Core/Log.h"
 
 #include "AudioScape.h"
 #include "Level/Level.h"
@@ -164,7 +165,7 @@ namespace Demo
         std::uniform_int_distribution<std::size_t> pick(0, candidates.size() - 1);
         m_figurePosition = candidates[pick(m_random)];
         m_figureVisible = true;
-        std::cout
+        ATOM_LOG_GAME("Demo")
             << "Unease: figure at (" << m_figurePosition.x << ", "
             << m_figurePosition.z << ")\n";
         return true;
@@ -236,7 +237,7 @@ namespace Demo
             if (m_flickerCooldown <= 0.0f && nearMachine)
             {
                 m_flickerTime = 0.0f;
-                std::cout << "Unease: vending machines flicker\n";
+                ATOM_LOG_GAME("Demo") << "Unease: vending machines flicker\n";
             }
             return;
         }

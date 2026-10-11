@@ -1,4 +1,5 @@
 #include "Renderer/Shader.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -22,7 +23,7 @@ namespace Atom
         void* code = SDL_LoadFile(path.c_str(), &codeSize);
         if (!code)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to load shader '" << path << "': "
                 << SDL_GetError()
                 << '\n';
@@ -45,7 +46,7 @@ namespace Atom
 
         if (!shader)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create shader '" << name << "': "
                 << SDL_GetError()
                 << '\n';

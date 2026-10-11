@@ -1,4 +1,5 @@
 #include "Physics/CollisionWorld.h"
+#include "Core/Log.h"
 #include "Core/AssetLog.h"
 
 #include <cgltf.h>
@@ -96,7 +97,7 @@ namespace Atom
         if (cgltf_parse_file(&options, path.c_str(), &rawData)
             != cgltf_result_success)
         {
-            std::cerr << "Failed to parse collision glTF '" << path << "'.\n";
+            ATOM_LOG_ERROR("Physics") << "Failed to parse collision glTF '" << path << "'.\n";
             return false;
         }
         std::unique_ptr<cgltf_data, GltfDeleter> data(rawData);
@@ -104,7 +105,7 @@ namespace Atom
         if (cgltf_load_buffers(&options, data.get(), path.c_str())
             != cgltf_result_success)
         {
-            std::cerr << "Failed to load collision buffers '" << path << "'.\n";
+            ATOM_LOG_ERROR("Physics") << "Failed to load collision buffers '" << path << "'.\n";
             return false;
         }
 
@@ -167,7 +168,7 @@ namespace Atom
             }
         }
 
-        std::cout
+        ATOM_LOG_INFO("Physics")
             << "Loaded collision '" << path << "': "
             << m_triangles.size() - before << " triangles\n";
         return m_triangles.size() > before;

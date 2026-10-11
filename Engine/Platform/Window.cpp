@@ -1,4 +1,5 @@
 #include "Platform/Window.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -26,7 +27,7 @@ namespace Atom
 
         if (!m_window)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Platform")
                 << "Failed to create SDL window: "
                 << SDL_GetError()
                 << '\n';

@@ -1,8 +1,13 @@
 #include "Core/Application.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Core/Profile.h" // v0.0.15: CPU profiling zones (off: nothing)
+#include "Core/Trace.h"   // M96: the minimal tracer, started and written here when chosen
+#include "Platform/Memory.h" // M101: memory in F1 and in a failure's report
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <string>
@@ -11,25 +16,35 @@ namespace Atom
 {
     bool Application::Initialize()
     {
-        std::cout << "Starting AtomEngine " ATOM_VERSION "...\n";
+        // Paths in log lines read relative to the executable (or to the
+        // repository, when assets come from the source tree).
+        if (const char* base = SDL_GetBasePath())
+        {
+            Log::AddRoot(base);
+        }
+        if (const char* root = Atom::DevSwitch("ATOM_ASSET_ROOT"); root && *root)
+        {
+            Log::AddRoot(root);
+        }
+        ATOM_LOG_INFO("Engine") << "Starting AtomEngine " ATOM_VERSION "...\n";
 
         // SDL's versions first, so a GPU failure below reads as a report:
         // version, device, presentation, fallback.
         const int compiledVersion = SDL_VERSION;
         const int runtimeVersion = SDL_GetVersion();
-        std::cout
+        ATOM_LOG_INFO("Engine")
             << "SDL compiled version: "
             << SDL_VERSIONNUM_MAJOR(compiledVersion) << '.'
             << SDL_VERSIONNUM_MINOR(compiledVersion) << '.'
             << SDL_VERSIONNUM_MICRO(compiledVersion)
             << '\n';
-        std::cout
+        ATOM_LOG_INFO("Engine")
             << "SDL runtime version: "
             << SDL_VERSIONNUM_MAJOR(runtimeVersion) << '.'
             << SDL_VERSIONNUM_MINOR(runtimeVersion) << '.'
             << SDL_VERSIONNUM_MICRO(runtimeVersion)
             << '\n';
-        std::cout
+        ATOM_LOG_INFO("Engine")
             << "SDL revision: "
             << SDL_GetRevision()
             << '\n';
@@ -38,7 +53,7 @@ namespace Atom
 
         if (!SDL_Init(SDL_INIT_VIDEO))
         {
-            std::cerr
+            ATOM_LOG_ERROR("Engine")
                 << "SDL initialization failed: "
                 << SDL_GetError()
                 << '\n';
@@ -96,18 +111,58 @@ namespace Atom
                 m_devTools.Render(commandBuffer, target);
             });
         }
-        std::cout << (Atom::DevToolsEnabled ? "Developer tools: on (F1 overlay, F10 panels, ATOM_* switches)\n"
+        ATOM_LOG_INFO("Engine") << (Atom::DevToolsEnabled ? "Developer tools: on (F1 overlay, F10 panels, ATOM_* switches)\n"
                                             : "Developer tools: off (distribution build)\n");
 
         m_initialized = true;
         m_running = true;
 
-        std::cout << "AtomEngine initialized.\n";
+        ATOM_LOG_INFO("Engine") << "AtomEngine initialized.\n";
+#if ATOM_PROFILE_TRACE
+        // M96 (-DATOM_TRACE=ON): ATOM_TRACE=<file prefix> records the
+        // profiling zones from here to shutdown (Core/Trace.h).
+        if (const char* trace = Atom::DevSwitch("ATOM_TRACE"); trace && *trace)
+        {
+            m_tracePrefix = trace;
+            Trace::Start();
+            ATOM_LOG_INFO("Engine") << "Trace: recording to " << m_tracePrefix << ".json\n";
+        }
+#endif
 
         if (!OnInitialize())
         {
             Shutdown();
             return false;
+        }
+        {
+            // M98: the app has applied its settings and loaded what it
+            // starts with: build the renderer's pipelines now, not on the
+            // first frames. ATOM_PREWARM=0 skips it (to measure the difference).
+            const char* prewarm = Atom::DevSwitch("ATOM_PREWARM");
+            if (!(prewarm && SDL_strcmp(prewarm, "0") == 0))
+            {
+                const std::uint64_t start = SDL_GetTicksNS();
+                m_renderer.Prewarm();
+                // The first frames' own first-use costs were the rest of the
+                // hitch: the driver's first submission of the scene's
+                // resources, the app's first update, and - one frame later -
+                // the second set of per-frame buffers SDL creates when the
+                // first is still in flight. So draw as many frames as can be
+                // in flight here, with no time passing, and wait for the GPU.
+                const std::uint32_t warmFrames = std::max<std::uint32_t>(1, m_renderer.GetDeviceReport().framesInFlight);
+                for (std::uint32_t i = 0; i < warmFrames && m_running; ++i)
+                {
+                    ATOM_PROFILE_SCOPE("PrewarmFrame");
+                    OnUpdate(0.0f);
+                    if (!m_renderer.Render())
+                    {
+                        break;
+                    }
+                    ATOM_PROFILE_FRAME(); // frames of their own in a trace: the loading ones
+                }
+                SDL_WaitForGPUIdle(m_renderer.GetDevice());
+                ATOM_LOG_INFO("Engine") << "Prewarm: " << static_cast<double>(SDL_GetTicksNS() - start) / 1e6 << " ms\n";
+            }
         }
 
         m_time.Reset();
@@ -127,10 +182,17 @@ namespace Atom
         {
             // M74 (ATOM_LATENCY_WAIT=early): wait for the swapchain first, so
             // input is read after the wait rather than before it.
-            m_renderer.WaitForPresentSlot();
+            const std::uint64_t waitStartNs = SDL_GetTicksNS(); // M99: the frame's timing
+            {
+                ATOM_PROFILE_SCOPE("WaitForPresentSlot");
+                m_renderer.WaitForPresentSlot();
+            }
             // M73 (ATOM_LATENCY_LOG): when the frame began, and the click it read.
             const std::uint64_t frameStartNs = SDL_GetTicksNS();
-            ProcessEvents();
+            {
+                ATOM_PROFILE_SCOPE("Events");
+                ProcessEvents();
+            }
             m_renderer.GetLatencyProbe().BeginFrame(frameStartNs, m_input.GetLeftClickTimeNS());
             m_devTools.BeginFrame();
             const float deltaSeconds = m_time.Tick();
@@ -139,22 +201,48 @@ namespace Atom
                 AddEngineOverlayLines(deltaSeconds); // M82: the game appends its own in OnUpdate
             }
 
-            OnUpdate(deltaSeconds);
+            {
+                ATOM_PROFILE_SCOPE("Update"); // the app's frame
+                OnUpdate(deltaSeconds);
+            }
 
             if (!m_running)
             {
                 break;
             }
 
+            const std::uint64_t renderStartNs = SDL_GetTicksNS();
             if (!m_renderer.Render())
             {
-                std::cerr
+                ATOM_LOG_ERROR("Engine")
                     << "Renderer encountered a fatal error. Shutting down.\n";
+                // M101: why, on which GPU and driver - what a player's log
+                // must carry for a lost device to be understood.
+                const std::string reason = m_renderer.GetLastFailureReason().empty()
+                    ? std::string(SDL_GetError())
+                    : m_renderer.GetLastFailureReason();
+                ATOM_LOG_ERROR("Engine")
+                    << "Failure: "
+                    << (m_renderer.GetLastFailure() == Renderer::Failure::SwapchainLost ? "swapchain lost" : "frame failed")
+                    << "; reason: " << (reason.empty() ? "unknown" : reason) << "; adapter: \""
+                    << m_renderer.GetAdapterName() << "\"; driver: "
+                    << (m_renderer.GetDriverDescription().empty() ? "unknown" : m_renderer.GetDriverDescription())
+                    << "; " << Memory::Describe(Memory::QueryProcess(), Memory::QueryGpu(m_renderer.GetAdapterName()));
 
                 OnRenderFailure(m_renderer.GetLastFailure()); // M63
                 m_exitCode = 3; // not a clean exit: scripts and ctest can tell
                 m_running = false;
             }
+            // M99: where the frame's time went - the CPU's work, and its
+            // waits for the GPU (before the frame, and inside Render for a
+            // swapchain image).
+            const std::uint64_t endNs = SDL_GetTicksNS();
+            const std::uint64_t acquireNs = std::min(m_renderer.GetLastAcquireWaitNs(), endNs - renderStartNs);
+            m_frameTiming.waitMs = static_cast<double>(frameStartNs - waitStartNs + acquireNs) / 1e6;
+            m_frameTiming.updateMs = static_cast<double>(renderStartNs - frameStartNs) / 1e6;
+            m_frameTiming.renderMs = static_cast<double>(endNs - renderStartNs - acquireNs) / 1e6;
+            m_frameTimingAverage.Add(m_frameTiming);
+            ATOM_PROFILE_FRAME(); // v0.0.15: a frame ends here
         }
 
         Shutdown();
@@ -179,6 +267,11 @@ namespace Atom
         std::snprintf(line, sizeof(line), "%.2f ms  (%.0f fps)", m_smoothedFrameMs,
                       m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f);
         m_devTools.AddOverlayLine(line);
+        // M99: the CPU's work and its wait for the GPU (averaged).
+        const FrameTiming& t = m_frameTimingAverage.value;
+        std::snprintf(line, sizeof(line), "CPU %.2f ms (update %.2f, render %.2f)   waiting for GPU %.2f ms", t.CpuMs(),
+                      t.updateMs, t.renderMs, t.waitMs);
+        m_devTools.AddOverlayLine(line);
         std::snprintf(line, sizeof(line), "Scene %ux%u  MSAA %ux   draws %u / %u   tris %.1fk", stats.sceneWidth,
                       stats.sceneHeight, stats.msaaSamples, stats.drawn, stats.submitted, triangles / 1000.0f);
         m_devTools.AddOverlayLine(line);
@@ -191,6 +284,15 @@ namespace Atom
         {
             m_devTools.AddOverlayLine(latency);
         }
+        // M101: memory, from the OS and DXGI - not every frame (DXGI's
+        // adapter search costs more than a frame should spend on it).
+        const std::uint64_t nowNs = SDL_GetTicksNS();
+        if (m_memoryLine.empty() || nowNs - m_memoryQueryNs >= 1'000'000'000ull)
+        {
+            m_memoryLine = Memory::Describe(Memory::QueryProcess(), Memory::QueryGpu(m_renderer.GetAdapterName()));
+            m_memoryQueryNs = nowNs;
+        }
+        m_devTools.AddOverlayLine(m_memoryLine);
     }
 
     void Application::ProcessEvents()
@@ -245,13 +347,21 @@ namespace Atom
         }
 
         m_initialized = false;
+#if ATOM_PROFILE_TRACE
+        if (!m_tracePrefix.empty())
+        {
+            const bool written = Trace::StopAndWrite(m_tracePrefix);
+            ATOM_LOG_INFO("Engine") << "Trace: " << Trace::Events().size() << " zones over " << Trace::Frames() << " frames"
+                      << (Trace::Overflowed() ? " (buffer full)" : "") << (written ? ", written" : ", NOT written") << '\n';
+        }
+#endif
 
         OnShutdown();
 
         m_renderer.SetOverlayPass({});
         m_devTools.Shutdown();
 
-        std::cout << "Shutting down AtomEngine...\n";
+        ATOM_LOG_INFO("Engine") << "Shutting down AtomEngine...\n";
 
         m_audio.Shutdown();
         m_renderer.Shutdown();

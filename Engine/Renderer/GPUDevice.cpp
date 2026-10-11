@@ -1,4 +1,5 @@
 #include "Renderer/GPUDevice.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL.h>
 
@@ -35,7 +36,7 @@ namespace Atom
         void ExplainNoDevice()
         {
             // M76: the engine serves more than one game - name none of them.
-            std::cerr << "No GPU could present to this window. On a laptop with two GPUs, check Windows Settings > "
+            ATOM_LOG_ERROR("GPU") << "No GPU could present to this window. On a laptop with two GPUs, check Windows Settings > "
                          "System > Display > Graphics: a GPU forced for this game's executable applies to every "
                          "request; 'Let Windows decide' lets AtomEngine pick the GPU that drives this screen.\n";
         }
@@ -109,7 +110,7 @@ namespace Atom
         const SDL_PropertiesID properties = SDL_CreateProperties();
         if (!properties)
         {
-            std::cerr << "Failed to create GPU device properties: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("GPU") << "Failed to create GPU device properties: " << SDL_GetError() << '\n';
             return false;
         }
         const bool propertiesConfigured =
@@ -122,7 +123,7 @@ namespace Atom
         {
             const std::string error = SDL_GetError();
             SDL_DestroyProperties(properties);
-            std::cerr << "Failed to configure GPU device properties: " << error << '\n';
+            ATOM_LOG_ERROR("GPU") << "Failed to configure GPU device properties: " << error << '\n';
             return false;
         }
 
@@ -131,7 +132,7 @@ namespace Atom
         SDL_DestroyProperties(properties);
         if (!m_device)
         {
-            std::cerr << "GPU device creation failed (preference=" << GetPreferenceName(preference)
+            ATOM_LOG_ERROR("GPU") << "GPU device creation failed (preference=" << GetPreferenceName(preference)
                       << "): " << creationError << '\n';
             m_info.fallback = StartupFallback{ "", StartupFallback::Stage::Device, creationError };
             return false;
@@ -144,7 +145,16 @@ namespace Atom
             SDL_GetGPUDeviceProperties(m_device), SDL_PROP_GPU_DEVICE_NAME_STRING, "unavailable");
         m_info.backend = backend ? backend : "unavailable";
         m_info.adapter = adapter;
-        std::cout << "GPU device created: backend=" << m_info.backend << " adapter=\"" << m_info.adapter << '"'
+        // M101: which driver, so a report of a lost device says which one lost it.
+        const SDL_PropertiesID deviceProperties = SDL_GetGPUDeviceProperties(m_device);
+        const char* driverVersion = SDL_GetStringProperty(deviceProperties, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "");
+        const char* driverInfo = SDL_GetStringProperty(deviceProperties, SDL_PROP_GPU_DEVICE_DRIVER_INFO_STRING, "");
+        m_info.driver = driverVersion;
+        if (*driverInfo)
+        {
+            m_info.driver += (m_info.driver.empty() ? "" : " (") + std::string(driverInfo) + (m_info.driver.empty() ? "" : ")");
+        }
+        ATOM_LOG_INFO("GPU") << "GPU device created: backend=" << m_info.backend << " adapter=\"" << m_info.adapter << '"'
                   << " preference=" << GetPreferenceName(preference) << '\n';
 
         // Claiming creates the window's swapchain: a separate step that can
@@ -152,7 +162,7 @@ namespace Atom
         if (!SDL_ClaimWindowForGPUDevice(m_device, m_window))
         {
             const std::string error = SDL_GetError();
-            std::cerr << "GPU presentation failed on \"" << m_info.adapter
+            ATOM_LOG_ERROR("GPU") << "GPU presentation failed on \"" << m_info.adapter
                       << "\": could not claim the window: " << error << '\n';
             m_info.fallback = StartupFallback{ m_info.adapter, StartupFallback::Stage::Presentation, error };
             SDL_DestroyGPUDevice(m_device);
@@ -160,7 +170,7 @@ namespace Atom
             return false;
         }
         m_windowClaimed = true;
-        std::cout << "GPU presentation: window claimed on \"" << m_info.adapter << "\"\n";
+        ATOM_LOG_INFO("GPU") << "GPU presentation: window claimed on \"" << m_info.adapter << "\"\n";
         return true;
     }
 
@@ -169,7 +179,7 @@ namespace Atom
         Shutdown();
         if (!window)
         {
-            std::cerr << "Cannot create a GPU device for a null window.\n";
+            ATOM_LOG_ERROR("GPU") << "Cannot create a GPU device for a null window.\n";
             return false;
         }
         m_window = window;
@@ -191,7 +201,7 @@ namespace Atom
             return false;
         }
         const StartupFallback why = *m_info.fallback;
-        std::cerr << "High-performance: " << DescribeFallback(why) << "; falling back to low-power.\n";
+        ATOM_LOG_WARN("GPU") << "High-performance: " << DescribeFallback(why) << "; falling back to low-power.\n";
         m_info.activePreference = GPUPreference::LowPower;
         if (!CreateAndClaim(GPUPreference::LowPower, config.debugMode))
         {
@@ -213,7 +223,7 @@ namespace Atom
         SDL_GPUSwapchainComposition composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
         if (!SDL_WindowSupportsGPUSwapchainComposition(m_device, m_window, composition))
         {
-            std::cerr << "sRGB swapchain unsupported; colors will look dark.\n";
+            ATOM_LOG_WARN("GPU") << "sRGB swapchain unsupported; colors will look dark.\n";
             composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
         }
 
@@ -225,7 +235,7 @@ namespace Atom
 
         if (!SDL_SetGPUSwapchainParameters(m_device, m_window, composition, mode))
         {
-            std::cerr << "Failed to set swapchain parameters: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("GPU") << "Failed to set swapchain parameters: " << SDL_GetError() << '\n';
             return false;
         }
         m_composition = composition;
@@ -247,7 +257,7 @@ namespace Atom
         }
         else
         {
-            std::cerr << "Frames in flight " << config.framesInFlight << " refused: " << SDL_GetError() << '\n';
+            ATOM_LOG_WARN("GPU") << "Frames in flight " << config.framesInFlight << " refused: " << SDL_GetError() << '\n';
         }
         return true;
     }
@@ -268,7 +278,7 @@ namespace Atom
         }
         if (!SDL_SetGPUSwapchainParameters(m_device, m_window, m_composition, mode))
         {
-            std::cerr << "Could not change the present mode: " << SDL_GetError() << '\n';
+            ATOM_LOG_WARN("GPU") << "Could not change the present mode: " << SDL_GetError() << '\n';
             return false;
         }
         m_info.presentMode = GetModeName(mode);
@@ -279,7 +289,7 @@ namespace Atom
     {
         if (!m_device || !SDL_SetGPUAllowedFramesInFlight(m_device, frames))
         {
-            std::cerr << "Frames in flight " << frames << " refused: " << SDL_GetError() << '\n';
+            ATOM_LOG_WARN("GPU") << "Frames in flight " << frames << " refused: " << SDL_GetError() << '\n';
             return false;
         }
         m_info.framesInFlight = frames;
@@ -305,7 +315,7 @@ namespace Atom
                 // everything else; the device and its swapchain are
                 // abandoned and the process, which is exiting, returns them
                 // to Windows.
-                std::cerr << "Leaving the failed GPU device to the operating system.\n";
+                ATOM_LOG_WARN("GPU") << "Leaving the failed GPU device to the operating system.\n";
             }
             else
             {

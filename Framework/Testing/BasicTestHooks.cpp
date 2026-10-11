@@ -1,4 +1,5 @@
 #include "Testing/BasicTestHooks.h"
+#include "Core/Log.h"
 
 #include "Character/PlayerController.h"
 #include "Level/Level.h"
@@ -120,7 +121,7 @@ namespace AtomFramework
 
     void BasicTestHooks::Log(const std::string& text)
     {
-        std::cout << "[test] " << text << '\n';
+        ATOM_LOG_INFO("Testing") << "[test] " << text << '\n';
     }
 
     std::string BasicTestHooks::Capture(const std::string& stem, bool includeUi)

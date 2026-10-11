@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.14
+    VERSION 0.0.15
     LANGUAGES CXX
 )
 
@@ -41,6 +41,19 @@ option(
 # game. Set before the first target, so nothing mixes runtimes.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+# M101: Release builds keep their symbols (.pdb) beside the build, so a
+# player's crash dump can be read - never installed or packaged. /OPT keeps
+# the linker's Release optimisations that /DEBUG would turn off. The
+# executables record only their .pdb's name, not the developer's folder
+# (/PDBALTPATH, set per app at the end of this file).
+if(MSVC)
+    add_compile_options($<$<CONFIG:Release>:/Zi>)
+    # In the flags string, not add_link_options: MSBuild would escape the %
+    # signs and record "%%%Demo.pdb%%%" (seen in M101's crash test).
+    string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
+endif()
+
 # third party libraries
 add_subdirectory(external/SDL)
 add_subdirectory(external/glm)
@@ -63,6 +76,19 @@ add_library(
 target_include_directories(imgui PUBLIC ${ATOM_IMGUI_DIR} ${ATOM_IMGUI_DIR}/backends)
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
+# v0.0.15 (M95-M97): CPU profiling zones (Engine/Core/Profile.h) compile to
+# nothing by default. -DATOM_TRACE=ON records them with the engine's own
+# minimal tracer (Engine/Core/Trace.h): ATOM_TRACE=<prefix> writes a
+# Perfetto trace, a zone CSV and the slowest frames. Never in a package.
+# ADR-010. AtomProfile carries the switch to every target with zones.
+option(ATOM_TRACE "Record the CPU profiling zones with the built-in tracer (development builds only)" OFF)
+if(ATOM_TRACE AND ATOM_DISTRIBUTION)
+    message(FATAL_ERROR "ATOM_TRACE is for development builds; a distribution build carries no developer tools (ADR-008)")
+endif()
+add_library(AtomProfile INTERFACE)
+target_include_directories(AtomProfile INTERFACE ${CMAKE_SOURCE_DIR}/Engine)
+target_compile_definitions(AtomProfile INTERFACE ATOM_PROFILE_TRACE=$<BOOL:${ATOM_TRACE}>)
+
 if(ATOM_BUILD_GAME)
     add_subdirectory(Shaders)
 endif()
@@ -72,6 +98,17 @@ add_subdirectory(Showcase) # v0.0.14: the engine's front door, every feature in 
 add_subdirectory(Games/Demo) # v0.0.14: the demo, beside DRIFT
 add_subdirectory(Games/Drift) # M77: a second game
 add_subdirectory(Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
+add_subdirectory(Samples/AtomArena) # M93: a benchmark arena, to evaluate profiling
+
+# M101: each app's executable names its .pdb without a path. Spelled out:
+# MSBuild escapes the linker's own %_PDB% into a wrong name.
+if(MSVC)
+    foreach(app Showcase Demo Drift HelloAtom AtomArena)
+        if(TARGET ${app}) # ATOM_BUILD_GAME=OFF (CI) defines only some of them
+            target_link_options(${app} PRIVATE $<$<CONFIG:Release>:/PDBALTPATH:$<TARGET_PDB_FILE_NAME:${app}>>)
+        endif()
+    endforeach()
+endif()
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)

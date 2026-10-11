@@ -1,4 +1,5 @@
 #include "Interaction/ActionExecutor.h"
+#include "Core/Log.h"
 
 #include "Interaction/MessageFeed.h"
 #include "World/GameState.h"
@@ -29,19 +30,19 @@ namespace AtomFramework
                 {
                     context.messages.Show(set.message);
                 }
-                std::cout << "Flag set: " << set.flag << '\n';
+                ATOM_LOG_INFO("Interaction") << "Flag set: " << set.flag << '\n';
             },
             [&](const StartDialogue& dialogue) {
                 if (!context.startDialogue || !context.startDialogue(dialogue.dialogueId))
                 {
-                    std::cerr << "No dialogue '" << dialogue.dialogueId << "'\n";
+                    ATOM_LOG_ERROR("Interaction") << "No dialogue '" << dialogue.dialogueId << "'\n";
                     context.messages.Show("...");
                 }
             },
             [&](const PlayAnimation& play) {
                 if (!context.playAnimation || !context.playAnimation(play.entity, play.clip))
                 {
-                    std::cerr << "Cannot play '" << play.clip << "' on '" << play.entity << "'\n";
+                    ATOM_LOG_ERROR("Interaction") << "Cannot play '" << play.clip << "' on '" << play.entity << "'\n";
                     context.messages.Show("Nothing happens.");
                     return;
                 }
@@ -65,7 +66,7 @@ namespace AtomFramework
                 {
                     context.messages.Show(add.message);
                 }
-                std::cout << "Counter " << add.counter << " += " << add.amount << '\n';
+                ATOM_LOG_INFO("Interaction") << "Counter " << add.counter << " += " << add.amount << '\n';
             },
             [&](const Exchange& exchange) {
                 if (!context.state.Spend(exchange.counter, exchange.cost))
@@ -78,7 +79,7 @@ namespace AtomFramework
                 {
                     context.messages.Show(exchange.message);
                 }
-                std::cout << "Exchanged " << exchange.cost << " " << exchange.counter << " for " << exchange.flag << '\n';
+                ATOM_LOG_INFO("Interaction") << "Exchanged " << exchange.cost << " " << exchange.counter << " for " << exchange.flag << '\n';
             },
             [&](const PlayMachine& machine) {
                 if (!context.playMachine || !context.playMachine(machine))
@@ -89,7 +90,7 @@ namespace AtomFramework
             [&](const RunSequence& run) {
                 if (!context.runSequence || !context.runSequence(run.id))
                 {
-                    std::cerr << "Cannot run sequence '" << run.id << "'\n";
+                    ATOM_LOG_ERROR("Interaction") << "Cannot run sequence '" << run.id << "'\n";
                 }
             },
             [&](const ChangeLevel& change) {

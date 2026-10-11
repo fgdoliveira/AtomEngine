@@ -42,6 +42,10 @@ add_executable(
     SynthTests.cpp
     BoothSynthTests.cpp
     ShowcaseFeatureTests.cpp
+    ArenaSimTests.cpp
+    TraceTests.cpp
+    LogTests.cpp
+    CrashReportTests.cpp
     UiKitTests.cpp
     FakeGame.h
     TestAssets.h
@@ -53,6 +57,7 @@ target_link_libraries(
         DemoLib
         DriftLib # M77: the second game's pure logic
         ShowcaseLib # v0.0.14: the synth booth
+        ArenaLib # M93: ATOM ARENA's simulation
         nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
 )
 
@@ -158,12 +163,15 @@ set_tests_properties(
         TIMEOUT 120
 )
 
-# M91: the sample's scenarios run the sample.
-if(TARGET HelloAtom)
-    file(GLOB ATOM_HELLO_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Samples/HelloAtom/Scenarios/*.atomtest")
-    foreach(scenario IN LISTS ATOM_HELLO_SCENARIOS)
+# M91: the samples' scenarios run their sample (M93: ATOM ARENA too).
+foreach(sample IN ITEMS HelloAtom AtomArena)
+    if(NOT TARGET ${sample})
+        continue()
+    endif()
+    file(GLOB ATOM_SAMPLE_SCENARIOS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Samples/${sample}/Scenarios/*.atomtest")
+    foreach(scenario IN LISTS ATOM_SAMPLE_SCENARIOS)
         get_filename_component(name "${scenario}" NAME_WE)
-        add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:HelloAtom>)
+        add_test(NAME "Scenario.${name}" COMMAND $<TARGET_FILE:${sample}>)
         set_tests_properties(
             "Scenario.${name}"
             PROPERTIES
@@ -173,7 +181,7 @@ if(TARGET HelloAtom)
                 TIMEOUT 120
         )
     endforeach()
-endif()
+endforeach()
 
 # M77: DRIFT flies on autopilot for a few seconds and reports the distance:
 # the second game starts, loads its assets, renders and shuts down clean.

@@ -1,4 +1,5 @@
 #include "Renderer/Texture.h"
+#include "Core/Log.h"
 
 #include "Renderer/GpuResources.h"
 
@@ -22,7 +23,7 @@ namespace Atom
     {
         if (!device || !pixels || width == 0 || height == 0)
         {
-            std::cerr << "Cannot create a texture without a device and data.\n";
+            ATOM_LOG_ERROR("Renderer") << "Cannot create a texture without a device and data.\n";
             return nullptr;
         }
 
@@ -49,7 +50,7 @@ namespace Atom
         texture->m_texture = SDL_CreateGPUTexture(device, &createInfo);
         if (!texture->m_texture)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create GPU texture: "
                 << SDL_GetError()
                 << '\n';
@@ -66,7 +67,7 @@ namespace Atom
             SDL_CreateGPUTransferBuffer(device, &transferInfo);
         if (!transfer)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to create texture transfer buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -76,7 +77,7 @@ namespace Atom
         void* mapped = SDL_MapGPUTransferBuffer(device, transfer, false);
         if (!mapped)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to map texture transfer buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -90,7 +91,7 @@ namespace Atom
             SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to acquire texture upload command buffer: "
                 << SDL_GetError()
                 << '\n';
@@ -122,7 +123,7 @@ namespace Atom
         const bool submitted = SDL_SubmitGPUCommandBuffer(commandBuffer);
         if (!submitted)
         {
-            std::cerr
+            ATOM_LOG_ERROR("Renderer")
                 << "Failed to submit texture upload: "
                 << SDL_GetError()
                 << '\n';
@@ -165,7 +166,7 @@ namespace Atom
         texture->m_texture = SDL_CreateGPUTexture(device, &createInfo);
         if (!texture->m_texture)
         {
-            std::cerr << "Failed to create render target: " << SDL_GetError() << '\n';
+            ATOM_LOG_ERROR("Renderer") << "Failed to create render target: " << SDL_GetError() << '\n';
             return nullptr;
         }
         return texture;
