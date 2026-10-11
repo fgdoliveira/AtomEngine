@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Atom::Log
 {
@@ -23,9 +24,10 @@ namespace Atom::Log
         Info,
         Warn,
         Error,
+        Game, // an app's own events - its story, its gameplay - not the engine's (to std::cout)
     };
 
-    std::string_view Name(Level level); // "INFO ", "WARN ", "ERROR" (one width)
+    std::string_view Name(Level level); // "INFO ", "WARN ", "ERROR", "GAME " (one width)
 
     // Pure (unit-tested): one line, without its newline. `millisecondsOfDay`
     // is the local time since midnight.
@@ -34,6 +36,15 @@ namespace Atom::Log
 
     // Writes one line now, stamped with the local time.
     void Write(Level level, std::string_view subsystem, std::string_view message);
+
+    // Folders whose path is removed from every message, so a file reads as
+    // "Assets/Kit/torii.glb" rather than its absolute path (shorter, and no
+    // user folder in a log a player sends). The engine adds the
+    // executable's folder (and ATOM_ASSET_ROOT's) at start-up.
+    void AddRoot(std::string root);
+    // Pure (unit-tested): `message` with every root removed; '\' and '/'
+    // count as the same separator.
+    std::string Relative(std::string_view message, const std::vector<std::string>& roots);
 
     // A line under construction: written when the statement ends.
     class Line
@@ -50,6 +61,12 @@ namespace Atom::Log
             m_text << value;
             return *this;
         }
+        // Manipulators (std::endl, std::fixed...), as on any stream.
+        Line& operator<<(std::ostream& (*manipulator)(std::ostream&))
+        {
+            m_text << manipulator;
+            return *this;
+        }
 
     private:
         Level m_level;
@@ -61,3 +78,4 @@ namespace Atom::Log
 #define ATOM_LOG_INFO(subsystem) ::Atom::Log::Line(::Atom::Log::Level::Info, subsystem)
 #define ATOM_LOG_WARN(subsystem) ::Atom::Log::Line(::Atom::Log::Level::Warn, subsystem)
 #define ATOM_LOG_ERROR(subsystem) ::Atom::Log::Line(::Atom::Log::Level::Error, subsystem)
+#define ATOM_LOG_GAME(subsystem) ::Atom::Log::Line(::Atom::Log::Level::Game, subsystem)

@@ -15,6 +15,16 @@ namespace Atom
 {
     bool Application::Initialize()
     {
+        // Paths in log lines read relative to the executable (or to the
+        // repository, when assets come from the source tree).
+        if (const char* base = SDL_GetBasePath())
+        {
+            Log::AddRoot(base);
+        }
+        if (const char* root = Atom::DevSwitch("ATOM_ASSET_ROOT"); root && *root)
+        {
+            Log::AddRoot(root);
+        }
         ATOM_LOG_INFO("Engine") << "Starting AtomEngine " ATOM_VERSION "...\n";
 
         // SDL's versions first, so a GPU failure below reads as a report:

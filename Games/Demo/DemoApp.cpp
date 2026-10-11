@@ -1,4 +1,5 @@
 #include "DemoApp.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Core/AssetLog.h"
 #include "Diagnostics/DiagnosticsReport.h"
@@ -37,18 +38,18 @@ namespace Demo
         m_commandLine = ParseCommandLine(m_arguments);
         for (const std::string& error : m_commandLine.errors)
         {
-            std::cerr << "Command line: " << error << " (ignored)\n";
+            ATOM_LOG_ERROR("Demo") << "Command line: " << error << " (ignored)\n";
         }
         EnvironmentOverrides environment;
         if (const char* gpu = Atom::DevSwitch("ATOM_GPU"); gpu && *gpu)
         {
             environment.gpu = ParseGpuPreference(gpu);
-            if (!environment.gpu) std::cerr << "ATOM_GPU: unknown value '" << gpu << "' (ignored)\n";
+            if (!environment.gpu) ATOM_LOG_ERROR("Demo") << "ATOM_GPU: unknown value '" << gpu << "' (ignored)\n";
         }
         if (const char* quality = Atom::DevSwitch("ATOM_QUALITY"); quality && *quality)
         {
             environment.quality = ParseQualityMode(quality);
-            if (!environment.quality) std::cerr << "ATOM_QUALITY: unknown value '" << quality << "' (ignored)\n";
+            if (!environment.quality) ATOM_LOG_ERROR("Demo") << "ATOM_QUALITY: unknown value '" << quality << "' (ignored)\n";
         }
         // Saved settings (M61) - never for scripted tests, benchmarks or
         // --no-settings: those runs behave the same on every machine.
@@ -61,7 +62,7 @@ namespace Demo
         m_calibrateThisRun = !scripted && (m_commandLine.calibrate || (useSaved && m_savedSettings.calibrateNextLaunch));
         if (scripted && m_commandLine.calibrate)
         {
-            std::cerr << "--calibrate is ignored in a scripted test run\n";
+            ATOM_LOG_ERROR("Demo") << "--calibrate is ignored in a scripted test run\n";
         }
 
         StartupConfig config;
@@ -84,7 +85,7 @@ namespace Demo
         {
             return; // already on the known-good adapter: nothing safer to try
         }
-        std::cerr << "The high-performance GPU "
+        ATOM_LOG_ERROR("Demo") << "The high-performance GPU "
                   << (failure == Atom::Renderer::Failure::SwapchainLost ? "lost its swapchain" : "failed")
                   << "; the next launch will use " << ToString(*fallback) << ".\n";
         m_savedSettings.pendingFallback = fallback;
@@ -113,14 +114,14 @@ namespace Demo
             std::error_code error;
             if (!fs::exists(current, error) && fs::exists(previous, error) && fs::copy_file(previous, current, error))
             {
-                std::cout << "Settings brought over from " << previous.string() << '\n';
+                ATOM_LOG_GAME("Demo") << "Settings brought over from " << previous.string() << '\n';
             }
         }
         if (m_commandLine.resetSettings)
         {
             m_savedSettings = GameSettings{};
             SaveSettings();
-            std::cout << "Settings reset: " << m_settingsPath << '\n';
+            ATOM_LOG_GAME("Demo") << "Settings reset: " << m_settingsPath << '\n';
             return;
         }
         std::ifstream file(m_settingsPath, std::ios::binary);
@@ -128,7 +129,7 @@ namespace Demo
         SettingsLoad load = ParseSettings(text);
         if (!load.warning.empty())
         {
-            std::cerr << m_settingsPath << ": " << load.warning << '\n';
+            ATOM_LOG_ERROR("Demo") << m_settingsPath << ": " << load.warning << '\n';
         }
         m_savedSettings = std::move(load.settings);
     }
@@ -173,7 +174,7 @@ namespace Demo
         file << WriteSettings(m_savedSettings);
         if (!file)
         {
-            std::cerr << "Could not save settings to " << m_settingsPath << '\n';
+            ATOM_LOG_ERROR("Demo") << "Could not save settings to " << m_settingsPath << '\n';
         }
     }
 
@@ -227,13 +228,13 @@ namespace Demo
             }
             m_assets = AtomFramework::AssetRoots({ m_outputRoot + "Games/Demo/Assets/", m_outputRoot + "Content/" });
             m_hotReload = true;
-            std::cout << "Hot reload on: assets from " << m_outputRoot << "Games/Demo/Assets and Content\n";
+            ATOM_LOG_GAME("Demo") << "Hot reload on: assets from " << m_outputRoot << "Games/Demo/Assets and Content\n";
         }
 
         if (const char* flash = Atom::DevSwitch("ATOM_LATENCY_FLASH"); flash && SDL_strcmp(flash, "1") == 0)
         {
             m_latencyFlash = true;
-            std::cout << "Latency flash on: a left click turns that frame black\n";
+            ATOM_LOG_GAME("Demo") << "Latency flash on: a left click turns that frame black\n";
         }
 
         m_view.fogPreset = DefaultFogPreset;
@@ -246,7 +247,7 @@ namespace Demo
 
         // The quality tier (M60), now that the adapter is known.
         ApplyQuality(TierFor(m_resolvedSettings.quality, m_savedSettings.calibration, GetRenderer().GetAdapterName()));
-        std::cout << "Quality: " << ToString(m_resolvedSettings.quality) << " -> " << ToString(m_qualityTier)
+        ATOM_LOG_GAME("Demo") << "Quality: " << ToString(m_resolvedSettings.quality) << " -> " << ToString(m_qualityTier)
                   << "; GPU preference: " << ToString(m_resolvedSettings.gpu) << " (" << m_resolvedSettings.gpuReason
                   << "), adapter \"" << GetRenderer().GetAdapterName() << '"' << std::endl; // flushed: a start-up record
 
@@ -289,8 +290,8 @@ namespace Demo
             return false;
         }
 
-        std::cout
-            << "Controls: WASD move, Shift jog, mouse look, E interact, Esc release/quit\n"
+        ATOM_LOG_GAME("Demo")
+            << "Controls: WASD move, Shift jog, mouse look, E interact, Esc pause (resume, settings, quit)\n"
             << "  F2 render scale  F3 baked light  F4 MSAA  F5 fog  F6 shadows  F7 post look\n"
             << "  F8 particles  F9 unease events  M mute\n";
 
@@ -307,7 +308,7 @@ namespace Demo
         {
             m_resolvedSettings.gpu = GpuPreference::LowPower;
             m_resolvedSettings.gpuReason = "fallback: " + Atom::DescribeFallback(*fallback);
-            std::cout << "GPU preference: " << m_resolvedSettings.gpuReason << std::endl;
+            ATOM_LOG_GAME("Demo") << "GPU preference: " << m_resolvedSettings.gpuReason << std::endl;
         }
         if (const char* loss = Atom::DevSwitch("ATOM_SIMULATE_SWAPCHAIN_LOSS"); loss && *loss)
         {
@@ -363,7 +364,7 @@ namespace Demo
 
         ConfigureForLevel(incoming);
         m_mode = RestingMode();
-        std::cout << "Entered level '" << data.name << "'\n";
+        ATOM_LOG_GAME("Demo") << "Entered level '" << data.name << "'\n";
     }
 
     void DemoApp::OnLevelReloaded(Level& incoming)
@@ -423,7 +424,7 @@ namespace Demo
         // broken one is reported and left out (the framework's library).
         for (const std::string& problem : m_presets.Load(m_assets.Resolve("Environments")))
         {
-            std::cerr << "Environments/" << problem << '\n';
+            ATOM_LOG_ERROR("Demo") << "Environments/" << problem << '\n';
             m_messages.Show(problem);
         }
     }
@@ -453,7 +454,7 @@ namespace Demo
             }
             else
             {
-                std::cerr << "Level '" << level->GetName() << "': no environment preset '" << name << "'\n";
+                ATOM_LOG_ERROR("Demo") << "Level '" << level->GetName() << "': no environment preset '" << name << "'\n";
             }
         }
         m_environment.Reset(ResolveEnvironment(m_environmentName));
@@ -502,7 +503,7 @@ namespace Demo
         const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
         if (const std::string error = m_flashlight.LoadSettings(text); !error.empty())
         {
-            std::cerr << path << ": " << error << '\n';
+            ATOM_LOG_ERROR("Demo") << path << ": " << error << '\n';
             m_messages.Show("flashlight.json: " + error);
         }
     }
@@ -540,11 +541,11 @@ namespace Demo
         {
             return;
         }
-        std::cout << "Changed: " << changed.front() << (changed.size() > 1 ? " (and more)" : "") << '\n';
+        ATOM_LOG_GAME("Demo") << "Changed: " << changed.front() << (changed.size() > 1 ? " (and more)" : "") << '\n';
         if (const std::string error = ReloadLevel(); !error.empty())
         {
             // Keep playing the old level; say what's wrong where you look.
-            std::cerr << "Reload failed: " << error << '\n';
+            ATOM_LOG_ERROR("Demo") << "Reload failed: " << error << '\n';
             m_messages.Show("Reload failed - " + error);
         }
         else
@@ -1047,7 +1048,7 @@ namespace Demo
             [this](const std::string& id) { return RunSequence(id); },
             [this](const PlayMachine& play) { return BeginMachine(play); },
         };
-        std::cout << "Interacted with " << target.name << '\n';
+        ATOM_LOG_GAME("Demo") << "Interacted with " << target.name << '\n';
         ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
     }
 
@@ -1078,7 +1079,7 @@ namespace Demo
         {
             const SequenceHooks hooks{
                 [this](const std::string& text) { m_messages.Show(text); },
-                [this](const std::string& flag) { m_gameState.SetFlag(flag); std::cout << "Flag set: " << flag << '\n'; },
+                [this](const std::string& flag) { m_gameState.SetFlag(flag); ATOM_LOG_GAME("Demo") << "Flag set: " << flag << '\n'; },
                 [level](const std::string& entity, bool visible) { level->SetEntityVisible(entity, visible); },
                 [this, level](const std::string& sound, const std::string& entity, float gain, bool loop) {
                     level->PlaySound(m_audioScape.GetSound(sound), entity, gain, loop);
@@ -1353,7 +1354,7 @@ namespace Demo
         const PlayfieldParseResult field = LoadPlayfieldFile(m_assets.Resolve(play.machine));
         if (!field.playfield)
         {
-            std::cerr << field.error << '\n';
+            ATOM_LOG_ERROR("Demo") << field.error << '\n';
             level->ReleaseScreen(play.screen);
             return false;
         }
@@ -1367,7 +1368,7 @@ namespace Demo
         const CameraPose to{ play.viewPosition, glm::radians(play.viewYawDegrees), glm::radians(play.viewPitchDegrees) };
         m_machine.Enter(from, to);
         m_mode = Mode::AtMachine;
-        std::cout << "Sat down at the machine\n";
+        ATOM_LOG_GAME("Demo") << "Sat down at the machine\n";
         return true;
     }
 
@@ -1434,7 +1435,7 @@ namespace Demo
             m_machineGame.reset();
         }
         m_mode = Mode::Exploring; // the player's eye and look are where they were
-        std::cout << "Stood up from the machine\n";
+        ATOM_LOG_GAME("Demo") << "Stood up from the machine\n";
     }
 
     void DemoApp::PlayMachineSounds(const PachinkoGame& game)
@@ -1627,7 +1628,7 @@ namespace Demo
 
     void DemoApp::Log(const std::string& text)
     {
-        std::cout << "[test] " << text << '\n';
+        ATOM_LOG_GAME("Demo") << "[test] " << text << '\n';
     }
 }
 

@@ -5,6 +5,7 @@
 // frame times to a file, Settings is the framework's player settings
 // screen, Quit. Esc while exploring brings the same menu back as a pause.
 #include "ShowcaseApp.h"
+#include "Core/Log.h"
 
 #include "Core/DevSwitch.h"
 #include "Platform/Input.h"
@@ -196,7 +197,7 @@ namespace Showcase
         m_clockOn = false;
         m_lens = false;
         SetEnvironment(Phases[0], 0.0f);
-        std::cout << "Benchmark: " << m_benchmarkSeconds << " s over the village\n";
+        ATOM_LOG_GAME("Showcase") << "Benchmark: " << m_benchmarkSeconds << " s over the village\n";
     }
 
     void ShowcaseApp::UpdateBenchmark(float deltaSeconds)
@@ -283,7 +284,7 @@ namespace Showcase
         std::filesystem::create_directories(folder, error);
         const std::filesystem::path file = folder / ("benchmark-" + Stamp("%Y%m%d-%H%M%S") + ".txt");
         std::ofstream(file, std::ios::binary) << report;
-        std::cout << report << "Benchmark written to " << file.string() << '\n';
+        ATOM_LOG_GAME("Showcase") << report << "Benchmark written to " << file.string() << '\n';
 
         char summary[200];
         std::snprintf(summary, sizeof(summary), "Benchmark: median %.2f ms, p95 %.2f ms - out/%s",

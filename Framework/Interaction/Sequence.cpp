@@ -1,4 +1,5 @@
 #include "Interaction/Sequence.h"
+#include "Core/Log.h"
 
 #include <algorithm>
 #include <iostream>
@@ -17,7 +18,7 @@ namespace AtomFramework
         m_elapsed = 0.0f;
         m_stepStarted = false;
         m_running = !m_steps.empty();
-        std::cout << "Sequence '" << name << "' started (" << m_steps.size() << " steps)\n";
+        ATOM_LOG_INFO("Interaction") << "Sequence '" << name << "' started (" << m_steps.size() << " steps)\n";
         return m_running;
     }
 
@@ -35,7 +36,7 @@ namespace AtomFramework
         {
             if (m_index >= m_steps.size())
             {
-                std::cout << "Sequence '" << m_name << "' finished\n";
+                ATOM_LOG_INFO("Interaction") << "Sequence '" << m_name << "' finished\n";
                 Stop();
                 return;
             }
@@ -85,7 +86,7 @@ namespace AtomFramework
             case Type::PlayAnimation:
                 if (hooks.playAnimation && !hooks.playAnimation(step.entity, step.clip))
                 {
-                    std::cerr << "Sequence '" << m_name << "': cannot play '" << step.clip << "' on '" << step.entity << "'\n";
+                    ATOM_LOG_ERROR("Interaction") << "Sequence '" << m_name << "': cannot play '" << step.clip << "' on '" << step.entity << "'\n";
                 }
                 break;
             case Type::ChangeLevel:

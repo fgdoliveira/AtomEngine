@@ -1,4 +1,5 @@
 #include "Settings/SettingsStore.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_stdinc.h>
@@ -33,7 +34,7 @@ namespace AtomFramework
         if (reset)
         {
             Save();
-            std::cout << "Settings reset: " << m_path << '\n';
+            ATOM_LOG_INFO("Settings") << "Settings reset: " << m_path << '\n';
             return;
         }
         std::ifstream file(m_path, std::ios::binary);
@@ -42,7 +43,7 @@ namespace AtomFramework
         m_warning = std::move(load.warning);
         if (!m_warning.empty())
         {
-            std::cerr << m_path << ": " << m_warning << '\n';
+            ATOM_LOG_ERROR("Settings") << m_path << ": " << m_warning << '\n';
         }
         m_settings = std::move(load.settings);
     }
@@ -57,7 +58,7 @@ namespace AtomFramework
         file << WriteSettings(m_settings);
         if (!file)
         {
-            std::cerr << "Could not save settings to " << m_path << '\n';
+            ATOM_LOG_ERROR("Settings") << "Could not save settings to " << m_path << '\n';
         }
     }
 }

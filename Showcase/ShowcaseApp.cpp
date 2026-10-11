@@ -1,4 +1,5 @@
 #include "ShowcaseApp.h"
+#include "Core/Log.h"
 
 #include "Character/LabViewer.h"
 #include "Core/DevSwitch.h"
@@ -53,7 +54,7 @@ namespace Showcase
                 m_outputRoot += '/';
             }
             m_assets = AssetRoots({ m_outputRoot + "Showcase/Assets/", m_outputRoot + "Content/" });
-            std::cout << "Assets from the source tree: " << m_outputRoot << '\n';
+            ATOM_LOG_GAME("Showcase") << "Assets from the source tree: " << m_outputRoot << '\n';
         }
 
         if (!m_atmosphere.Initialize(GetRenderer()))
@@ -70,7 +71,7 @@ namespace Showcase
         }
         for (const std::string& problem : m_presets.Load(m_assets.Resolve("Environments")))
         {
-            std::cerr << "Environments/" << problem << '\n';
+            ATOM_LOG_ERROR("Showcase") << "Environments/" << problem << '\n';
         }
 
         // No screens, no level sounds: the Showcase supplies neither.
@@ -96,7 +97,7 @@ namespace Showcase
             return false;
         }
 
-        std::cout << "Showcase: 1-5 places, P next time of day, T pause time, Tab the lens, WASD/Shift/mouse walk,"
+        ATOM_LOG_GAME("Showcase") << "Showcase: 1-5 places, P next time of day, T pause time, Tab the lens, WASD/Shift/mouse walk,"
                      " F1 numbers, F2-F8 view, F10 tools, Esc menu\n";
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
@@ -128,7 +129,7 @@ namespace Showcase
         ApplyLighting();
         m_mode = Mode::Walking;
         ApplyFeatures(); // the lens's switches survive a (re)load
-        std::cout << "Entered level '" << data.name << "'\n";
+        ATOM_LOG_GAME("Showcase") << "Entered level '" << data.name << "'\n";
         // A documentation stage with a subject (character_lab) opens in the
         // viewer, as the demo's lab did; in the scene, E opens it.
         if (data.lab && data.name != "showcase")
@@ -385,7 +386,7 @@ namespace Showcase
             m_audio = std::make_unique<Atom::SynthStream>(); // heap: the delay line is large
             if (!m_audio->Start(m_booth))
             {
-                std::cout << "Synth booth: no audio device - playing silent\n";
+                ATOM_LOG_GAME("Showcase") << "Synth booth: no audio device - playing silent\n";
             }
             else
             {
@@ -636,7 +637,7 @@ namespace Showcase
 
     void ShowcaseApp::Log(const std::string& text)
     {
-        std::cout << "[test] " << text << '\n';
+        ATOM_LOG_GAME("Showcase") << "[test] " << text << '\n';
     }
 
     std::string ShowcaseApp::Capture(const std::string& stem, bool includeUi)

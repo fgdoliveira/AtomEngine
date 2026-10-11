@@ -1,5 +1,6 @@
 #include "Core/Log.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -15,6 +16,7 @@ namespace Atom::Log
         case Level::Info: return "INFO ";
         case Level::Warn: return "WARN ";
         case Level::Error: return "ERROR";
+        case Level::Game: return "GAME ";
         }
         return "?    ";
     }
@@ -39,8 +41,47 @@ namespace Atom::Log
         return line;
     }
 
+    std::string Relative(std::string_view message, const std::vector<std::string>& roots)
+    {
+        // Windows paths: '\' and '/' alike, letters in either case.
+        const auto same = [](char a, char b) {
+            const auto fold = [](char c) {
+                return c == '\\' ? '/' : (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+            };
+            return fold(a) == fold(b);
+        };
+        std::string out;
+        out.reserve(message.size());
+        std::size_t i = 0;
+        while (i < message.size())
+        {
+            bool matched = false;
+            for (const std::string& root : roots) // longest first (AddRoot keeps them so)
+            {
+                if (!root.empty() && message.size() - i >= root.size()
+                    && std::equal(root.begin(), root.end(), message.begin() + static_cast<std::ptrdiff_t>(i), same))
+                {
+                    i += root.size();
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                out += message[i++];
+            }
+        }
+        return out;
+    }
+
     namespace
     {
+        std::vector<std::string>& Roots()
+        {
+            static std::vector<std::string> roots;
+            return roots;
+        }
+
         std::int64_t MillisecondsOfDay()
         {
             const auto now = std::chrono::system_clock::now();
@@ -62,13 +103,30 @@ namespace Atom::Log
         }
     }
 
+    void AddRoot(std::string root)
+    {
+        if (root.empty())
+        {
+            return;
+        }
+        if (root.back() != '/' && root.back() != '\\')
+        {
+            root += '/'; // a folder: "C:/game" mustn't match "C:/gameplay"
+        }
+        const std::lock_guard<std::mutex> lock(OutputMutex());
+        std::vector<std::string>& roots = Roots();
+        roots.push_back(std::move(root));
+        // Longest first, so a root inside another (the build inside the repository) wins.
+        std::sort(roots.begin(), roots.end(), [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
+    }
+
     void Write(Level level, std::string_view subsystem, std::string_view message)
     {
-        const std::string line = Format(level, subsystem, message, MillisecondsOfDay());
         const std::lock_guard<std::mutex> lock(OutputMutex());
-        std::ostream& out = level == Level::Info ? std::cout : std::cerr;
+        const std::string line = Format(level, subsystem, Relative(message, Roots()), MillisecondsOfDay());
+        std::ostream& out = (level == Level::Info || level == Level::Game) ? std::cout : std::cerr;
         out << line << '\n';
-        if (level != Level::Info)
+        if (level == Level::Warn || level == Level::Error)
         {
             out.flush(); // an error must reach the file even if the next line is a crash
         }

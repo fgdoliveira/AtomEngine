@@ -1,4 +1,5 @@
 #include "Dialogue/DialogueRunner.h"
+#include "Core/Log.h"
 
 #include "World/GameState.h"
 
@@ -40,7 +41,7 @@ namespace Demo
     {
         m_dialogue = &dialogue;
         m_gameState = &state;
-        std::cout << "Dialogue '" << dialogue.id << "' started\n";
+        ATOM_LOG_GAME("Demo") << "Dialogue '" << dialogue.id << "' started\n";
         Enter(dialogue.start);
     }
 
@@ -50,14 +51,14 @@ namespace Demo
         if (!m_node)
         {
             m_state = State::Ended;
-            std::cout << "Dialogue '" << m_dialogue->id << "' ended\n";
+            ATOM_LOG_GAME("Demo") << "Dialogue '" << m_dialogue->id << "' ended\n";
             return;
         }
 
         if (!m_node->setsFlag.empty())
         {
             m_gameState->SetFlag(m_node->setsFlag);
-            std::cout << "Flag set: " << m_node->setsFlag << '\n';
+            ATOM_LOG_GAME("Demo") << "Flag set: " << m_node->setsFlag << '\n';
         }
         m_revealed = 0.0f;
         m_selection = 0;
@@ -129,7 +130,7 @@ namespace Demo
         if (!choice.setsFlag.empty())
         {
             m_gameState->SetFlag(choice.setsFlag);
-            std::cout << "Flag set: " << choice.setsFlag << '\n';
+            ATOM_LOG_GAME("Demo") << "Flag set: " << choice.setsFlag << '\n';
         }
         Enter(choice.next);
     }

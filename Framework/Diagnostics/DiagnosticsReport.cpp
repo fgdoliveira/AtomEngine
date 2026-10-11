@@ -1,4 +1,5 @@
 #include "Diagnostics/DiagnosticsReport.h"
+#include "Core/Log.h"
 
 #include "Renderer/Renderer.h"
 
@@ -83,10 +84,10 @@ namespace AtomFramework
         file << text;
         if (!file)
         {
-            std::cerr << "Could not write diagnostics to " << path << '\n';
+            ATOM_LOG_ERROR("Diagnostics") << "Could not write diagnostics to " << path << '\n';
             return false;
         }
-        std::cout << "Diagnostics written to " << path << std::endl;
+        ATOM_LOG_INFO("Diagnostics") << "Diagnostics written to " << path << '\n';
         return true;
     }
 }

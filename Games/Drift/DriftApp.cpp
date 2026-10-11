@@ -1,4 +1,5 @@
 #include "DriftApp.h"
+#include "Core/Log.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
 #include "Diagnostics/DiagnosticsReport.h"
 #include "UI/UiKit.h"
@@ -64,7 +65,7 @@ namespace Drift
         m_commandLine = AtomFramework::ParseCommandLine(m_arguments);
         for (const std::string& error : m_commandLine.errors)
         {
-            std::cerr << "Command line: " << error << " (ignored)\n";
+            ATOM_LOG_ERROR("Drift") << "Command line: " << error << " (ignored)\n";
         }
         const bool persist = !Atom::DevSwitch("ATOM_DRIFT_SECONDS") && !m_commandLine.noSettings;
         m_store.Open("Drift", persist, m_commandLine.resetSettings);
@@ -103,7 +104,7 @@ namespace Drift
         AtomFramework::ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), nullptr, m_store.Settings());
         if (!m_ship || !m_ring || !m_orb || !m_rock || !m_titleFont || !m_comboFont || !m_smallFont)
         {
-            std::cerr << "Missing DRIFT assets in " << m_assetRoot << '\n';
+            ATOM_LOG_ERROR("Drift") << "Missing DRIFT assets in " << m_assetRoot << '\n';
             return false;
         }
 
@@ -159,7 +160,7 @@ namespace Drift
             RequestQuit(AtomFramework::WriteDiagnosticsFile(*m_commandLine.diagnosticsFile, report) ? 0 : 1);
             return true;
         }
-        std::cout << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << ", course seed " << seed << '\n';
+        ATOM_LOG_GAME("Drift") << "DRIFT ready" << (m_autopilotSeconds ? " (autopilot)" : "") << ", course seed " << seed << '\n';
 
         // No cursor over the game, as in the demo - hidden, not captured:
         // DRIFT steers partly by where the pointer is in the window (the
@@ -263,7 +264,7 @@ namespace Drift
             m_audio = std::make_unique<Atom::SynthStream>(); // heap: the synth's delay line is 256 KB
             if (!m_audio->Start(m_music))
             {
-                std::cout << "DRIFT: no audio device - playing silent\n";
+                ATOM_LOG_GAME("Drift") << "DRIFT: no audio device - playing silent\n";
             }
             else
             {
@@ -363,7 +364,7 @@ namespace Drift
             }
             if (m_time >= *m_autopilotSeconds)
             {
-                std::cout << "DRIFT autopilot: flew " << static_cast<int>(-m_flight.position.z) << " m at "
+                ATOM_LOG_GAME("Drift") << "DRIFT autopilot: flew " << static_cast<int>(-m_flight.position.z) << " m at "
                           << static_cast<int>(forward) << " m/s; rings " << m_flow.ringsPassed << " passed, "
                           << m_flow.ringsMissed << " missed; orbs " << m_flow.orbsCollected << "; rocks "
                           << m_flow.rocksHit << "; flow " << static_cast<int>(m_flow.value * 100.0f) << "%\n";

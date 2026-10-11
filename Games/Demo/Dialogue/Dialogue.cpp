@@ -1,4 +1,5 @@
 #include "Dialogue/Dialogue.h"
+#include "Core/Log.h"
 #include "Core/AssetLog.h"
 
 #include "Level/JsonText.h"
@@ -159,12 +160,12 @@ namespace Demo
             DialogueParseResult result = LoadDialogueFile(entry.path().string());
             if (!result.dialogue)
             {
-                std::cerr
+                ATOM_LOG_ERROR("Demo")
                     << "Dialogue '" << entry.path().filename().string()
                     << "' skipped: " << result.error << '\n';
                 continue;
             }
-            std::cout
+            ATOM_LOG_GAME("Demo")
                 << "Loaded dialogue '" << result.dialogue->id << "' ("
                 << result.dialogue->nodes.size() << " nodes)\n";
             Add(std::move(*result.dialogue));
@@ -173,7 +174,7 @@ namespace Demo
 
         if (error)
         {
-            std::cerr << "Cannot read dialogue folder '" << directory << "': " << error.message() << '\n';
+            ATOM_LOG_ERROR("Demo") << "Cannot read dialogue folder '" << directory << "': " << error.message() << '\n';
         }
         return loaded;
     }

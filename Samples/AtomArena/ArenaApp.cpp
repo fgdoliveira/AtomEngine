@@ -1,4 +1,5 @@
 #include "ArenaApp.h"
+#include "Core/Log.h"
 
 #include "Assets/Model.h"
 #include "Core/Profile.h"
@@ -76,12 +77,12 @@ namespace Arena
         {
             RequestQuit(*exitCode);
         }
-        std::cout << "ATOM ARENA: 1-5 enemies, P projectiles, C collision search, B spawn batch, R restart,"
+        ATOM_LOG_GAME("Arena") << "ATOM ARENA: 1-5 enemies, P projectiles, C collision search, B spawn batch, R restart,"
                      " V view, F1 numbers, F10 tools (Arena panel), Esc quit\n";
         m_options = ParseBenchmarkArguments(m_arguments);
         for (const std::string& error : m_options.errors)
         {
-            std::cerr << "ATOM ARENA: " << error << '\n';
+            ATOM_LOG_ERROR("Arena") << "ATOM ARENA: " << error << '\n';
         }
         if (!m_options.errors.empty())
         {
@@ -376,7 +377,7 @@ namespace Arena
         m_drawEnemies = m_scenario->drawEnemies;
         m_overview = true;
         Restart();
-        std::cout << "Benchmark: " << m_scenario->name << ", seed " << m_options.seed << ", " << m_options.warmup
+        ATOM_LOG_GAME("Arena") << "Benchmark: " << m_scenario->name << ", seed " << m_options.seed << ", " << m_options.warmup
                   << " warm-up + " << m_options.frames << " frames\n";
     }
 
@@ -484,7 +485,7 @@ namespace Arena
         std::error_code error;
         std::filesystem::create_directories(file.parent_path(), error);
         std::ofstream(file, std::ios::binary) << report;
-        std::cout << report << "Benchmark written to " << file.string() << '\n';
+        ATOM_LOG_GAME("Arena") << report << "Benchmark written to " << file.string() << '\n';
         RequestQuit(0);
         m_scenario.reset();
     }

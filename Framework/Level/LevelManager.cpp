@@ -1,4 +1,5 @@
 #include "Level/LevelManager.h"
+#include "Core/Log.h"
 
 #include <algorithm>
 #include <iostream>
@@ -11,14 +12,14 @@ namespace AtomFramework
         LevelParseResult parsed = LoadLevelFile(path);
         if (!parsed.level)
         {
-            std::cerr << "Level '" << levelName << "' is invalid: " << parsed.error << '\n';
+            ATOM_LOG_ERROR("Level") << "Level '" << levelName << "' is invalid: " << parsed.error << '\n';
             return false;
         }
 
         const std::string spawn = spawnName.empty() ? parsed.level->defaultSpawn : spawnName;
         if (!parsed.level->FindSpawn(spawn))
         {
-            std::cerr << "Level '" << levelName << "' has no spawn '" << spawn << "'\n";
+            ATOM_LOG_ERROR("Level") << "Level '" << levelName << "' has no spawn '" << spawn << "'\n";
             return false;
         }
 
@@ -72,7 +73,7 @@ namespace AtomFramework
         {
             onReloaded(*m_level);
         }
-        std::cout << "Level '" << m_level->GetName() << "' reloaded\n";
+        ATOM_LOG_INFO("Level") << "Level '" << m_level->GetName() << "' reloaded\n";
         return {};
     }
 
@@ -125,7 +126,7 @@ namespace AtomFramework
         m_pendingLevel = levelName;
         m_pendingSpawn = spawnName;
         m_phase = Phase::FadingOut;
-        std::cout << "Level change requested: " << levelName << " at '" << spawnName << "'\n";
+        ATOM_LOG_INFO("Level") << "Level change requested: " << levelName << " at '" << spawnName << "'\n";
     }
 
     void LevelManager::Update(float deltaSeconds)
@@ -141,7 +142,7 @@ namespace AtomFramework
             {
                 if (!Load(m_pendingLevel, m_pendingSpawn))
                 {
-                    std::cerr << "Staying in the current level\n";
+                    ATOM_LOG_ERROR("Level") << "Staying in the current level\n";
                 }
                 m_phase = Phase::FadingIn;
             }
