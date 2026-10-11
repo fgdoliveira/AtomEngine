@@ -36,7 +36,7 @@ Engine/      the engine (namespace Atom): window, GPU renderer, audio, input, ph
 Framework/   what every app shares (AtomFramework): levels, world, player, environments, UI kit, settings, testing
 Showcase/    the engine's front door: a lakeside village, and the lens
 Games/       the demo (a night street and its story) and DRIFT (a three.js port)
-Samples/     HelloAtom: the smallest app - start here to build your own
+Samples/     HelloAtom: the smallest app - start here to build your own; AtomArena: a seeded benchmark
 Content/     assets several apps share: the kit, the sky, fonts, environment presets
 ```
 
@@ -89,6 +89,12 @@ hint bars, callouts, menus), a title/pause menu and a player settings
 screen (display, quality, volume, GPU), saved per app; Dear ImGui
 developer panels (F10) shared by every app; one F1 overlay; frame-time
 logging, paired A/B benchmarks and a Showcase benchmark mode.
+
+**Observability** — log lines with a time, a level and the subsystem that
+speaks; the CPU's work and its wait for the GPU, every frame; process and
+GPU memory; CPU profiling zones and a built-in tracer (Perfetto); when a
+frame fails, the reason, adapter and driver; on a crash, a minidump and a
+short report in the player's folder; ATOM ARENA, a seeded benchmark.
 
 **Testing** — doctest unit tests for the pure logic, and an in-game
 scenario harness that drives the real apps from scripts.
@@ -235,11 +241,23 @@ distributed build (`-DATOM_DISTRIBUTION=ON`, which the package command
 uses) is a windowed program with no console. Either way each run writes
 its output to `%APPDATA%\AtomEngine\<app>\logs\<app>.log` (e.g.
 `Demo\logs\Demo.log`), keeping the previous run as `<app>.previous.log`. It holds the version,
-folder, SDL, the GPUs tried and why, the quality and every level load.
+SDL, the GPUs tried and why, the quality and every level load. Since
+v0.0.15 every line reads `[time] [LEVEL] [Subsystem] message` - INFO,
+WARN, ERROR, and GAME for a game's own events - and file paths are
+relative to the game's folder (no user folder in a log a player sends).
 Started from a terminal, it prints there too. Scripted runs (scenarios,
 benchmarks) print only, so they never overwrite the player's log. If the
 game can't start when double-clicked, a message box gives the reason and
 the log's path.
+
+**When it stops** (v0.0.15). A frame that fails (a lost device, a lost
+swapchain) logs why - SDL's text, which carries D3D12's removal reason
+(hung, reset, driver error) - with the adapter, the driver version and
+memory. A crash writes `crash-<date>-<time>.dmp` (a minidump) and
+`.txt` (exception, module + offset, no paths) beside the log, and a last
+line in the log naming them. Release builds keep their `.pdb` in the
+build folder to read such a dump: never packaged, and the executable
+names it without a path.
 
 Command line (it overrides the `ATOM_*` variables, which override the
 saved file, which overrides the defaults):
@@ -249,7 +267,7 @@ saved file, which overrides the defaults):
 | `--gpu low-power\|high-performance` | the adapter to ask for |
 | `--quality auto\|low\|balanced\|high` | the quality |
 | `--calibrate` | measure the tiers, save the result, quit (exit 0; 2 if no result) |
-| `--diagnostics <file>` | write a report (SDL, adapter, present modes, MSAA, display, power, tier, effective settings) and quit |
+| `--diagnostics <file>` | write a report (SDL, adapter, driver, memory, present modes, MSAA, display, power, tier, effective settings) and quit |
 | `--no-settings` | ignore the saved file and don't write it |
 | `--reset-settings` | overwrite the saved file with the defaults |
 
@@ -364,10 +382,13 @@ release candidate is tested on a clean Windows VM (a local procedure).
 **Troubleshooting a player's report.** Ask for:
 1. `%APPDATA%\AtomEngine\<game>\logs\<game>.log` (and
    `<game>.previous.log` if they started it again since). It holds
-   the version, the folder, SDL, every GPU tried and why it failed, the
-   quality, each level load.
+   the version, SDL, every GPU tried and why it failed, the quality, each
+   level load, and why a frame failed (reason, adapter, driver).
 2. `<game>.exe --diagnostics report.txt`, run in the game's folder: the
-   GPU, present modes, display, power and effective settings.
+   GPU and driver, memory, present modes, display, power and effective
+   settings.
+3. After a crash, the `crash-*.txt` and `crash-*.dmp` in the same folder.
+   Open the dump in Visual Studio or WinDbg with that release's `.pdb`.
 
 Things they can try: `--gpu low-power` (laptops), `--quality low`,
 `--reset-settings`.
@@ -427,6 +448,10 @@ AtomEngine compares A and B **close together in time** and reports the
   (`cpu_*`, `gpu_wait_*`). Mostly waiting: the GPU (or vsync) sets the
   pace, and CPU work is free; no waiting: the CPU is the limit. There is
   no GPU timing itself (SDL_GPU has no timestamp queries).
+- **How much memory?** (v0.0.15) F1 (each second), `--diagnostics` and
+  both benchmark reports give the process's RAM (now and its peak) and
+  its GPU memory against Windows' budget (DXGI; "shared" on an integrated
+  GPU, which uses system memory).
 - **Where does the CPU time go inside a frame?** (v0.0.15) Build with
   `-DATOM_TRACE=ON` and run with `ATOM_TRACE=<file prefix>`: the profiling
   zones (`ATOM_PROFILE_SCOPE`, `Engine/Core/Profile.h`) are recorded and
@@ -595,7 +620,7 @@ Showcase/  the engine's front door: the village, the lens and its Features, menu
            its assets (Assets/) and scenarios (Scenarios/)
 Games/     Demo/ (dialogue, pachinko, the flashlight, its levels and assets, its package)
            Drift/ (its rules and music in DriftLib, its assets, its package)
-Samples/   HelloAtom/ - the smallest app (docs/Getting-Started.md)
+Samples/   HelloAtom/ - the smallest app (docs/Getting-Started.md); AtomArena/ - a seeded benchmark
 Content/   assets several apps share: Kit, Sky, Fonts, Environments, First (the first-render stage)
 Shaders/   HLSL, compiled to DXIL at build time
 Tools/     Blender content scripts, Perf (benchmark scripts), Dev (check, doctor), Dist, Docs

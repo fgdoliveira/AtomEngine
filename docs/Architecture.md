@@ -101,7 +101,10 @@ graph LR
 video → window → GPU renderer → audio (optional) → ImGui →
 the app's `OnInitialize` (asset roots, sound library, persistent GPU assets
 and fonts, data libraries, the `LevelManager` and the first level,
-diagnostics).
+diagnostics) → the renderer's prewarm: every pipeline variant and scene
+target built, and the first frames drawn, while still loading (v0.0.15,
+M98; `ATOM_PREWARM=0` skips it). A crash handler is installed by the
+framework's `RunLog` before any of it (§9).
 
 **Frame:**
 
@@ -289,7 +292,7 @@ flowchart LR
     Stage --> Verify[verify.ps1]
     Verify --> Zip[Demo-v…-win64.zip, Drift-v…-win64.zip]
     Zip --> Player[Player: extract, double-click]
-    Player -.->|writes only| User[%APPDATA%/AtomEngine/app name: settings, logs]
+    Player -.->|writes only| User[%APPDATA%/AtomEngine/app name: settings, logs, crash reports]
 ```
 
 - **One definition of what ships:** the install rules in
@@ -317,6 +320,8 @@ stranger report a problem; every developer facility is compiled out.
 | Facility | Policy |
 |---|---|
 | The log file, `--diagnostics`, the start-failure message box | **always available** |
+| Crash reports (a minidump and a text report, v0.0.15) | **always available**, written to the per-user folder (ADR-011) |
+| The `.pdb` symbols of a Release build | **not packaged**: kept in the developer's build folder to read dumps (ADR-011) |
 | F10 developer panels, the shared F1 overlay (every game) | **development only**: compiled out (`ATOM_DEV_TOOLS=0`) |
 | The demo's F2–F8 display toggles | **shipped**: plain game keys |
 | `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF and LAT logs, DRIFT's autopilot | **development only**: `Atom::DevSwitch` reads nothing in a package |
@@ -486,6 +491,27 @@ custom profiler (the tracer stays minimal: one thread, no live view).
 **Revisit when** work runs on more than one thread, a problem needs live
 inspection or sampling, or GPU timing becomes reachable - measured again
 with ATOM ARENA.
+
+### ADR-011 — Crash reports stay with the player
+**Context (v0.0.15):** a player's crash left nothing: the process ended
+and the log simply stopped. **Decision:** on an unhandled exception the
+engine (`Engine/Platform/CrashReport.h`, installed by `RunLog`) writes a
+minidump (`MiniDumpWriteDump`: threads, stacks and the memory they point
+at) and a short text report (app, version, exception, module + offset) to
+the per-user log folder, and ends the log with a line naming them. Nothing
+is sent anywhere: the player chooses to send the files. Release builds
+keep a `.pdb` in the build folder, never in a package (`verify.ps1`
+rejects one); executables name it without the developer's folder. A
+failed frame logs SDL's reason (D3D12's removal reason when the device was
+lost), the adapter, the driver and memory. **Evidence:** a forced access
+violation (M101, reverted) wrote both files; the report's offset resolved
+to the faulting line with the build's `.pdb`. **Rejected:** a crash
+reporting service or upload (a network dependency and a privacy question
+for a learning engine); shipping symbols (size, and the source paths they
+hold). **Revisit when** reports come from players at a volume that hand
+collection can't handle, or work moves onto other threads (a dump then
+needs every thread's state, which it already writes, but the report names
+only the crashing one).
 
 ## 13. When to add what
 
