@@ -11,14 +11,11 @@
   performance. Docs-only changes: nothing to build. Never rebuild assets
   unless Blender scripts or content products changed. Add a rule to
   `changed.psd1` when you add a scenario or a folder.
-- **Run the CI job a change can break, locally, with act**
-  (https://nektosact.com/usage/index.html) - after touching CMake files,
-  build options or `.github/workflows/ci.yml`. CI configures differently
-  (`ATOM_BUILD_GAME=OFF`: no apps, no shaders), which `check.ps1` never
-  does. Linux job (`privacy`):
-  `act -j <job id> -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:pwsh-latest`.
-  Windows jobs (`unit-tests`, `package`) don't run in a container: add
-  `-P windows-latest=-self-hosted` (runs them on this machine).
+- **No local CI-configuration build** - except its configure step after
+  touching CMake files or `.github/workflows/ci.yml`: CI configures with
+  `ATOM_BUILD_GAME=OFF` (no apps, no shaders), which `check.ps1` never
+  does. `cmake -B build-ci -S . -DATOM_BUILD_GAME=OFF -DATOM_BUILD_TESTS=ON`
+  (seconds), then delete `build-ci`.
 - **Edit source with direct edits.** Never modify C++, HLSL or JSON
   containing escape sequences (`\n`, `\"`) through inline Python or shell
   heredocs: the extra quoting layers break them. Use an edit/patch
