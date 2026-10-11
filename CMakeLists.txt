@@ -43,13 +43,15 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # M101: Release builds keep their symbols (.pdb) beside the build, so a
 # player's crash dump can be read - never installed or packaged. /OPT keeps
-# the linker's Release optimisations that /DEBUG would turn off, and
-# /PDBALTPATH records only the .pdb's name in the executable, not the
-# developer's folder.
+# the linker's Release optimisations that /DEBUG would turn off. The
+# executables record only their .pdb's name, not the developer's folder
+# (/PDBALTPATH, set per app at the end of this file).
 if(MSVC)
     add_compile_options($<$<CONFIG:Release>:/Zi>)
-    add_link_options($<$<CONFIG:Release>:/DEBUG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>
-                     $<$<CONFIG:Release>:/PDBALTPATH:%_PDB%>)
+    # In the flags string, not add_link_options: MSBuild would escape the %
+    # signs and record "%%%Demo.pdb%%%" (seen in M101's crash test).
+    string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
 endif()
 
 # third party libraries
@@ -97,6 +99,14 @@ add_subdirectory(Games/Demo) # v0.0.14: the demo, beside DRIFT
 add_subdirectory(Games/Drift) # M77: a second game
 add_subdirectory(Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
 add_subdirectory(Samples/AtomArena) # M93: a benchmark arena, to evaluate profiling
+
+# M101: each app's executable names its .pdb without a path. Spelled out:
+# MSBuild escapes the linker's own %_PDB% into a wrong name.
+if(MSVC)
+    foreach(app Showcase Demo Drift HelloAtom AtomArena)
+        target_link_options(${app} PRIVATE $<$<CONFIG:Release>:/PDBALTPATH:$<TARGET_PDB_FILE_NAME:${app}>>)
+    endforeach()
+endif()
 
 option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)

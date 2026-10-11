@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <iostream>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -105,9 +106,13 @@ namespace Atom::CrashReport
                              dumped ? (stem + ".dmp").c_str() : "not written");
                 std::fclose(text);
             }
-            std::fprintf(stderr, "%s crashed (%s at %s+0x%llX); report: %s.txt%s\n", g_app, ExceptionName(code).c_str(),
-                         module, static_cast<unsigned long long>(offset), stem.c_str(), dumped ? ", minidump .dmp" : "");
-            std::fflush(stderr);
+            // Through std::cerr: RunLog copies it to the log file (C's
+            // stderr would reach the console only).
+            char line[512];
+            std::snprintf(line, sizeof(line), "%s crashed (%s at %s+0x%llX); report: %s.txt%s", g_app,
+                          ExceptionName(code).c_str(), module, static_cast<unsigned long long>(offset), stem.c_str(),
+                          dumped ? ", minidump .dmp" : "");
+            std::cerr << line << std::endl;
             return EXCEPTION_EXECUTE_HANDLER; // the process ends
         }
     }
