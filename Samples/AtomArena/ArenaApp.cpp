@@ -29,6 +29,11 @@ namespace Arena
         constexpr int EnemyPresets[] = { 50, 100, 250, 500, 1000 };
         constexpr int ProjectilePresets[] = { 0, 100, 500, 1000, 2000 };
 
+        // The overview (V): a fixed view from above one side, the whole floor in frame.
+        const glm::vec3 OverviewEye{ 0.0f, 13.0f, 21.0f };
+        constexpr float OverviewYaw = 0.0f;
+        constexpr float OverviewPitchDegrees = -32.0f;
+
         double NowMs()
         {
             return static_cast<double>(SDL_GetPerformanceCounter()) * 1000.0
@@ -46,9 +51,23 @@ namespace Arena
         Atom::Renderer& renderer = GetRenderer();
         m_levels = std::make_unique<LevelManager>(
             Level::Services{ renderer, GetAudio(), m_sounds, m_assets, m_models, ScreenFactory{} });
+        m_hooks = std::make_unique<Hooks>(BasicTestHooks::View{ &renderer, &GetAudio(), m_levels.get(), &m_player,
+                                                                &m_camera, &m_view, m_root }, *this);
+        // The player stands at the spawn; the first frame is drawn from
+        // the overview when it's on (the default) - where scenarios check
+        // the camera arrives (M104).
         m_levels->onLoaded = [this](Level&, const SpawnPoint& spawn) {
             m_player.Teleport(spawn.position, m_camera);
             m_camera.SetRotation(glm::radians(spawn.yawDegrees), 0.0f);
+            if (m_overview)
+            {
+                PlaceOverviewCamera();
+                m_hooks->ExpectArrival(OverviewEye, OverviewYaw);
+            }
+            else
+            {
+                m_hooks->ExpectSpawn(spawn);
+            }
             ApplyLighting();
         };
         if (!m_levels->Load("arena", ""))
@@ -71,9 +90,6 @@ namespace Arena
         m_config.projectiles = 500;
         Restart();
         m_panels.Add("Arena", 1, [this] { DrawArenaPanel(); });
-
-        m_hooks = std::make_unique<Hooks>(BasicTestHooks::View{ &renderer, &GetAudio(), m_levels.get(), &m_player,
-                                                                &m_camera, &m_view, m_root }, *this);
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
             RequestQuit(*exitCode);
@@ -235,13 +251,17 @@ namespace Arena
         }
     }
 
+    void ArenaApp::PlaceOverviewCamera()
+    {
+        m_camera.SetPosition(OverviewEye);
+        m_camera.SetRotation(OverviewYaw, glm::radians(OverviewPitchDegrees));
+    }
+
     void ArenaApp::UpdateCamera(float deltaSeconds)
     {
         if (m_overview)
         {
-            // A fixed view from above one side: the whole floor in frame.
-            m_camera.SetPosition({ 0.0f, 13.0f, 21.0f });
-            m_camera.SetRotation(0.0f, glm::radians(-32.0f));
+            PlaceOverviewCamera();
             return;
         }
         Level* level = m_levels->GetLevel();

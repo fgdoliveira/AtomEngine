@@ -1,5 +1,9 @@
 #include "Testing/TestScript.h"
 
+#include <glm/geometric.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/trigonometric.hpp>
+
 #include <algorithm>
 #include <charconv>
 #include <cstdio>
@@ -10,6 +14,12 @@
 
 namespace AtomFramework
 {
+    ArrivalError ArrivalBetween(const glm::vec3& eye, float yaw, const glm::vec3& expectedEye, float expectedYaw)
+    {
+        const float yawError = std::remainder(yaw - expectedYaw, glm::two_pi<float>());
+        return ArrivalError{ glm::length(eye - expectedEye), std::abs(glm::degrees(yawError)) };
+    }
+
     namespace
     {
         struct Arity

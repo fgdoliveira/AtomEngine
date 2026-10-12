@@ -114,8 +114,12 @@ toggles into the renderer's lighting.
   Environment, Level) for what you hand it in a `DevContext`; your own
   panels go beside them with `DevPanels::Add`.
 - **Scenarios**: `BasicTestHooks` answers the scenario harness for an app
-  that is a level, a player and a camera. Set `ATOM_TEST_SCRIPT` to a
-  script and the app runs it and exits with its result:
+  that is a level, a player and a camera. Tell it where each level puts
+  the camera - `m_hooks->ExpectSpawn(spawn)` in `onLoaded` (create the
+  hooks before the first `Load`) - and every scenario checks that the
+  first frame of a level is drawn from there; an app that never says
+  fails that check. Set `ATOM_TEST_SCRIPT` to a script and the app runs
+  it and exits with its result:
 
   ```powershell
   $env:ATOM_TEST_SCRIPT = "Samples\HelloAtom\Scenarios\hello_atom.atomtest"

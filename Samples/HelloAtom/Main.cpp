@@ -51,19 +51,21 @@ namespace
             // 2. Levels: JSON in Levels/, built into a world of entities.
             m_levels = std::make_unique<LevelManager>(
                 Level::Services{ GetRenderer(), GetAudio(), m_sounds, m_assets, m_models, ScreenFactory{} });
+            // 3. Scenarios (ATOM_TEST_SCRIPT) and F10: the framework's, given what this app has.
+            m_hooks = std::make_unique<BasicTestHooks>(BasicTestHooks::View{
+                &GetRenderer(), &GetAudio(), m_levels.get(), &m_player, &m_camera, &m_view, m_root });
+
+            // A level puts the player at its spawn - where scenarios check the camera arrives.
             m_levels->onLoaded = [this](Level&, const SpawnPoint& spawn) {
                 m_player.Teleport(spawn.position, m_camera);
                 m_camera.SetRotation(glm::radians(spawn.yawDegrees), 0.0f);
+                m_hooks->ExpectSpawn(spawn);
                 ApplyLighting();
             };
             if (!m_levels->Load("hello", ""))
             {
                 return false;
             }
-
-            // 3. Scenarios (ATOM_TEST_SCRIPT) and F10: the framework's, given what this app has.
-            m_hooks = std::make_unique<BasicTestHooks>(BasicTestHooks::View{
-                &GetRenderer(), &GetAudio(), m_levels.get(), &m_player, &m_camera, &m_view, m_root });
             if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
             {
                 RequestQuit(*exitCode); // a script that can't run

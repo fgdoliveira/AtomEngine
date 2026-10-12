@@ -68,6 +68,7 @@ namespace Arena
         void Restart();                  // the simulation again, from its seed
         void UpdateKeys();
         void UpdateCamera(float deltaSeconds);
+        void PlaceOverviewCamera();
         void Simulate(float deltaSeconds);
         void SubmitArena();
         void DrawHud();

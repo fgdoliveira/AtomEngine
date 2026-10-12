@@ -1603,11 +1603,7 @@ namespace Demo
 
     ArrivalError DemoApp::Arrival() const
     {
-        const float yaw = std::remainder(m_camera.GetYaw() - m_arrivalYaw, glm::two_pi<float>());
-        return ArrivalError{
-            glm::length(m_camera.GetPosition() - m_arrivalEye),
-            std::abs(glm::degrees(yaw)),
-        };
+        return ArrivalBetween(m_camera.GetPosition(), m_camera.GetYaw(), m_arrivalEye, m_arrivalYaw);
     }
 
     std::optional<float> DemoApp::AnimationTime(const std::string& name) const

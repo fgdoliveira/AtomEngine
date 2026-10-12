@@ -8,6 +8,7 @@ add_executable(
     DialogueTests.cpp
     LevelTests.cpp
     TestScriptTests.cpp
+    BasicTestHooksTests.cpp
     ModelTests.cpp
     AnimationTests.cpp
     AuthoringTests.cpp
