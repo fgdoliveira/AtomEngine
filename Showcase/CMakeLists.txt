@@ -56,29 +56,18 @@ target_link_libraries(
         imgui # M89: its own F10 panels (ShowcaseDevTools.cpp)
 )
 target_compile_definitions(Showcase PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M90: the benchmark file
-add_dependencies(Showcase AtomShaders) # the engine's shaders, shared with every app
 if(ATOM_DISTRIBUTION)
     set_target_properties(Showcase PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 
-# Its assets beside the executable: the shared pieces (Content/) in
-# Assets/<folder>, as every app has them, and its own in Assets/Showcase/,
-# looked up first.
-set(SHOWCASE_COPY_COMMANDS
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:Showcase>/Assets/Showcase)
+# Its own folder, bin/<config>/Showcase/ (M108, cmake/AtomApps.cmake): its
+# assets in Assets/Showcase/, looked up first, and the shared pieces it
+# uses (Content/) in Assets/<folder>.
+set(SHOWCASE_PAYLOAD "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/Showcase")
 foreach(folder IN ITEMS Environments First Fonts Kit Sky)
-    list(APPEND SHOWCASE_COPY_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            ${CMAKE_SOURCE_DIR}/Content/${folder} $<TARGET_FILE_DIR:Showcase>/Assets/${folder})
+    list(APPEND SHOWCASE_PAYLOAD "${CMAKE_SOURCE_DIR}/Content/${folder}" "Assets/${folder}")
 endforeach()
-add_custom_command(
-    TARGET Showcase
-    POST_BUILD
-    ${SHOWCASE_COPY_COMMANDS}
-    COMMENT "Copying the Showcase's assets"
-    VERBATIM
-)
+atom_app_payload(Showcase COPY ${SHOWCASE_PAYLOAD})
 
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Showcase)
 

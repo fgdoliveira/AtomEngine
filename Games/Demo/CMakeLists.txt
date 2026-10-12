@@ -104,8 +104,6 @@ target_link_libraries(
         DemoLib
 )
 
-add_dependencies(Demo AtomShaders)
-
 # M67: the distributed game is a windowed program - no console window on
 # double-click. Development builds keep their console. Main.cpp keeps
 # `main` either way (SDL_main.h supplies the Windows entry point); RunLog
@@ -149,21 +147,13 @@ function(atom_asset_source folder out)
         set(${out} "${CMAKE_CURRENT_SOURCE_DIR}/Assets/${folder}" PARENT_SCOPE)
     endif()
 endfunction()
-set(ATOM_ASSET_COPY_COMMANDS)
+# M108: in the demo's own folder, bin/<config>/Demo/ (cmake/AtomApps.cmake).
+set(DEMO_PAYLOAD)
 foreach(folder IN LISTS ATOM_RUNTIME_ASSETS)
     atom_asset_source(${folder} source)
-    list(APPEND ATOM_ASSET_COPY_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            ${source}
-            $<TARGET_FILE_DIR:Demo>/Assets/${folder})
+    list(APPEND DEMO_PAYLOAD "${source}" "Assets/${folder}")
 endforeach()
-add_custom_command(
-    TARGET Demo
-    POST_BUILD
-    ${ATOM_ASSET_COPY_COMMANDS}
-    COMMENT "Copying the runtime assets"
-    VERBATIM
-)
+atom_app_payload(Demo COPY ${DEMO_PAYLOAD})
 
 
 # The startup project is the Showcase (v0.0.14, Showcase/CMakeLists.txt).

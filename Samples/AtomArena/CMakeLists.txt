@@ -30,21 +30,15 @@ if(NOT ARENA_GIT_COMMIT)
 endif()
 target_compile_definitions(AtomArena PRIVATE ATOM_VERSION="${PROJECT_VERSION}" ATOM_GIT_COMMIT="${ARENA_GIT_COMMIT}"
                                              ATOM_BUILD_CONFIG="$<CONFIG>")
-if(TARGET AtomShaders)
-    add_dependencies(AtomArena AtomShaders) # the engine's shaders, shared with every app
-endif()
-
-# Its assets beside the executable: its own in Assets/AtomArena/ (looked up
-# first), the shared pieces it uses from Content/ in Assets/<folder>.
-set(ARENA_COPY_COMMANDS
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:AtomArena>/Assets/AtomArena)
-foreach(folder IN ITEMS First Fonts Kit)
-    list(APPEND ARENA_COPY_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            ${CMAKE_SOURCE_DIR}/Content/${folder} $<TARGET_FILE_DIR:AtomArena>/Assets/${folder})
-endforeach()
-add_custom_command(TARGET AtomArena POST_BUILD ${ARENA_COPY_COMMANDS} COMMENT "Copying ATOM ARENA's assets" VERBATIM)
+# Its own folder, bin/<config>/AtomArena/ (M108, cmake/AtomApps.cmake):
+# SDL3.dll, the engine's shaders (when built), its assets in
+# Assets/AtomArena/ (looked up first) and the shared pieces it uses from
+# Content/ in Assets/<folder>.
+atom_app_payload(AtomArena COPY
+    "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/AtomArena"
+    "${CMAKE_SOURCE_DIR}/Content/First" "Assets/First"
+    "${CMAKE_SOURCE_DIR}/Content/Fonts" "Assets/Fonts"
+    "${CMAKE_SOURCE_DIR}/Content/Kit" "Assets/Kit")
 
 # Its scenario (M107, cmake/AtomTesting.cmake) - registered only when the
 # shaders that running it needs are built (not in CI).

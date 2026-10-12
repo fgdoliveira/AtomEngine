@@ -16,8 +16,11 @@ git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cd AtomEngine
 cmake -B build -S .
 cmake --build build --config Release --target HelloAtom
-build\bin\Release\HelloAtom.exe
+build\bin\Release\HelloAtom\HelloAtom.exe
 ```
+
+Each app runs from a folder of its own (`build\bin\<config>\<app>\`):
+the executable, `SDL3.dll`, the engine's shaders and the app's assets.
 
 WASD and the mouse walk, Shift jogs. **F1** shows the engine's numbers
 (frame time, draws, the GPU), **F2-F8** switch what's drawn (render scale,
@@ -60,7 +63,9 @@ int main(int, char**) { HelloApp app; return app.Run(); }
 up in several folders in order: the app's own first, then the shared ones.
 The build copies `Samples/HelloAtom/Assets` to `Assets/HelloAtom/` beside
 the executable, and the pieces it uses from `Content/` (the first-render
-stage, the kit) to `Assets/`.
+stage, the kit) to `Assets/` - each named in its `CMakeLists.txt`
+(`atom_app_payload`). Its folder holds nothing else, so a piece it forgets
+to name is missing at once, not found in another app's copy.
 
 ```cpp
 m_assets = AssetRoots({ m_root + "Assets/HelloAtom/", m_root + "Assets/" });
@@ -123,7 +128,7 @@ toggles into the renderer's lighting.
 
   ```powershell
   $env:ATOM_TEST_SCRIPT = "Samples\HelloAtom\Scenarios\hello_atom.atomtest"
-  build\bin\Release\HelloAtom.exe
+  build\bin\Release\HelloAtom\HelloAtom.exe
   ```
 
   `ctest -L scenario` runs it with the others (`Scenario.hello.hello_atom`).

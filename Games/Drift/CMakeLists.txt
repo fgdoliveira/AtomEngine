@@ -51,22 +51,13 @@ target_link_libraries(
         imgui # M89: the Flight panel under F10
 )
 target_compile_definitions(Drift PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M82: the diagnostics title
-add_dependencies(Drift AtomShaders) # the engine's shaders, shared with every game
 if(ATOM_DISTRIBUTION)
     set_target_properties(Drift PROPERTIES WIN32_EXECUTABLE ON) # M67: no console for players
 endif()
 
-# Its assets, beside the executable under Assets/Drift/ (the demo's are
-# under Assets/<folder>; both games share the build's bin folder).
-add_custom_command(
-    TARGET Drift
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/Assets
-        $<TARGET_FILE_DIR:Drift>/Assets/Drift
-    COMMENT "Copying DRIFT's assets"
-    VERBATIM
-)
+# Its own folder, bin/<config>/Drift/ (M108, cmake/AtomApps.cmake): its
+# assets under Assets/Drift/; it uses nothing from Content/.
+atom_app_payload(Drift COPY "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/Drift")
 
 # The distribution (M83): DRIFT's own install component, as the demo's
 # (Games/Demo/CMakeLists.txt). `pwsh Tools/Dist/package.ps1 -Game Drift`.

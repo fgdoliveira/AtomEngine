@@ -101,7 +101,7 @@ scenario harness that drives the real apps from scripts.
 
 ## The Showcase
 
-`build/bin/<config>/Showcase.exe` (the default startup project). A
+`build/bin/<config>/Showcase/Showcase.exe` (the default startup project). A
 lakeside village through a day - clear day, sunset, night, rain - built
 only from the engine and the framework. It opens on a title: **Explore**,
 **Benchmark**, **Settings**, **Quit**.
@@ -123,7 +123,7 @@ only from the engine and the framework. It opens on a title: **Explore**,
 
 ## The games
 
-**The demo** (`Games/Demo`, `build/bin/<config>/Demo.exe`): a night street
+**The demo** (`Games/Demo`, `build/bin/<config>/Demo/Demo.exe`): a night street
 with a story. Talk to the shrine keeper by the torii, find a way through
 the shrine gate, try the door of the house at the east end of the street,
 and take the field path to the windmill. At the bus stop, wait for the
@@ -147,7 +147,7 @@ At the pachinko machine: Space (hold) launches balls, Up / Down or the
 wheel set the strength, B or Enter buys 50 balls for 10 tokens, Q or
 Backspace stands up.
 
-**DRIFT** (`Games/Drift`, `build/bin/<config>/Drift.exe`): a faithful port
+**DRIFT** (`Games/Drift`, `build/bin/<config>/Drift/Drift.exe`): a faithful port
 of a three.js web game - fly an endless path at dusk through rings, orbs
 and rocks, to music synthesised live. Click to launch; WASD, the arrows or
 the mouse steer; Shift boosts; M mutes; Esc pauses (resume, settings,
@@ -171,7 +171,7 @@ Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.26, and
 git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cmake -B build -S .
 cmake --build build --config Release
-build/bin/Release/Showcase.exe     # or Demo.exe, Drift.exe, HelloAtom.exe
+build/bin/Release/Showcase/Showcase.exe   # or Demo/Demo.exe, Drift/Drift.exe, HelloAtom/HelloAtom.exe
 ```
 
 Dependencies are git submodules in `external/`, each pinned to one commit
@@ -206,7 +206,7 @@ tests and HelloAtom with no shader compiler - the configuration CI uses.
 Something missing or failing? `pwsh Tools/Dev/doctor.ps1` checks the
 prerequisites (Windows, CMake, Visual Studio's C++ tools, `dxc`, the
 submodules) and says what to install. `-Configure` adds a trial configure
-in a throwaway folder; `-GamePath build/bin/Release/Demo.exe` adds the
+in a throwaway folder; `-GamePath build/bin/Release/Demo/Demo.exe` adds the
 game's own report. It only reads: no drivers, power plans or files change.
 
 ## Settings and hardware

@@ -3,7 +3,7 @@
 #   pwsh Tools/Perf/latency.ps1 [-Mode Engine|PresentMon] [-Configs default,fif3-vsync,...]
 #                               [-Rounds 4] [-Seconds 10] [-Level street]
 #                               [-EngineLog] [-PresentMonPath <exe>] [-NoElevate]
-#                               [-Game build/bin/Release/Drift.exe]   (M83: DRIFT, by its autopilot)
+#                               [-Game build/bin/Release/Drift/Drift.exe]   (M83: DRIFT, by its autopilot)
 #
 # Two modes, by design:
 #   Engine (default)  the engine's own timing (ATOM_LATENCY_LOG, M73): from the
@@ -47,7 +47,7 @@ param(
     [int]$Rounds = 4,
     [double]$Seconds = 10,
     [string]$Level = "street",
-    [string]$Game = "build/bin/Release/Demo.exe",
+    [string]$Game = "build/bin/Release/Demo/Demo.exe",
     [string]$PresentMonPath = "",
     [switch]$EngineLog,
     [switch]$NoElevate,

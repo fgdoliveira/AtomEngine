@@ -225,6 +225,14 @@ Redistributable doesn't have. Since M66 every target links it statically
 (`CMAKE_MSVC_RUNTIME_LIBRARY`, set before the first target so nothing mixes
 runtimes), SDL3.dll included.
 
+**In a development build (M108)** each app runs from a folder of its own,
+`build/bin/<config>/<app>/`: its executable, `SDL3.dll`, the engine's
+shaders and the asset folders its `CMakeLists.txt` declares
+(`atom_app_payload`, `cmake/AtomApps.cmake`) - the same shape as its
+package. Before, every app shared `build/bin/<config>/`, and a folder one
+app copied there could hide one another app forgot to declare until the
+package check. The test executables stay in `build/bin/<config>/`.
+
 ## 8. Hardware and settings
 
 Two decisions are kept apart: **which adapter** (a stability choice, made

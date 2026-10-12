@@ -3,7 +3,7 @@
 #
 #   pwsh Tools/Dev/doctor.ps1                       # prerequisites
 #   pwsh Tools/Dev/doctor.ps1 -Configure            # ... and a test configure
-#   pwsh Tools/Dev/doctor.ps1 -GamePath build/bin/Release/Demo.exe   # ... and the game's own report
+#   pwsh Tools/Dev/doctor.ps1 -GamePath build/bin/Release/Demo/Demo.exe   # ... and the game's own report
 #
 # Each check prints PASS, WARN or FAIL with what to do. It reads, and never
 # changes anything: no power plans, drivers, environment variables or

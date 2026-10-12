@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Tools and tests go to bin/<config>/; each app to bin/<config>/<app>/, its
+# own folder (M108, cmake/AtomApps.cmake).
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # M54 (audit BUILD-001): the game executable and its shaders. Off, the
@@ -97,6 +99,8 @@ if(ATOM_BUILD_TESTS)
     enable_testing()
     include(cmake/AtomTesting.cmake)
 endif()
+
+include(cmake/AtomApps.cmake) # M108: atom_app_payload - each app's own runtime folder
 
 if(ATOM_BUILD_GAME)
     add_subdirectory(Shaders)
