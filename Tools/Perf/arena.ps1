@@ -1,7 +1,7 @@
 # ATOM ARENA's benchmark matrix (v0.0.15, M94): every scenario, several
 # rounds, then one table.
 #
-#   pwsh Tools/Perf/arena.ps1 [-Exe build/bin/Release/AtomArena.exe] [-Rounds 3]
+#   pwsh Tools/Perf/arena.ps1 [-Exe build/bin/Release/AtomArena/AtomArena.exe] [-Rounds 3]
 #        [-Scenarios update_500,collision_500] [-Frames 1200] [-Warmup 120] [-Seed 42]
 #        [-Label baseline] [-TimeoutSeconds 120]
 #
@@ -18,7 +18,7 @@
 # Measuring performance). A hung run is killed after -TimeoutSeconds and
 # recorded as missing.
 param(
-    [string]$Exe = "build/bin/Release/AtomArena.exe",
+    [string]$Exe = "build/bin/Release/AtomArena/AtomArena.exe",
     [int]$Rounds = 3,
     [string[]]$Scenarios = @(),
     [int]$Frames = 1200,

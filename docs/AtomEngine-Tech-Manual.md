@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.15 / M102**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120).
+A study guide to every concept the engine uses, as of **v0.0.16 / M110**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -129,9 +129,17 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 118. [Why it stopped: a lost device, a crash dump, symbols (M101)](#118-why-it-stopped-a-lost-device-a-crash-dump-symbols-m101)
 119. [Process and GPU memory (M101)](#119-process-and-gpu-memory-m101)
 120. [Releasing 0.0.15 (M102)](#120-releasing-0015-m102)
-121. [Anatomy of a frame and what it costs](#121-anatomy-of-a-frame-and-what-it-costs)
-122. [Build system and project layout](#122-build-system-and-project-layout)
-123. [Glossary](#123-glossary)
+121. [Ownership: what a test may see (v0.0.16, M103)](#121-ownership-what-a-test-may-see-v0016-m103)
+122. [A check that can't fail (M104)](#122-a-check-that-cant-fail-m104)
+123. [One test target per owner (M105)](#123-one-test-target-per-owner-m105)
+124. [Assets resolved by owner (M106)](#124-assets-resolved-by-owner-m106)
+125. [Scenarios per app; checks by owner (M107)](#125-scenarios-per-app-checks-by-owner-m107)
+126. [A runtime folder per app (M108)](#126-a-runtime-folder-per-app-m108)
+127. [Apps by purpose (M109)](#127-apps-by-purpose-m109)
+128. [Releasing 0.0.16 (M110)](#128-releasing-0016-m110)
+129. [Anatomy of a frame and what it costs](#129-anatomy-of-a-frame-and-what-it-costs)
+130. [Build system and project layout](#130-build-system-and-project-layout)
+131. [Glossary](#131-glossary)
 
 ---
 
@@ -3091,7 +3099,142 @@ The lesson is the same in all three: when two parts of a program both change a p
 
 ---
 
-## 121. Anatomy of a frame and what it costs
+## 121. Ownership: what a test may see (v0.0.16, M103)
+
+**Concept: a boundary is only real if something enforces it.** Since v0.0.14 the code had three layers (§104): the engine names no level, the framework names no app. The tests, the assets and the build didn't follow: one `AtomTests` executable linked every app's library, its asset lookup searched the demo, then the Showcase, then `Content/`, and every app ran from one shared folder. A layer rule the tests ignore protects nothing: an engine test couldn't even be built without the games, and one app's file could make another app's test pass.
+
+v0.0.16 gives everything an **owner** — the engine, the framework, the shared content, or one app — and lets each owner's tests and runs see only what that owner ships. Two smaller fixes opened it:
+
+**Concept: CMake usage requirements apply to sources too.** `target_sources(lib PUBLIC x.cpp)` doesn't mean "visible": it means *every target linking `lib` gets `x.cpp` added to its own sources*. `Log.cpp` and `Trace.cpp` sat in the engine's `PUBLIC` list, so each test and app compiled them again — seen in the build output, not in any error. Headers may be `PUBLIC` (they describe the interface); implementation files are `PRIVATE`.
+
+**Concept: a test that times something isn't a unit test.** The collision grid's test asserted that the grid was faster than a scan, by wall clock. On a laptop whose speed drifts (§63) that is a hardware-dependent gate in the normal run. It moved to a doctest **test suite** named `benchmark`, which the test main leaves out unless asked (`<target> -ts=benchmark`): a custom `main` adds `test-suite-exclude=benchmark` when no `-ts=` is given.
+
+**Code.** `Engine/CMakeLists.txt`, `Tests/Support/TestMain.cpp`, `Apps/Games/Demo/Tests/CollisionContentTests.cpp`.
+
+---
+
+## 122. A check that can't fail (M104)
+
+**Concept: a check that passes by default is worse than none.** Every scenario checks that a level's first frame is drawn from where the level puts the camera (§33): the camera's distance and yaw from the spawn, within 1 cm and 0.5°. The demo and the Showcase measured it. `BasicTestHooks` — what HelloAtom and ATOM ARENA use — answered `Arrival() { return {}; }`: zero error, always. Two apps reported a guarantee nobody checked, and nothing looked wrong.
+
+**How AtomEngine does it.** The app now *says* where it lands, from its level-loaded callback, before the first frame: `ExpectSpawn(spawn)` (the spawn's feet raised to the player's eye height, its yaw) or `ExpectArrival(eye, yaw)`. `Arrival()` measures the camera against it — and with no expectation it returns an infinite error, so an app that forgets fails every arrival instead of passing. One function, `ArrivalBetween(eye, yaw, expectedEye, expectedYaw)`, does the measuring for every app; the yaw is compared the short way round (`std::remainder` by 2π: 359° against 1° is 2°).
+
+ATOM ARENA's first frame is drawn from its **overview** camera, not the walking spawn, so its load places the overview at once and expects that pose. The hooks are now created *before* the first level load, since the callback uses them.
+
+**Proving the check.** Removing HelloAtom's `ExpectSpawn` call made its scenario fail ("camera is inf m and inf deg from the spawn"); restored, it passed. A test's own failure path deserves a test.
+
+**Code.** `Framework/Testing/BasicTestHooks.{h,cpp}`, `ArrivalBetween` in `Framework/Testing/TestScript.{h,cpp}`, `Apps/Samples/HelloAtom/Main.cpp`, `Apps/Benchmarks/AtomArena/ArenaApp.cpp`, `Tests/Framework/BasicTestHooksTests.cpp`.
+
+---
+
+## 123. One test target per owner (M105)
+
+**Concept: a test executable's link line is its dependency claim.** Whatever a test target links, a change to it rebuilds the test, and the test can't build without it. One executable linking `DemoLib`, `DriftLib`, `ShowcaseLib` and `ArenaLib` claimed every engine test needs every game. Splitting by owner makes the claim honest:
+
+| Target | Owner | Links | What it tests |
+|---|---|---|---|
+| `AtomEngineTests` | engine | `AtomEngine` | the engine's algorithms on synthetic data |
+| `AtomFrameworkTests` | framework | `AtomFramework` | reusable policies and parsers, data written in the test |
+| `AtomContentTests` | content | the framework | the shared `Content/` (kit, environment presets) |
+| `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` | each app | its library | its rules and its shipped files |
+
+CMake's dependency graph (`cmake --graphviz`) confirms the engine's and framework's tests reach no app library. `AtomTests` remains as a target that builds them all (CI).
+
+**Concept: split by contract, not by file.** Several files tested two things at once. `SynthTests` measured the engine's synthesiser *and* DRIFT's soundtrack; `PachinkoTests` held the framework's fixed step, the engine's reverb and the demo's attract loop; the level tests parsed JSON written in the test *and* checked the demo's shipped levels. Each case went to the owner of what it checks. The collision grid's "grid answers exactly like a scan" kept its form but on a **synthetic, seeded** world of floor tiles, ramps and walls, with a check that both answers (hit and miss) actually occur — a comparison that only ever sees misses proves nothing.
+
+**Concept: two kinds of check, two runs.** A **unit** check tests behaviour on inputs it controls; a **content** check validates files someone authored (every level parses, every lightmap was baked on the CPU). Content checks live in the doctest suite `content` (`TEST_SUITE_BEGIN("content")`). The CMake helper registers each target as `Unit.<owner>` (`-tse=content,benchmark`) and, if any of its files opens the content suite, `Content.<owner>` (`-ts=content`), with CTest **labels** `cpu`, `unit|content` and the owner. `ctest -L demo` runs one owner's; `ctest -L cpu` all of them.
+
+**The count.** 238 cases became 252: every old case kept (five renamed where they split), plus the arrival tests, ownership tests and per-app level checks. A comparison of case names before and after is how "none dropped" was checked, and each case runs in exactly one of the unit, content and benchmark runs.
+
+**Code.** `cmake/AtomTesting.cmake` (`atom_add_tests`), `Tests/CMakeLists.txt`, `Tests/{Engine,Framework,Content,Support}/`, `Apps/*/Tests/`.
+
+---
+
+## 124. Assets resolved by owner (M106)
+
+**Concept: a fallback search can hide a missing dependency.** The old test lookup tried the demo's assets, then the Showcase's, then `Content/`. If a demo level named a file only the Showcase shipped, the test found it and passed — while the demo, which never has the Showcase's files, would fail to load it. A lookup that searches more than the program will is a false positive waiting to happen.
+
+**How AtomEngine does it.** Each test target is compiled with its owner's asset folder (`ATOM_TEST_ASSETS`; empty for the engine, the framework and the shared content). `AtomTests::Asset(path)` returns the owner's file if it exists, else the `Content/` path — exactly the order the app's own `AssetRoots` uses (§104). It is plain `std::filesystem`: the engine's tests don't depend on the framework's resolver. `Schema(name)` looks in the owner's `Assets/Schemas/`, then the framework's. Two tests prove it: the demo's tests do *not* find `ThirdParty/rudy.glb` or `Levels/showcase.json`, which the Showcase ships; the Showcase's do not find the demo's `Levels/street.json`, though both apps have a `Levels/` folder.
+
+Each app's levels are now checked by its own tests (`CheckShippedLevels`: each parses, and the model, collision and lightmap it names exist where that app looks). ATOM ARENA's level was never checked before.
+
+**Code.** `Tests/Support/TestAssets.h`, `Tests/Support/LevelChecks.h`, `Apps/Games/Demo/Tests/AssetOwnershipTests.cpp`, `Apps/Showcase/Tests/AssetOwnershipTests.cpp`.
+
+---
+
+## 125. Scenarios per app; checks by owner (M107)
+
+**Concept: registration belongs with the thing registered.** All scenarios were registered in `Tests/CMakeLists.txt`, which began with `if(NOT TARGET Demo) return()`: without the demo, *no* app's scenarios existed, and the demo's own scripts lived in `Tests/Scenarios/`. Now each app registers its own, after its executable, through one helper — the environment, the failure patterns (§70: GPU resources alive at shutdown, a pipeline not created), the timeout and the labels in one place:
+
+```cmake
+atom_add_scenarios(Demo OWNER demo DIR "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios" SMOKE street_keeper)
+atom_add_scenario(diagnostics OWNER demo PASS "Diagnostics written" COMMAND $<TARGET_FILE:Demo> --diagnostics ...)
+```
+
+Tests are named `Scenario.<owner>.<name>`. An app that isn't built — or a sample whose shaders aren't (CI) — registers none, so CI's configure has zero scenarios rather than unrunnable ones.
+
+**Concept: a smoke test.** The cheapest run that proves a program starts, does its main work and shuts down clean. Each app tags one short scenario `smoke` (the demo's `street_keeper`, the Showcase's `showcase_lens`, `hello_atom`, `arena_smoke`, and a new 3-second `drift_smoke` flight, since DRIFT's full flight takes 20 s): 23 s for all five. An engine change can break any app, so it owes each one a smoke run — not each one's full suite.
+
+**Concept: test selection by ownership.** `Tools/Dev/changed.psd1` maps changed files to **owners** (whose CPU tests to build and run), named scenarios (`demo.levels_roundtrip`) and whether the smoke runs are due. `check.ps1 -Level changed` builds only those test targets and apps: a demo change builds `Demo` and `DemoTests`; an engine change the engine's and framework's tests plus every app. A subsystem with an app-level check of its own adds it (an engine asset-loader change also runs the apps' content tests, which load models).
+
+**What it saved, measured.** Against v0.0.15's check (Debug, warm build, one edit each):
+
+| Change | v0.0.15 | v0.0.16 |
+|---|---|---|
+| an engine file | 58 s (scenarios 43 s) | 43 s (smoke 26 s) |
+| a demo file | 19 s | 21 s |
+
+The first version measured 50 s for the engine file, and the build was why. CMake's Visual Studio generator runs `cmake --build --target a b c` as **one MSBuild per target, in turn**: 11 s against 4 s for one parallel build of everything. And an explicit reconfigure cost 3 s that `cmake --build` makes unnecessary, since it re-runs CMake itself when a `CMakeLists.txt` changed. So when the smoke runs need every app anyway, the check builds everything in one call. The demo file saved nothing: the old unit run was already 8 s. Its gain is isolation — it compiles and runs no engine or framework test — not time.
+
+**Code.** `cmake/AtomTesting.cmake` (`atom_add_scenario`, `atom_add_scenarios`), each app's `CMakeLists.txt`, `Tools/Dev/check.ps1`, `Tools/Dev/changed.psd1`.
+
+---
+
+## 126. A runtime folder per app (M108)
+
+**Concept: a hermetic payload.** A program should run from a folder that holds exactly what it declared — nothing left there by something else. All apps built into one `bin/<config>/`, their assets merged into one `Assets/`: the Showcase's copy of the kit satisfied HelloAtom even if HelloAtom forgot to declare it, and the gap appeared only in a package check, or a player's machine.
+
+**How AtomEngine does it.** `atom_app_payload(<app> COPY <source> <folder>...)` sets the app's output to `bin/<config>/<app>/` (a generator expression, `$<CONFIG>`, in `RUNTIME_OUTPUT_DIRECTORY`, so multi-config generators add no extra folder) and, after each build, copies into it `SDL3.dll`, the engine's shaders (compiled once, copied per app) and the asset folders the app names — `copy_directory_if_different`, so an unchanged build copies nothing. What is inside the folder (`Assets/<App>/`, `Assets/<folder>`) didn't change, nor did packages (built by install rules, §86) or the executables' names. Test executables stay in `bin/<config>/`.
+
+**Proving it.** Removing `Kit` from HelloAtom's list made its scenario fail at once ("Failed to parse glTF `Assets/HelloAtom/Kit/...`"); in the shared folder the Showcase's copy would have hidden it. Old outputs were deleted before the first build, so no stale file could make a payload look complete.
+
+`ab.ps1` takes both executables' paths, so comparing against a v0.0.15 build (flat layout) still works — each side gets its own path.
+
+**Code.** `cmake/AtomApps.cmake`, each app's `CMakeLists.txt`, `docs/Architecture.md` §7.
+
+---
+
+## 127. Apps by purpose (M109)
+
+**Concept: a folder says what a thing is for.** "Is it playable?" doesn't sort apps: the demo, DRIFT, the Showcase and ATOM ARENA are all played. *What it is for* does:
+
+| Folder | Purpose | What decides it |
+|---|---|---|
+| `Apps/Games/` | a complete product for players | its rules, progression, settings and package |
+| `Apps/Samples/` | teach how to use the engine | small enough to read and adapt |
+| `Apps/Showcase/` | present the engine to evaluators | presentation, exploration, each feature explained |
+| `Apps/Benchmarks/` | measure controlled workloads | seeds, workload switches, reports |
+
+So the demo stays a Game (its story, pachinko, package) and ATOM ARENA becomes a Benchmark. These are conventions, not engine categories: the engine knows nothing of them. Each app owns its `Assets/`, `Tests/` and `Scenarios/`; reusable assets go to `Content/`, reusable code to the engine or framework, developer utilities to `Tools/`.
+
+**Concept: a move touches every path that names the old place.** `git mv` keeps history, but paths live in more places than the build: the levels' relative `$schema` (one folder deeper, so one more `../`), the source-root lookup used by hot reload (`ATOM_ASSET_ROOT`, §39), the asset builders' output folders, a licence file read by CMake, the change table's patterns, scripts and documentation. Each was found by searching for the old paths, not by waiting for failures; the hot-reload lookup, which no scenario exercises, was run by hand against the source tree. Files with escape sequences (`\n`, `\"`) were edited one by one, never through a pattern or a script, whose extra quoting layers can break them.
+
+**Code.** the root `CMakeLists.txt`, `Apps/`, `docs/Architecture.md` §1.
+
+---
+
+## 128. Releasing 0.0.16 (M110)
+
+- `check.ps1 -Level full`: Debug and Release, 10 CPU test runs (252 cases) and 22 scenarios each, all passing.
+- **Packages**: `Demo-v0.0.16-win64.zip` 15.5 MB, `Drift-v0.0.16-win64.zip` 2.1 MB, staged, verified and started from outside the repository with developer tools off.
+- **Performance**: no A/B was run. No runtime code changed beyond the samples' camera placement at load; `ab.ps1` is for changes that touch performance (§63).
+- CI's configure without the game registers the 10 CPU tests and no scenario.
+
+**Code.** `CHANGELOG.md` 0.0.16, the README, `docs/Architecture.md`, `docs/Getting-Started.md`, `CLAUDE.md`.
+
+---
+
+## 129. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -3138,16 +3281,16 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 122. Build system and project layout
+## 130. Build system and project layout
 
-- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomTests` (doctest unit tests, linking the app libraries), `AtomShaders` (custom target compiling HLSL). Each `*.atomtest` under `Tests/Scenarios/`, `Showcase/Scenarios/` and `Samples/HelloAtom/Scenarios/` is a ctest test that runs its app with `ATOM_TEST_SCRIPT` (label `scenario`); `drift_fly` and `drift_diagnostics` run `Drift`.
+- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomShaders` (custom target compiling HLSL). The apps live under `Apps/` by purpose (§127). **CPU tests** (v0.0.16, §123): one doctest executable per owner — `AtomEngineTests`, `AtomFrameworkTests`, `AtomContentTests`, `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` — declared with `atom_add_tests` and run as `Unit.<owner>` and `Content.<owner>`; `AtomTests` builds them all. **Scenarios** (§125): each app registers its `Scenarios/*.atomtest` (and runs of its command line) as `Scenario.<owner>.<name>` with `atom_add_scenarios` / `atom_add_scenario`, labels `scenario`, the owner and, for one short run per app, `smoke`. Both helpers are in `cmake/AtomTesting.cmake`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
+- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Apps/Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
 - **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game Demo|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build with developer tools, §101) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
-- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the unit tests, HelloAtom's compile (§111), and the package check for both games (no artifact kept). **Validation** (§75, §100): `Tools/Dev/check.ps1 -Level changed` per milestone (the table in `Tools/Dev/changed.psd1`), `-Level full` once per version.
+- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the CPU tests (`ctest -L cpu`), HelloAtom's compile (§111), and the package check for both games (no artifact kept); without the game no scenario is registered. **Validation** (§75, §100, §125): `Tools/Dev/check.ps1 -Level changed` per milestone — the owners a change touches, from `Tools/Dev/changed.psd1`, and only their test targets and apps built — and `-Level full` once per version.
 - **Shader variants** (§69, §98): `BasicRain.frag` and `BasicToon.frag` include `Basic.frag` with a define; a change to `Basic.frag` rebuilds all three. Write float literals with `f` (§102).
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
-- Post-build steps copy each app's `Assets/` to `Assets/<App>/` and the `Content/` folders it uses to `Assets/` next to the executable (§104); shaders are compiled into `bin/<Config>/shaders/`.
+- Each app runs from its own folder, `bin/<Config>/<app>/` (v0.0.16, §126): `atom_app_payload` (`cmake/AtomApps.cmake`) copies after each build its `SDL3.dll`, the engine's shaders (compiled once into `bin/<Config>/shaders/`) and the folders it declares — its `Assets/` to `Assets/<App>/`, the `Content/` folders it uses to `Assets/` (§104). The test executables stay in `bin/<Config>/`.
 - Visual Studio's built-in HLSL (FXC) is disabled on `.hlsl`/`.hlsli` files (`VS_TOOL_OVERRIDE None`) so only dxc compiles them; `Common.hlsli` is a dependency of every shader.
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
@@ -3158,7 +3301,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97); since v0.0.15 `ATOM_TRACE=<prefix>` (§114), `ATOM_PREWARM=0` (§115). All are read through `Atom::DevSwitch` and ignored in a package (§101).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
-- **Running tests**: `ctest --test-dir build -C Release` (all), `-LE scenario` (unit tests only, no GPU), `-L scenario` (in-game).
+- **Running tests**: `ctest --test-dir build -C Release` (all), `-L cpu` (the CPU tests, no GPU), `-L scenario` (in-game), `-L smoke` (one short run per app), `-L <owner>` (one owner's: `engine`, `framework`, `content`, `demo`, `drift`, `showcase`, `hello`, `arena`); `<target> -ts=benchmark` runs a target's timing comparisons by hand (§121).
 
 ```
 Engine/  Assets/ Audio/ Core/ Debug/ (ImGui host) Physics/ Platform/ Renderer/ Scene/ UI/
@@ -3172,16 +3315,17 @@ Framework/ Platform/ (RunLog, AssetRoots), Settings/ (GameSettings, SettingsStor
          Character/ (PlayerController, Animator, LabViewer, SpringArm)
          UI/ (UiKit, UiFonts, MenuScreen, SettingsScreen), Testing/ (TestScript, GameDiagnostics,
          BasicTestHooks, PairedBench), Schemas/*.schema.json
-Showcase/ ShowcaseApp (the village, clock, captions), ShowcaseLens, ShowcaseLab, ShowcaseMenus
+Apps/    (v0.0.16) each app owns its Assets/, Tests/ (its CPU tests) and Scenarios/
+  Showcase/ ShowcaseApp (the village, clock, captions), ShowcaseLens, ShowcaseLab, ShowcaseMenus
          (title, settings, benchmark), ShowcaseDevTools, BoothSynth, Features/ (the catalog);
-         Assets/ (Levels/, Lakeshore/, Lab/, ThirdParty/), Scenarios/
-Games/Demo/ DemoApp, AudioScape, SoundSynth, UneaseDirector, Flashlight, Dialogue/, Pachinko/,
+         Assets/ (Levels/, Lakeshore/, Lab/, ThirdParty/), Tests/, Scenarios/
+  Games/Demo/ DemoApp, AudioScape, SoundSynth, UneaseDirector, Flashlight, Dialogue/, Pachinko/,
          Input/, DemoAppDevTools, DemoAppCalibration; Assets/ (Street, Shrine, Interior, Fields,
-         City, Night, Pachinko, Passage, Levels, Dialogue, Data), README.txt.in
-Games/Drift/ DriftLib: Flight, World, SpeedField, Music; DriftApp, Main;
-         Assets/ (ship, ring, orb, rock .glb; Fonts/SpaceGrotesk + OFL); README.txt.in
-Samples/HelloAtom/ Main.cpp, Assets/Levels/hello.json, Scenarios/
-Samples/AtomArena/ ArenaLib: ArenaSim, ArenaBenchmark; ArenaApp, Main; Scenarios/
+         City, Night, Pachinko, Passage, Levels, Dialogue, Data), Tests/, Scenarios/, README.txt.in
+  Games/Drift/ DriftLib: Flight, World, SpeedField, Music; DriftApp, Main;
+         Assets/ (ship, ring, orb, rock .glb; Fonts/SpaceGrotesk + OFL); Tests/; README.txt.in
+  Samples/HelloAtom/ Main.cpp, Assets/Levels/hello.json, Scenarios/
+  Benchmarks/AtomArena/ ArenaLib: ArenaSim, ArenaBenchmark; ArenaApp, Main; Tests/, Scenarios/
 Content/ Kit/ Sky/ Fonts/ Environments/ First/ (shared by several apps)
 Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain,
@@ -3201,7 +3345,9 @@ Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + export (each product to its app's Assets/ or to Content/)
 docs/    this manual, Architecture.md, Features.md, Getting-Started.md
 .github/ CI workflow; CLAUDE.md: working rules for agents
-Tests/   unit tests (*.cpp), Scenarios/*.atomtest (the demo's)
+Tests/   the CPU tests of what isn't an app's: Engine/, Framework/, Content/;
+         Support/ (TestMain, TestAssets, LevelChecks)
+cmake/   AtomTesting.cmake (atom_add_tests, atom_add_scenario[s]), AtomApps.cmake (atom_app_payload)
 external/ SDL glm cgltf stb json doctest imgui
 ```
 
@@ -3217,7 +3363,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 123. Glossary
+## 131. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -3468,3 +3614,12 @@ external/ SDL glm cgltf stb json doctest imgui
 - **State hash** — a hash over a simulation's whole state, to prove two runs did the same work (§113).
 - **TDR** — timeout detection and recovery: Windows resetting a GPU that stopped responding, which removes the device (§118).
 - **Working set** — the part of a process's memory currently in physical RAM (§119).
+- **CTest label** — a tag on a registered test (`cpu`, `scenario`, `smoke`, an owner) that `ctest -L` selects by (§123).
+- **Content check** — a test that validates authored files (levels parse, lightmaps were baked on the CPU), as opposed to behaviour on controlled inputs (§123).
+- **False positive (test)** — a test that passes although the thing it guards is broken, as when a lookup finds a file the real program never has (§124).
+- **Hermetic payload** — a runtime folder holding exactly what its program declared, nothing left by anything else (§126).
+- **Owner** — what a test, scenario or asset belongs to: the engine, the framework, the shared content or one app; it decides what the test may see and when it runs (§121).
+- **Smoke test** — the cheapest run proving a program starts, does its main work and shuts down clean (§125).
+- **Test suite (doctest)** — a named group of test cases a run can include (`-ts=`) or exclude (`-tse=`) (§121, §123).
+- **Usage requirement (sources)** — a `PUBLIC` source in `target_sources` is added to every target that links the library, so it is compiled again in each (§121).
+- **Vacuous check** — a check that cannot fail, because it compares against nothing or always reports success (§122).

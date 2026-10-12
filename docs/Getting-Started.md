@@ -1,9 +1,9 @@
 # Getting started: your first AtomEngine app
 
-This walks through **`Samples/HelloAtom`**, the smallest complete app on
+This walks through **`Apps/Samples/HelloAtom`**, the smallest complete app on
 AtomEngine: a window, a level loaded from data, first-person walking, the
 engine's numbers, the developer tools and the scenario harness, in about
-150 lines (`Samples/HelloAtom/Main.cpp`). Everything the Showcase and the
+150 lines (`Apps/Samples/HelloAtom/Main.cpp`). Everything the Showcase and the
 games do is built on the same pieces.
 
 ## 1. Build and run it
@@ -16,8 +16,11 @@ git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cd AtomEngine
 cmake -B build -S .
 cmake --build build --config Release --target HelloAtom
-build\bin\Release\HelloAtom.exe
+build\bin\Release\HelloAtom\HelloAtom.exe
 ```
+
+Each app runs from a folder of its own (`build\bin\<config>\<app>\`):
+the executable, `SDL3.dll`, the engine's shaders and the app's assets.
 
 WASD and the mouse walk, Shift jogs. **F1** shows the engine's numbers
 (frame time, draws, the GPU), **F2-F8** switch what's drawn (render scale,
@@ -30,7 +33,7 @@ developer tools, **Esc** quits.
 Engine/      Atom::            the window, GPU renderer, audio, input, physics, UI drawing
 Framework/   AtomFramework::   levels from JSON, the entity world, the player, environments,
                                the UI kit and menus, settings, diagnostics, the scenario harness
-your app     (Samples/HelloAtom, Showcase/, Games/*)   what makes it yours
+your app     (Apps/: Showcase, Games/*, Samples/*, Benchmarks/*)  what makes it yours
 ```
 
 An app links `AtomEngine` and `AtomFramework`. The engine knows nothing of
@@ -58,9 +61,11 @@ int main(int, char**) { HelloApp app; return app.Run(); }
 
 **Where assets are.** `AssetRoots` looks a relative path ("Kit/torii.glb")
 up in several folders in order: the app's own first, then the shared ones.
-The build copies `Samples/HelloAtom/Assets` to `Assets/HelloAtom/` beside
+The build copies `Apps/Samples/HelloAtom/Assets` to `Assets/HelloAtom/` beside
 the executable, and the pieces it uses from `Content/` (the first-render
-stage, the kit) to `Assets/`.
+stage, the kit) to `Assets/` - each named in its `CMakeLists.txt`
+(`atom_app_payload`). Its folder holds nothing else, so a piece it forgets
+to name is missing at once, not found in another app's copy.
 
 ```cpp
 m_assets = AssetRoots({ m_root + "Assets/HelloAtom/", m_root + "Assets/" });
@@ -81,7 +86,7 @@ m_levels->onLoaded = [this](Level&, const SpawnPoint& spawn) {
 m_levels->Load("hello", "");
 ```
 
-**The level file.** `Samples/HelloAtom/Assets/Levels/hello.json` is
+**The level file.** `Apps/Samples/HelloAtom/Assets/Levels/hello.json` is
 validated by `Framework/Schemas/level.schema.json` (editors with JSON
 Schema support complete and check it as you type). Adding something to
 the world is adding an entry:
@@ -114,15 +119,22 @@ toggles into the renderer's lighting.
   Environment, Level) for what you hand it in a `DevContext`; your own
   panels go beside them with `DevPanels::Add`.
 - **Scenarios**: `BasicTestHooks` answers the scenario harness for an app
-  that is a level, a player and a camera. Set `ATOM_TEST_SCRIPT` to a
-  script and the app runs it and exits with its result:
+  that is a level, a player and a camera. Tell it where each level puts
+  the camera - `m_hooks->ExpectSpawn(spawn)` in `onLoaded` (create the
+  hooks before the first `Load`) - and every scenario checks that the
+  first frame of a level is drawn from there; an app that never says
+  fails that check. Set `ATOM_TEST_SCRIPT` to a script and the app runs
+  it and exits with its result:
 
   ```powershell
   $env:ATOM_TEST_SCRIPT = "Samples\HelloAtom\Scenarios\hello_atom.atomtest"
-  build\bin\Release\HelloAtom.exe
+  build\bin\Release\HelloAtom\HelloAtom.exe
   ```
 
-  `ctest -L scenario` runs it with the others (`Scenario.hello_atom`).
+  `ctest -L scenario` runs it with the others (`Scenario.hello.hello_atom`).
+  Your app registers its own scripts in its `CMakeLists.txt`:
+  `atom_add_scenarios(<exe> OWNER <name> DIR <folder> SMOKE <short one>)`
+  (`cmake/AtomTesting.cmake`), and its CPU tests with `atom_add_tests`.
 - **A UI kit, menus and settings** (`Framework/UI`): `UiKit` for captions,
   hint bars and panels in one theme, sharp at any window size;
   `MenuScreen` and `SettingsScreen` for a title or pause menu and the
@@ -137,8 +149,8 @@ toggles into the renderer's lighting.
 - **Change the light**: edit `lighting`, or switch environments (see how
   the Showcase uses `EnvironmentPresets` and `EnvironmentController`).
   F10 > Lighting edits it live and *Copy as JSON* gives you the block.
-- **Read a bigger app**: `Showcase/` adds a time-of-day clock, a
+- **Read a bigger app**: `Apps/Showcase/` adds a time-of-day clock, a
   character with a state machine, a live synth, the lens and a benchmark;
-  `Games/Drift/` is a game that uses the engine without the level system.
+  `Apps/Games/Drift/` is a game that uses the engine without the level system.
 - **Understand the engine**: `docs/Architecture.md` for the layers and
   decisions; `docs/AtomEngine-Tech-Manual.md` for how each system works.

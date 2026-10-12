@@ -2,15 +2,17 @@
 
 - **Validate what changed, not the full matrix.** Per milestone:
   `pwsh Tools/Dev/check.ps1 -Level changed` - it maps the branch's changed
-  files to scenarios (`Tools/Dev/changed.psd1`), builds Debug once and runs
-  the unit tests plus those scenarios; `-DryRun` shows the plan. Inner
+  files to owners (`Tools/Dev/changed.psd1`: engine, framework, content,
+  each app), builds only their test targets and apps in Debug, and runs
+  their CPU tests, the named scenarios and, for an engine or framework
+  change, every app's smoke scenario; `-DryRun` shows the plan. Inner
   loop: `-Level quick`, or `-Level feature -Scenario <names>`. `-Level full`
   (Debug + Release, every scenario) **once per version, before the release
   commit** - not at every milestone. Debug for asserts and lifetime checks,
   Release for anything timed; `ab.ps1` only when a milestone touches
   performance. Docs-only changes: nothing to build. Never rebuild assets
   unless Blender scripts or content products changed. Add a rule to
-  `changed.psd1` when you add a scenario or a folder.
+  `changed.psd1` when you add a scenario, a test target or a folder.
 - **No local CI-configuration build** - except its configure step after
   touching CMake files or `.github/workflows/ci.yml`: CI configures with
   `ATOM_BUILD_GAME=OFF` (no apps, no shaders), which `check.ps1` never

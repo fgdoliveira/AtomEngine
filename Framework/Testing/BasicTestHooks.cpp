@@ -3,6 +3,7 @@
 
 #include "Character/PlayerController.h"
 #include "Level/Level.h"
+#include "Level/LevelData.h"
 #include "Level/LevelManager.h"
 #include "Level/ViewToggles.h"
 #include "World/GameWorld.h"
@@ -17,6 +18,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 
 namespace AtomFramework
 {
@@ -34,6 +36,29 @@ namespace AtomFramework
             });
         }
         return found;
+    }
+
+    void BasicTestHooks::ExpectArrival(const glm::vec3& eye, float yawRadians)
+    {
+        m_arrivalEye = eye;
+        m_arrivalYaw = yawRadians;
+    }
+
+    void BasicTestHooks::ExpectSpawn(const SpawnPoint& spawn)
+    {
+        const float eyeHeight = m_view.player ? m_view.player->eyeHeight : 0.0f;
+        ExpectArrival(spawn.position + glm::vec3{ 0.0f, eyeHeight, 0.0f }, glm::radians(spawn.yawDegrees));
+    }
+
+    ArrivalError BasicTestHooks::Arrival() const
+    {
+        if (!m_arrivalEye || !m_view.camera)
+        {
+            // Nowhere expected (or no camera to measure): fail, never pass.
+            const float never = std::numeric_limits<float>::infinity();
+            return ArrivalError{ never, never };
+        }
+        return ArrivalBetween(m_view.camera->GetPosition(), m_view.camera->GetYaw(), *m_arrivalEye, m_arrivalYaw);
     }
 
     bool BasicTestHooks::TeleportTo(const std::string& name, float distance)

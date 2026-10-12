@@ -15,6 +15,7 @@ namespace AtomFramework
 {
     class LevelManager;
     struct Entity;
+    struct SpawnPoint;
     class PlayerController;
     struct ViewToggles;
 
@@ -22,7 +23,7 @@ namespace AtomFramework
     // a camera (v0.0.14, M91): every TestHooks hook such an app can answer,
     // answered. A new app gets scenarios (teleport, expect_level,
     // expect_animating, capture, set msaa/fog/...) by owning one of these -
-    // Samples/HelloAtom does - and overrides what it adds on top.
+    // Apps/Samples/HelloAtom does - and overrides what it adds on top.
     class BasicTestHooks : public TestHooks
     {
     public:
@@ -38,13 +39,21 @@ namespace AtomFramework
         };
         explicit BasicTestHooks(View view) : m_view(std::move(view)) {}
 
+        // Where the camera must be when a level is entered (M104): the app
+        // calls one of these from its level-loaded callback, before the
+        // first frame. The spawn's: its feet at the player's eye height,
+        // its yaw. Arrival() measures the camera against it; with none
+        // given, every arrival fails - an app must say where it lands.
+        void ExpectArrival(const glm::vec3& eye, float yawRadians);
+        void ExpectSpawn(const SpawnPoint& spawn);
+
         bool TeleportTo(const std::string& entity, float distance) override;
         void Teleport(const glm::vec3& feet, float yawDegrees) override;
         bool Face(const std::string& entity) override;
         std::string LevelName() const override;
         std::string ModeName() const override;
         std::size_t VoiceCount() const override;
-        ArrivalError Arrival() const override { return {}; }
+        ArrivalError Arrival() const override;
         std::optional<float> AnimationTime(const std::string& entity) const override;
         bool AnimationPlaying(const std::string& entity) const override;
         std::string ReloadLevel() override;
@@ -59,5 +68,7 @@ namespace AtomFramework
     private:
         const Entity* Find(const std::string& name) const;
         View m_view;
+        std::optional<glm::vec3> m_arrivalEye;
+        float m_arrivalYaw = 0.0f; // radians
     };
 }

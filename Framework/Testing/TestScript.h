@@ -20,6 +20,10 @@ namespace AtomFramework
         float yawDegrees = 0.0f; // absolute, wrapped to [0, 180]
     };
 
+    // The error between a camera (eye, yaw in radians) and where it was
+    // meant to arrive (M104: every app measures it the same way).
+    ArrivalError ArrivalBetween(const glm::vec3& eye, float yaw, const glm::vec3& expectedEye, float expectedYaw);
+
     // What a test script can see and do in the game. The game implements
     // this; unit tests implement it with a fake. Every action goes through
     // the same code a player's input would.

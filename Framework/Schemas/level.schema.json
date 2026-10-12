@@ -344,7 +344,7 @@
     "surface": { "enum": ["asphalt", "concrete", "dirt", "stone", "wood"] },
     "sound": {
       "type": "string",
-      "description": "A sound from the app's library (a SoundLibrary; the demo's is Games/Demo/AudioScape.cpp).",
+      "description": "A sound from the app's library (a SoundLibrary; the demo's is Apps/Games/Demo/AudioScape.cpp).",
       "enum": ["wind", "cicadas", "drone", "vending_hum", "static", "room_tone", "creak",
                "traffic", "neon_buzz", "voices", "street_bells", "pachinko_leak", "train", "bus_engine", "door_hiss", "pachinko_hall"]
     },

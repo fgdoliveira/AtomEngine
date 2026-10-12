@@ -9,8 +9,9 @@
 # channel - the ZIP isn't kept; packages for players are made and
 # published by hand (Tools/Dist/package.ps1).
 #
-# What stays local, on a machine with a GPU: the in-game scenarios
-# (Tests/Scenarios) and every performance measurement - hosted runners
+# What stays local, on a machine with a GPU: the in-game scenarios (each
+# app's Scenarios/; without the game none is registered here) and every
+# performance measurement - hosted runners
 # have no real GPU, and their timings are too noisy to judge by.
 name: CI
 
@@ -60,16 +61,18 @@ jobs:
       - name: Configure (libraries and tests, no game)
         run: cmake -B build -S . -DATOM_BUILD_GAME=OFF -DATOM_BUILD_TESTS=ON
 
-      - name: Build AtomTests
+      # M105: AtomTests builds every owner's CPU tests (engine, framework,
+      # content, each app's).
+      - name: Build the CPU tests
         run: cmake --build build --config Release --target AtomTests --parallel
 
       # M91: the sample compiles against the engine and the framework as a
       # new app would (running it needs the shaders: a local scenario).
-      - name: Build Samples/HelloAtom
+      - name: Build Apps/Samples/HelloAtom
         run: cmake --build build --config Release --target HelloAtom --parallel
 
-      - name: Run the unit tests
-        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Run the CPU tests
+        run: ctest --test-dir build -C Release -L cpu --no-tests=error --output-on-failure
 
       - name: Keep the test log if anything failed
         if: failure()

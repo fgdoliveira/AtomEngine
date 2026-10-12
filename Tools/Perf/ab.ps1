@@ -2,6 +2,10 @@
 #
 #   pwsh Tools/Perf/ab.ps1 -A <path\Demo.exe> -B <path\Demo.exe> -Level night_street [-Rounds 8] [-Seconds 8] [-TimeoutSeconds N]
 #
+# Where a build's Demo.exe is: build\bin\<config>\Demo\Demo.exe from
+# v0.0.16 (each app in its own folder), build\bin\<config>\Demo.exe before
+# - comparing against an older version, give each its own path.
+#
 # A laptop's speed drifts (heat, power, boost clocks), so two long runs
 # can't be compared. This alternates short runs in the order AB BA AB BA...
 # so drift lands on both builds alike; each round's *paired difference*

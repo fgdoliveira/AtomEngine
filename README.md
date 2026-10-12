@@ -20,13 +20,13 @@ A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)** - with a showcase that shows
 what it can do, two games made with it, and a sample to start your own.
 
-Current version: **0.0.14 "Showcase"** - the engine gets a front door. The
-**Showcase** is a lakeside village through a day; press Tab and a lens shows
-how each part of it is made, what it costs and where to read about it.
-The repository is now three layers (engine, framework, apps), every app
-shares one UI, F10 tools and a player settings screen, and
-**HelloAtom** shows how to build an app in about 150 lines.
-(0.0.13 was DRIFT, a second game; 0.0.12 latency.)
+Current version: **0.0.16 "Normalization"** - every test, scenario and
+asset has an owner: the engine, the framework, the shared content or one
+app, and sees only what that owner ships. A change is checked by its
+owner's tests (an engine change also runs one short scenario per app),
+the apps live under `Apps/` by purpose, and each runs from a folder of its
+own. (0.0.15 was Observability: frame timing, logs, crash reports;
+0.0.14 the Showcase, the engine's front door.)
 See [CHANGELOG.md](CHANGELOG.md) · [Features](docs/Features.md) ·
 [Architecture](docs/Architecture.md) · [Getting started](docs/Getting-Started.md).
 Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
@@ -34,9 +34,11 @@ Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atom
 ```text
 Engine/      the engine (namespace Atom): window, GPU renderer, audio, input, physics, UI drawing
 Framework/   what every app shares (AtomFramework): levels, world, player, environments, UI kit, settings, testing
-Showcase/    the engine's front door: a lakeside village, and the lens
-Games/       the demo (a night street and its story) and DRIFT (a three.js port)
-Samples/     HelloAtom: the smallest app - start here to build your own; AtomArena: a seeded benchmark
+Apps/        what is made with them, by purpose:
+  Showcase/    the engine's front door: a lakeside village, and the lens
+  Games/       products: the demo (a night street and its story) and DRIFT (a three.js port)
+  Samples/     HelloAtom: the smallest app - start here to build your own
+  Benchmarks/  AtomArena: seeded, controlled workloads, measured
 Content/     assets several apps share: the kit, the sky, fonts, environment presets
 ```
 
@@ -101,7 +103,7 @@ scenario harness that drives the real apps from scripts.
 
 ## The Showcase
 
-`build/bin/<config>/Showcase.exe` (the default startup project). A
+`build/bin/<config>/Showcase/Showcase.exe` (the default startup project). A
 lakeside village through a day - clear day, sunset, night, rain - built
 only from the engine and the framework. It opens on a title: **Explore**,
 **Benchmark**, **Settings**, **Quit**.
@@ -123,7 +125,7 @@ only from the engine and the framework. It opens on a title: **Explore**,
 
 ## The games
 
-**The demo** (`Games/Demo`, `build/bin/<config>/Demo.exe`): a night street
+**The demo** (`Apps/Games/Demo`, `build/bin/<config>/Demo/Demo.exe`): a night street
 with a story. Talk to the shrine keeper by the torii, find a way through
 the shrine gate, try the door of the house at the east end of the street,
 and take the field path to the windmill. At the bus stop, wait for the
@@ -147,7 +149,7 @@ At the pachinko machine: Space (hold) launches balls, Up / Down or the
 wheel set the strength, B or Enter buys 50 balls for 10 tokens, Q or
 Backspace stands up.
 
-**DRIFT** (`Games/Drift`, `build/bin/<config>/Drift.exe`): a faithful port
+**DRIFT** (`Apps/Games/Drift`, `build/bin/<config>/Drift/Drift.exe`): a faithful port
 of a three.js web game - fly an endless path at dusk through rings, orbs
 and rocks, to music synthesised live. Click to launch; WASD, the arrows or
 the mouse steer; Shift boosts; M mutes; Esc pauses (resume, settings,
@@ -158,7 +160,7 @@ or `-Game Drift` (see Distribution).
 
 ## Build your own
 
-`Samples/HelloAtom` is a complete app in about 150 lines: a window, a
+`Apps/Samples/HelloAtom` is a complete app in about 150 lines: a window, a
 level from JSON, walking, F1, F10 and scenarios.
 [docs/Getting-Started.md](docs/Getting-Started.md) walks through it.
 
@@ -171,7 +173,7 @@ Requirements: Windows 10/11, Visual Studio 2022+ (C++20), CMake ≥ 3.26, and
 git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cmake -B build -S .
 cmake --build build --config Release
-build/bin/Release/Showcase.exe     # or Demo.exe, Drift.exe, HelloAtom.exe
+build/bin/Release/Showcase/Showcase.exe   # or Demo/Demo.exe, Drift/Drift.exe, HelloAtom/HelloAtom.exe
 ```
 
 Dependencies are git submodules in `external/`, each pinned to one commit
@@ -195,7 +197,7 @@ Build options (CMake `-D`):
 | Option | Default | What it builds |
 |---|---|---|
 | `ATOM_BUILD_GAME` | ON | the apps' shaders, and the Showcase, the demo and DRIFT (needs `dxc`) |
-| `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
+| `ATOM_BUILD_TESTS` | ON | the CPU tests, one target per owner (`AtomTests` builds them all); with the game, also the in-game scenarios |
 | `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
 | `ATOM_TRACE` | OFF | records the CPU profiling zones with the built-in tracer when `ATOM_TRACE=<prefix>` is set (development builds only) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
@@ -206,7 +208,7 @@ tests and HelloAtom with no shader compiler - the configuration CI uses.
 Something missing or failing? `pwsh Tools/Dev/doctor.ps1` checks the
 prerequisites (Windows, CMake, Visual Studio's C++ tools, `dxc`, the
 submodules) and says what to install. `-Configure` adds a trial configure
-in a throwaway folder; `-GamePath build/bin/Release/Demo.exe` adds the
+in a throwaway folder; `-GamePath build/bin/Release/Demo/Demo.exe` adds the
 game's own report. It only reads: no drivers, power plans or files change.
 
 ## Settings and hardware
@@ -355,7 +357,7 @@ It builds a Release game in its own folder (`build-dist/`, with
 `Dist/<game>/` with the CMake install rules, verifies it
 (`Tools/Dist/verify.ps1`), starts it once from outside the repository,
 and zips `Dist/<game>-v<version>-win64.zip`. The install rules in each
-game's `CMakeLists.txt` (`Games/Demo/`, `Games/Drift/`) are the one
+game's `CMakeLists.txt` (`Apps/Games/Demo/`, `Apps/Games/Drift/`) are the one
 definition of what ships. The demo's package:
 
 ```text
@@ -397,14 +399,26 @@ Things they can try: `--gpu low-power` (laptops), `--quality low`,
 
 ```sh
 ctest --test-dir build -C Release              # everything
-ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
+ctest --test-dir build -C Release -L cpu       # the CPU tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
+ctest --test-dir build -C Release -L demo      # one owner's: engine, framework, content, demo, drift, showcase, arena
 ```
+
+The CPU tests are split by owner (v0.0.16): `AtomEngineTests` (the
+engine's algorithms on synthetic data), `AtomFrameworkTests` (its
+policies and parsers), `AtomContentTests` (the shared `Content/`), and
+each app's own (`DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests`,
+in `<app>/Tests/`). A test sees only its owner's assets and the shared
+content, never another app's. Each runs as `Unit.<owner>` and, where it
+checks shipped files, `Content.<owner>`. `AtomTests` builds them all. A
+timing comparison is never part of a run: `<target> -ts=benchmark` runs
+those by hand.
 
 **CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every pull
 request and every push to master (and on demand): a fresh Windows machine
 clones with submodules, configures with `-DATOM_BUILD_GAME=OFF` (no
-shader compiler), builds `AtomTests` in Release and runs them. It answers
+shader compiler), builds the CPU tests (`AtomTests`) in Release and runs
+them. It answers
 "does a clean clone build and pass?". A second job runs
 `Tools/Dist/package.ps1 -NoSmoke`: it builds the game and its shaders,
 then stages, verifies and zips the distribution. It's a check, not a
@@ -416,8 +430,9 @@ Every scenario also checks, on each level change, that the new level is
 first drawn from its spawn. The asset build has its own check: it refuses
 to export overlapping coplanar faces of different materials (z-fighting).
 
-Scenarios live in `Tests/Scenarios/*.atomtest`, one command per line, and
-address entities by name:
+Each app owns its scenarios (`<app>/Scenarios/*.atomtest`, registered by
+the app as `Scenario.<owner>.<name>`, with one short `smoke` run per app),
+one command per line, addressing entities by name:
 
 ```text
 teleport_to shrine_keeper
@@ -458,7 +473,7 @@ AtomEngine compares A and B **close together in time** and reports the
   written at exit as a trace for ui.perfetto.dev, a per-zone CSV and the
   slowest frames with their zones. Off by default (the zones compile to
   nothing), never in a package (ADR-010).
-- **How does a workload scale?** ATOM ARENA (`Samples/AtomArena`) runs
+- **How does a workload scale?** ATOM ARENA (`Apps/Benchmarks/AtomArena`) runs
   named, seeded workloads - `AtomArena.exe --benchmark --scenario
   collision_500 --frames 1200` - and `pwsh Tools/Perf/arena.ps1` runs the
   matrix in rounds (`-Trace` records each run).
@@ -616,15 +631,17 @@ pwsh Tools/Docs/capture_character_lab.ps1
 Engine/    Assets Audio Core Debug Physics Platform Renderer Scene UI
 Framework/ what every app shares: Character Debug (F10 panels) Diagnostics Environment Interaction
            Level Platform Schemas Settings Testing UI (kit, menus, settings screen) World
-Showcase/  the engine's front door: the village, the lens and its Features, menus, benchmark;
-           its assets (Assets/) and scenarios (Scenarios/)
-Games/     Demo/ (dialogue, pachinko, the flashlight, its levels and assets, its package)
-           Drift/ (its rules and music in DriftLib, its assets, its package)
-Samples/   HelloAtom/ - the smallest app (docs/Getting-Started.md); AtomArena/ - a seeded benchmark
+Apps/      each app owns its Assets/, Tests/ (CPU tests) and Scenarios/ (in-game runs):
+  Showcase/            the engine's front door: the village, the lens and its Features, menus, benchmark
+  Games/Demo/          dialogue, pachinko, the flashlight, its levels and assets, its package
+  Games/Drift/         its rules and music in DriftLib, its assets, its package
+  Samples/HelloAtom/   the smallest app (docs/Getting-Started.md)
+  Benchmarks/AtomArena/ a seeded benchmark
 Content/   assets several apps share: Kit, Sky, Fonts, Environments, First (the first-render stage)
 Shaders/   HLSL, compiled to DXIL at build time
 Tools/     Blender content scripts, Perf (benchmark scripts), Dev (check, doctor), Dist, Docs
-Tests/     unit tests and in-game scenarios
+Tests/     the CPU tests of what isn't an app's: Engine/, Framework/, Content/, and Support/
+cmake/     AtomTesting (test targets, scenarios), AtomApps (each app's runtime folder)
 docs/      the technical manual (concepts), Architecture.md (structure), Features.md (the catalog),
            Getting-Started.md
 .github/  CI
@@ -636,6 +653,6 @@ external/ pinned dependencies
 Code: MIT, see [LICENSE.txt](LICENSE.txt). Third-party libraries keep their
 own licences (the table in [Building](#building)). Fonts: a Latin subset of
 Shippori Mincho for the demo and the Showcase (`Content/Fonts/`) and Space Grotesk for DRIFT
-(`Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
+(`Apps/Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
 Third-party assets used as they came (the lab's character) are credited in
 [Assets/ThirdParty/README.md](Assets/ThirdParty/README.md).

@@ -7,17 +7,36 @@ when a change alters a diagram or a rule here, the change updates this page.
 
 ## 1. Targets and dependency direction
 
-Since v0.0.14 the repository has three layers and four kinds of app:
+Since v0.0.14 the repository has three layers; since v0.0.16 the apps
+live under `Apps/`, by purpose:
 
 ```text
 Engine/      AtomEngine     (namespace Atom)           window, GPU renderer, audio, input, physics, UI drawing, dev tools host
 Framework/   AtomFramework  (namespace AtomFramework)  levels, world, player, environments, UI kit and menus,
                                                        settings, diagnostics, F10 panels, the scenario harness
-Showcase/    ShowcaseLib + Showcase                    the engine's front door: a lakeside village and the lens
-Games/Demo/  DemoLib + Demo                            the demo: a night street, its story
-Games/Drift/ DriftLib + Drift                          DRIFT, a port of a three.js game
-Samples/     HelloAtom                                 the smallest app (docs/Getting-Started.md)
+Apps/Showcase/              ShowcaseLib + Showcase      the engine's front door: a lakeside village and the lens
+Apps/Games/Demo/            DemoLib + Demo              the demo: a night street, its story
+Apps/Games/Drift/           DriftLib + Drift            DRIFT, a port of a three.js game
+Apps/Samples/HelloAtom/     HelloAtom                   the smallest app (docs/Getting-Started.md)
+Apps/Benchmarks/AtomArena/  ArenaLib + AtomArena        a seeded benchmark: controlled workloads, measured
 ```
+
+**Apps by purpose (v0.0.16).** The folders under `Apps/` say what each
+app is for; they are conventions, not engine categories, and playing an
+app doesn't place it.
+
+| Category | Primary purpose | What decides it |
+|---|---|---|
+| Games | a complete product for players | its own rules, progression, settings and package |
+| Samples | teach how to use the engine | small and focused enough to read and adapt |
+| Showcase | present the engine to evaluators | visual presentation, exploration, explanations of each feature |
+| Benchmarks | measure controlled workloads | reproducibility: seeds, workload switches, reports |
+
+The demo stays a Game: its story, its pachinko machine and its package
+define it. ATOM ARENA is a Benchmark: it is played, but measuring is what
+it is for. Each app owns its `Assets/`, `Tests/` and `Scenarios/`;
+reusable assets go to `Content/`, reusable code to the engine or the
+framework, developer utilities to `Tools/`.
 
 ```mermaid
 graph TD
@@ -25,13 +44,17 @@ graph TD
     Demo[Demo] --> DemoLib
     Drift[Drift] --> DriftLib
     Hello[HelloAtom] --> Framework
+    Arena[AtomArena] --> ArenaLib
+    Arena --> Framework
     Showcase --> Framework
     DemoLib --> Framework
     Drift --> Framework
     ShowcaseLib --> Engine
     DriftLib --> Engine
     Framework[AtomFramework] --> Engine[AtomEngine]
-    Tests[AtomTests] --> DemoLib & DriftLib & ShowcaseLib & Framework
+    EngineTests[AtomEngineTests] --> Engine
+    FrameworkTests[AtomFrameworkTests] --> Framework
+    AppTests["DemoTests, DriftTests, ShowcaseTests, ArenaTests"] --> DemoLib & DriftLib & ShowcaseLib & ArenaLib
     Framework -.->|private| JSON[nlohmann/json]
     Framework -.->|private| ImGui[Dear ImGui]
     Engine --> SDL[SDL3]
@@ -53,11 +76,14 @@ graph TD
   `BasicTestHooks`.
 - **The Showcase** (v0.0.14) is the engine's front door, built only from the
   engine and the framework. Each capability it shows is a *Feature* in its
-  catalog (`Showcase/Features/`) with a source file, a manual section, a
+  catalog (`Apps/Showcase/Features/`) with a source file, a manual section, a
   switch and a cost (ADR-009, `docs/Features.md`).
-- **The games** (`Games/Demo`, `Games/Drift`) are products with their own
-  packages. **The sample** (`Samples/HelloAtom`) is the proof that an app
-  can be built from the two lower layers alone; CI compiles it.
+- **The games** (`Apps/Games/Demo`, `Apps/Games/Drift`) are products with their own
+  packages. **The sample** (`Apps/Samples/HelloAtom`) is the proof that an app
+  can be built from the two lower layers alone; CI compiles it. **The
+  benchmark** (`Apps/Benchmarks/AtomArena`, v0.0.15) runs seeded workloads
+  and reports what they cost; its simulation (`ArenaLib`) is pure and
+  unit-tested.
 - **Content** shared by several apps (the kit, the sky, fonts, environment
   presets, the first-render stage) lives in `Content/`; an app's own in its
   `Assets/`. `AssetRoots` looks a path up in the app's folder first.
@@ -223,6 +249,14 @@ Redistributable doesn't have. Since M66 every target links it statically
 (`CMAKE_MSVC_RUNTIME_LIBRARY`, set before the first target so nothing mixes
 runtimes), SDL3.dll included.
 
+**In a development build (M108)** each app runs from a folder of its own,
+`build/bin/<config>/<app>/`: its executable, `SDL3.dll`, the engine's
+shaders and the asset folders its `CMakeLists.txt` declares
+(`atom_app_payload`, `cmake/AtomApps.cmake`) - the same shape as its
+package. Before, every app shared `build/bin/<config>/`, and a folder one
+app copied there could hide one another app forgot to declare until the
+package check. The test executables stay in `build/bin/<config>/`.
+
 ## 8. Hardware and settings
 
 Two decisions are kept apart: **which adapter** (a stability choice, made
@@ -351,8 +385,14 @@ package that says "on".
 
 | Layer | Runs where | Catches |
 |---|---|---|
-| Unit and authoring tests (`ctest -LE scenario`) | locally and in **CI** on pull requests and pushes to master | logic, parsing, content errors; a clean clone that doesn't build |
-| In-game scenarios (`ctest -L scenario`) | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
+| CPU tests (`ctest -L cpu`), one target per owner: `Unit.<owner>`, `Content.<owner>` | locally and in **CI** on pull requests and pushes to master | logic, parsing, shipped-content errors; a clean clone that doesn't build |
+| In-game scenarios (`ctest -L scenario`), each app's own: `Scenario.<owner>.<name>`; `-L smoke` one short run per app | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
+
+`check.ps1 -Level changed` (v0.0.16) maps each changed file to owners
+(`Tools/Dev/changed.psd1`) and builds and runs only theirs: an app's
+change runs that app's tests and scenarios and compiles nothing of the
+engine's; an engine or framework change runs their tests and every app's
+smoke scenario. The whole matrix runs once per version (`-Level full`).
 | Paired benches, `ab.ps1` | locally, plugged in | performance changes - never a CI gate |
 
 ## 12. Architecture decision records
@@ -455,7 +495,7 @@ a player-facing diagnostic needs a developer facility.
 demo's levels, and the first Showcase (M86) was a collage of them: nothing
 said what each one was, what it cost, or where to read about it. **Decision
 (v0.0.14):** each capability the engine offers is a *Feature* in the
-Showcase's catalog (`Showcase/Features/Features.cpp`): a stable id, the
+Showcase's catalog (`Apps/Showcase/Features/Features.cpp`): a stable id, the
 system that produces it, its source file, its manual section, where it
 lives in the village, a switch (the lens, Tab; `set feature_<id>`) and a
 live cost (`Stat`). It is listed in `docs/Features.md` with its status,

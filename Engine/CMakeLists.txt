@@ -11,6 +11,8 @@ target_sources(
         Core/Application.cpp
         Core/FrameStatsWindow.cpp
         Core/LatencyProbe.cpp
+        Core/Log.cpp
+        Core/Trace.cpp
         Audio/Synth.cpp
         Audio/Synth.h
         Audio/SynthStream.cpp
@@ -46,12 +48,10 @@ target_sources(
         Audio/AudioSystem.h
         Core/Application.h
         Core/FrameStatsWindow.h
-    Core/FrameTiming.h
-    Core/Log.cpp
-    Core/Log.h
-    Core/Profile.h
-    Core/Trace.cpp
-    Core/Trace.h
+        Core/FrameTiming.h
+        Core/Log.h
+        Core/Profile.h
+        Core/Trace.h
         Core/LatencyProbe.h
         Core/Time.h
         Debug/DevTools.h
