@@ -5,7 +5,7 @@ products are what makes the port comparable side by side.
 Headless:
     blender -b --factory-startup -P Tools/Blender/drift_models.py
 
-Writes Games/Drift/Assets/{ship,ring,orb,rock}.glb. Like the original, the
+Writes Apps/Games/Drift/Assets/{ship,ring,orb,rock}.glb. Like the original, the
 props (ring, orb, rock) are authored with Blender's Z as the game's depth
 and turned +90 degrees about X before export; the ship is authored in
 Blender's own axes (Z up, nose +Y). glTF is Y-up for three.js and for
@@ -13,7 +13,7 @@ AtomEngine alike, so the files load the same way in both.
 """
 import bpy, bmesh, math, os, random
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Games", "Drift", "Assets")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Apps", "Games", "Drift", "Assets")
 os.makedirs(OUT, exist_ok=True)
 
 

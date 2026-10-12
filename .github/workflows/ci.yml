@@ -68,7 +68,7 @@ jobs:
 
       # M91: the sample compiles against the engine and the framework as a
       # new app would (running it needs the shaders: a local scenario).
-      - name: Build Samples/HelloAtom
+      - name: Build Apps/Samples/HelloAtom
         run: cmake --build build --config Release --target HelloAtom --parallel
 
       - name: Run the CPU tests

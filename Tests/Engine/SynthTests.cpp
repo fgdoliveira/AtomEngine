@@ -1,5 +1,5 @@
 // The engine's synthesiser (M80), rendered offline and measured. DRIFT's
-// soundtrack on it: Games/Drift/Tests/MusicTests.cpp.
+// soundtrack on it: Apps/Games/Drift/Tests/MusicTests.cpp.
 #include "Audio/Synth.h"
 
 #include <doctest/doctest.h>

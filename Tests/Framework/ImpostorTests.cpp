@@ -43,7 +43,7 @@ TEST_CASE("Impostor views: hysteresis keeps the current view near a boundary")
     }
 }
 
-// The demo's shipped descriptor: Games/Demo/Tests/ImpostorContentTests.cpp.
+// The demo's shipped descriptor: Apps/Games/Demo/Tests/ImpostorContentTests.cpp.
 TEST_CASE("Broken impostor descriptors are rejected with a reason")
 {
     std::string error;

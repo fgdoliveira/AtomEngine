@@ -107,11 +107,12 @@ if(ATOM_BUILD_GAME)
 endif()
 add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
-add_subdirectory(Showcase) # v0.0.14: the engine's front door, every feature in one scene
-add_subdirectory(Games/Demo) # v0.0.14: the demo, beside DRIFT
-add_subdirectory(Games/Drift) # M77: a second game
-add_subdirectory(Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
-add_subdirectory(Samples/AtomArena) # M93: a benchmark arena, to evaluate profiling
+# The apps (v0.0.16, M109: under Apps/, by what each is for).
+add_subdirectory(Apps/Showcase) # v0.0.14: the engine's front door, every feature in one scene
+add_subdirectory(Apps/Games/Demo) # v0.0.14: the demo, beside DRIFT
+add_subdirectory(Apps/Games/Drift) # M77: a second game
+add_subdirectory(Apps/Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
+add_subdirectory(Apps/Benchmarks/AtomArena) # M93: a seeded benchmark arena
 
 # M101: each app's executable names its .pdb without a path. Spelled out:
 # MSBuild escapes the linker's own %_PDB% into a wrong name.

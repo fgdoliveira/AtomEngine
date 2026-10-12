@@ -23,7 +23,7 @@ namespace AtomFramework
     // a camera (v0.0.14, M91): every TestHooks hook such an app can answer,
     // answered. A new app gets scenarios (teleport, expect_level,
     // expect_animating, capture, set msaa/fog/...) by owning one of these -
-    // Samples/HelloAtom does - and overrides what it adds on top.
+    // Apps/Samples/HelloAtom does - and overrides what it adds on top.
     class BasicTestHooks : public TestHooks
     {
     public:

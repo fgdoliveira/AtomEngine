@@ -46,7 +46,7 @@ namespace AtomTests
     }
 
     // How a data file names the framework's schemas, from where it lives.
-    inline constexpr const char* FrameworkSchemaFromDemo = "../../../../Framework/Schemas/";     // Games/Demo/Assets/<folder>/
-    inline constexpr const char* FrameworkSchemaFromShowcase = "../../../Framework/Schemas/";    // Showcase/Assets/<folder>/
+    inline constexpr const char* FrameworkSchemaFromDemo = "../../../../../Framework/Schemas/";  // Apps/Games/Demo/Assets/<folder>/
+    inline constexpr const char* FrameworkSchemaFromShowcase = "../../../../Framework/Schemas/"; // Apps/Showcase/Assets/<folder>/
     inline constexpr const char* FrameworkSchemaFromContent = "../../Framework/Schemas/";        // Content/<folder>/
 }

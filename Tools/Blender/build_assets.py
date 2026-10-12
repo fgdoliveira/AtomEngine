@@ -3,8 +3,8 @@
 Headless:
     blender -b --factory-startup -P Tools/Blender/build_assets.py
 
-Writes Content/Kit/<piece>.glb, Games/Demo/Assets/Street/street.glb (visuals) and
-Games/Demo/Assets/Street/street_col.glb (collision proxies, no materials).
+Writes Content/Kit/<piece>.glb, Apps/Games/Demo/Assets/Street/street.glb (visuals) and
+Apps/Games/Demo/Assets/Street/street_col.glb (collision proxies, no materials).
 
 Options (after "--"): --no-cache re-bakes every lightmap; --gpu bakes them
 on the NVIDIA GPU for fast iteration (never commit those).
@@ -63,7 +63,7 @@ def out_for(args, folder):
 
 
 # M91: the first-render stage's geometry is shared (Content/First): the
-# Showcase's documentation stage and Samples/HelloAtom both load it. Its
+# Showcase's documentation stage and Apps/Samples/HelloAtom both load it. Its
 # level file and markers stay the Showcase's.
 CONTENT_LEVEL_FOLDERS = {"first"}
 
@@ -75,12 +75,12 @@ def geometry_out_for(args, folder):
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
-    # v0.0.14: the demo's own products in Games/Demo/Assets; the generic kit
+    # v0.0.14: the demo's own products in Apps/Games/Demo/Assets; the generic kit
     # pieces and sky, which other apps use too, in the shared Content/.
-    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Games", "Demo", "Assets"))
+    parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Apps", "Games", "Demo", "Assets"))
     parser.add_argument("--content", default=os.path.join(REPO_ROOT, "Content"))
     # The Showcase's stages and terrain (first render, the lab, the lakeshore).
-    parser.add_argument("--showcase", default=os.path.join(REPO_ROOT, "Showcase", "Assets"))
+    parser.add_argument("--showcase", default=os.path.join(REPO_ROOT, "Apps", "Showcase", "Assets"))
     parser.add_argument("--no-export", action="store_true")
     # Lightmaps whose inputs are unchanged since the last bake are kept
     # (fingerprints in build/bake_cache/); --no-cache bakes everything.

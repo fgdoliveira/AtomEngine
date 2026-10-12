@@ -4,7 +4,7 @@ What the engine can do today, each with the evidence for it: where it is
 in the code, how it's tested, what it costs and what it doesn't do. This
 page is the catalog behind the Showcase's lens (press **Tab** in the
 Showcase): every entry here is a *Feature* in
-`Showcase/Features/Features.cpp`, and a unit test
+`Apps/Showcase/Features/Features.cpp`, and a unit test
 (`ShowcaseFeatureTests`) fails if one is missing from this page, names a
 source file that doesn't exist, or a manual section that isn't a heading.
 A new capability enters the engine this way (ADR-009 in

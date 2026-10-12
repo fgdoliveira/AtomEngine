@@ -34,9 +34,11 @@ Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atom
 ```text
 Engine/      the engine (namespace Atom): window, GPU renderer, audio, input, physics, UI drawing
 Framework/   what every app shares (AtomFramework): levels, world, player, environments, UI kit, settings, testing
-Showcase/    the engine's front door: a lakeside village, and the lens
-Games/       the demo (a night street and its story) and DRIFT (a three.js port)
-Samples/     HelloAtom: the smallest app - start here to build your own; AtomArena: a seeded benchmark
+Apps/        what is made with them, by purpose:
+  Showcase/    the engine's front door: a lakeside village, and the lens
+  Games/       products: the demo (a night street and its story) and DRIFT (a three.js port)
+  Samples/     HelloAtom: the smallest app - start here to build your own
+  Benchmarks/  AtomArena: seeded, controlled workloads, measured
 Content/     assets several apps share: the kit, the sky, fonts, environment presets
 ```
 
@@ -123,7 +125,7 @@ only from the engine and the framework. It opens on a title: **Explore**,
 
 ## The games
 
-**The demo** (`Games/Demo`, `build/bin/<config>/Demo/Demo.exe`): a night street
+**The demo** (`Apps/Games/Demo`, `build/bin/<config>/Demo/Demo.exe`): a night street
 with a story. Talk to the shrine keeper by the torii, find a way through
 the shrine gate, try the door of the house at the east end of the street,
 and take the field path to the windmill. At the bus stop, wait for the
@@ -147,7 +149,7 @@ At the pachinko machine: Space (hold) launches balls, Up / Down or the
 wheel set the strength, B or Enter buys 50 balls for 10 tokens, Q or
 Backspace stands up.
 
-**DRIFT** (`Games/Drift`, `build/bin/<config>/Drift/Drift.exe`): a faithful port
+**DRIFT** (`Apps/Games/Drift`, `build/bin/<config>/Drift/Drift.exe`): a faithful port
 of a three.js web game - fly an endless path at dusk through rings, orbs
 and rocks, to music synthesised live. Click to launch; WASD, the arrows or
 the mouse steer; Shift boosts; M mutes; Esc pauses (resume, settings,
@@ -158,7 +160,7 @@ or `-Game Drift` (see Distribution).
 
 ## Build your own
 
-`Samples/HelloAtom` is a complete app in about 150 lines: a window, a
+`Apps/Samples/HelloAtom` is a complete app in about 150 lines: a window, a
 level from JSON, walking, F1, F10 and scenarios.
 [docs/Getting-Started.md](docs/Getting-Started.md) walks through it.
 
@@ -355,7 +357,7 @@ It builds a Release game in its own folder (`build-dist/`, with
 `Dist/<game>/` with the CMake install rules, verifies it
 (`Tools/Dist/verify.ps1`), starts it once from outside the repository,
 and zips `Dist/<game>-v<version>-win64.zip`. The install rules in each
-game's `CMakeLists.txt` (`Games/Demo/`, `Games/Drift/`) are the one
+game's `CMakeLists.txt` (`Apps/Games/Demo/`, `Apps/Games/Drift/`) are the one
 definition of what ships. The demo's package:
 
 ```text
@@ -471,7 +473,7 @@ AtomEngine compares A and B **close together in time** and reports the
   written at exit as a trace for ui.perfetto.dev, a per-zone CSV and the
   slowest frames with their zones. Off by default (the zones compile to
   nothing), never in a package (ADR-010).
-- **How does a workload scale?** ATOM ARENA (`Samples/AtomArena`) runs
+- **How does a workload scale?** ATOM ARENA (`Apps/Benchmarks/AtomArena`) runs
   named, seeded workloads - `AtomArena.exe --benchmark --scenario
   collision_500 --frames 1200` - and `pwsh Tools/Perf/arena.ps1` runs the
   matrix in rounds (`-Trace` records each run).
@@ -629,15 +631,17 @@ pwsh Tools/Docs/capture_character_lab.ps1
 Engine/    Assets Audio Core Debug Physics Platform Renderer Scene UI
 Framework/ what every app shares: Character Debug (F10 panels) Diagnostics Environment Interaction
            Level Platform Schemas Settings Testing UI (kit, menus, settings screen) World
-Showcase/  the engine's front door: the village, the lens and its Features, menus, benchmark;
-           its assets (Assets/) and scenarios (Scenarios/)
-Games/     Demo/ (dialogue, pachinko, the flashlight, its levels and assets, its package)
-           Drift/ (its rules and music in DriftLib, its assets, its package)
-Samples/   HelloAtom/ - the smallest app (docs/Getting-Started.md); AtomArena/ - a seeded benchmark
+Apps/      each app owns its Assets/, Tests/ (CPU tests) and Scenarios/ (in-game runs):
+  Showcase/            the engine's front door: the village, the lens and its Features, menus, benchmark
+  Games/Demo/          dialogue, pachinko, the flashlight, its levels and assets, its package
+  Games/Drift/         its rules and music in DriftLib, its assets, its package
+  Samples/HelloAtom/   the smallest app (docs/Getting-Started.md)
+  Benchmarks/AtomArena/ a seeded benchmark
 Content/   assets several apps share: Kit, Sky, Fonts, Environments, First (the first-render stage)
 Shaders/   HLSL, compiled to DXIL at build time
 Tools/     Blender content scripts, Perf (benchmark scripts), Dev (check, doctor), Dist, Docs
-Tests/     unit tests and in-game scenarios
+Tests/     the CPU tests of what isn't an app's: Engine/, Framework/, Content/, and Support/
+cmake/     AtomTesting (test targets, scenarios), AtomApps (each app's runtime folder)
 docs/      the technical manual (concepts), Architecture.md (structure), Features.md (the catalog),
            Getting-Started.md
 .github/  CI
@@ -649,6 +653,6 @@ external/ pinned dependencies
 Code: MIT, see [LICENSE.txt](LICENSE.txt). Third-party libraries keep their
 own licences (the table in [Building](#building)). Fonts: a Latin subset of
 Shippori Mincho for the demo and the Showcase (`Content/Fonts/`) and Space Grotesk for DRIFT
-(`Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
+(`Apps/Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
 Third-party assets used as they came (the lab's character) are credited in
 [Assets/ThirdParty/README.md](Assets/ThirdParty/README.md).
