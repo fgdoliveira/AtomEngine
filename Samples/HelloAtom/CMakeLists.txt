@@ -19,3 +19,9 @@ foreach(folder IN ITEMS First Kit)
             ${CMAKE_SOURCE_DIR}/Content/${folder} $<TARGET_FILE_DIR:HelloAtom>/Assets/${folder})
 endforeach()
 add_custom_command(TARGET HelloAtom POST_BUILD ${HELLO_COPY_COMMANDS} COMMENT "Copying HelloAtom's assets" VERBATIM)
+
+# Its scenario (M107, cmake/AtomTesting.cmake) - registered only when the
+# shaders that running it needs are built (not in CI).
+if(ATOM_BUILD_TESTS AND TARGET AtomShaders)
+    atom_add_scenarios(HelloAtom OWNER hello DIR "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios" SMOKE hello_atom TIMEOUT 120)
+endif()

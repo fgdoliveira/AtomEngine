@@ -81,3 +81,8 @@ add_custom_command(
 )
 
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Showcase)
+
+# The Showcase's in-game scenarios (M107, cmake/AtomTesting.cmake).
+if(ATOM_BUILD_TESTS)
+    atom_add_scenarios(Showcase OWNER showcase DIR "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios" SMOKE showcase_lens)
+endif()

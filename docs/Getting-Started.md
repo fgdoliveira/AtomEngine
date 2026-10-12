@@ -126,7 +126,10 @@ toggles into the renderer's lighting.
   build\bin\Release\HelloAtom.exe
   ```
 
-  `ctest -L scenario` runs it with the others (`Scenario.hello_atom`).
+  `ctest -L scenario` runs it with the others (`Scenario.hello.hello_atom`).
+  Your app registers its own scripts in its `CMakeLists.txt`:
+  `atom_add_scenarios(<exe> OWNER <name> DIR <folder> SMOKE <short one>)`
+  (`cmake/AtomTesting.cmake`), and its CPU tests with `atom_add_tests`.
 - **A UI kit, menus and settings** (`Framework/UI`): `UiKit` for captions,
   hint bars and panels in one theme, sharp at any window size;
   `MenuScreen` and `SettingsScreen` for a title or pause menu and the

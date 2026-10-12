@@ -428,8 +428,9 @@ Every scenario also checks, on each level change, that the new level is
 first drawn from its spawn. The asset build has its own check: it refuses
 to export overlapping coplanar faces of different materials (z-fighting).
 
-Scenarios live in `Tests/Scenarios/*.atomtest`, one command per line, and
-address entities by name:
+Each app owns its scenarios (`<app>/Scenarios/*.atomtest`, registered by
+the app as `Scenario.<owner>.<name>`, with one short `smoke` run per app),
+one command per line, addressing entities by name:
 
 ```text
 teleport_to shrine_keeper

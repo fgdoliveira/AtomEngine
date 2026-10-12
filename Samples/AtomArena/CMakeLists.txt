@@ -45,3 +45,9 @@ foreach(folder IN ITEMS First Fonts Kit)
             ${CMAKE_SOURCE_DIR}/Content/${folder} $<TARGET_FILE_DIR:AtomArena>/Assets/${folder})
 endforeach()
 add_custom_command(TARGET AtomArena POST_BUILD ${ARENA_COPY_COMMANDS} COMMENT "Copying ATOM ARENA's assets" VERBATIM)
+
+# Its scenario (M107, cmake/AtomTesting.cmake) - registered only when the
+# shaders that running it needs are built (not in CI).
+if(ATOM_BUILD_TESTS AND TARGET AtomShaders)
+    atom_add_scenarios(AtomArena OWNER arena DIR "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios" SMOKE arena_smoke TIMEOUT 120)
+endif()

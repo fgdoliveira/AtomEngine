@@ -353,8 +353,14 @@ package that says "on".
 
 | Layer | Runs where | Catches |
 |---|---|---|
-| Unit and authoring tests (`ctest -LE scenario`) | locally and in **CI** on pull requests and pushes to master | logic, parsing, content errors; a clean clone that doesn't build |
-| In-game scenarios (`ctest -L scenario`) | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
+| CPU tests (`ctest -L cpu`), one target per owner: `Unit.<owner>`, `Content.<owner>` | locally and in **CI** on pull requests and pushes to master | logic, parsing, shipped-content errors; a clean clone that doesn't build |
+| In-game scenarios (`ctest -L scenario`), each app's own: `Scenario.<owner>.<name>`; `-L smoke` one short run per app | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
+
+`check.ps1 -Level changed` (v0.0.16) maps each changed file to owners
+(`Tools/Dev/changed.psd1`) and builds and runs only theirs: an app's
+change runs that app's tests and scenarios and compiles nothing of the
+engine's; an engine or framework change runs their tests and every app's
+smoke scenario. The whole matrix runs once per version (`-Level full`).
 | Paired benches, `ab.ps1` | locally, plugged in | performance changes - never a CI gate |
 
 ## 12. Architecture decision records

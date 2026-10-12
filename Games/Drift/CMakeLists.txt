@@ -108,3 +108,19 @@ install(
 file(WRITE "${CMAKE_BINARY_DIR}/dist-drift/payload.txt"
     "game=Drift\nexe=Drift.exe\nversion=${PROJECT_VERSION}\nshipped=Drift\ndevonly=\nshaders=${ATOM_SHADER_COUNT}\n")
 install(FILES "${CMAKE_BINARY_DIR}/dist-drift/payload.txt" DESTINATION . RENAME .payload COMPONENT Drift)
+
+# DRIFT's in-game runs (M107, cmake/AtomTesting.cmake): it flies on
+# autopilot and reports the distance - it starts, loads its assets,
+# renders and shuts down clean.
+if(ATOM_BUILD_TESTS)
+    atom_add_scenario(drift_fly OWNER drift TIMEOUT 120 ENVIRONMENT "ATOM_DRIFT_SECONDS=20" "ATOM_DRIFT_SEED=7"
+        PASS "DRIFT autopilot: flew [0-9]+ m .* rings [1-9][0-9]* passed"
+        COMMAND $<TARGET_FILE:Drift>)
+    # The smoke run: three seconds, only that it flies.
+    atom_add_scenario(drift_smoke OWNER drift TIMEOUT 60 SMOKE ENVIRONMENT "ATOM_DRIFT_SECONDS=3" "ATOM_DRIFT_SEED=7"
+        PASS "DRIFT autopilot: flew [1-9][0-9]* m"
+        COMMAND $<TARGET_FILE:Drift>)
+    # M82: DRIFT's --diagnostics, the framework's shared report.
+    atom_add_scenario(drift_diagnostics OWNER drift TIMEOUT 120 PASS "Diagnostics written"
+        COMMAND $<TARGET_FILE:Drift> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/drift_diagnostics.txt")
+endif()

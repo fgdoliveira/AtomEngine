@@ -3,24 +3,26 @@
 #
 #   pwsh Tools/Dev/check.ps1 -Level docs
 #   pwsh Tools/Dev/check.ps1 -Level quick   [-Config Debug|Release]
-#   pwsh Tools/Dev/check.ps1 -Level feature -Scenario showcase_tour,environment [-Config ...]
+#   pwsh Tools/Dev/check.ps1 -Level feature -Scenario showcase_tour,demo.environment [-Config ...]
 #   pwsh Tools/Dev/check.ps1 -Level changed [-Base origin/master] [-DryRun]
 #   pwsh Tools/Dev/check.ps1 -Level full
 #
 #   docs     .md, CHANGELOG, comments in docs, .gitignore, the CI workflow:
 #            nothing to build (CI tests its own workflow on push).
-#   quick    an incremental build of one configuration, then the unit and
-#            authoring tests (seconds). Content JSON (levels, presets): this.
-#   feature  quick, then the named in-game scenarios (they need a GPU).
-#   changed  (M81) what the branch touched since it left -Base, committed or
-#            not: each changed file is mapped to scenarios by
-#            Tools/Dev/changed.psd1 (printed, with the reason), then quick
-#            plus those scenarios - and a package check when packaging or
-#            CMake changed. Docs-only: nothing. Unmapped files get a broad
-#            fallback set, loudly. -DryRun prints the plan only. The
-#            per-milestone check.
-#   full     Debug and Release, every test and scenario in both: once per
-#            version, before the release commit.
+#   quick    an incremental build of one configuration, then every CPU test
+#            - each owner's unit and content checks (seconds).
+#   feature  quick, then the named in-game scenarios (they need a GPU). A
+#            name is <owner>.<name> or, when only one owner has it, <name>.
+#   changed  (M81; by owner since M107) what the branch touched since it
+#            left -Base, committed or not: each changed file is mapped by
+#            Tools/Dev/changed.psd1 (printed, with the reason) to the owners
+#            whose CPU tests to run, the scenarios, and a package check when
+#            packaging or CMake changed. Only those test targets and apps
+#            are built: a demo change compiles no engine test. Docs-only:
+#            nothing. Unmapped files get a broad fallback, loudly. -DryRun
+#            prints the plan only. The per-milestone check.
+#   full     Debug and Release, everything built, every test and scenario
+#            in both: once per version, before the release commit.
 #
 # Pick the configuration where the defect shows: Debug for asserts and
 # lifetime checks, Release for anything timed. A shader-only change still
@@ -44,6 +46,9 @@ if ($Level -eq "docs") {
     exit 0
 }
 
+$table = Import-PowerShellDataFile (Join-Path $PSScriptRoot "changed.psd1")
+$owners = [System.Collections.Generic.SortedSet[string]]::new() # CPU tests (-Level changed)
+$smoke = $false
 $packages = @()
 if ($Level -eq "changed") {
     # The files: since the branch left $Base (committed or not), plus untracked ones.
@@ -52,7 +57,6 @@ if ($Level -eq "changed") {
     if (-not $mergeBase) { throw "No merge base with $Base (or master): pass -Base <ref>" }
     $files = @(@(git diff --name-only $mergeBase) + @(git ls-files --others --exclude-standard) |
         Where-Object { $_ } | Sort-Object -Unique)
-    $table = Import-PowerShellDataFile (Join-Path $PSScriptRoot "changed.psd1")
 
     $chosen = [System.Collections.Generic.SortedSet[string]]::new()
     $needsBuild = $false
@@ -62,33 +66,41 @@ if ($Level -eq "changed") {
         $rule = $table.Rules | Where-Object { $file -match $_.Pattern } | Select-Object -First 1
         if (-not $rule) {
             $unmapped += $file
-            $needsBuild = $true
-            foreach ($s in $table.Fallback) { [void]$chosen.Add($s) }
-            Write-Host ("  {0}  ->  UNMAPPED: fallback {1}" -f $file, ($table.Fallback -join ", ")) -ForegroundColor Yellow
-            continue
+            $rule = $table.Fallback
+            Write-Host ("  {0}  ->  UNMAPPED: fallback" -f $file) -ForegroundColor Yellow
         }
-        # $file -match ran last on the matching rule: $Matches holds its groups.
-        [void]($file -match $rule.Pattern)
-        $names = @($rule.Scenarios | ForEach-Object { if ($_ -eq '$scenario') { $Matches['scenario'] } else { $_ } })
+        else {
+            # $file -match ran last on the matching rule: $Matches holds its groups.
+            [void]($file -match $rule.Pattern)
+        }
+        $names = @($rule.Scenarios | Where-Object { $_ } | ForEach-Object { $_ -replace '\$scenario', $Matches['scenario'] })
         # A scenario file the branch deleted runs nothing (its test is gone).
-        if (($rule.Scenarios -contains '$scenario') -and -not (Test-Path -LiteralPath $file)) { $names = @() }
+        if (($rule.Scenarios -match '\$scenario') -and -not (Test-Path -LiteralPath $file)) { $names = @() }
         if ($rule.Build -ne $false) { $needsBuild = $true }
+        foreach ($o in @($rule.Tests | Where-Object { $_ })) { [void]$owners.Add($o) }
         foreach ($s in $names) { [void]$chosen.Add($s) }
+        if ($rule.Smoke) { $smoke = $true }
         if ($rule.Package -and $packages -notcontains $rule.Package) { $packages += $rule.Package }
-        $what = if ($rule.Build -eq $false) { "nothing to build" }
-                elseif ($names.Count) { $names -join ", " } else { "unit tests" }
-        if ($rule.Package) { $what += "; package $($rule.Package)" }
-        Write-Host ("  {0}  ->  {1}" -f $file, $what)
+        $what = @()
+        if ($rule.Build -eq $false) { $what += "nothing to build" }
+        if ($rule.Tests) { $what += "tests " + ($rule.Tests -join ", ") }
+        if ($rule.Smoke) { $what += "smoke" }
+        if ($names.Count) { $what += $names -join ", " }
+        if ($rule.Package) { $what += "package $($rule.Package)" }
+        if (-not $what.Count) { $what += "build only" }
+        Write-Host ("  {0}  ->  {1}" -f $file, ($what -join "; "))
     }
     if ($unmapped.Count) {
         Write-Host ("{0} unmapped file(s): add a rule to Tools/Dev/changed.psd1" -f $unmapped.Count) -ForegroundColor Yellow
     }
-    if (-not $needsBuild) {
-        Write-Host "changed: docs only - nothing to build or test."
+    if (-not $needsBuild -and -not $packages.Count) {
+        Write-Host "changed: nothing to build - docs or scripts only."
         exit 0
     }
     $Scenario = @($chosen)
-    Write-Host ("plan: build {0}, unit tests{1}{2}" -f $Config,
+    Write-Host ("plan: build {0}: CPU tests {1}{2}{3}{4}" -f $Config,
+        $(if ($owners.Count) { $owners -join ", " } else { "none" }),
+        $(if ($smoke) { ", every app's smoke scenario" } else { "" }),
         $(if ($Scenario.Count) { ", scenarios " + ($Scenario -join ", ") } else { "" }),
         $(if ($packages.Count) { ", package check " + ($packages -join ", ") } else { "" }))
     if ($DryRun) { exit 0 }
@@ -96,7 +108,7 @@ if ($Level -eq "changed") {
 # "-Scenario a,b" arrives as one string through `pwsh -File`: split it.
 $Scenario = @($Scenario | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($Level -eq "feature" -and $Scenario.Count -eq 0) {
-    throw "-Level feature needs -Scenario <name>[,<name>...] (Tests/Scenarios/<name>.atomtest)"
+    throw "-Level feature needs -Scenario <name>[,<name>...] (an app's Scenarios/<name>.atomtest)"
 }
 
 # cmake and ctest: on PATH, or the copies inside Visual Studio (common.ps1).
@@ -116,29 +128,69 @@ function Step([string]$what, [scriptblock]$action) {
     Write-Host ("   ok ({0:N0} s)" -f ((Get-Date) - $started).TotalSeconds)
 }
 
+# Scenario.<owner>.<name> for each name: as given when qualified, else the
+# one owner that has it. Unknown or ambiguous names fail - a misspelt one
+# (or a stale table entry) must not quietly run fewer scenarios.
+function Resolve-Scenarios([string[]]$names, [string]$config) {
+    $known = @(& $ctest --test-dir $BuildDir -C $config -N | ForEach-Object { if ($_ -match 'Scenario\.(\S+)') { $Matches[1] } })
+    $resolved = @()
+    foreach ($name in $names) {
+        $found = @(if ($name.Contains(".")) { $known | Where-Object { $_ -eq $name } }
+                   else { $known | Where-Object { $_.EndsWith(".$name") } })
+        if ($found.Count -ne 1) {
+            $why = if ($found.Count) { "ambiguous, say which: " + ($found -join ", ") } else { "no such scenario" }
+            Write-Host "FAILED: ${name}: $why" -ForegroundColor Red
+            exit 1
+        }
+        $resolved += $found[0]
+    }
+    return $resolved
+}
+
 if (-not (Test-Path (Join-Path $BuildDir "CMakeCache.txt"))) {
     Step "configure" { & $cmake -B $BuildDir -S . }
+}
+else {
+    # A new test or scenario must be registered before ctest is asked for it.
+    Step "configure" { & $cmake $BuildDir | Out-Null }
 }
 
 $configs = if ($Level -eq "full") { @("Debug", "Release") } else { @($Config) }
 foreach ($c in $configs) {
-    Step "build $c" { & $cmake --build $BuildDir --config $c }
-    if ($Level -eq "full") {
-        Step "all tests and scenarios, $c" { & $ctest --test-dir $BuildDir -C $c --output-on-failure }
+    if ($Level -ne "changed") {
+        Step "build $c" { & $cmake --build $BuildDir --config $c }
+        if ($Level -eq "full") {
+            Step "all tests and scenarios, $c" { & $ctest --test-dir $BuildDir -C $c --output-on-failure }
+            continue
+        }
+        Step "CPU tests, $c" { & $ctest --test-dir $BuildDir -C $c -L cpu --output-on-failure }
+        if ($Level -eq "feature") {
+            $names = Resolve-Scenarios $Scenario $c
+            $pattern = "^Scenario\.(" + (($names | ForEach-Object { [regex]::Escape($_) }) -join "|") + ")$"
+            Step "scenarios $($names -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
+        }
         continue
     }
-    Step "unit and authoring tests, $c" { & $ctest --test-dir $BuildDir -C $c -LE scenario --output-on-failure }
-    if (($Level -eq "feature" -or $Level -eq "changed") -and $Scenario.Count) {
-        # Every name must exist: a misspelt one (or a stale table entry) fails
-        # instead of quietly running fewer scenarios.
-        $known = @(& $ctest --test-dir $BuildDir -C $c -N | ForEach-Object { if ($_ -match 'Scenario\.(\S+)') { $Matches[1] } })
-        $missing = @($Scenario | Where-Object { $known -notcontains $_ })
-        if ($missing.Count) {
-            Write-Host "FAILED: no such scenario: $($missing -join ', ')" -ForegroundColor Red
-            exit 1
-        }
-        $pattern = "^Scenario\.(" + ($Scenario -join "|") + ")$"
-        Step "scenarios $($Scenario -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
+
+    # -Level changed: only the owners' test targets and the apps the scenarios run.
+    $names = @()
+    if ($Scenario.Count) { $names += Resolve-Scenarios $Scenario $c }
+    if ($smoke) {
+        $names += @(& $ctest --test-dir $BuildDir -C $c -N -L smoke | ForEach-Object { if ($_ -match 'Scenario\.(\S+)') { $Matches[1] } })
+    }
+    $names = @($names | Sort-Object -Unique)
+    $targets = @($owners | ForEach-Object { $table.TestTargets[$_] }) +
+               @($names | ForEach-Object { $table.Apps[$_.Split(".")[0]] }) | Sort-Object -Unique
+    if ($targets.Count) {
+        Step "build $c`: $($targets -join ', ')" { & $cmake --build $BuildDir --config $c --target @targets }
+    }
+    if ($owners.Count) {
+        $pattern = "^(Unit|Content)\.(" + ($owners -join "|") + ")$"
+        Step "CPU tests $($owners -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
+    }
+    if ($names.Count) {
+        $pattern = "^Scenario\.(" + (($names | ForEach-Object { [regex]::Escape($_) }) -join "|") + ")$"
+        Step "scenarios $($names -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
     }
 }
 foreach ($game in $packages) {

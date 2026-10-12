@@ -222,3 +222,22 @@ string(REPLACE ";" "," ATOM_DEV_LIST "${ATOM_DEV_ASSETS}")
 file(WRITE "${CMAKE_BINARY_DIR}/dist/payload.txt"
     "game=Demo\nexe=Demo.exe\nversion=${PROJECT_VERSION}\nshipped=${ATOM_SHIPPED_LIST}\ndevonly=${ATOM_DEV_LIST}\nshaders=${ATOM_SHADER_COUNT}\n")
 install(FILES "${CMAKE_BINARY_DIR}/dist/payload.txt" DESTINATION . RENAME .payload COMPONENT Demo)
+
+# The demo's in-game scenarios (M107, cmake/AtomTesting.cmake): its scripts
+# (Scenarios/*.atomtest), and runs of its command line.
+if(ATOM_BUILD_TESTS)
+    atom_add_scenarios(Demo OWNER demo DIR "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios" SMOKE street_keeper)
+    # M62: --diagnostics starts the engine, writes its report and exits.
+    atom_add_scenario(diagnostics OWNER demo TIMEOUT 120 PASS "Diagnostics written"
+        COMMAND $<TARGET_FILE:Demo> --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics.txt")
+    # M64: a short calibration runs to its end and reports - which tier it
+    # picks depends on the machine, so only completion is checked. On
+    # battery it refuses, which is also a correct end.
+    atom_add_scenario(calibration OWNER demo TIMEOUT 180 ENVIRONMENT "ATOM_CALIBRATE_SECONDS=0.5"
+        PASS "Calibration: (high|balanced|low|no result|refused) - "
+        COMMAND $<TARGET_FILE:Demo> --calibrate --no-settings)
+    # A high-performance request reaches a working device, directly or by
+    # the fallback, and the report says which.
+    atom_add_scenario(gpu_fallback OWNER demo TIMEOUT 120 PASS "Diagnostics written"
+        COMMAND $<TARGET_FILE:Demo> --gpu high-performance --no-settings --diagnostics "${CMAKE_CURRENT_BINARY_DIR}/diagnostics_hp.txt")
+endif()

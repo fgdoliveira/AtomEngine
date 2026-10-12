@@ -55,3 +55,63 @@ function(atom_add_tests target)
         set_tests_properties(Content.${ARG_OWNER} PROPERTIES LABELS "cpu;content;${ARG_OWNER}")
     endif()
 endfunction()
+
+# In-game scenarios (M107): the real app on a GPU, in a window. Each app
+# registers its own, after its executable - so an app that isn't built
+# (ATOM_BUILD_GAME=OFF, CI) registers none, and none depends on another.
+#
+#   atom_add_scenario(<name> OWNER <owner> COMMAND <exe> [args...]
+#                     [ENVIRONMENT VAR=value...] [PASS <regex>] [TIMEOUT <s>] [SMOKE])
+#   atom_add_scenarios(<exe target> OWNER <owner> DIR <folder> [SMOKE <name>] [TIMEOUT <s>])
+#
+# The test is Scenario.<owner>.<name>, labelled scenario and <owner>; SMOKE
+# adds the label smoke: one short run per app, proving it starts, draws
+# and shuts down clean - what an engine or framework change runs in every
+# app (`ctest -L smoke`). Every scenario fails on a GPU wrapper outliving
+# the renderer (M53) or a pipeline that couldn't be created.
+set(ATOM_SCENARIO_FAILURES "GPU resources still alive at shutdown;Failed to create [a-z ]*pipeline")
+
+function(atom_add_scenario name)
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "SMOKE" "OWNER;PASS;TIMEOUT" "COMMAND;ENVIRONMENT")
+    if(NOT ARG_OWNER OR NOT ARG_COMMAND)
+        message(FATAL_ERROR "atom_add_scenario(${name}): OWNER and COMMAND are required")
+    endif()
+    set(test Scenario.${ARG_OWNER}.${name})
+    set(labels scenario ${ARG_OWNER})
+    if(ARG_SMOKE)
+        list(APPEND labels smoke)
+    endif()
+    if(NOT ARG_TIMEOUT)
+        set(ARG_TIMEOUT 240)
+    endif()
+    add_test(NAME ${test} COMMAND ${ARG_COMMAND})
+    set_tests_properties(${test} PROPERTIES
+        LABELS "${labels}"
+        FAIL_REGULAR_EXPRESSION "${ATOM_SCENARIO_FAILURES}"
+        TIMEOUT ${ARG_TIMEOUT})
+    if(ARG_ENVIRONMENT)
+        set_tests_properties(${test} PROPERTIES ENVIRONMENT "${ARG_ENVIRONMENT}")
+    endif()
+    if(ARG_PASS)
+        set_tests_properties(${test} PROPERTIES PASS_REGULAR_EXPRESSION "${ARG_PASS}")
+    endif()
+endfunction()
+
+# Every <folder>/*.atomtest, run by the app with ATOM_TEST_SCRIPT set.
+function(atom_add_scenarios exe)
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "OWNER;DIR;SMOKE;TIMEOUT" "")
+    file(GLOB scripts CONFIGURE_DEPENDS "${ARG_DIR}/*.atomtest")
+    foreach(script IN LISTS scripts)
+        get_filename_component(name "${script}" NAME_WE)
+        set(smoke "")
+        if(name STREQUAL ARG_SMOKE)
+            set(smoke SMOKE)
+        endif()
+        set(timeout "")
+        if(ARG_TIMEOUT)
+            set(timeout TIMEOUT ${ARG_TIMEOUT})
+        endif()
+        atom_add_scenario(${name} OWNER ${ARG_OWNER} COMMAND $<TARGET_FILE:${exe}>
+            ENVIRONMENT "ATOM_TEST_SCRIPT=${script}" ${timeout} ${smoke})
+    endforeach()
+endfunction()

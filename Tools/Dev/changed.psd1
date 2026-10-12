@@ -1,79 +1,104 @@
-# What `check.ps1 -Level changed` runs for each changed file (M81).
-# Rules are tried in order; the first whose Pattern (a regex on the
-# repository-relative path, forward slashes) matches decides the file.
-#   Scenarios  scenario names (Scenario.<name> in ctest) to run
-#   Build      $false: nothing to build for this file (docs)
+# What `check.ps1 -Level changed` runs for each changed file (M81; by
+# owner since v0.0.16, M107). Rules are tried in order; the first whose
+# Pattern (a regex on the repository-relative path, forward slashes)
+# matches decides the file.
+#   Tests      owners whose CPU tests to build and run (Unit.<owner>,
+#              Content.<owner>): engine, framework, content, demo, drift,
+#              showcase, arena
+#   Smoke      $true: every app's smoke scenario (ctest -L smoke) - what an
+#              engine or framework change owes every app
+#   Scenarios  scenarios by <owner>.<name> (Scenario.<owner>.<name> in ctest)
+#   Build      $false: nothing to build for this file (docs, scripts)
 #   Package    a game whose package to stage and verify (-NoSmoke)
-# The unit and authoring tests always run when anything builds. A file no
-# rule matches is reported as unmapped and gets the Fallback set - never
-# silently nothing. Keep this table honest when you add a scenario.
+# Only what a rule names is built: a demo change compiles no engine or
+# framework test. A file no rule matches is reported as unmapped and gets
+# the Fallback - never silently nothing. Keep this table honest when you
+# add a scenario, a test target or a folder.
 @{
+    # Owner -> its CPU test target; app owner -> the executable its scenarios run.
+    TestTargets = @{ engine = 'AtomEngineTests'; framework = 'AtomFrameworkTests'; content = 'AtomContentTests'
+                     demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests' }
+    Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena' }
+
     Rules = @(
         # Docs and repository text: nothing to build. The CI workflow tests itself.
-        @{ Pattern = '^(docs/|NoTrack/|audits/)|\.md$|^CHANGELOG|^LICENSE|^\.gitignore$|^\.gitattributes$|^\.github/'; Build = $false; Scenarios = @() }
+        @{ Pattern = '^(docs/|NoTrack/|audits/)|\.md$|^CHANGELOG|^LICENSE|^\.gitignore$|^\.gitattributes$|^\.github/'; Build = $false }
 
         # DRIFT
-        @{ Pattern = '^Games/Drift/(CMakeLists\.txt|README\.txt\.in)$'; Scenarios = @('drift_fly', 'drift_diagnostics'); Package = 'Drift' } # M83: its package
-        @{ Pattern = '^Games/Drift/'; Scenarios = @('drift_fly', 'drift_diagnostics') }
+        @{ Pattern = '^Games/Drift/(CMakeLists\.txt|README\.txt\.in)$'; Tests = @('drift'); Scenarios = @('drift.drift_smoke', 'drift.drift_diagnostics'); Package = 'Drift' } # M83: its package
+        @{ Pattern = '^Games/Drift/Tests/'; Tests = @('drift') }
+        @{ Pattern = '^Games/Drift/'; Tests = @('drift'); Scenarios = @('drift.drift_fly', 'drift.drift_diagnostics') }
 
-        # The Showcase (v0.0.14): a scenario script runs itself; anything else, the tour.
-        @{ Pattern = '^Showcase/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('$scenario') }
-        @{ Pattern = '^Showcase/(ShowcaseLab.cpp|Assets/(Lab|ThirdParty)/)'; Scenarios = @('showcase_lab', 'showcase_tour') }
-        # M91: the sample, and the framework hooks it rests on.
-        @{ Pattern = '^(Samples/HelloAtom/|Framework/Testing/BasicTestHooks)'; Scenarios = @('hello_atom') }
-        # M93: ATOM ARENA, the profiling benchmark (its simulation: the unit tests).
-        @{ Pattern = '^(Engine/Core/(Trace|Profile)|Tests/TraceTests)'; Scenarios = @('arena_smoke') } # M96: the tracer (its unit tests always run)
-        @{ Pattern = '^(Samples/AtomArena/|Tests/ArenaSimTests|Tools/Perf/arena\.ps1)'; Scenarios = @('arena_smoke') }
-        @{ Pattern = '^Showcase/'; Scenarios = @('showcase_tour', 'showcase_lens', 'showcase_benchmark') }
+        # The Showcase (v0.0.14): a scenario script runs itself; its tests; anything else, the tour.
+        @{ Pattern = '^Showcase/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('showcase.$scenario') }
+        @{ Pattern = '^Showcase/Tests/'; Tests = @('showcase') }
+        @{ Pattern = '^Showcase/(ShowcaseLab.cpp|Assets/(Lab|ThirdParty)/)'; Tests = @('showcase'); Scenarios = @('showcase.showcase_lab', 'showcase.showcase_tour') }
+        @{ Pattern = '^Showcase/'; Tests = @('showcase'); Scenarios = @('showcase.showcase_tour', 'showcase.showcase_lens', 'showcase.showcase_benchmark') }
 
-        # The engine
-        @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Scenarios = @('night_street', 'drift_fly', 'showcase_tour') }
-        @{ Pattern = '^Engine/Audio/'; Scenarios = @('drift_fly', 'pachinko_session') }
-        @{ Pattern = '^Engine/Debug/'; Scenarios = @('devtools') }
-        @{ Pattern = '^Engine/Assets/'; Scenarios = @('showcase_tour', 'showcase_lab', 'drift_fly') }
-        # The framework's world layer (M85: moved from the demo), by system - before the catch-all.
-        @{ Pattern = '^Framework/Schemas/'; Scenarios = @() } # the authoring tests (always run) check it
-        @{ Pattern = '^Framework/Level/'; Scenarios = @('levels_roundtrip', 'hot_reload', 'night_street', 'pachinko_session') }
-        @{ Pattern = '^Framework/(Interaction|World)/'; Scenarios = @('street_keeper', 'levels_roundtrip', 'pachinko_session') }
-        @{ Pattern = '^Framework/Environment/'; Scenarios = @('environment', 'showcase_tour') }
-        @{ Pattern = '^Framework/Character/'; Scenarios = @('showcase_lab', 'passage') }
-        @{ Pattern = '^Framework/Testing/'; Scenarios = @('diagnostics', 'showcase_tour', 'devtools') }
-        # M89: one UI - the F10 panels and the player UI kit every app shares.
-        @{ Pattern = '^(Engine/Debug/|Framework/(Debug|UI|Settings)/)'; Scenarios = @('devtools', 'showcase_lens', 'showcase_benchmark', 'night_street', 'drift_fly') }
-        @{ Pattern = '^(Engine/|Framework/)'; Scenarios = @('diagnostics', 'quality_tiers', 'gpu_fallback', 'drift_fly', 'drift_diagnostics', 'showcase_tour') }
+        # The samples (M91, M93); ATOM ARENA's simulation has its CPU tests.
+        @{ Pattern = '^Samples/HelloAtom/'; Scenarios = @('hello.hello_atom') }
+        @{ Pattern = '^Samples/AtomArena/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('arena.$scenario') }
+        @{ Pattern = '^Samples/AtomArena/Tests/'; Tests = @('arena') }
+        @{ Pattern = '^(Samples/AtomArena/|Tools/Perf/arena\.ps1)'; Tests = @('arena'); Scenarios = @('arena.arena_smoke') }
+
+        # The engine: its tests and the framework's (built on it), and every
+        # app's smoke run. Where a subsystem has an app's checks of its own,
+        # those too.
+        @{ Pattern = '^(Engine/Core/(Trace|Profile)|Tests/Engine/TraceTests)'; Tests = @('engine'); Scenarios = @('arena.arena_smoke') } # M96: the tracer
+        @{ Pattern = '^Engine/Assets/'; Tests = @('engine', 'framework', 'content', 'demo', 'showcase'); Smoke = $true; Scenarios = @('showcase.showcase_lab') } # the apps' content tests load models
+        @{ Pattern = '^Engine/Physics/'; Tests = @('engine', 'framework', 'demo'); Smoke = $true } # the demo's collision meshes
+        @{ Pattern = '^Engine/Audio/'; Tests = @('engine', 'framework', 'drift', 'showcase'); Smoke = $true } # DRIFT's music, the booth's synth
+        @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Tests = @('engine', 'framework'); Smoke = $true; Scenarios = @('demo.quality_tiers') }
+        @{ Pattern = '^Engine/Debug/'; Tests = @('engine', 'framework'); Smoke = $true; Scenarios = @('demo.devtools', 'showcase.showcase_benchmark') }
+
+        # The framework (M85: the world layer; M89: the UI every app shares), by system.
+        @{ Pattern = '^Framework/Schemas/'; Tests = @('framework', 'content', 'demo', 'showcase', 'arena') } # the content tests check files against them
+        @{ Pattern = '^Framework/Level/'; Tests = @('framework', 'content', 'demo', 'showcase', 'arena'); Smoke = $true; Scenarios = @('demo.hot_reload') }
+        @{ Pattern = '^Framework/Environment/'; Tests = @('framework', 'content'); Smoke = $true; Scenarios = @('demo.environment') }
+        @{ Pattern = '^Framework/Character/'; Tests = @('framework'); Smoke = $true; Scenarios = @('showcase.showcase_lab') }
+        @{ Pattern = '^Framework/Testing/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.diagnostics', 'demo.devtools') }
+        @{ Pattern = '^Framework/(Debug|UI|Settings)/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.devtools', 'showcase.showcase_benchmark') }
+        @{ Pattern = '^(Engine/|Framework/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true; Package = 'Demo' }
+        @{ Pattern = '^Engine/'; Tests = @('engine', 'framework'); Smoke = $true }
+        @{ Pattern = '^Framework/'; Tests = @('framework'); Smoke = $true }
 
         # The demo (v0.0.14: Games/Demo), its package
-        @{ Pattern = '^Games/Demo/(CMakeLists\.txt|README\.txt\.in)$'; Scenarios = @('street_keeper', 'diagnostics'); Package = 'Demo' }
+        @{ Pattern = '^Games/Demo/(CMakeLists\.txt|README\.txt\.in)$'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.diagnostics'); Package = 'Demo' }
+        @{ Pattern = '^Games/Demo/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('demo.$scenario') }
+        @{ Pattern = '^Games/Demo/Tests/'; Tests = @('demo') }
 
-        # The demo's content (before its code: first match wins). The authoring tests check it; the levels load it.
-        @{ Pattern = '^Games/Demo/Assets/(Levels|Environments)/'; Scenarios = @('levels_roundtrip', 'hot_reload', 'environment') }
-        @{ Pattern = '^Games/Demo/Assets/(Machines|Pachinko)/'; Scenarios = @('pachinko_session') }
-        @{ Pattern = '^Games/Demo/Assets/'; Scenarios = @('street_keeper', 'levels_roundtrip') }
-        # Shared content: kit pieces, sky, fonts.
-        @{ Pattern = '^Content/'; Scenarios = @('levels_roundtrip', 'night_street', 'showcase_tour', 'hello_atom') }
+        # The demo's content (before its code: first match wins). Its content tests check it; the levels load it.
+        @{ Pattern = '^Games/Demo/Assets/(Levels|Environments)/'; Tests = @('demo'); Scenarios = @('demo.levels_roundtrip', 'demo.hot_reload', 'demo.environment') }
+        @{ Pattern = '^Games/Demo/Assets/(Machines|Pachinko)/'; Tests = @('demo'); Scenarios = @('demo.pachinko_session') }
+        @{ Pattern = '^Games/Demo/Assets/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.levels_roundtrip') }
+        # Shared content: kit pieces, sky, fonts - every app that resolves it.
+        @{ Pattern = '^Content/'; Tests = @('content', 'demo', 'showcase', 'arena'); Smoke = $true; Scenarios = @('demo.night_street') }
 
         # The demo, by system
-        @{ Pattern = '^Games/Demo/Pachinko/'; Scenarios = @('pachinko_session') }
-        @{ Pattern = '^Games/Demo/Input/'; Scenarios = @('street_keeper', 'pachinko_session') }
-        @{ Pattern = '^Games/Demo/Dialogue/'; Scenarios = @('street_keeper') }
-        @{ Pattern = '^Games/Demo/Flashlight'; Scenarios = @('flashlight', 'passage') }
-        @{ Pattern = '^Games/Demo/DemoAppDevTools'; Scenarios = @('devtools') }
-        @{ Pattern = '^Games/Demo/DemoAppCalibration'; Scenarios = @('calibration', 'quality_tiers') }
-        @{ Pattern = '^Games/Demo/'; Scenarios = @('street_keeper', 'levels_roundtrip') }
+        @{ Pattern = '^Games/Demo/Pachinko/'; Tests = @('demo'); Scenarios = @('demo.pachinko_session') }
+        @{ Pattern = '^Games/Demo/Input/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.pachinko_session') }
+        @{ Pattern = '^Games/Demo/Dialogue/'; Tests = @('demo'); Scenarios = @('demo.street_keeper') }
+        @{ Pattern = '^Games/Demo/Flashlight'; Tests = @('demo'); Scenarios = @('demo.flashlight', 'demo.passage') }
+        @{ Pattern = '^Games/Demo/DemoAppDevTools'; Tests = @('demo'); Scenarios = @('demo.devtools') }
+        @{ Pattern = '^Games/Demo/DemoAppCalibration'; Tests = @('demo'); Scenarios = @('demo.calibration', 'demo.quality_tiers') }
+        @{ Pattern = '^Games/Demo/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.levels_roundtrip') }
 
-        # Tests: a scenario script runs itself; the rest are unit tests (always run).
-        @{ Pattern = '^Tests/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('$scenario') }
-        @{ Pattern = '^Tests/'; Scenarios = @() }
+        # The tests themselves, by owner; the shared support and helpers: every owner.
+        @{ Pattern = '^Tests/Engine/'; Tests = @('engine') }
+        @{ Pattern = '^Tests/Framework/'; Tests = @('framework') }
+        @{ Pattern = '^Tests/Content/'; Tests = @('content') }
+        @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.
-        @{ Pattern = '^Tools/Dist/'; Scenarios = @(); Package = 'Demo' }
-        @{ Pattern = '(^|/)CMakeLists\.txt$'; Scenarios = @(); Package = 'Demo' }
+        @{ Pattern = '^Tools/Dist/'; Package = 'Demo' }
+        @{ Pattern = '(^|/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true; Package = 'Demo' }
 
-        # Tools that don't ship or build: nothing beyond the unit tests.
-        @{ Pattern = '^Tools/(Dev|Perf|Blender|Docs|Machines|PresentationProbe)/'; Scenarios = @() }
-        @{ Pattern = '^(CLAUDE|README)'; Build = $false; Scenarios = @() }
+        # Tools that don't ship or build: nothing to build (a script is checked by running it).
+        @{ Pattern = '^Tools/(Dev|Perf|Blender|Docs|Machines|PresentationProbe)/'; Build = $false }
+        @{ Pattern = '^(CLAUDE|README)'; Build = $false }
     )
 
-    # For unmapped files: the broad rendering set.
-    Fallback = @('street_keeper', 'night_street', 'drift_fly', 'showcase_tour')
+    # For unmapped files: every owner's tests, the smoke runs and the broad rendering set.
+    Fallback = @{ Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true
+                  Scenarios = @('demo.night_street', 'showcase.showcase_tour') }
 }
