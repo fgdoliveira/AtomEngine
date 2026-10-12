@@ -79,7 +79,8 @@ TEST_CASE("Appending collision keeps what was there")
     CHECK(world.FindFloor({ 0.2f, 1.0f, 0.2f }, 2.0f).has_value());
 }
 
-TEST_CASE("The grid makes the street's queries much cheaper")
+// Wall-clock time on this machine: the opt-in benchmark suite (M103).
+TEST_CASE("The grid makes the street's queries much cheaper" * doctest::test_suite("benchmark"))
 {
     CollisionWorld grid;
     CollisionWorld scan;
