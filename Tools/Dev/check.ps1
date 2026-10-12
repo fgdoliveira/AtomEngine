@@ -147,12 +147,11 @@ function Resolve-Scenarios([string[]]$names, [string]$config) {
     return $resolved
 }
 
+# Configured once; after that every build re-runs CMake itself when a
+# CMakeLists changed, so a new test or scenario is registered before ctest
+# is asked for it (the build comes first below).
 if (-not (Test-Path (Join-Path $BuildDir "CMakeCache.txt"))) {
     Step "configure" { & $cmake -B $BuildDir -S . }
-}
-else {
-    # A new test or scenario must be registered before ctest is asked for it.
-    Step "configure" { & $cmake $BuildDir | Out-Null }
 }
 
 $configs = if ($Level -eq "full") { @("Debug", "Release") } else { @($Config) }
@@ -172,18 +171,24 @@ foreach ($c in $configs) {
         continue
     }
 
-    # -Level changed: only the owners' test targets and the apps the scenarios run.
+    # -Level changed: only the owners' test targets and the apps the
+    # scenarios run (the table's names are <owner>.<name>; smoke is every app).
+    $apps = if ($smoke) { @($table.Apps.Values) } else { @($Scenario | ForEach-Object { $table.Apps[$_.Split(".")[0]] }) }
+    $targets = @(@($owners | ForEach-Object { $table.TestTargets[$_] }) + $apps | Where-Object { $_ } | Sort-Object -Unique)
+    if ($smoke) {
+        # Every app relinks anyway: one parallel build of everything beats
+        # the Visual Studio generator's one-MSBuild-per---target, in turn.
+        Step "build $c (every app: the smoke runs)" { & $cmake --build $BuildDir --config $c }
+    }
+    elseif ($targets.Count) {
+        Step "build $c`: $($targets -join ', ')" { & $cmake --build $BuildDir --config $c --target @targets }
+    }
     $names = @()
     if ($Scenario.Count) { $names += Resolve-Scenarios $Scenario $c }
     if ($smoke) {
         $names += @(& $ctest --test-dir $BuildDir -C $c -N -L smoke | ForEach-Object { if ($_ -match 'Scenario\.(\S+)') { $Matches[1] } })
     }
     $names = @($names | Sort-Object -Unique)
-    $targets = @($owners | ForEach-Object { $table.TestTargets[$_] }) +
-               @($names | ForEach-Object { $table.Apps[$_.Split(".")[0]] }) | Sort-Object -Unique
-    if ($targets.Count) {
-        Step "build $c`: $($targets -join ', ')" { & $cmake --build $BuildDir --config $c --target @targets }
-    }
     if ($owners.Count) {
         $pattern = "^(Unit|Content)\.(" + ($owners -join "|") + ")$"
         Step "CPU tests $($owners -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
