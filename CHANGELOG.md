@@ -1,5 +1,73 @@
 # Changelog
 
+## 0.0.16 — Normalization
+
+Every test, scenario and asset now has an owner - the engine, the
+framework, the shared content, or one app - and only sees what that owner
+ships. A change is checked by its owner's tests: an engine change runs
+the engine's and framework's tests and one short run of every app; an
+app's change runs only that app's. The apps move under `Apps/`, by what
+each is for, and each runs from a folder of its own.
+
+### Changed
+- **Tests split by owner (M105-M106):** one CPU test executable per
+  owner - `AtomEngineTests` (the engine's algorithms on synthetic data;
+  it links the engine only), `AtomFrameworkTests`, `AtomContentTests`
+  (`Content/`), and each app's own in `<app>/Tests/` (`DemoTests`,
+  `DriftTests`, `ShowcaseTests`, `ArenaTests`); `AtomTests` builds them
+  all. Files that mixed contracts were split (the synthesiser and DRIFT's
+  music; the fixed step, the reverb and the pachinko attract loop; level
+  parsing and the shipped levels). In CTest: `Unit.<owner>`, and
+  `Content.<owner>` for the doctest "content" suite (shipped files
+  checked); labels `cpu`, `unit|content`, the owner. 252 cases (238
+  before, none dropped).
+- **Assets per owner (M106):** a test resolves its owner's assets, then
+  `Content/` - never another app's (`Tests/Support/TestAssets.h`, no
+  framework resolver). Each app's levels are checked by its own tests;
+  ATOM ARENA's, never checked before, now is.
+- **Scenarios registered by their app (M107):** `atom_add_scenarios` /
+  `atom_add_scenario` (`cmake/AtomTesting.cmake`): one place for the
+  environment, the failure checks, timeouts and labels, as
+  `Scenario.<owner>.<name>`. Registration no longer stops when the demo
+  isn't built; without the game (CI) none is registered. The demo's
+  scripts moved to its own `Scenarios/`. One `smoke` run per app (a new
+  3 s `drift_smoke`): 23 s together.
+- **`check.ps1 -Level changed` selects by owner (M107):**
+  `Tools/Dev/changed.psd1` maps folders to owners, scenarios and the
+  smoke runs; only those test targets and apps are built. An engine
+  change: 58 → 43 s (Debug, warm build, against 0.0.15's selection). A
+  demo change builds `Demo` and `DemoTests` only and runs no engine or
+  framework test - 19 → 21 s: the old unit tests were already cheap.
+  `-Scenario` still takes a short name when one owner has it.
+- **Each app in its own folder (M108):** `build/bin/<config>/<app>/` -
+  its executable, `SDL3.dll`, the engine's shaders and the asset folders
+  it declares (`atom_app_payload`, `cmake/AtomApps.cmake`); nothing
+  another app copied. Dropping a folder from HelloAtom's list failed its
+  scenario at once; the shared folder had hidden such gaps. Packages,
+  executable names and the paths inside a payload are unchanged.
+- **`Apps/` by purpose (M109):** `Apps/Showcase`, `Apps/Games/{Demo,
+  Drift}`, `Apps/Samples/HelloAtom`, `Apps/Benchmarks/AtomArena` (a
+  Benchmark: measuring is what it is for). Conventions, not engine
+  categories (Architecture §1). Each app owns its `Assets/`, `Tests/`,
+  `Scenarios/`.
+- `Log.cpp` and `Trace.cpp` are the engine's private sources; every
+  target linking the engine compiled them again (M103).
+
+### Fixed
+- **Arrival was not measured in the samples (M104):** `BasicTestHooks`
+  answered "no error" always, so HelloAtom and ATOM ARENA skipped the
+  check that a level's first frame is drawn from its spawn. Apps now say
+  where they land (`ExpectSpawn`, `ExpectArrival`; ARENA's overview
+  applied at load); an app that never says fails. One measurement
+  (`ArrivalBetween`) for every app.
+- The collision grid's wall-clock comparison left the normal test run:
+  opt-in, `<target> -ts=benchmark` (M103).
+- README still named 0.0.14 as the current version.
+
+### Performance
+- No runtime code changed beyond the samples' camera placement at load;
+  no A/B was run.
+
 ## 0.0.15 — Observability
 
 The engine learns to say what it is doing, and why it stopped. A seeded

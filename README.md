@@ -20,13 +20,13 @@ A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)** - with a showcase that shows
 what it can do, two games made with it, and a sample to start your own.
 
-Current version: **0.0.15 "Observability"** - the engine says what it is
-doing, and why it stopped. Every frame tells CPU work from waiting for the
-GPU, log lines carry a time, a level and who speaks, memory is reported,
-and a failed frame or a crash leaves the player a reason, a minidump and
-a report. **ATOM ARENA**, a seeded benchmark, measures how workloads scale.
-(0.0.14 was the Showcase, the engine's front door; 0.0.13 DRIFT, a second
-game.)
+Current version: **0.0.16 "Normalization"** - every test, scenario and
+asset has an owner: the engine, the framework, the shared content or one
+app, and sees only what that owner ships. A change is checked by its
+owner's tests (an engine change also runs one short scenario per app),
+the apps live under `Apps/` by purpose, and each runs from a folder of its
+own. (0.0.15 was Observability: frame timing, logs, crash reports;
+0.0.14 the Showcase, the engine's front door.)
 See [CHANGELOG.md](CHANGELOG.md) · [Features](docs/Features.md) ·
 [Architecture](docs/Architecture.md) · [Getting started](docs/Getting-Started.md).
 Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
