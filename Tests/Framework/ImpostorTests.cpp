@@ -1,5 +1,4 @@
 #include "Level/LevelData.h"
-#include "TestAssets.h" // v0.0.14: source assets in two roots
 #include "World/Impostors.h"
 
 #include <doctest/doctest.h>
@@ -7,8 +6,6 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/trigonometric.hpp>
 
-#include <fstream>
-#include <sstream>
 #include <string>
 
 using namespace AtomFramework; // v0.0.14: the world layer
@@ -46,19 +43,10 @@ TEST_CASE("Impostor views: hysteresis keeps the current view near a boundary")
     }
 }
 
-TEST_CASE("The shipped impostor descriptor parses; broken ones don't")
+// The demo's shipped descriptor: Games/Demo/Tests/ImpostorContentTests.cpp.
+TEST_CASE("Broken impostor descriptors are rejected with a reason")
 {
-    std::ifstream file(AtomTests::Asset("City/tower_impostor.json"));
-    std::stringstream text;
-    text << file.rdbuf();
     std::string error;
-    const auto descriptor = ParseImpostorDescriptor(text.str(), error);
-    INFO(error);
-    REQUIRE(descriptor.has_value());
-    CHECK(descriptor->views == 8);
-    CHECK(descriptor->height > descriptor->width);
-    CHECK(descriptor->fog < 1.0f);
-
     CHECK_FALSE(ParseImpostorDescriptor(R"({ "atlas": "a.png", "views": 0, "width": 1, "height": 1 })", error));
     CHECK_FALSE(ParseImpostorDescriptor(R"({ "views": 8 )", error));
     CHECK(error.rfind("line 1", 0) == 0);

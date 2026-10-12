@@ -1,9 +1,8 @@
 #include "Level/LevelData.h"
-#include "TestAssets.h" // v0.0.14: source assets in two roots
 
 #include <doctest/doctest.h>
 
-#include <filesystem>
+#include <ostream> // doctest prints the std::string_view values it compares
 
 using namespace AtomFramework; // v0.0.14: the world layer
 
@@ -205,53 +204,4 @@ TEST_CASE("Dust and the flashlight's beam are per level")
     REQUIRE(plain.level.has_value());
     CHECK_FALSE(plain.level->dust);
     CHECK(plain.level->beam == 0.0f);
-}
-
-TEST_CASE("Every shipped level file is valid")
-{
-    // The demo's and the Showcase's (v0.0.14).
-    int count = 0;
-    for (const char* folder : AtomTests::LevelFolders)
-    {
-        for (const auto& entry : std::filesystem::directory_iterator(folder))
-        {
-            if (entry.path().extension() != ".json"
-                || entry.path().filename().string().ends_with(".markers.json"))
-            {
-                continue; // markers are read with their level
-            }
-            const LevelParseResult result = LoadLevelFile(entry.path().string());
-            INFO(entry.path().filename().string() << ": " << result.error);
-            CHECK(result.level.has_value());
-            // Referenced files exist (a level naming a missing lightmap would
-            // fail to load in the game).
-            if (result.level)
-            {
-                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->model)));
-                CHECK(std::filesystem::exists(AtomTests::Asset(result.level->collision)));
-                if (result.level->lightmap)
-                {
-                    CHECK(std::filesystem::exists(AtomTests::Asset(result.level->lightmap->texture)));
-                }
-            }
-            ++count;
-        }
-    }
-    CHECK(count >= 10);
-}
-
-TEST_CASE("The street level keeps its content")
-{
-    const LevelParseResult result = LoadLevelFile(AtomTests::Asset("Levels/street.json"));
-    REQUIRE(result.level.has_value());
-    const LevelData& street = *result.level;
-
-    bool keeper = false;
-    for (const EntityData& entity : street.entities)
-    {
-        keeper = keeper || (entity.name == "shrine_keeper" && entity.model == "Kit/keeper.glb");
-    }
-    CHECK(keeper);
-    CHECK(street.emitters.size() == 3);
-    CHECK(street.unease.figureSpots.size() == 6);
 }

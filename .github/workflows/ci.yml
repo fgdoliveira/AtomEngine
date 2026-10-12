@@ -60,7 +60,9 @@ jobs:
       - name: Configure (libraries and tests, no game)
         run: cmake -B build -S . -DATOM_BUILD_GAME=OFF -DATOM_BUILD_TESTS=ON
 
-      - name: Build AtomTests
+      # M105: AtomTests builds every owner's CPU tests (engine, framework,
+      # content, each app's).
+      - name: Build the CPU tests
         run: cmake --build build --config Release --target AtomTests --parallel
 
       # M91: the sample compiles against the engine and the framework as a
@@ -68,8 +70,8 @@ jobs:
       - name: Build Samples/HelloAtom
         run: cmake --build build --config Release --target HelloAtom --parallel
 
-      - name: Run the unit tests
-        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Run the CPU tests
+        run: ctest --test-dir build -C Release -L cpu --no-tests=error --output-on-failure
 
       - name: Keep the test log if anything failed
         if: failure()

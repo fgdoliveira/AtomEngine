@@ -1,81 +1,75 @@
-# Unit tests for pure logic (no window, no GPU). Run with ctest or directly.
-add_executable(
-    AtomTests
-    TestMain.cpp
-    SlotMapTests.cpp
-    RaycastTests.cpp
-    InteractionTests.cpp
-    DialogueTests.cpp
-    LevelTests.cpp
-    TestScriptTests.cpp
-    BasicTestHooksTests.cpp
-    ModelTests.cpp
-    AnimationTests.cpp
-    AuthoringTests.cpp
-    CollisionGridTests.cpp
-    ImpostorTests.cpp
-    NightStreetTests.cpp
-    SequenceTests.cpp
-    PachinkoTests.cpp
-    MachineModeTests.cpp
-    Physics2DTests.cpp
-    PlayfieldTests.cpp
-    PachinkoRulesTests.cpp
-    SkinningTests.cpp
-    LabViewerTests.cpp
-    AnimatorTests.cpp
-    DriveTests.cpp
-    LightingTests.cpp
-    FlashlightTests.cpp
-    FrameStatsTests.cpp
-    GpuResourcesTests.cpp
-    EnvironmentTests.cpp
-    EnvironmentControllerTests.cpp
-    PairedBenchTests.cpp
-    GameDiagnosticsTests.cpp
-    GameSettingsTests.cpp
-    CalibrationTests.cpp
-    GPUDeviceTests.cpp
-    RunLogTests.cpp
-    LatencyProbeTests.cpp
-    DriftFlightTests.cpp
-    DriftWorldTests.cpp
-    SynthTests.cpp
-    BoothSynthTests.cpp
-    ShowcaseFeatureTests.cpp
-    ArenaSimTests.cpp
-    TraceTests.cpp
-    LogTests.cpp
-    CrashReportTests.cpp
-    UiKitTests.cpp
-    FakeGame.h
-    TestAssets.h
+# CPU tests (no window, no GPU), one executable per owner (v0.0.16, M105;
+# cmake/AtomTesting.cmake). Here: the engine's, the framework's and the
+# shared content's. Each app's are in its own folder (<app>/Tests).
+#
+# The engine's: its algorithms on synthetic inputs - nothing but AtomEngine.
+atom_add_tests(
+    AtomEngineTests
+    OWNER engine
+    SOURCES
+        Engine/AnimationTests.cpp
+        Engine/CollisionGridTests.cpp
+        Engine/CrashReportTests.cpp
+        Engine/FrameStatsTests.cpp
+        Engine/GPUDeviceTests.cpp
+        Engine/GpuResourcesTests.cpp
+        Engine/LatencyProbeTests.cpp
+        Engine/LightingTests.cpp
+        Engine/ModelTests.cpp
+        Engine/RaycastTests.cpp
+        Engine/ReverbTests.cpp
+        Engine/SlotMapTests.cpp
+        Engine/SynthTests.cpp
+        Engine/TraceTests.cpp
+    LIBS AtomEngine
 )
 
-target_link_libraries(
-    AtomTests
-    PRIVATE
-        DemoLib
-        DriftLib # M77: the second game's pure logic
-        ShowcaseLib # v0.0.14: the synth booth
-        ArenaLib # M93: ATOM ARENA's simulation
-        nlohmann_json::nlohmann_json # the authoring tests read JSON themselves
+# The framework's: its reusable policies and parsers, on data written in
+# the test.
+atom_add_tests(
+    AtomFrameworkTests
+    OWNER framework
+    SOURCES
+        Framework/AnimatorTests.cpp
+        Framework/AuthoringTests.cpp
+        Framework/BasicTestHooksTests.cpp
+        Framework/CalibrationTests.cpp
+        Framework/DriveTests.cpp
+        Framework/EnvironmentControllerTests.cpp
+        Framework/EnvironmentTests.cpp
+        Framework/FakeGame.h
+        Framework/FixedStepTests.cpp
+        Framework/GameDiagnosticsTests.cpp
+        Framework/GameSettingsTests.cpp
+        Framework/ImpostorTests.cpp
+        Framework/InteractionTests.cpp
+        Framework/LabViewerTests.cpp
+        Framework/LevelTests.cpp
+        Framework/LogTests.cpp
+        Framework/NightStreetTests.cpp
+        Framework/PairedBenchTests.cpp
+        Framework/RunLogTests.cpp
+        Framework/SequenceTests.cpp
+        Framework/TestScriptTests.cpp
+        Framework/UiKitTests.cpp
+    LIBS AtomFramework
 )
 
-target_include_directories(
-    AtomTests
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/external/doctest
+# The shared content's (Content/): the kit, the environment presets.
+atom_add_tests(
+    AtomContentTests
+    OWNER content
+    SOURCES
+        Content/EnvironmentPresetTests.cpp
+        Content/KitAnimationTests.cpp
+        Content/KitModelTests.cpp
+    LIBS AtomFramework nlohmann_json::nlohmann_json
 )
 
-add_test(NAME AtomTests COMMAND AtomTests)
+# AtomTests: every CPU test target, built together (CI, the full check).
+get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)
+add_custom_target(AtomTests DEPENDS ${ATOM_ALL_TESTS})
 
-# Lets tests validate shipped content (e.g. Assets/Dialogue/*.json).
-target_compile_definitions(
-    AtomTests
-    PRIVATE
-        ATOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-)
 
 # In-game scenarios need the game (ATOM_BUILD_GAME).
 if(NOT TARGET Demo)

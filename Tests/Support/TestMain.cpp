@@ -13,7 +13,7 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         const std::string_view arg = argv[i];
-        suiteChosen = suiteChosen || arg.starts_with("-ts") || arg.starts_with("--test-suite");
+        suiteChosen = suiteChosen || arg.starts_with("-ts=") || arg.starts_with("--test-suite=");
     }
     if (!suiteChosen)
     {

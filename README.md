@@ -195,7 +195,7 @@ Build options (CMake `-D`):
 | Option | Default | What it builds |
 |---|---|---|
 | `ATOM_BUILD_GAME` | ON | the apps' shaders, and the Showcase, the demo and DRIFT (needs `dxc`) |
-| `ATOM_BUILD_TESTS` | ON | `AtomTests`; with the game, also the in-game scenarios |
+| `ATOM_BUILD_TESTS` | ON | the CPU tests, one target per owner (`AtomTests` builds them all); with the game, also the in-game scenarios |
 | `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
 | `ATOM_TRACE` | OFF | records the CPU profiling zones with the built-in tracer when `ATOM_TRACE=<prefix>` is set (development builds only) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
@@ -397,14 +397,26 @@ Things they can try: `--gpu low-power` (laptops), `--quality low`,
 
 ```sh
 ctest --test-dir build -C Release              # everything
-ctest --test-dir build -C Release -LE scenario # unit tests only (no GPU)
+ctest --test-dir build -C Release -L cpu       # the CPU tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
+ctest --test-dir build -C Release -L demo      # one owner's: engine, framework, content, demo, drift, showcase, arena
 ```
+
+The CPU tests are split by owner (v0.0.16): `AtomEngineTests` (the
+engine's algorithms on synthetic data), `AtomFrameworkTests` (its
+policies and parsers), `AtomContentTests` (the shared `Content/`), and
+each app's own (`DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests`,
+in `<app>/Tests/`). A test sees only its owner's assets and the shared
+content, never another app's. Each runs as `Unit.<owner>` and, where it
+checks shipped files, `Content.<owner>`. `AtomTests` builds them all. A
+timing comparison is never part of a run: `<target> -ts=benchmark` runs
+those by hand.
 
 **CI** (GitHub Actions, `.github/workflows/ci.yml`) runs on every pull
 request and every push to master (and on demand): a fresh Windows machine
 clones with submodules, configures with `-DATOM_BUILD_GAME=OFF` (no
-shader compiler), builds `AtomTests` in Release and runs them. It answers
+shader compiler), builds the CPU tests (`AtomTests`) in Release and runs
+them. It answers
 "does a clean clone build and pass?". A second job runs
 `Tools/Dist/package.ps1 -NoSmoke`: it builds the game and its shaders,
 then stages, verifies and zips the distribution. It's a check, not a

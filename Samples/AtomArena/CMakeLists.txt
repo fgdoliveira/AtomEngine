@@ -6,6 +6,19 @@ add_library(ArenaLib STATIC ArenaSim.cpp ArenaSim.h ArenaBenchmark.cpp ArenaBenc
 target_include_directories(ArenaLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ArenaLib PUBLIC glm::glm AtomProfile) # M95: its zones
 
+# ATOM ARENA's CPU tests (M105): the simulation, its level.
+if(ATOM_BUILD_TESTS)
+    atom_add_tests(
+        ArenaTests
+        OWNER arena
+        ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/Assets"
+        SOURCES
+            Tests/ArenaSimTests.cpp
+            Tests/LevelContentTests.cpp
+        LIBS ArenaLib AtomFramework
+    )
+endif()
+
 add_executable(AtomArena Main.cpp ArenaApp.cpp ArenaApp.h)
 target_link_libraries(AtomArena PRIVATE ArenaLib AtomEngine AtomFramework imgui)
 # M94: what a benchmark report names - the version, the commit (when CMake

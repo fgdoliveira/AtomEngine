@@ -1,5 +1,5 @@
 #include "Physics/CollisionWorld.h"
-#include "TestAssets.h" // v0.0.14: source assets in two roots
+#include "TestAssets.h" // the owner's assets, then Content/
 
 #include <doctest/doctest.h>
 
@@ -14,7 +14,10 @@ namespace
 {
 }
 
-TEST_CASE("The collision grid answers exactly like a scan of every triangle")
+// Shipped files checked: the "content" suite (Content.<owner> in ctest).
+TEST_SUITE_BEGIN("content");
+
+TEST_CASE("On every demo collision mesh, the grid answers exactly like a scan")
 {
     int files = 0;
     for (const char* folder : { "Street", "Shrine", "Interior", "Fields" })
@@ -106,3 +109,5 @@ TEST_CASE("The grid makes the street's queries much cheaper" * doctest::test_sui
     MESSAGE("street: grid " << withGrid * 1000.0 << " ms, scan " << withScan * 1000.0 << " ms for 2000 steps");
     CHECK(withGrid < withScan);
 }
+
+TEST_SUITE_END();

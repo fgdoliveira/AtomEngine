@@ -1,5 +1,5 @@
 #include "Dialogue/Dialogue.h"
-#include "TestAssets.h" // v0.0.14: source assets in two roots
+#include "TestAssets.h" // the owner's assets, then Content/
 #include "Dialogue/DialogueRunner.h"
 #include "World/GameState.h"
 

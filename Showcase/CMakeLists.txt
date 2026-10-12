@@ -16,6 +16,23 @@ add_library(
 target_include_directories(ShowcaseLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ShowcaseLib PUBLIC AtomEngine)
 
+# The Showcase's CPU tests (M105): the booth, the lens's features, the
+# pavilion's skinned character, its levels.
+if(ATOM_BUILD_TESTS)
+    atom_add_tests(
+        ShowcaseTests
+        OWNER showcase
+        ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/Assets"
+        SOURCES
+            Tests/AssetOwnershipTests.cpp
+            Tests/BoothSynthTests.cpp
+            Tests/LevelContentTests.cpp
+            Tests/ShowcaseFeatureTests.cpp
+            Tests/SkinningTests.cpp
+        LIBS ShowcaseLib AtomFramework nlohmann_json::nlohmann_json
+    )
+endif()
+
 if(NOT ATOM_BUILD_GAME)
     return() # the libraries only: no executable, no shaders
 endif()

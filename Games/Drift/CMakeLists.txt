@@ -18,6 +18,20 @@ add_library(
 target_include_directories(DriftLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(DriftLib PUBLIC glm::glm AtomEngine) # M80: the engine's Synth
 
+# DRIFT's CPU tests (M105): the flight, the world, the music.
+if(ATOM_BUILD_TESTS)
+    atom_add_tests(
+        DriftTests
+        OWNER drift
+        ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/Assets"
+        SOURCES
+            Tests/DriftFlightTests.cpp
+            Tests/DriftWorldTests.cpp
+            Tests/MusicTests.cpp
+        LIBS DriftLib
+    )
+endif()
+
 if(NOT ATOM_BUILD_GAME)
     return() # the libraries only: no executable, no shaders
 endif()

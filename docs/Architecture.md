@@ -31,7 +31,9 @@ graph TD
     ShowcaseLib --> Engine
     DriftLib --> Engine
     Framework[AtomFramework] --> Engine[AtomEngine]
-    Tests[AtomTests] --> DemoLib & DriftLib & ShowcaseLib & Framework
+    EngineTests[AtomEngineTests] --> Engine
+    FrameworkTests[AtomFrameworkTests] --> Framework
+    AppTests["DemoTests, DriftTests, ShowcaseTests, ArenaTests"] --> DemoLib & DriftLib & ShowcaseLib
     Framework -.->|private| JSON[nlohmann/json]
     Framework -.->|private| ImGui[Dear ImGui]
     Engine --> SDL[SDL3]

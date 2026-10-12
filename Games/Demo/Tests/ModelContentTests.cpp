@@ -1,5 +1,5 @@
 #include "Assets/Model.h"
-#include "TestAssets.h" // v0.0.14: source assets in two roots
+#include "TestAssets.h" // the owner's assets, then Content/
 
 #include <doctest/doctest.h>
 
@@ -21,10 +21,14 @@ namespace
     }
 }
 
-TEST_CASE("Every shipped visual model carries baked light")
+// Shipped files checked: the "content" suite (Content.<owner> in ctest).
+TEST_SUITE_BEGIN("content");
+
+// The kit's models (Content/Kit): Tests/Content/KitModelTests.cpp.
+TEST_CASE("Every demo model carries baked light")
 {
     int models = 0;
-    for (const char* folder : { "Kit", "Street", "Shrine", "Interior" })
+    for (const char* folder : { "Street", "Shrine", "Interior" })
     {
         for (const auto& entry : std::filesystem::directory_iterator(AtomTests::Asset(folder)))
         {
@@ -62,7 +66,7 @@ TEST_CASE("Every shipped visual model carries baked light")
             }
         }
     }
-    CHECK(models >= 17);
+    CHECK(models >= 6);
 }
 
 TEST_CASE("Models without COLOR_0 read as white and unbaked")
@@ -144,36 +148,4 @@ TEST_CASE("Masks ship double-sided, decals as blend, everything else opaque")
     CHECK(decalsSeen >= 10);
 }
 
-TEST_CASE("Night lights ship an emissive mask and cut through fog")
-{
-    for (const char* file : { "Kit/neon_sign.glb", "Kit/street_lamp.glb" })
-    {
-        INFO(file);
-        int lights = 0;
-        for (const MaterialInfo& material : LoadModelMaterials(AtomTests::Asset(file)))
-        {
-            INFO(material.name);
-            if (material.name == "atom_neon_sign" || material.name == "atom_lamp_glass")
-            {
-                ++lights;
-                CHECK(material.hasEmissiveTexture);  // a mask, not the base colour
-                CHECK(material.fogAmount < 1.0f);     // "atom_fog" from the glTF extras
-            }
-            else
-            {
-                CHECK(material.fogAmount == doctest::Approx(1.0f));
-            }
-        }
-        CHECK(lights == 1);
-    }
-    // Older glowing pieces keep glowing by their base colour.
-    for (const MaterialInfo& material : LoadModelMaterials(AtomTests::Asset("Kit/vending_machine.glb")))
-    {
-        CHECK(material.fogAmount == doctest::Approx(1.0f));
-    }
-}
-
-TEST_CASE("A missing model file loads no geometry")
-{
-    CHECK(LoadModelGeometry(AtomTests::Asset("nope.glb")).empty());
-}
+TEST_SUITE_END();

@@ -65,6 +65,30 @@ target_compile_definitions(
         ATOM_VERSION="${PROJECT_VERSION}" # the window title
 )
 
+# The demo's CPU tests (M105): its rules, and its shipped files checked.
+if(ATOM_BUILD_TESTS)
+    atom_add_tests(
+        DemoTests
+        OWNER demo
+        ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/Assets"
+        SOURCES
+            Tests/AssetOwnershipTests.cpp
+            Tests/AuthoringContentTests.cpp
+            Tests/CollisionContentTests.cpp
+            Tests/DialogueTests.cpp
+            Tests/FlashlightTests.cpp
+            Tests/ImpostorContentTests.cpp
+            Tests/LevelContentTests.cpp
+            Tests/MachineModeTests.cpp
+            Tests/ModelContentTests.cpp
+            Tests/PachinkoAttractTests.cpp
+            Tests/PachinkoRulesTests.cpp
+            Tests/Physics2DTests.cpp
+            Tests/PlayfieldTests.cpp
+        LIBS DemoLib nlohmann_json::nlohmann_json
+    )
+endif()
+
 if(NOT ATOM_BUILD_GAME)
     return() # the libraries only (ATOM_BUILD_GAME=OFF): no executable, no shaders
 endif()

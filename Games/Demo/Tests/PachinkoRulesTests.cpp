@@ -1,5 +1,5 @@
 #include "Pachinko/PachinkoGame.h"
-#include "TestAssets.h" // v0.0.14: source assets in two roots
+#include "TestAssets.h" // the owner's assets, then Content/
 #include "Pachinko/PachinkoRules.h"
 #include "Pachinko/Playfield.h"
 

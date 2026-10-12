@@ -89,6 +89,15 @@ add_library(AtomProfile INTERFACE)
 target_include_directories(AtomProfile INTERFACE ${CMAKE_SOURCE_DIR}/Engine)
 target_compile_definitions(AtomProfile INTERFACE ATOM_PROFILE_TRACE=$<BOOL:${ATOM_TRACE}>)
 
+# The CPU tests (M105): each owner - engine, framework, content, each app -
+# declares its own test target (cmake/AtomTesting.cmake), so testing is on
+# before any of them is added.
+option(ATOM_BUILD_TESTS "Build the CPU tests (AtomTests builds them all)" ON)
+if(ATOM_BUILD_TESTS)
+    enable_testing()
+    include(cmake/AtomTesting.cmake)
+endif()
+
 if(ATOM_BUILD_GAME)
     add_subdirectory(Shaders)
 endif()
@@ -110,10 +119,8 @@ if(MSVC)
     endforeach()
 endif()
 
-option(ATOM_BUILD_TESTS "Build the unit tests (AtomTests)" ON)
 if(ATOM_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(Tests)
+    add_subdirectory(Tests) # last: the aggregate AtomTests names every owner's
 endif()
 
 if(WIN32 AND ATOM_BUILD_PRESENTATION_PROBE)
