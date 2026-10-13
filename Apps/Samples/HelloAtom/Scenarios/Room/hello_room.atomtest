@@ -1,0 +1,16 @@
+# The hand-made room (v0.0.17, M116): a level whose geometry and markers come
+# from a .blend edited in Blender (Apps/Samples/HelloAtom/Source/hello_room.blend,
+# exported by Tools/Blender/export_scene.py). Started with
+# ATOM_START_LEVEL=hello_room (its CMakeLists sets it): the player arrives at
+# the spawn marker, the marker-placed entities are there, and the floor holds.
+expect_level hello_room
+expect_near 0 0 3.5 0.3
+wait 0.5
+expect_stat draws >= 3
+expect_animating cube
+set inspect lantern
+expect_stat inspect_found == 1
+teleport 0 0 0 0
+wait 0.5
+expect_near 0 0 0 0.3
+log hello room done

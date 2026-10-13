@@ -37,3 +37,6 @@ audits/
 
 # M96: the build with the minimal tracer
 /build-trace/
+
+# Blender: the backup it keeps when a .blend is saved over (v0.0.17: hand-made scenes)
+*.blend1

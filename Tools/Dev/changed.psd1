@@ -37,7 +37,7 @@
         @{ Pattern = '^Apps/Showcase/'; Tests = @('showcase'); Scenarios = @('showcase.showcase_tour', 'showcase.showcase_lens', 'showcase.showcase_benchmark') }
 
         # The samples (M91, M93); ATOM ARENA's simulation has its CPU tests.
-        @{ Pattern = '^Apps/Samples/HelloAtom/'; Tests = @('hello'); Scenarios = @('hello.hello_atom') }
+        @{ Pattern = '^Apps/Samples/HelloAtom/'; Tests = @('hello'); Scenarios = @('hello.hello_atom', 'hello.hello_room') }
         @{ Pattern = '^Apps/Benchmarks/AtomArena/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('arena.$scenario') }
         @{ Pattern = '^Apps/Benchmarks/AtomArena/Tests/'; Tests = @('arena') }
         @{ Pattern = '^(Apps/Benchmarks/AtomArena/|Tools/Perf/arena\.ps1)'; Tests = @('arena'); Scenarios = @('arena.arena_smoke') }

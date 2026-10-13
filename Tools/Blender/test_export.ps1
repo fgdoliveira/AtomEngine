@@ -57,5 +57,36 @@ Expect ($changed.Count -eq 0) ("one unit, unchanged sources: no output touched" 
 Expect (@($log -match '^export: 0 written').Count -eq 1) "one unit, unchanged sources: 0 written"
 Expect (-not ($log -match 'Content[/\\]Kit|Street[/\\]|Night[/\\]|Fields[/\\]')) "one unit: no other unit's output read"
 
+# M116: the hand-made scene goes through the same export.
+$sceneFile = Join-Path $root "Apps/Samples/HelloAtom/Source/hello_room.blend"
+$helloAssets = Join-Path $root "Apps/Samples/HelloAtom/Assets"
+function Scene([string[]]$options) {
+    $arguments = @("-b", "--factory-startup", $sceneFile, "--python", (Join-Path $root "Tools/Blender/export_scene.py"), "--") + $options
+    $log = @(& $blender @arguments 2>&1 | ForEach-Object { "$_" })
+    return @{ Log = $log; Exit = $LASTEXITCODE }
+}
+$roomFiles = @("Room/hello_room.glb", "Room/hello_room_col.glb", "Levels/hello_room.markers.json") |
+    ForEach-Object { Get-Item (Join-Path $helloAssets $_) }
+$roomBefore = @{}; foreach ($f in $roomFiles) { $roomBefore[$f.FullName] = (Get-FileHash $f.FullName -Algorithm MD5).Hash }
+$run = Scene @("--level", "hello_room", "--out", $helloAssets, "--bake", "sky")
+Expect ($run.Exit -eq 0) "scene: the hand-made room exports"
+Expect (@($run.Log -match '^export: 0 written').Count -eq 1) "scene: unchanged .blend, 0 written"
+$roomChanged = @($roomFiles | Where-Object { (Get-FileHash $_.FullName -Algorithm MD5).Hash -ne $roomBefore[$_.FullName] })
+Expect ($roomChanged.Count -eq 0) "scene: its outputs byte-identical"
+
+# Exported over a level the procedural build owns: refused, nothing written.
+$before = Snapshot
+$run = Scene @("--level", "windmill_field", "--out", (Join-Path $root "Apps/Games/Demo/Assets"))
+$after3 = Snapshot
+Expect ($run.Exit -ne 0 -and @($run.Log -match 'refusing to overwrite').Count -ge 1) "scene: a file another source generated is refused"
+$changed = Changed $before $after3
+Expect ($changed.Count -eq 0) ("scene: refused, nothing written" + $(if ($changed) { ": " + ($changed -join ", ") }))
+
+# Every committed .blend is free of personal paths (clean_scene.py).
+foreach ($blend in @(git -C $root ls-files "*.blend")) {
+    $log = @(& $blender -b --factory-startup (Join-Path $root $blend) --python (Join-Path $root "Tools/Blender/clean_scene.py") -- --check 2>&1 | ForEach-Object { "$_" })
+    Expect ($LASTEXITCODE -eq 0) ("$blend holds no personal path" + $(if ($LASTEXITCODE) { ": " + (($log -match 'PERSONAL') -join "; ") }))
+}
+
 if ($failures) { Write-Host "FAILED: $failures"; exit 1 }
 Write-Host "PASS"

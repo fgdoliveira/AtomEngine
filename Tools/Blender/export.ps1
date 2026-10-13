@@ -9,6 +9,12 @@
 #   options: -What all|geometry|markers, -NoCache (re-bake every lightmap),
 #            -Gpu (preview lightmaps: never commit them), -NoCheck
 #
+# A hand-made scene (M116) - the .blend is the source, export_scene.py its
+# export: collections "Visual" and "Collision", spawn:/entity: markers.
+#   pwsh Tools/Blender/export.ps1 -Scene Apps/Samples/HelloAtom/Source/hello_room.blend -Level hello_room
+#   options: -Out <app>/Assets (default: the app the .blend is in), -Bake sky|ao|none
+#   The models go where the level file's "model" and "collision" say.
+#
 # A unit is what one builder makes (build_assets.py --list): kit, sky,
 # street, city, night, and each level folder. Unchanged outputs are not
 # rewritten, so `git status` shows exactly what the edit changed. Then
@@ -21,7 +27,11 @@ param(
     [switch]$NoCache,
     [switch]$Gpu,
     [switch]$NoCheck,
-    [string]$BuildDir = "build"
+    [string]$BuildDir = "build",
+    [string]$Scene = "",
+    [string]$Level = "",
+    [string]$Out = "",
+    [ValidateSet("none", "sky", "ao")] [string]$Bake = "sky"
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "../..")
@@ -33,14 +43,31 @@ if (-not $blender) {
     exit 2
 }
 
-# "-Only a,b" arrives as one string through `pwsh -File`: split it.
-$units = @($Only | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-$arguments = @("-b", "--factory-startup", "-P", (Join-Path $root "Tools/Blender/build_assets.py"), "--")
-if ($List) { $arguments += "--list" }
-if ($units.Count) { $arguments += @("--only", ($units -join ",")) }
-$arguments += @("--what", $What)
-if ($NoCache) { $arguments += "--no-cache" }
-if ($Gpu) { $arguments += "--gpu" }
+if ($Scene) {
+    # A hand-made scene: its app's Assets/ is beside its Source/ folder.
+    if (-not $Level) { Write-Host "-Scene needs -Level <name> (the level file Levels/<name>.json)" -ForegroundColor Red; exit 2 }
+    $scenePath = (Resolve-Path $Scene).Path
+    # A committed .blend must hold no personal path (Blender saves its UI
+    # with the scene: the file browser's last folders).
+    & (Join-Path $PSScriptRoot "clean_scene.ps1") -Scene $scenePath -Check
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "FAILED: $Scene holds personal data - clean it first: pwsh Tools/Blender/clean_scene.ps1 $Scene" -ForegroundColor Red
+        exit 1
+    }
+    if (-not $Out) { $Out = Join-Path (Split-Path (Split-Path $scenePath)) "Assets" }
+    $arguments = @("-b", "--factory-startup", $scenePath, "--python", (Join-Path $root "Tools/Blender/export_scene.py"), "--",
+                   "--level", $Level, "--out", $Out, "--bake", $Bake)
+}
+else {
+    # "-Only a,b" arrives as one string through `pwsh -File`: split it.
+    $units = @($Only | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $arguments = @("-b", "--factory-startup", "-P", (Join-Path $root "Tools/Blender/build_assets.py"), "--")
+    if ($List) { $arguments += "--list" }
+    if ($units.Count) { $arguments += @("--only", ($units -join ",")) }
+    $arguments += @("--what", $What)
+    if ($NoCache) { $arguments += "--no-cache" }
+    if ($Gpu) { $arguments += "--gpu" }
+}
 
 $started = Get-Date
 # Blender's own chatter (glTF exporter, Cycles) is left out; the build's
