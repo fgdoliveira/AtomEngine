@@ -1,0 +1,7 @@
+{
+  "name": "overridden",
+  "model": "Floor/floor.glb",
+  "collision": "Floor/floor_col.glb",
+  "spawns": { "start": {} },
+  "entities": [ { "name": "statue", "position": [5, 0, 5] }, { "name": "bench" } ]
+}

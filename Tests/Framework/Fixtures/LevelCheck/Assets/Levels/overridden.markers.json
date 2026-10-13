@@ -1,0 +1,4 @@
+{
+  "spawns": { "start": { "position": [1, 0, 1], "yaw": 0 } },
+  "entities": { "statue": { "position": [0, 0, 0], "yaw": 0 }, "bench": { "position": [2, 0, 2], "yaw": 90 } }
+}

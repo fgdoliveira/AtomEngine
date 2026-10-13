@@ -3,8 +3,9 @@
 # Pattern (a regex on the repository-relative path, forward slashes)
 # matches decides the file.
 #   Tests      owners whose CPU tests to build and run (Unit.<owner>,
-#              Content.<owner>): engine, framework, content, demo, drift,
-#              showcase, arena
+#              Content.<owner>, and since M112 LevelCheck.<owner> - their
+#              levels through AtomLevelCheck): engine, framework, content,
+#              demo, drift, showcase, hello, arena
 #   Smoke      $true: every app's smoke scenario (ctest -L smoke) - what an
 #              engine or framework change owes every app
 #   Scenarios  scenarios by <owner>.<name> (Scenario.<owner>.<name> in ctest)
@@ -36,7 +37,7 @@
         @{ Pattern = '^Apps/Showcase/'; Tests = @('showcase'); Scenarios = @('showcase.showcase_tour', 'showcase.showcase_lens', 'showcase.showcase_benchmark') }
 
         # The samples (M91, M93); ATOM ARENA's simulation has its CPU tests.
-        @{ Pattern = '^Apps/Samples/HelloAtom/'; Scenarios = @('hello.hello_atom') }
+        @{ Pattern = '^Apps/Samples/HelloAtom/'; Tests = @('hello'); Scenarios = @('hello.hello_atom') }
         @{ Pattern = '^Apps/Benchmarks/AtomArena/Scenarios/(?<scenario>[^/]+)\.atomtest$'; Scenarios = @('arena.$scenario') }
         @{ Pattern = '^Apps/Benchmarks/AtomArena/Tests/'; Tests = @('arena') }
         @{ Pattern = '^(Apps/Benchmarks/AtomArena/|Tools/Perf/arena\.ps1)'; Tests = @('arena'); Scenarios = @('arena.arena_smoke') }
@@ -53,12 +54,12 @@
 
         # The framework (M85: the world layer; M89: the UI every app shares), by system.
         @{ Pattern = '^Framework/Schemas/'; Tests = @('framework', 'content', 'demo', 'showcase', 'arena') } # the content tests check files against them
-        @{ Pattern = '^Framework/Level/'; Tests = @('framework', 'content', 'demo', 'showcase', 'arena'); Smoke = $true; Scenarios = @('demo.hot_reload') }
+        @{ Pattern = '^Framework/Level/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena'); Smoke = $true; Scenarios = @('demo.hot_reload') }
         @{ Pattern = '^Framework/Environment/'; Tests = @('framework', 'content'); Smoke = $true; Scenarios = @('demo.environment') }
         @{ Pattern = '^Framework/Character/'; Tests = @('framework'); Smoke = $true; Scenarios = @('showcase.showcase_lab') }
         @{ Pattern = '^Framework/Testing/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.diagnostics', 'demo.devtools') }
         @{ Pattern = '^Framework/(Debug|UI|Settings)/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.devtools', 'showcase.showcase_benchmark') }
-        @{ Pattern = '^(Engine/|Framework/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true; Package = 'Demo' }
+        @{ Pattern = '^(Engine/|Framework/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true; Package = 'Demo' }
         @{ Pattern = '^Engine/'; Tests = @('engine', 'framework'); Smoke = $true }
         @{ Pattern = '^Framework/'; Tests = @('framework'); Smoke = $true }
 
@@ -87,11 +88,13 @@
         @{ Pattern = '^Tests/Engine/'; Tests = @('engine') }
         @{ Pattern = '^Tests/Framework/'; Tests = @('framework') }
         @{ Pattern = '^Tests/Content/'; Tests = @('content') }
-        @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true }
+        # M112: the level check - its tool and every app's levels through it.
+        @{ Pattern = '^Tools/LevelCheck/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena') }
+        @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.
         @{ Pattern = '^Tools/Dist/'; Package = 'Demo' }
-        @{ Pattern = '(^|/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true; Package = 'Demo' }
+        @{ Pattern = '(^|/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true; Package = 'Demo' }
 
         # Tools that don't ship or build: nothing to build (a script is checked by running it).
         @{ Pattern = '^Tools/(Dev|Perf|Blender|Docs|Machines|PresentationProbe)/'; Build = $false }
@@ -99,6 +102,6 @@
     )
 
     # For unmapped files: every owner's tests, the smoke runs and the broad rendering set.
-    Fallback = @{ Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'arena'); Smoke = $true
+    Fallback = @{ Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true
                   Scenarios = @('demo.night_street', 'showcase.showcase_tour') }
 }

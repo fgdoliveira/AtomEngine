@@ -124,6 +124,8 @@ if(MSVC)
     endforeach()
 endif()
 
+add_subdirectory(Tools/LevelCheck) # M112: AtomLevelCheck, levels checked without the game
+
 if(ATOM_BUILD_TESTS)
     add_subdirectory(Tests) # last: the aggregate AtomTests names every owner's
 endif()

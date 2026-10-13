@@ -1,0 +1,10 @@
+{
+  "name": "good",
+  "model": "Floor/floor.glb",
+  "collision": "Floor/floor_col.glb",
+  "spawns": { "start": { "position": [0, 0, 0] } },
+  "entities": [
+    { "name": "door", "position": [0, 0, -4],
+      "interactable": { "prompt": "Leave", "action": { "type": "changeLevel", "level": "broken", "spawn": "entry" } } }
+  ]
+}

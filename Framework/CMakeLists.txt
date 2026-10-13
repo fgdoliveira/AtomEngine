@@ -66,6 +66,8 @@ add_library(
     Level/JsonText.h
     Level/Level.cpp
     Level/Level.h
+    Level/LevelCheck.cpp
+    Level/LevelCheck.h
     Level/LevelData.cpp
     Level/LevelData.h
     Level/LevelManager.cpp

@@ -73,3 +73,55 @@ Errors stop the level from loading, and the content tests fail. Warnings
 let it load: they explain behaviour that is supported but easy to miss.
 Every loaded entity and spawn keeps where its position came from
 (`PlacementSource`: file, marker, or file with the marker ignored).
+
+## Checking a level: `AtomLevelCheck`
+
+One command checks an app's levels the way the app would load them, plus
+what only shows across files, without starting the game (no window, no
+GPU):
+
+```powershell
+build\bin\Debug\AtomLevelCheck.exe --app demo              # every level of an app
+build\bin\Debug\AtomLevelCheck.exe --app showcase showcase # one level
+build\bin\Debug\AtomLevelCheck.exe --all                   # every app
+```
+
+Options: `--errors-only`, and `--no-clips` (don't open models to check
+clips). For a folder outside the repository, use `--assets <dir> [--content <dir>]`.
+The exit code is 0 when there are no errors (warnings are allowed), 1 on
+errors and 2 on bad usage. Each problem names where to look:
+
+```text
+ERROR [broken]
+  Entity: lamp
+  Source: Levels/broken.json
+  Property: /entities/0/model
+  Problem: model "Kit/missing_lamp.glb" was not found
+  Fix: check the path (relative to Assets/), or build it: Tools/Blender/export.ps1
+
+WARNING [pachinko_hall]
+  Entity: prize_counter
+  Source: Levels/pachinko_hall.json
+  Property: /entities/3/position
+  Problem: the position written here overrides the entity:prize_counter marker; remove it to let the marker place it
+```
+
+What it checks:
+
+| Check | Severity |
+|---|---|
+| everything the parser refuses: syntax with line and column, types, unknown actions, missing fields, a marker naming no entity, a sequence step naming no entity | error |
+| the level's model, collision, lightmap, sky, chunk files, impostor descriptors, entity models, pachinko machines exist | error |
+| a file found only in **another app's** assets | error: an app reads only its own `Assets/` and the shared `Content/` |
+| an animation clip that its model doesn't have (entity animation, animator states, `playAnimation`) - the model is opened | error, listing the clips it has |
+| two entities with one name | error |
+| a collider with a zero or negative size | error |
+| `changeLevel` to a level the app doesn't have, or to a spawn that level doesn't have | error |
+| the level file overriding a marker | warning |
+| something drawn or solid left at the origin | warning |
+| a position more than 10 km from the origin | warning |
+
+The checks live in the framework (`Framework/Level/LevelCheck.h`), and
+the parser stays the authority on what a level file may say. CTest runs
+the tool for every app (`LevelCheck.<owner>`, labels `cpu` and `content`),
+CI included, and the apps' content tests call the same code.

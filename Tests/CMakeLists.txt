@@ -44,6 +44,7 @@ atom_add_tests(
         Framework/ImpostorTests.cpp
         Framework/InteractionTests.cpp
         Framework/LabViewerTests.cpp
+        Framework/LevelCheckTests.cpp
         Framework/LevelTests.cpp
         Framework/LogTests.cpp
         Framework/NightStreetTests.cpp
@@ -63,6 +64,7 @@ atom_add_tests(
         Content/EnvironmentPresetTests.cpp
         Content/KitAnimationTests.cpp
         Content/KitModelTests.cpp
+        Content/LevelCheckClipTests.cpp
     LIBS AtomFramework nlohmann_json::nlohmann_json
 )
 
