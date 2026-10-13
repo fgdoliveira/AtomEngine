@@ -177,3 +177,32 @@ cache in `build/bake_cache/` skips any lightmap whose inputs are unchanged.
 `pwsh Tools/Blender/test_export.ps1` checks these guarantees against the
 real build. CTest runs it as `Blender.export` (label `blender`) where
 Blender is installed.
+
+## Inspecting a loaded level: F10's entity report
+
+In a development build, F10 opens the developer panels. The **Level** panel
+reports the level that is loaded:
+
+- **warnings:** a count, if the level has any (`AtomLevelCheck` prints them in full);
+- **filter:** a box that matches any part of an entity's name, in any case;
+- **list:** each entity's name, position and capabilities (drawn, use, anim,
+  animator, hidden). Click a row to inspect it.
+- **details:** for the selected entity, its JSON Pointer in the level file,
+  **where its position came from** (file, marker, or file with the marker
+  ignored), its transform, model, collider, interaction (prompt, action,
+  locked action, required flag), animation, animator, mover, style, and its
+  live state (where it is now, shown or hidden, animating). The level's
+  warnings about that entity are listed under it.
+- **Show where it is:** draws the entity's model bounds (yellow) and its
+  collider (cyan) over the frame.
+
+The report only reads, and changes nothing. Its selection is the level's
+name plus the entity's name, looked up again every frame: reloading the
+level (hot reload) finds the entity again, and another level clears the
+selection, so nothing it holds can outlive the level. Apps without levels
+(DRIFT) don't get the panel. Packages have no F10 at all.
+
+Scenarios can use it too: `set inspect <entity>` (or `none`) selects, and
+`expect_stat inspect_found == 1` checks the selection resolves
+(`Apps/Samples/HelloAtom/Scenarios/hello_inspect.atomtest`). In apps built
+on `BasicTestHooks`, `set devtools on|off` shows or hides F10.

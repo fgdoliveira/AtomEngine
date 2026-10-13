@@ -36,6 +36,7 @@ atom_add_tests(
         Framework/CalibrationTests.cpp
         Framework/DriveTests.cpp
         Framework/EnvironmentControllerTests.cpp
+        Framework/EntityInspectorTests.cpp
         Framework/EnvironmentTests.cpp
         Framework/FakeGame.h
         Framework/FixedStepTests.cpp
