@@ -81,5 +81,15 @@ file(GLOB ATOM_BLENDER_INSTALLS "$ENV{ProgramFiles}/Blender Foundation/*/blender
 find_program(ATOM_PWSH pwsh)
 if(ATOM_PWSH AND (ATOM_BLENDER_INSTALLS OR DEFINED ENV{ATOM_BLENDER}))
     add_test(NAME Blender.export COMMAND ${ATOM_PWSH} -NoProfile -File "${CMAKE_SOURCE_DIR}/Tools/Blender/test_export.ps1")
-    set_tests_properties(Blender.export PROPERTIES LABELS blender TIMEOUT 1800 PASS_REGULAR_EXPRESSION "^PASS|\nPASS")
+    set_tests_properties(Blender.export PROPERTIES LABELS blender TIMEOUT 1800)
+    # M115: the AtomEngine panel's markers export exactly like the builders'.
+    if(DEFINED ENV{ATOM_BLENDER})
+        set(ATOM_BLENDER_EXE "$ENV{ATOM_BLENDER}")
+    else()
+        list(SORT ATOM_BLENDER_INSTALLS)
+        list(GET ATOM_BLENDER_INSTALLS -1 ATOM_BLENDER_EXE) # the newest
+    endif()
+    add_test(NAME Blender.markers
+             COMMAND ${ATOM_BLENDER_EXE} -b --factory-startup --python "${CMAKE_SOURCE_DIR}/Tools/Blender/test_markers.py")
+    set_tests_properties(Blender.markers PROPERTIES LABELS blender TIMEOUT 300)
 endif()

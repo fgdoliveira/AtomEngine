@@ -110,6 +110,24 @@ def export_objects(objects, scene, path, materials=True):
     report(path, write_if_changed(path, data))
 
 
+def make_marker(kind, name, location, yaw_degrees, collection):
+    """An empty named "<kind>:<name>" (kind: spawn or entity): the one way
+    markers are made - by the level builders (Street.add_marker) and the
+    AtomEngine panel alike. Levels say in JSON what things do; markers say
+    where they are (M20). The real name is also kept in properties, as
+    Blender renames an object whose name another level's marker has. A
+    spawn is drawn as an arrow, an entity as axes; both turn about Z
+    (game yaw: placement_of)."""
+    obj = bpy.data.objects.new(f"{kind}:{name}", None)
+    obj["atom_marker_kind"] = kind
+    obj["atom_marker_name"] = name
+    obj.empty_display_type = "SINGLE_ARROW" if kind == "spawn" else "PLAIN_AXES"
+    obj.location = location
+    obj.rotation_euler = (0.0, 0.0, math.radians(yaw_degrees))
+    collection.objects.link(obj)
+    return obj
+
+
 def marker_of(obj):
     """(kind, name) of a marker empty, or None. Markers made by the level
     builders (or the AtomEngine panel) carry their real name in

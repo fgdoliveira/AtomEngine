@@ -206,3 +206,36 @@ Scenarios can use it too: `set inspect <entity>` (or `none`) selects, and
 `expect_stat inspect_found == 1` checks the selection resolves
 (`Apps/Samples/HelloAtom/Scenarios/hello_inspect.atomtest`). In apps built
 on `BasicTestHooks`, `set devtools on|off` shows or hides F10.
+
+## Placing markers in Blender: the AtomEngine panel
+
+```powershell
+pwsh Tools/Blender/open.ps1 [scene.blend]
+```
+
+This opens Blender with an **AtomEngine** tab in the 3D view's sidebar (N).
+The panel runs from the repository, using the export's own marker code
+(`atom_export.make_marker`, the same function the level builders call), so
+nothing is installed into Blender. In a running Blender you can instead
+open `Tools/Blender/atom_markers_panel.py` in the Text Editor and choose
+*Run Script*.
+
+- **Level file:** the level JSON the markers belong to (relative to the
+  repository), e.g. `Apps/Samples/HelloAtom/Assets/Levels/hello_room.json`.
+- **Name**, then **Add spawn** or **Add entity:** adds the empty at the 3D
+  cursor, named `spawn:<name>` or `entity:<name>`, with the real name also
+  kept in properties (Blender renames an object whose name is taken).
+  Move and turn it with Blender's own tools: only the turn about Z
+  counts. A spawn looks along its arrow (game yaw = -rotation); an entity
+  turns like a kit piece (yaw = rotation).
+- **Selected marker:** its game position and yaw, as the export will write
+  them, and the level file's entry for it: model, capabilities, and
+  whether the file's `position` wins over the marker.
+- **Check markers:** the export's rules (kind, name, unique in the level),
+  plus the level file: a marker naming no entity (error), a marker the
+  file overrides (warning), an entity or spawn with neither a position
+  nor a marker (error).
+
+`Tools/Blender/test_markers.py` (CTest `Blender.markers`) checks that
+markers made by the panel export exactly like the builders' ones,
+including their yaw, and that the checks find these problems.
