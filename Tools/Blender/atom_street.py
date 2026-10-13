@@ -14,6 +14,7 @@ import math
 import bpy
 from mathutils import Vector
 
+import atom_export
 import atom_kit as kit
 
 STREET_HALF_LENGTH = 40.0
@@ -54,17 +55,9 @@ class Street:
         """An empty named "<kind>:<name>" (kind: spawn or entity). Levels say
         in JSON what things do; markers say where they are (M20). Spawn
         markers look along their local +Y; entity markers turn the model
-        like any kit piece."""
-        obj = bpy.data.objects.new(f"{kind}:{name}", None)
-        # The real name, kept even if Blender renames the object because
-        # another level has a marker of the same name (build_assets reads it).
-        obj["atom_marker_kind"] = kind
-        obj["atom_marker_name"] = name
-        obj.empty_display_type = "SINGLE_ARROW" if kind == "spawn" else "PLAIN_AXES"
-        obj.location = (x, y, z)
-        obj.rotation_euler = (0.0, 0.0, math.radians(yaw_degrees))
-        self.collection.objects.link(obj)
-        return obj
+        like any kit piece. Made by atom_export.make_marker, like the
+        AtomEngine panel's (M115)."""
+        return atom_export.make_marker(kind, name, (x, y, z), yaw_degrees, self.collection)
 
     def add_visual(self, name, builder):
         obj = builder.build(name, self.materials, self.collection)

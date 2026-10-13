@@ -14,16 +14,19 @@
 #include "Level/LevelManager.h"
 #include "Level/ViewToggles.h"
 
+#include "Assets/Model.h"
 #include "Core/FrameTiming.h"
 #include "Debug/DevTools.h"
 #include "Renderer/Renderer.h"
 #include "Scene/Camera.h"
 
 #include <SDL3/SDL_clipboard.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <iterator>
 
@@ -468,8 +471,9 @@ namespace AtomFramework
         {
             return;
         }
-        if (Begin("Level", 0, ColumnWidth, 240.0f))
+        if (Begin("Level", 0, ColumnWidth, 420.0f))
         {
+            const LevelData& data = level->GetData();
             ImGui::TextUnformatted(level->GetName().c_str());
             if (context.camera)
             {
@@ -477,15 +481,47 @@ namespace AtomFramework
                 ImGui::SameLine();
                 ImGui::TextDisabled("  eye %.2f %.2f %.2f", eye.x, eye.y, eye.z);
             }
-            if (ImGui::BeginTable("entities", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY, { 0.0f, 160.0f }))
+            if (!data.warnings.empty())
+            {
+                ImGui::TextColored({ 1.0f, 0.8f, 0.3f, 1.0f }, "%zu warning(s): AtomLevelCheck --app <app> %s",
+                                   data.warnings.size(), level->GetName().c_str());
+            }
+
+            // M114: the entity report - filter, pick, inspect. Read-only;
+            // the selection is a name, resolved again every frame.
+            ImGui::SetNextItemWidth(-1.0f);
+            ImGui::InputTextWithHint("##filter", "filter entities by name", m_entityFilter.data(), m_entityFilter.size());
+            const std::size_t selected = m_inspector.Resolve(level->GetName(), data);
+            const Entity* selectedLive = nullptr;
+            if (ImGui::BeginTable("entities", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY, { 0.0f, 150.0f }))
             {
                 ImGui::TableSetupColumn("Name");
                 ImGui::TableSetupColumn("Position");
                 ImGui::TableSetupColumn("Capabilities");
                 ImGui::TableHeadersRow();
                 level->GetWorld().ForEach([&](EntityId, const Entity& entity) {
+                    if (selected != EntityInspector::npos && entity.name == data.entities[selected].name)
+                    {
+                        selectedLive = &entity;
+                    }
+                    if (!EntityInspector::Matches(entity.name, m_entityFilter.data()))
+                    {
+                        return;
+                    }
                     ImGui::TableNextRow();
-                    ImGui::TableNextColumn(); ImGui::TextUnformatted(entity.name.c_str());
+                    ImGui::TableNextColumn();
+                    const bool isSelected = m_inspector.SelectedEntity() == entity.name;
+                    if (ImGui::Selectable(entity.name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+                    {
+                        if (isSelected)
+                        {
+                            m_inspector.Clear();
+                        }
+                        else
+                        {
+                            m_inspector.Select(level->GetName(), entity.name);
+                        }
+                    }
                     ImGui::TableNextColumn();
                     ImGui::Text("%.1f %.1f %.1f", entity.position.x, entity.position.y, entity.position.z);
                     ImGui::TableNextColumn();
@@ -495,7 +531,179 @@ namespace AtomFramework
                 });
                 ImGui::EndTable();
             }
+            if (selected != EntityInspector::npos)
+            {
+                const EntityData& entity = data.entities[selected];
+                ImGui::SeparatorText(entity.name.c_str());
+                // First, so it is seen without scrolling the details.
+                ImGui::Checkbox("Show where it is", &m_showBounds);
+                if (m_showBounds)
+                {
+                    // The overlay's legend - the same colours as DrawEntityBounds.
+                    ImGui::TextColored({ 1.0f, 0.82f, 0.24f, 1.0f }, "yellow: model bounds (what is drawn)");
+                    ImGui::TextColored({ 0.31f, 0.86f, 1.0f, 1.0f }, "cyan: collider (what blocks the player)");
+                    ImGui::TextColored({ 1.0f, 0.63f, 0.86f, 1.0f }, "pink: a point - no model, no collider;");
+                    ImGui::TextColored({ 1.0f, 0.63f, 0.86f, 1.0f }, "  the circle is where the player looks to use it");
+                }
+                for (const std::string& line : EntityInspector::Describe(data, selected, selectedLive))
+                {
+                    ImGui::TextWrapped("%s", line.c_str());
+                }
+                for (const LevelWarning* warning : EntityInspector::WarningsFor(data, selected))
+                {
+                    ImGui::TextColored({ 1.0f, 0.8f, 0.3f, 1.0f }, "warning %s:", warning->path.c_str());
+                    ImGui::TextWrapped("%s", warning->message.c_str());
+                }
+            }
+            else
+            {
+                ImGui::TextDisabled("Pick an entity to inspect it.");
+            }
         }
         ImGui::End();
+
+        // The overlay doesn't need the panel open: collapsed, or off the
+        // screen, it still shows the selected entity in the scene.
+        const LevelData& data = level->GetData();
+        const std::size_t selected = m_inspector.Resolve(level->GetName(), data);
+        if (m_showBounds && selected != EntityInspector::npos)
+        {
+            const Entity* live = nullptr;
+            level->GetWorld().ForEach([&](EntityId, const Entity& entity) {
+                if (!live && entity.name == data.entities[selected].name)
+                {
+                    live = &entity;
+                }
+            });
+            if (live)
+            {
+                DrawEntityBounds(context, data.entities[selected], *live);
+            }
+        }
+    }
+
+    void DevPanels::DrawEntityBounds(const DevContext& context, const EntityData& data, const Entity& live)
+    {
+        // The selected entity drawn over the frame (M114): its model's
+        // bounds (yellow) and its collider as collision stores it (cyan,
+        // Level::AddCollider). An entity with neither has no shape - often
+        // an interaction point on something the level's own model draws (a
+        // vending machine in the street): it is drawn as a point, a cross
+        // at its position, with a line to where the player must look to use
+        // it. (A box there read as wrong bounds.) ImGui's foreground list,
+        // projected with the camera - nothing in the renderer changes, and
+        // like every F10 panel it is compiled out of packages.
+        if (!context.camera)
+        {
+            return;
+        }
+        const float yaw = glm::radians(data.yawDegrees);
+        const float c = std::abs(std::cos(yaw));
+        const float s = std::abs(std::sin(yaw));
+        // A box turned by the yaw, as the axis-aligned box around it.
+        const auto turned = [&](const glm::vec3& h) {
+            return glm::vec3{ h.x * c + h.z * s, h.y, h.x * s + h.z * c };
+        };
+        const auto offset = [&](const glm::vec3& o) {
+            return glm::vec3{ o.x * std::cos(yaw) + o.z * std::sin(yaw), o.y, -o.x * std::sin(yaw) + o.z * std::cos(yaw) };
+        };
+        struct Box
+        {
+            glm::vec3 center;
+            glm::vec3 half;
+            ImU32 colour;
+        };
+        std::vector<Box> boxes;
+        if (live.renderable && live.renderable->model)
+        {
+            const Atom::Model& model = *live.renderable->model;
+            const float scale = live.renderable->scale;
+            const glm::vec3 middle = (model.GetBoundsMin() + model.GetBoundsMax()) * 0.5f * scale;
+            const glm::vec3 half = (model.GetBoundsMax() - model.GetBoundsMin()) * 0.5f * scale;
+            boxes.push_back({ live.position + offset(middle), turned(half), IM_COL32(255, 210, 60, 255) });
+        }
+        if (data.collider)
+        {
+            boxes.push_back({ live.position + offset(data.collider->center), turned(data.collider->halfExtents),
+                              IM_COL32(80, 220, 255, 255) });
+        }
+        const ImVec2 size = ImGui::GetIO().DisplaySize;
+        if (size.x <= 0.0f || size.y <= 0.0f)
+        {
+            return;
+        }
+        const Atom::Camera& camera = *context.camera;
+        const glm::mat4 viewProjection =
+            glm::perspective(camera.verticalFov, size.x / size.y, camera.nearPlane, camera.farPlane) * camera.GetViewMatrix();
+        const auto project = [&](const glm::vec3& p, ImVec2& out) {
+            const glm::vec4 clip = viewProjection * glm::vec4(p, 1.0f);
+            if (clip.w <= camera.nearPlane)
+            {
+                return false; // behind the camera
+            }
+            out = { (clip.x / clip.w * 0.5f + 0.5f) * size.x, (0.5f - clip.y / clip.w * 0.5f) * size.y };
+            return true;
+        };
+        ImDrawList* list = ImGui::GetForegroundDrawList();
+        for (const Box& box : boxes)
+        {
+            std::array<ImVec2, 8> points{};
+            std::array<bool, 8> visible{};
+            for (int i = 0; i < 8; ++i)
+            {
+                const glm::vec3 corner = box.center + glm::vec3{ (i & 1) ? box.half.x : -box.half.x,
+                                                                 (i & 2) ? box.half.y : -box.half.y,
+                                                                 (i & 4) ? box.half.z : -box.half.z };
+                visible[i] = project(corner, points[i]);
+            }
+            for (int a = 0; a < 8; ++a)
+            {
+                for (const int axis : { 1, 2, 4 })
+                {
+                    const int b = a | axis;
+                    if (b != a && visible[a] && visible[b])
+                    {
+                        list->AddLine(points[a], points[b], box.colour, 2.0f);
+                    }
+                }
+            }
+        }
+        if (boxes.empty())
+        {
+            const ImU32 colour = IM_COL32(255, 160, 220, 255);
+            const auto line = [&](const glm::vec3& a, const glm::vec3& b) {
+                ImVec2 pa, pb;
+                if (project(a, pa) && project(b, pb))
+                {
+                    list->AddLine(pa, pb, colour, 2.0f);
+                }
+            };
+            const glm::vec3 at = live.position;
+            constexpr float Arm = 0.3f;
+            line(at - glm::vec3{ Arm, 0.0f, 0.0f }, at + glm::vec3{ Arm, 0.0f, 0.0f });
+            line(at - glm::vec3{ 0.0f, 0.0f, Arm }, at + glm::vec3{ 0.0f, 0.0f, Arm });
+            glm::vec3 top = at + glm::vec3{ 0.0f, 0.5f, 0.0f };
+            if (live.interactable)
+            {
+                top = at + live.interactable->focusOffset; // what the player looks at to use it
+                ImVec2 focus;
+                if (project(top, focus))
+                {
+                    list->AddCircle(focus, 6.0f, colour, 0, 2.0f);
+                }
+            }
+            line(at, top);
+            ImVec2 label;
+            if (project(top + glm::vec3{ 0.0f, 0.15f, 0.0f }, label))
+            {
+                list->AddText(label, colour, (data.name + " (a point: no model, no collider)").c_str());
+            }
+            return;
+        }
+        ImVec2 label;
+        if (project(boxes.front().center + glm::vec3{ 0.0f, boxes.front().half.y + 0.2f, 0.0f }, label))
+        {
+            list->AddText(label, boxes.front().colour, data.name.c_str());
+        }
     }
 }

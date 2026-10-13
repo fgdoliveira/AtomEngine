@@ -24,6 +24,8 @@ add_library(
     Diagnostics/DiagnosticsReport.h
     # v0.0.14 (M89): the F10 panels every app shares.
     Debug/DevPanels.cpp
+    Debug/EntityInspector.cpp
+    Debug/EntityInspector.h
     Debug/DevPanels.h
     # v0.0.14 (M89): the player UI every app shares.
     UI/UiFonts.cpp
@@ -66,6 +68,8 @@ add_library(
     Level/JsonText.h
     Level/Level.cpp
     Level/Level.h
+    Level/LevelCheck.cpp
+    Level/LevelCheck.h
     Level/LevelData.cpp
     Level/LevelData.h
     Level/LevelManager.cpp

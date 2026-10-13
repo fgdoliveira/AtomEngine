@@ -18,4 +18,8 @@ atom_app_payload(HelloAtom COPY
 # shaders that running it needs are built (not in CI).
 if(ATOM_BUILD_TESTS AND TARGET AtomShaders)
     atom_add_scenarios(HelloAtom OWNER hello DIR "${CMAKE_CURRENT_SOURCE_DIR}/Scenarios" SMOKE hello_atom TIMEOUT 120)
+    # M116: the hand-made room, started in it.
+    atom_add_scenario(hello_room OWNER hello TIMEOUT 120
+        ENVIRONMENT "ATOM_TEST_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/Scenarios/Room/hello_room.atomtest" "ATOM_START_LEVEL=hello_room"
+        COMMAND $<TARGET_FILE:HelloAtom>)
 endif()

@@ -979,42 +979,85 @@ namespace AtomFramework
 
             // Markers (M20): Blender places spawns and entities; the level
             // file says what they do. A value written in the level file wins.
+            // M111: where each position came from is kept (the F10 entity
+            // report shows it), and a marker the file overrides is a
+            // warning - supported, but easy to miss when moving the marker
+            // in Blender changes nothing.
             if (markers)
             {
+                const auto overridden = [&](const std::string& path, const std::string& marker, const char* what) {
+                    level.warnings.push_back({ path, std::string(what) + " written here overrides the "
+                        + marker + " marker; remove it to let the marker place it" });
+                };
                 for (const auto& [name, placement] : ParsePlacements(*markers, "spawns"))
                 {
                     auto found = level.spawns.find(name);
                     if (found == level.spawns.end())
                     {
-                        level.spawns[name] = SpawnPoint{ placement.position, placement.yawDegrees };
+                        level.spawns[name] = SpawnPoint{ placement.position, placement.yawDegrees, PlacementSource::Marker };
                         continue;
                     }
+                    const std::string at = JsonPath("/spawns", name);
                     if (unplacedSpawns.erase(name) > 0)
                     {
                         found->second.position = placement.position;
+                        found->second.placement = PlacementSource::Marker;
+                    }
+                    else
+                    {
+                        found->second.placement = PlacementSource::FileOverMarker;
+                        overridden(JsonPath(at, "position"), "spawn:" + name, "the position");
                     }
                     if (!spawnsWithYaw.contains(name))
                     {
                         found->second.yawDegrees = placement.yawDegrees;
                     }
+                    else if (found->second.placement == PlacementSource::Marker)
+                    {
+                        overridden(JsonPath(at, "yaw"), "spawn:" + name, "the yaw");
+                    }
                 }
-                for (const auto& [name, placement] : ParsePlacements(*markers, "entities"))
+                const std::map<std::string, Placement> entityMarkers = ParsePlacements(*markers, "entities");
+                for (const auto& [name, placement] : entityMarkers)
                 {
-                    const auto entity = std::find_if(level.entities.begin(), level.entities.end(),
+                    const bool exists = std::any_of(level.entities.begin(), level.entities.end(),
                         [&](const EntityData& e) { return e.name == name; });
-                    if (entity == level.entities.end())
+                    if (!exists)
                     {
                         throw LevelError("(markers)" + JsonPath("/entities", name),
                                          "marker entity:" + name + " has no entity of that name in the level");
                     }
+                }
+                // In the file's order, so warnings read top to bottom.
+                for (std::size_t i = 0; i < level.entities.size(); ++i)
+                {
+                    EntityData* entity = &level.entities[i];
+                    const auto marker = entityMarkers.find(entity->name);
+                    if (marker == entityMarkers.end())
+                    {
+                        continue;
+                    }
+                    const Placement& placement = marker->second;
+                    const std::string& name = entity->name;
+                    const std::string& at = entityPaths[i];
                     if (!entity->hasPosition)
                     {
                         entity->position = placement.position;
                         entity->hasPosition = true;
+                        entity->placement = PlacementSource::Marker;
+                    }
+                    else
+                    {
+                        entity->placement = PlacementSource::FileOverMarker;
+                        overridden(JsonPath(at, "position"), "entity:" + name, "the position");
                     }
                     if (!entity->hasYaw)
                     {
                         entity->yawDegrees = placement.yawDegrees;
+                    }
+                    else if (entity->placement == PlacementSource::Marker)
+                    {
+                        overridden(JsonPath(at, "yaw"), "entity:" + name, "the yaw");
                     }
                 }
             }
@@ -1031,6 +1074,14 @@ namespace AtomFramework
                 {
                     throw LevelError(entityPaths[i], "no \"position\" and no entity:"
                                      + level.entities[i].name + " marker");
+                }
+                // M111: without a markers file it is allowed - but something
+                // drawn or solid at the world's origin is usually a slip.
+                const EntityData& e = level.entities[i];
+                if (!e.hasPosition && (!e.model.empty() || e.collider))
+                {
+                    level.warnings.push_back({ entityPaths[i], "no \"position\": \"" + e.name
+                        + "\" stands at the origin (0, 0, 0); write one, or place it with an entity: marker" });
                 }
             }
 
@@ -1232,6 +1283,17 @@ namespace AtomFramework
             contents << file.rdbuf();
             return contents.str();
         }
+    }
+
+    const char* PlacementSourceName(PlacementSource source)
+    {
+        switch (source)
+        {
+        case PlacementSource::Marker: return "marker";
+        case PlacementSource::FileOverMarker: return "file (marker ignored)";
+        case PlacementSource::File: break;
+        }
+        return "file";
     }
 
     std::string MarkersPathFor(const std::string& levelPath)

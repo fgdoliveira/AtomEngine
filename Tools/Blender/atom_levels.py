@@ -275,10 +275,13 @@ LEVELS = [
     ("lakeshore", atom_lakeshore.build_lakeshore),
 ]
 
-# The level file each Blender level belongs to (markers are written next to it).
+# The level file each Blender level belongs to (markers are written next to
+# it; build_assets refuses a name with no level file). The lakeshore has
+# none since v0.0.14: its terrain is the Showcase's, whose showcase.json
+# writes its own spawns.
 LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
                "pachinko": "pachinko_hall", "first": "first_render",
-               "lab": "character_lab", "passage": "passage", "lakeshore": "lakeshore"}
+               "lab": "character_lab", "passage": "passage"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.

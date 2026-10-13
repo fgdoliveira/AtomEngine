@@ -10,6 +10,7 @@
 #include <glm/vec3.hpp>
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -26,10 +27,31 @@ namespace AtomFramework
     inline constexpr std::array<std::string_view, 5> FootstepSurfaces{
         "asphalt", "concrete", "dirt", "stone", "wood" };
 
+    // Where a spawn's or an entity's position came from (v0.0.17, M111).
+    // A level file may write it, or leave it to a Blender marker
+    // (<level>.markers.json); when both do, the file wins (M20) - and the
+    // level says so in a warning.
+    enum class PlacementSource : std::uint8_t
+    {
+        File,           // written in the level file, no marker
+        Marker,         // from the entity:/spawn: marker
+        FileOverMarker, // written in the level file; its marker is ignored
+    };
+    const char* PlacementSourceName(PlacementSource source); // "file", "marker", "file (marker ignored)"
+
+    // Something supported but possibly surprising (M111): the level still
+    // loads. `path` is the JSON Pointer of the value it is about.
+    struct LevelWarning
+    {
+        std::string path;
+        std::string message;
+    };
+
     struct SpawnPoint
     {
         glm::vec3 position{ 0.0f };
         float yawDegrees = 0.0f; // 0 looks down -Z, 90 looks down +X
+        PlacementSource placement = PlacementSource::File;
     };
 
     // A level's light: the environment (sun, ambient, fog, sky - what
@@ -189,6 +211,7 @@ namespace AtomFramework
         std::optional<EntityStyle> style; // v0.0.14: toon / outline
         bool hidden = false; // M26: until a sequence shows it
         std::string goneWithFlag; // M44: hidden and unusable once set
+        PlacementSource placement = PlacementSource::File; // M111
     };
 
     // The character lab (M36): the level opens in the model viewer,
@@ -298,6 +321,7 @@ namespace AtomFramework
         std::map<std::string, Sequence> sequences; // M26
         std::vector<ScreenData> screens;           // M27
         LevelReverb reverb;                        // M27
+        std::vector<LevelWarning> warnings;        // M111: supported, possibly surprising
 
         const SpawnPoint* FindSpawn(std::string_view spawnName) const;
         std::string_view SurfaceAt(float x, float z) const;

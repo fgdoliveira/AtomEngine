@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.16
+    VERSION 0.0.17
     LANGUAGES CXX
 )
 
@@ -123,6 +123,8 @@ if(MSVC)
         endif()
     endforeach()
 endif()
+
+add_subdirectory(Tools/LevelCheck) # M112: AtomLevelCheck, levels checked without the game
 
 if(ATOM_BUILD_TESTS)
     add_subdirectory(Tests) # last: the aggregate AtomTests names every owner's

@@ -52,7 +52,8 @@ namespace Arena
         m_levels = std::make_unique<LevelManager>(
             Level::Services{ renderer, GetAudio(), m_sounds, m_assets, m_models, ScreenFactory{} });
         m_hooks = std::make_unique<Hooks>(BasicTestHooks::View{ &renderer, &GetAudio(), m_levels.get(), &m_player,
-                                                                &m_camera, &m_view, m_root }, *this);
+                                                                &m_camera, &m_view, m_root, &m_panels, &GetDevTools() },
+                                          *this);
         // The player stands at the spawn; the first frame is drawn from
         // the overview when it's on (the default) - where scenarios check
         // the camera arrives (M104).

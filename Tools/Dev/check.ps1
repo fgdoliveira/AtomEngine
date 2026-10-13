@@ -174,7 +174,9 @@ foreach ($c in $configs) {
     # -Level changed: only the owners' test targets and the apps the
     # scenarios run (the table's names are <owner>.<name>; smoke is every app).
     $apps = if ($smoke) { @($table.Apps.Values) } else { @($Scenario | ForEach-Object { $table.Apps[$_.Split(".")[0]] }) }
-    $targets = @(@($owners | ForEach-Object { $table.TestTargets[$_] }) + $apps | Where-Object { $_ } | Sort-Object -Unique)
+    # M112: every owner's CPU tests include its levels' check (LevelCheck.<owner>).
+    $tools = if ($owners.Count) { @("AtomLevelCheck") } else { @() }
+    $targets = @(@($owners | ForEach-Object { $table.TestTargets[$_] }) + $apps + $tools | Where-Object { $_ } | Sort-Object -Unique)
     if ($smoke) {
         # Every app relinks anyway: one parallel build of everything beats
         # the Visual Studio generator's one-MSBuild-per---target, in turn.
@@ -190,7 +192,7 @@ foreach ($c in $configs) {
     }
     $names = @($names | Sort-Object -Unique)
     if ($owners.Count) {
-        $pattern = "^(Unit|Content)\.(" + ($owners -join "|") + ")$"
+        $pattern = "^(Unit|Content|LevelCheck)\.(" + ($owners -join "|") + ")$"
         Step "CPU tests $($owners -join ', '), $c" { & $ctest --test-dir $BuildDir -C $c -R $pattern --no-tests=error --output-on-failure }
     }
     if ($names.Count) {

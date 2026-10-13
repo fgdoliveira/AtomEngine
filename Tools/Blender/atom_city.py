@@ -11,7 +11,6 @@ street the player sees three representations, each cheaper than the last:
   at increasing distances, for a little parallax in front of the panorama.
 """
 
-import json
 import math
 import os
 import tempfile
@@ -20,6 +19,7 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+import atom_export
 import atom_kit as kit
 import atom_lightmap
 
@@ -192,17 +192,16 @@ def render_impostor(scene, obj, png_path, json_path, fog_amount=0.6):
     atlas = np.concatenate([rgb, alpha[:, :, None]], axis=2)
 
     encoded = (np.clip(atlas, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
-    atom_lightmap._write_png(png_path, TILE[0] * VIEWS, bytearray(encoded.tobytes()), TILE[1], channels=4)
-    with open(json_path, "w", encoding="utf-8", newline="\n") as file:
-        json.dump({
-            "_generated": "by Tools/Blender/build_assets.py; do not edit",
-            "atlas": os.path.basename(png_path),
-            "views": VIEWS,
-            "width": round(card_width, 3),
-            "height": round(card_height, 3),
-            "fog": fog_amount,
-        }, file, indent=2, sort_keys=True)
-        file.write("\n")
+    atom_export.report(png_path, atom_lightmap._write_png(png_path, TILE[0] * VIEWS, bytearray(encoded.tobytes()),
+                                                          TILE[1], channels=4))
+    atom_export.write_json(json_path, {
+        "_generated": "by Tools/Blender/build_assets.py; do not edit",
+        "atlas": os.path.basename(png_path),
+        "views": VIEWS,
+        "width": round(card_width, 3),
+        "height": round(card_height, 3),
+        "fog": fog_amount,
+    })
 
     for o in hidden:
         o.hide_render = False

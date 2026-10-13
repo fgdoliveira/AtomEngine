@@ -220,11 +220,36 @@ Keep it that way; it is not an ECS and doesn't need to be (ADR-003).
 
 | Kind | Where | Made by |
 |---|---|---|
-| **Source** | `Tools/Blender/*.py`, hand-written JSON (levels, dialogue, presets, machines, data) | people |
-| **Intermediate** | `build/bake_cache/` | the Blender build (not committed) |
-| **Product** | `Assets/**/*.glb`, `*.png`, `*.markers.json` (committed), DXIL (`build/…/shaders`) | Blender, headless and deterministic; `dxc` |
-| **Runtime payload** | the folder list in `Game/CMakeLists.txt` (all of `Assets/` but `Schemas/`) | copied next to the executable (M56) |
+| **Source** | `Tools/Blender/*.py`, hand-made `<app>/Source/*.blend` (v0.0.17), hand-written JSON (levels, dialogue, presets, data), third-party `.glb` with their licence | people |
+| **Intermediate** | `build/bake_cache/` (lightmap fingerprints), `--gpu` preview lightmaps | the Blender build (not committed) |
+| **Product** | `<app>/Assets/**` and `Content/**`: `*.glb`, `*.png`, `*.markers.json` (committed, with a `_generated` note where JSON); DXIL (`build/…/shaders`) | Blender, headless and deterministic (`build_assets.py`, `export_scene.py`); `dxc` |
+| **Runtime payload** | each app's declared folders (`atom_app_payload`, M108) | copied into `build/bin/<config>/<app>/` |
+| **Distribution payload** | `Dist/<Game>/` | `cmake --install` (§9) |
 | **CPU / GPU representation** | parsed level, model, material data; meshes and textures | the loaders, synchronously |
+
+**Authoring (v0.0.17).** One authority per fact: the Python builders or a
+hand-made `.blend` for geometry and markers, the level file for what
+entities are and do; generated files are never edited
+([Authoring.md](Authoring.md)).
+
+```mermaid
+graph LR
+    Py[Python builders<br/>Tools/Blender] --> Export[atom_export<br/>glTF export, markers,<br/>write-if-changed]
+    Blend[hand-made .blend] --> Export
+    Export --> Out[GLB + lightmaps<br/>+ markers.json]
+    Json[level JSON] --> Check[AtomLevelCheck<br/>Framework LevelCheck]
+    Out --> Check
+    Out --> Parse[ParseLevel<br/>errors + warnings]
+    Json --> Parse
+    Parse --> Level[Level, GameWorld]
+    Level --> Engine[AtomEngine]
+    Level --> F10[F10 entity report]
+```
+
+The parser (`Framework/Level/LevelData.cpp`) is the one authority on what
+a level file may say. `LevelCheck` adds what needs other files (models,
+clips, other levels), and the content tests, `AtomLevelCheck` and the
+export all call it (ADR-012).
 
 Loading is synchronous and fused (`Model::Load` parses, decodes and
 uploads); every level load logs its time and where it went (M57). Split CPU
@@ -377,7 +402,11 @@ package that says "on".
   an editor framework, and kept out of captures.
 - **Scripted:** `.atomtest` scenarios, paired benches, captures - compiled
   in, switched on by the environment.
-- **Offline:** Blender scripts, documentation captures, `ab.ps1`.
+- **Offline:** Blender scripts (`export.ps1`: one unit or only markers; the
+  AtomEngine marker panel, `open.ps1`), `AtomLevelCheck` (levels checked
+  without the game), documentation captures, `ab.ps1`.
+- **Inspecting (v0.0.17):** F10 > Level, the entity report - read-only,
+  selection by name resolved every frame (`EntityInspector`).
 - **External:** PIX, Intel GPA, RenderDoc for per-pass GPU timing (SDL GPU
   has no GPU timers).
 
@@ -552,6 +581,29 @@ hold). **Revisit when** reports come from players at a volume that hand
 collection can't handle, or work moves onto other threads (a dump then
 needs every thread's state, which it already writes, but the report names
 only the crashing one).
+
+### ADR-012 — Level rules have one authority: the C++ parser
+**Context (v0.0.17):** content is now checked in several places: the
+level loader, the content tests, a command-line check an author or an
+agent runs, the Blender export and the Blender panel. Each could grow its
+own copy of "what a level may say", and the copies would drift.
+**Decision:** `ParseLevel` (`Framework/Level/LevelData.cpp`) decides what
+a level file may say: errors stop a load, warnings explain supported
+surprises (a marker the file overrides). `LevelCheck`
+(`Framework/Level/LevelCheck.h`) adds only what needs other files:
+referenced models exist and are readable, clips exist on their models,
+level changes land on a level and spawn, names are unique, no file comes
+from another app. The content tests, `AtomLevelCheck` and `export.ps1`
+all call it. The Blender panel checks only what Blender alone knows
+(marker naming, markers against the level file's names) and leaves the
+rest to `AtomLevelCheck`. **Evidence:** every shipped level passes; the
+fixtures' mistakes each fail at their JSON Pointer; the check caught a
+real override (the pachinko hall's prize counter) and a wrong export
+folder during the pilot. **Rejected:** a Python validator in the export
+(it would duplicate the parser); a separate schema-only check (JSON
+Schema can't see other files). **Revisit when** a tool outside C++ needs
+the full rules: then expose `AtomLevelCheck`'s output as JSON rather than
+porting the rules.
 
 ## 13. When to add what
 

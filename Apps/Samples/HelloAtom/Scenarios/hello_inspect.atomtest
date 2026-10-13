@@ -1,0 +1,22 @@
+# F10's entity report (v0.0.17, M114): an entity picked by name stays picked
+# across a reload of its level (found again by name, never a stale
+# pointer), and a name the level doesn't have selects nothing.
+expect_level hello
+set devtools on
+set inspect torii
+wait 0.2
+expect_stat inspect_found == 1
+reload_level
+wait 0.3
+expect_level hello
+expect_stat inspect_found == 1
+set inspect no_such_entity
+wait 0.2
+expect_stat inspect_found == 0
+set inspect cube_2
+wait 0.2
+expect_stat inspect_found == 1
+set inspect none
+expect_stat inspect_found == 0
+set devtools off
+log hello inspect done

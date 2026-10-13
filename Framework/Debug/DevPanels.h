@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Debug/EntityInspector.h"
+
 #include <array>
 #include <cstddef>
 #include <functional>
@@ -82,12 +84,17 @@ namespace AtomFramework
         // How many panels the last frame drew (the "devtools_panels" stat).
         int PanelsDrawn() const { return m_drawn; }
 
+        // The Level panel's entity report (M114): its selection, for the
+        // scenario harness ("set inspect <entity>").
+        EntityInspector& Inspector() { return m_inspector; }
+
     private:
         void DrawFrame(const DevContext& context);
         void DrawRender(const DevContext& context);
         void DrawLighting(const DevContext& context);
         void DrawEnvironment(const DevContext& context);
         void DrawLevel(const DevContext& context);
+        void DrawEntityBounds(const DevContext& context, const EntityData& data, const Entity& live);
         bool Begin(const char* name, int column, float width, float height);
         static bool Apply(const DevContext& context, const std::string& what, const std::string& value);
 
@@ -104,5 +111,8 @@ namespace AtomFramework
         float m_environmentSeconds = 3.0f;
         int m_drawn = 0;
         std::array<float, 3> m_columnY{}; // where the next panel in each column starts
+        EntityInspector m_inspector;      // M114: the entity report's selection, by name
+        std::array<char, 64> m_entityFilter{};
+        bool m_showBounds = true;
     };
 }

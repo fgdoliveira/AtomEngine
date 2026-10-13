@@ -1,13 +1,28 @@
-"""Builds the AtomEngine kit and exports one .glb per piece.
+"""Builds the AtomEngine kit and levels, and exports them.
 
-Headless:
-    blender -b --factory-startup -P Tools/Blender/build_assets.py
+Headless (normally through Tools/Blender/export.ps1):
+    blender -b --factory-startup -P Tools/Blender/build_assets.py [-- options]
 
-Writes Content/Kit/<piece>.glb, Apps/Games/Demo/Assets/Street/street.glb (visuals) and
-Apps/Games/Demo/Assets/Street/street_col.glb (collision proxies, no materials).
+Options (after "--"):
+    --only <unit>[,<unit>...]  build and export only these units (v0.0.17,
+                               M113); --list prints them. Default: all.
+    --what all|geometry|markers
+                               geometry: models, collision, bakes;
+                               markers: only <level>.markers.json (no bake,
+                               no model export); all (default): both.
+    --no-cache                 re-bake every lightmap (fingerprints in
+                               build/bake_cache/ skip unchanged ones).
+    --gpu                      bake lightmaps on the NVIDIA GPU, for fast
+                               iteration (never commit those).
+    --no-export                stop after the lint.
 
-Options (after "--"): --no-cache re-bakes every lightmap; --gpu bakes them
-on the NVIDIA GPU for fast iteration (never commit those).
+A unit is what one builder makes: the kit (Content/Kit), the sky
+(Content/Sky), the street, the city layers, the night street, and each
+level folder of atom_levels.LEVELS. Every unit places kit pieces, so the
+kit is always *built*; it is baked and exported only when selected.
+
+Every output goes through atom_export.write_if_changed: an unchanged file
+is not rewritten.
 
 From a live Blender (e.g. Blender MCP), exec this file with __file__ set to
 build a preview in a dedicated "AtomKit" scene; the open scene is untouched
@@ -16,8 +31,6 @@ and nothing is exported.
 
 import argparse
 import importlib
-import json
-import math
 import os
 import sys
 import time
@@ -37,6 +50,7 @@ import atom_kit  # noqa: E402
 import atom_street  # noqa: E402
 import atom_levels  # noqa: E402
 import atom_bake  # noqa: E402
+import atom_export  # noqa: E402
 import atom_lightmap  # noqa: E402
 import atom_city  # noqa: E402
 import atom_night  # noqa: E402
@@ -49,9 +63,13 @@ importlib.reload(atom_street)
 importlib.reload(atom_pachinko)  # before atom_levels, which uses it
 importlib.reload(atom_levels)
 importlib.reload(atom_bake)
+importlib.reload(atom_export)
 importlib.reload(atom_lightmap)
 importlib.reload(atom_city)
 importlib.reload(atom_night)
+
+export_objects = atom_export.export_objects
+write_markers = atom_export.write_markers
 
 
 # v0.0.14: the levels that moved to the Showcase write there.
@@ -72,9 +90,29 @@ def geometry_out_for(args, folder):
     return args.content if folder in CONTENT_LEVEL_FOLDERS else out_for(args, folder)
 
 
+# The export units (M113), in build order, with what each writes.
+FIXED_UNITS = {
+    "kit": "Content/Kit/<piece>.glb (every kit piece)",
+    "sky": "Content/Sky/night_sky.png",
+    "street": "Demo Street/street*.glb, street_col.glb",
+    "city": "Demo City/mid_blocks.glb, skyline.glb, tower_impostor.*",
+    "night": "Demo Night/night_*.glb, lightmaps, night_street.markers.json",
+}
+
+
+def all_units():
+    units = dict(FIXED_UNITS)
+    for folder, _ in atom_levels.LEVELS:
+        markers = atom_levels.LEVEL_FILES.get(folder)
+        units[folder] = f"{folder.capitalize()}/{folder}.glb, {folder}_col.glb" + (
+            f", {markers}.markers.json" if markers else "") + (
+            ", a lightmap" if folder in atom_levels.LIGHTMAPS else "")
+    return units
+
+
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="build_assets.py")
     # v0.0.14: the demo's own products in Apps/Games/Demo/Assets; the generic kit
     # pieces and sky, which other apps use too, in the shared Content/.
     parser.add_argument("--out", default=os.path.join(REPO_ROOT, "Apps", "Games", "Demo", "Assets"))
@@ -89,7 +127,20 @@ def parse_args():
     # tuning light. Not byte-identical to the CPU: rebuild without it
     # before committing (a test refuses GPU-baked lightmaps).
     parser.add_argument("--gpu", action="store_true")
-    return parser.parse_args(argv)
+    parser.add_argument("--only", default="")
+    parser.add_argument("--what", choices=("all", "geometry", "markers"), default="all")
+    parser.add_argument("--list", action="store_true")
+    args = parser.parse_args(argv)
+
+    units = all_units()
+    if args.only:
+        args.units = [u.strip() for u in args.only.split(",") if u.strip()]
+        unknown = [u for u in args.units if u not in units]
+        if unknown:
+            raise SystemExit("build_assets: no unit " + ", ".join(unknown) + "; units: " + ", ".join(units))
+    else:
+        args.units = list(units)
+    return args
 
 
 def fresh_scene():
@@ -114,91 +165,19 @@ def fresh_scene():
     return scene
 
 
-def export_objects(objects, scene, path, materials=True):
-    selected = set(objects)
-    for obj in scene.objects:
-        obj.select_set(obj in selected)
-
-    # Windows sometimes holds a just-written file for a moment (antivirus,
-    # indexer), making the next open fail with EINVAL; a short retry is
-    # enough. Anything that persists is a real error.
-    for attempt in range(5):
-        try:
-            bpy.ops.export_scene.gltf(
-                filepath=path,
-                export_format="GLB",
-                use_selection=True,
-                export_yup=True,
-                export_apply=True,
-                export_texcoords=materials,
-                export_normals=True,
-                export_materials="EXPORT" if materials else "NONE",
-                export_image_format="AUTO",
-                export_cameras=False,
-                export_lights=False,
-                export_extras=True,  # material custom props (atom_fog)
-                export_vertex_color="NAME",
-                export_vertex_color_name=atom_bake.ATTRIBUTE,
-                export_all_vertex_colors=False,
-            )
-            break
-        except RuntimeError as error:
-            if attempt == 4:
-                raise
-            print(f"Export of {os.path.basename(path)} failed ({error}); retrying")
-            time.sleep(0.5)
-    print("Exported", os.path.relpath(path, REPO_ROOT))
-
-
-def write_markers(collection, path):
-    """Writes the level's spawn:/entity: empties as game-space placements
-    (glTF axes: x, z, -y). Spawn yaw: the empty looks along its local +Y,
-    game yaw 0 looks down -Z, so yaw = -rotation. Entity yaw: the model
-    turns like a kit piece, yaw = rotation. Sorted and rounded, so the file
-    is byte-identical across rebuilds. Returns the number of markers."""
-    placements = {"spawns": {}, "entities": {}}
-    errors = []
-    for obj in collection.all_objects:
-        if obj.type != "EMPTY":
-            continue
-        # Markers made by the level builders carry their real name: object
-        # names are global in Blender, so two levels' "spawn:start" can't
-        # both keep it. Empties placed by hand go by their object name.
-        if "atom_marker_kind" in obj:
-            kind, name = obj["atom_marker_kind"], obj["atom_marker_name"]
-        elif ":" in obj.name:
-            kind, name = obj.name.split(":", 1)
-        else:
-            continue
-        group = "spawns" if kind == "spawn" else "entities"
-        if kind not in ("spawn", "entity") or "." in name or name in placements[group]:
-            errors.append(f"marker {obj.name}: expected spawn:<name> or entity:<name>, unique in its level")
-            continue
-        x, y, z = obj.matrix_world.translation
-        rotation = math.degrees(obj.matrix_world.to_euler("XYZ").z)
-        yaw = -rotation if kind == "spawn" else rotation
-        placements["spawns" if kind == "spawn" else "entities"][name] = {
-            "position": [round(x, 3), round(z, 3), round(-y, 3)],
-            "yaw": round((yaw + 180.0) % 360.0 - 180.0, 2) + 0.0,
-        }
-    if errors:
-        # Markers are written after the lint: a bad one stops the build here
-        # instead of silently losing a spawn.
-        for error in errors:
-            print("lint ERROR: " + error)
-        raise RuntimeError(f"{len(errors)} bad marker(s) in {os.path.basename(path)}")
-    count = len(placements["spawns"]) + len(placements["entities"])
-    if not count:
-        if os.path.exists(path):
-            os.remove(path)
-        return 0
-    document = {"_generated": "by Tools/Blender/build_assets.py from the level's markers; do not edit"}
-    document.update(placements)
-    with open(path, "w", encoding="utf-8", newline="\n") as file:
-        json.dump(document, file, indent=2, sort_keys=True)
-        file.write("\n")
-    print("Exported", os.path.relpath(path, REPO_ROOT), f"({count} markers)")
-    return count
+def markers_path(args, folder):
+    """Where a level folder's markers go - next to its level file, which
+    must exist: markers for a level nobody loads are a mistake (until
+    M113 the lakeshore's were written after its level had moved into the
+    Showcase's)."""
+    name = atom_levels.LEVEL_FILES.get(folder)
+    if not name:
+        return None
+    levels = os.path.join(out_for(args, folder), "Levels")
+    if not os.path.exists(os.path.join(levels, name + ".json")):
+        raise RuntimeError(f"atom_levels.LEVEL_FILES: {folder} -> {name}, but there is no {name}.json in "
+                           f"{os.path.relpath(levels, REPO_ROOT)}")
+    return os.path.join(levels, name + ".markers.json")
 
 
 # The street's chunks along X (Blender metres): name -> [x0, x1).
@@ -232,15 +211,26 @@ def export_piece(obj, scene, out_dir):
 
 
 def main():
+    started = time.monotonic()
     args = parse_args()
+    if args.list:
+        for unit, writes in all_units().items():
+            print(f"{unit:10} {writes}")
+        return
+    selected = set(args.units)
+    geometry = args.what in ("all", "geometry")
+    markers = args.what in ("all", "markers")
+    print("build: units " + ", ".join(args.units) + f"; {args.what}")
     atom_lightmap.CACHE_DIR = None if args.no_cache else os.path.join(REPO_ROOT, "build", "bake_cache")
     atom_lightmap.USE_GPU = args.gpu
+    atom_export.reset_stats()
 
     scene = fresh_scene()
     atom_kit.clear_generated()
     materials = atom_kit.build_materials()
 
-    # Kit pieces, lined up away from the street for previewing.
+    # Kit pieces, lined up away from the street for previewing. Always
+    # built: every other unit places them.
     kit_collection = bpy.data.collections.new("Kit")
     scene.collection.children.link(kit_collection)
     pieces = {}
@@ -261,11 +251,16 @@ def main():
             collision[name].location = offset
         x += width + 2.0
 
+    # Every unit is built, selected or not (M113): Blender's object names
+    # are global, so a copy gets ".001" or ".061" depending on what was
+    # built before it, and the names go into the .glb. Building all of them
+    # (about a second) gives a one-unit export the same bytes as the full
+    # build; only baking and exporting are per unit.
     street_collection = bpy.data.collections.new("Street")
     scene.collection.children.link(street_collection)
     street = atom_street.build_street(pieces, collision, materials, street_collection)
 
-    # Levels B and C, each in its own collection around its own origin.
+    # The other levels, each in its own collection around its own origin.
     levels = []
     for folder, build in atom_levels.LEVELS:
         level_collection = bpy.data.collections.new(folder.capitalize())
@@ -286,6 +281,12 @@ def main():
     scene.collection.children.link(night_collection)
     night = atom_night.build_night_street(pieces, collision, materials, night_collection)
 
+    # From here on, only the selected units (the bake still walks all).
+    street_all, levels_all = street, levels
+    street = street if "street" in selected else None
+    night = night if "night" in selected else None
+    levels = [(folder, level) for folder, level in levels if folder in selected]
+
     # Geometry that would z-fight is a build error, like a compile error:
     # nothing is exported until it is fixed.
     if atom_kit.LINT_ERRORS:
@@ -296,38 +297,50 @@ def main():
     if args.no_export:
         return
 
-    # Baked light (M15): each kit piece alone (entity models placed by
-    # levels), then every level as a whole, so pieces shade each other.
-    for obj in pieces.values():
-        atom_bake.bake(scene, [obj] + list(obj.children_recursive))
-    atom_bake.bake(scene, street.visual)
-    for folder, level in levels:
-        mode = atom_levels.BAKE_MODES.get(folder, "sky")
-        if mode != "none":
-            atom_bake.bake(scene, level.visual, mode)
-    # Lightmaps (M16) where vertex light isn't enough; written next to the
-    # level's glb, whose second UV set (TEXCOORD_1) maps them.
-    for folder, level in levels:
-        lights = atom_levels.LIGHTMAPS.get(folder)
-        if lights:
-            mesh = next(obj for obj in level.visual if obj.name == folder)
-            level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
-            os.makedirs(level_dir, exist_ok=True)
-            atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"),
-                               **atom_levels.LIGHTMAP_OPTIONS.get(folder, {}))
+    if geometry:
+        # Baked light (M15): each kit piece alone (entity models placed by
+        # levels), then every level as a whole, so pieces shade each other.
+        # A unit not selected isn't baked, but its meshes are still made
+        # single-user in the full build's order (M113): a shared mesh gets
+        # a copy named ".001", ".006"... by how many were made before it,
+        # and the name goes into the .glb.
+        def bake_or_copy(selected_unit, objects, mode="sky"):
+            if selected_unit:
+                atom_bake.bake(scene, objects, mode)
+            else:
+                atom_bake._single_user(objects)
 
-    # The night street: a lightmap per cell, lit by the street's own lamps,
-    # windows and signs.
-    night_dir = os.path.join(args.out, "Night")
-    os.makedirs(night_dir, exist_ok=True)
-    atom_night.bake(scene, night, night_dir)
+        for obj in pieces.values():
+            bake_or_copy("kit" in selected, [obj] + list(obj.children_recursive))
+        bake_or_copy(street is not None, street_all.visual)
+        for folder, level in levels_all:
+            mode = atom_levels.BAKE_MODES.get(folder, "sky")
+            if mode != "none":
+                bake_or_copy(folder in selected, level.visual, mode)
+        # Lightmaps (M16) where vertex light isn't enough; written next to the
+        # level's glb, whose second UV set (TEXCOORD_1) maps them.
+        for folder, level in levels:
+            lights = atom_levels.LIGHTMAPS.get(folder)
+            if lights:
+                mesh = next(obj for obj in level.visual if obj.name == folder)
+                level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
+                os.makedirs(level_dir, exist_ok=True)
+                atom_lightmap.bake(scene, mesh, lights, os.path.join(level_dir, folder + "_lm.png"),
+                                   **atom_levels.LIGHTMAP_OPTIONS.get(folder, {}))
 
-    if atom_kit.LINT_ERRORS:
-        for error in atom_kit.LINT_ERRORS:
-            print("lint ERROR: " + error)
-        print(f"lint: {len(atom_kit.LINT_ERRORS)} bake error(s); nothing exported")
-        sys.exit(1)
-    print("bake: vertex light baked")
+        # The night street: a lightmap per cell, lit by the street's own
+        # lamps, windows and signs.
+        night_dir = os.path.join(args.out, "Night")
+        if night:
+            os.makedirs(night_dir, exist_ok=True)
+            atom_night.bake(scene, night, night_dir)
+
+        if atom_kit.LINT_ERRORS:
+            for error in atom_kit.LINT_ERRORS:
+                print("lint ERROR: " + error)
+            print(f"lint: {len(atom_kit.LINT_ERRORS)} bake error(s); nothing exported")
+            sys.exit(1)
+        print("bake: vertex light baked")
 
     if not bpy.app.background:
         # Exporting from a live session has proven crash-prone (the context
@@ -335,68 +348,82 @@ def main():
         print("Preview built in scene", SCENE_NAME, "- export with blender -b")
         return
 
-    # Night sky panorama (M23), written like the lightmaps: our own PNG
-    # writer, so it's byte-identical across rebuilds.
-    sky_dir = os.path.join(args.content, "Sky")
-    os.makedirs(sky_dir, exist_ok=True)
-    sky = atom_textures.night_sky()
-    height, width = sky.shape[:2]
-    encoded = bytearray(width * height * 3)
-    flat = sky.reshape(-1)
-    for i in range(width * height * 3):
-        encoded[i] = int(round(float(flat[i]) * 255.0))
-    atom_lightmap._write_png(os.path.join(sky_dir, "night_sky.png"), width, encoded, height)
-    print("Exported", os.path.relpath(os.path.join(sky_dir, "night_sky.png"), REPO_ROOT))
+    if geometry and "sky" in selected:
+        # Night sky panorama (M23), written like the lightmaps: our own PNG
+        # writer, so it's byte-identical across rebuilds.
+        sky_dir = os.path.join(args.content, "Sky")
+        os.makedirs(sky_dir, exist_ok=True)
+        sky = atom_textures.night_sky()
+        height, width = sky.shape[:2]
+        encoded = bytearray(width * height * 3)
+        flat = sky.reshape(-1)
+        for i in range(width * height * 3):
+            encoded[i] = int(round(float(flat[i]) * 255.0))
+        sky_path = os.path.join(sky_dir, "night_sky.png")
+        atom_export.report(sky_path, atom_lightmap._write_png(sky_path, width, encoded, height))
 
-    kit_dir = os.path.join(args.content, "Kit")
-    street_dir = os.path.join(args.out, "Street")
-    os.makedirs(kit_dir, exist_ok=True)
-    os.makedirs(street_dir, exist_ok=True)
+    if geometry and "kit" in selected:
+        kit_dir = os.path.join(args.content, "Kit")
+        os.makedirs(kit_dir, exist_ok=True)
+        for obj in pieces.values():
+            export_piece(obj, scene, kit_dir)
 
-    for obj in pieces.values():
-        export_piece(obj, scene, kit_dir)
+    if geometry and street:
+        # Chunks (M22): pieces go to the chunk of their stretch of street, so
+        # each stretch is culled as a whole; what spans the whole street
+        # (ground, wires, decals) stays in the base model.
+        street_dir = os.path.join(args.out, "Street")
+        os.makedirs(street_dir, exist_ok=True)
+        chunks = split_into_chunks(street.visual, STREET_CHUNKS)
+        export_objects(chunks.pop("base"), scene, os.path.join(street_dir, "street.glb"))
+        for name, objects in chunks.items():
+            export_objects(objects, scene, os.path.join(street_dir, "street_" + name + ".glb"))
+        export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
+                       materials=False)
 
-    # Chunks (M22): pieces go to the chunk of their stretch of street, so
-    # each stretch is culled as a whole; what spans the whole street
-    # (ground, wires, decals) stays in the base model.
-    chunks = split_into_chunks(street.visual, STREET_CHUNKS)
-    export_objects(chunks.pop("base"), scene, os.path.join(street_dir, "street.glb"))
-    for name, objects in chunks.items():
-        export_objects(objects, scene, os.path.join(street_dir, "street_" + name + ".glb"))
-    export_objects(street.colliders, scene, os.path.join(street_dir, "street_col.glb"),
-                   materials=False)
+    if geometry and "city" in selected:
+        # Mid and far layers aren't baked: lit windows come from their emissive
+        # masks, the rest from the level's ambient.
+        city_dir = os.path.join(args.out, "City")
+        os.makedirs(city_dir, exist_ok=True)
+        export_objects([mid_blocks], scene, os.path.join(city_dir, "mid_blocks.glb"))
+        export_objects([skyline], scene, os.path.join(city_dir, "skyline.glb"))
+        atom_city.render_impostor(scene, tower, os.path.join(city_dir, "tower_impostor.png"),
+                                  os.path.join(city_dir, "tower_impostor.json"))
 
-    # Mid and far layers aren't baked: lit windows come from their emissive
-    # masks, the rest from the level's ambient.
-    city_dir = os.path.join(args.out, "City")
-    os.makedirs(city_dir, exist_ok=True)
-    export_objects([mid_blocks], scene, os.path.join(city_dir, "mid_blocks.glb"))
-    export_objects([skyline], scene, os.path.join(city_dir, "skyline.glb"))
-    atom_city.render_impostor(scene, tower, os.path.join(city_dir, "tower_impostor.png"),
-                              os.path.join(city_dir, "tower_impostor.json"))
-    print("Exported", os.path.relpath(os.path.join(city_dir, "tower_impostor.png"), REPO_ROOT))
-
-    # Night street: the always-drawn base (the road west, the railway,
-    # cables, wet-road decals), a chunk per cell, one collision file.
-    export_objects([night.base, night.decals], scene, os.path.join(night_dir, "night_street.glb"))
-    for cell, obj in night.cells.items():
-        export_objects([obj], scene, os.path.join(night_dir, "night_" + cell + ".glb"))
-    export_objects(night.colliders, scene, os.path.join(night_dir, "night_street_col.glb"), materials=False)
-    write_markers(night.collection, os.path.join(args.out, "Levels", "night_street.markers.json"))
+    if night:
+        # Night street: the always-drawn base (the road west, the railway,
+        # cables, wet-road decals), a chunk per cell, one collision file.
+        if geometry:
+            export_objects([night.base, night.decals], scene, os.path.join(night_dir, "night_street.glb"))
+            for cell, obj in night.cells.items():
+                export_objects([obj], scene, os.path.join(night_dir, "night_" + cell + ".glb"))
+            export_objects(night.colliders, scene, os.path.join(night_dir, "night_street_col.glb"),
+                           materials=False)
+        if markers:
+            write_markers(night.collection, os.path.join(args.out, "Levels", "night_street.markers.json"))
 
     for folder, level in levels:
-        level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
-        os.makedirs(level_dir, exist_ok=True)
-        export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
-        export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),
-                       materials=False)
-        write_markers(level.collection, os.path.join(
-            out_for(args, folder), "Levels", atom_levels.LEVEL_FILES[folder] + ".markers.json"))
+        if geometry:
+            level_dir = os.path.join(geometry_out_for(args, folder), folder.capitalize())
+            os.makedirs(level_dir, exist_ok=True)
+            export_objects(level.visual, scene, os.path.join(level_dir, folder + ".glb"))
+            export_objects(level.colliders, scene, os.path.join(level_dir, folder + "_col.glb"),
+                           materials=False)
+        path = markers_path(args, folder)
+        if markers and path:
+            write_markers(level.collection, path)
+
+    stats = atom_export.STATS
+    print(f"export: {stats['written']} written, {stats['unchanged']} unchanged, "
+          f"{time.monotonic() - started:.0f} s")
 
 
 # Blender exits 0 even when the script raises; make a failed build fail.
 try:
     main()
+except SystemExit:
+    raise
 except Exception:
     import traceback
     traceback.print_exc()

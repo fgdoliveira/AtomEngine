@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../Framework/Schemas/level.schema.json",
+  "name": "hello_room",
+  "model": "Room/hello_room.glb",
+  "collision": "Room/hello_room_col.glb",
+  "defaultSpawn": "start",
+  "spawns": {
+    "start": {}
+  },
+  "lighting": {
+    "sunDirection": [0.35, 0.8, -0.45],
+    "sunColor": [1.0, 0.94, 0.82],
+    "skyColor": [0.55, 0.62, 0.75],
+    "groundColor": [0.24, 0.22, 0.2],
+    "fogColor": [0.62, 0.68, 0.76],
+    "fogDensity": 0.01,
+    "skyGradient": { "zenith": [0.2, 0.38, 0.7], "horizon": [0.64, 0.74, 0.86], "sunSize": 1.4, "sunGlow": 0.5 },
+    "shadows": true,
+    "bakedLight": 0.6,
+    "glow": { "strength": 0.4, "threshold": 1.0 }
+  },
+  "outdoor": true,
+  "entities": [
+    { "name": "lantern", "model": "Kit/toro.glb" },
+    { "name": "cube", "model": "Kit/demo_cube_gold.glb", "animation": { "clip": "spin_gold" } }
+  ]
+}

@@ -5,6 +5,7 @@
 // docs/Getting-Started.md walks through it.
 #include "Character/PlayerController.h"
 #include "Core/Application.h"
+#include "Core/DevSwitch.h"
 #include "Debug/DevPanels.h"
 #include "Environment/EnvironmentPresets.h"
 #include "Level/LevelManager.h"
@@ -53,7 +54,8 @@ namespace
                 Level::Services{ GetRenderer(), GetAudio(), m_sounds, m_assets, m_models, ScreenFactory{} });
             // 3. Scenarios (ATOM_TEST_SCRIPT) and F10: the framework's, given what this app has.
             m_hooks = std::make_unique<BasicTestHooks>(BasicTestHooks::View{
-                &GetRenderer(), &GetAudio(), m_levels.get(), &m_player, &m_camera, &m_view, m_root });
+                &GetRenderer(), &GetAudio(), m_levels.get(), &m_player, &m_camera, &m_view, m_root, &m_panels,
+                &GetDevTools() });
 
             // A level puts the player at its spawn - where scenarios check the camera arrives.
             m_levels->onLoaded = [this](Level&, const SpawnPoint& spawn) {
@@ -62,7 +64,17 @@ namespace
                 m_hooks->ExpectSpawn(spawn);
                 ApplyLighting();
             };
-            if (!m_levels->Load("hello", ""))
+            // ATOM_START_LEVEL=<level>[:<spawn>] starts in another level - the
+            // hand-made room (hello_room, made in Blender: docs/Authoring.md).
+            std::string level = "hello";
+            std::string spawn;
+            if (const char* start = Atom::DevSwitch("ATOM_START_LEVEL"); start && *start)
+            {
+                const std::string value = start;
+                level = value.substr(0, value.find(':'));
+                spawn = value.find(':') == std::string::npos ? "" : value.substr(value.find(':') + 1);
+            }
+            if (!m_levels->Load(level, spawn))
             {
                 return false;
             }

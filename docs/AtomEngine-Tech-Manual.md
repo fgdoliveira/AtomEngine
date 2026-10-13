@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.16 / M110**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128).
+A study guide to every concept the engine uses, as of **v0.0.17 / M117**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -137,9 +137,17 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 126. [A runtime folder per app (M108)](#126-a-runtime-folder-per-app-m108)
 127. [Apps by purpose (M109)](#127-apps-by-purpose-m109)
 128. [Releasing 0.0.16 (M110)](#128-releasing-0016-m110)
-129. [Anatomy of a frame and what it costs](#129-anatomy-of-a-frame-and-what-it-costs)
-130. [Build system and project layout](#130-build-system-and-project-layout)
-131. [Glossary](#131-glossary)
+129. [One authority per fact (v0.0.17, M111)](#129-one-authority-per-fact-v0017-m111)
+130. [Checking content without running the game (M112)](#130-checking-content-without-running-the-game-m112)
+131. [Incremental export, and why it's harder than it looks (M113)](#131-incremental-export-and-why-its-harder-than-it-looks-m113)
+132. [Inspecting the running level (M114)](#132-inspecting-the-running-level-m114)
+133. [A marker panel in Blender (M115)](#133-a-marker-panel-in-blender-m115)
+134. [A level made by hand (M116)](#134-a-level-made-by-hand-m116)
+135. [External models and the supported glTF subset (M117)](#135-external-models-and-the-supported-gltf-subset-m117)
+136. [Releasing 0.0.17 (M117)](#136-releasing-0017-m117)
+137. [Anatomy of a frame and what it costs](#137-anatomy-of-a-frame-and-what-it-costs)
+138. [Build system and project layout](#138-build-system-and-project-layout)
+139. [Glossary](#139-glossary)
 
 ---
 
@@ -3234,7 +3242,171 @@ So the demo stays a Game (its story, pachinko, package) and ATOM ARENA becomes a
 
 ---
 
-## 129. Anatomy of a frame and what it costs
+## 129. One authority per fact (v0.0.17, M111)
+
+**Concept: a fact should live in exactly one file.** Content is made in several places: Python builders, a level's JSON, Blender markers, generated `.glb` files. If two of them can both say where a lamp stands, one day they disagree and nobody can tell which counts. So each fact gets one **authority**:
+- geometry and markers belong to the Python builder (or a hand-made `.blend`, §134);
+- what an entity *is* and *does* belongs to the level file.
+
+Everything derived from them is **generated**. A generated JSON says so in a `"_generated"` field, and is never edited by hand. `docs/Authoring.md` has the full table, including the **cache** (`build/bake_cache/`, never committed) and the **payload** (what ships).
+
+**Concept: precedence that is silent is a trap.** Since M20 a position written in the level file wins over its Blender marker. That rule is fine, but it was silent: moving the marker in Blender changed nothing, and nothing said why. Now the parser keeps **where each position came from** in `PlacementSource`: file, marker, or file over marker. It also collects **warnings** in `LevelData::warnings`, each a JSON Pointer plus a message:
+- a position or yaw the file writes over a marker;
+- something drawn or solid left at the origin.
+
+A warning never stops a load; an error does. That split matters: an error means "this can't work", a warning means "this works, but probably isn't what you meant".
+
+**Code.** `Framework/Level/LevelData.{h,cpp}` (`PlacementSource`, `LevelWarning`), `Tests/Framework/AuthoringTests.cpp`, `docs/Authoring.md`.
+
+---
+
+## 130. Checking content without running the game (M112)
+
+**Concept: the parser is the authority on rules; a checker adds what needs other files.** The tempting design is a separate validator, in Python say, inside the Blender export. It would copy the parser's rules and slowly drift from them. Instead `ParseLevel` stays the one authority on what a level file may say (ADR-012). `LevelCheck` adds only what a single file can't know:
+- the referenced models, collisions and lightmaps exist;
+- each model is one the engine can read (opened through cgltf, geometry only, no GPU);
+- each animation clip is in its model;
+- every `changeLevel` lands on a level and spawn the app has;
+- entity names are unique, and colliders have a size;
+- no file is borrowed from another app's assets (§124).
+
+**Concept: diagnostics written for whoever fixes them.** Each problem prints its severity, level, file, entity, JSON Pointer, problem and a suggested fix:
+
+```text
+ERROR [broken]
+  Entity: lamp
+  Source: Levels/broken.json
+  Property: /entities/0/model
+  Problem: model "Kit/missing_lamp.glb" was not found
+  Fix: check the path (relative to Assets/), or build it: Tools/Blender/export.ps1
+```
+
+A person reads it; an agent can act on it, because the JSON Pointer says exactly which value to change. `AtomLevelCheck --app <app> | --all` checks every app's levels in about a second. Its exit code is 0 when there are no errors (warnings are allowed) and 1 on errors. CTest runs it per app (`LevelCheck.<owner>`), CI included. The first run found a real override in the demo: the pachinko hall's prize counter.
+
+**Fixtures.** Each mistake has a small broken level in `Tests/Framework/Fixtures/LevelCheck/`. A test asserts that each fails at its own pointer. A check that is never seen failing is not known to work (§122).
+
+**Code.** `Framework/Level/LevelCheck.{h,cpp}`, `Tools/LevelCheck/Main.cpp`, `Tests/Framework/LevelCheckTests.cpp`, `Tests/Content/LevelCheckClipTests.cpp`.
+
+---
+
+## 131. Incremental export, and why it's harder than it looks (M113)
+
+**Concept: the smallest useful unit of work.** The procedural build always did everything: every kit piece, every level, every vertex bake, every export. `build_assets.py --only <unit> [--what markers|geometry|all]` (through `Tools/Blender/export.ps1`) does one **unit**, meaning what one builder makes: `kit`, `sky`, `street`, `city`, `night`, and each level folder. With a warm cache:
+
+| Export | Time |
+|---|---|
+| everything | about 37 s |
+| one unit | 4-12 s |
+| markers only | about 4 s (1.7 s of that is Blender starting) |
+
+**Concept: write-if-changed.** Every output passes through `atom_export.write_if_changed`: it writes to a temporary file, compares the bytes, and replaces the old file only if they differ. An unchanged file keeps its bytes and its timestamp, so `git status`, the build's asset copy and hot reload see exactly what an edit changed. One subtlety: git's `core.autocrlf` checks JSON out with CRLF line endings while Blender writes LF, so text is compared with line endings normalised. Otherwise every run would "change" every JSON.
+
+**Concept: names are global state.** Exported alone, the shrine's model came out with different bytes than in the full build. The geometry was identical, but the names differed: `bounds_col.001` against `bounds_col`. Blender's object and mesh names are global, so a copy gets `.001` or `.061` depending on what was created before it, and the names go into the `.glb`. Two fixes:
+- every unit is still *built* in memory (about a second);
+- for the units that aren't baked, the bake's mesh-copy step (`_single_user`) is replayed in the full build's order.
+
+With both, each of the 13 units exported alone writes the same bytes as the full build. That was checked: 0 files written, for every unit.
+
+**Concept: lazy evaluation.** A markers-only export at first wrote every marker at (0, 0, 0). Blender updates an object's `matrix_world` lazily, and in the full build the bake had evaluated the scene as a side effect. Skipping the bake skipped the update. The fix is one explicit `view_layer.update()` before markers are read. The new test caught this before any wrong file was committed.
+
+**Code.** `Tools/Blender/build_assets.py`, `atom_export.py`, `export.ps1`, `test_export.ps1` (CTest `Blender.export`, only where Blender is installed).
+
+---
+
+## 132. Inspecting the running level (M114)
+
+**Concept: an inspector reads; it doesn't edit.** Valve's Hammer editor has an entity report: a filtered list, and the properties of the one you pick. F10's Level panel now does the same for the running level:
+- a name filter and a click to select;
+- the entity's JSON Pointer and where its position came from (§129);
+- its transform, model, collider, interaction (including where the player must look, and from how far), animation, mover and live state;
+- the level's warnings about it.
+
+It changes nothing. An editor would need undo, saving and a second source of truth; this needs none of them.
+
+**Concept: refer by name, not by pointer.** The selection is two strings, the level's name and the entity's name, looked up again every frame. A reload builds new data, and the same name finds the entity again; another level clears the selection. Nothing is held that could outlive what it points at: no raw pointer, no `EntityId` kept across a reload. The logic is in `EntityInspector`, which has no ImGui, so it is unit-tested; a scenario selects, reloads and checks (`hello_inspect`).
+
+**Concept: debug drawing without touching the renderer.** "Show where it is" projects boxes with the camera's matrices onto ImGui's foreground draw list:
+
+| Colour | Means |
+|---|---|
+| yellow | the model's bounds: what is drawn |
+| cyan | the collider: what blocks the player |
+| pink | a point: a cross at the entity's position, and a circle where the player looks to use it |
+
+The pink case covers entities with no model and no collider, such as the street's vending machines: the machine you see is part of the street's own model. At first such an entity got a fixed 0.5 m box, which read as wrong bounds; a placeholder should look like a placeholder. The overlay also used to live inside the panel, so collapsing the panel hid it. It now draws from the selection, whatever the panel's state. Like all of F10, it is compiled out of packages.
+
+**Code.** `Framework/Debug/EntityInspector.{h,cpp}`, `Framework/Debug/DevPanels.cpp` (`DrawLevel`, `DrawEntityBounds`), `Tests/Framework/EntityInspectorTests.cpp`.
+
+---
+
+## 133. A marker panel in Blender (M115)
+
+**Concept: make the convention a button.** A marker is an empty named `spawn:<name>` or `entity:<name>`. The convention works, but typing it is error-prone. The AtomEngine sidebar tab (`pwsh Tools/Blender/open.ps1`) offers three things:
+- **Add spawn** and **Add entity**, at the 3D cursor;
+- for the selected marker, its game position and yaw as the export will write them, and the level file's entry for it;
+- **Check markers**, against the export's rules and the level file.
+
+It moves nothing itself: Blender's own transform tools do that.
+
+**Concept: one representation.** The panel and the level builders make markers through one function, `atom_export.make_marker`. A second marker-making path would be a second format waiting to drift. A headless test (`Blender.markers`) makes markers through the panel's operator, turned 30° and 90°. It asserts they export exactly like the builders' markers, including the axis change and the two yaw conventions: an entity's yaw is its rotation, and a spawn's is minus its rotation, because a spawn looks along its arrow.
+
+**Code.** `Tools/Blender/atom_markers_panel.py`, `atom_export.py`, `test_markers.py`.
+
+---
+
+## 134. A level made by hand (M116)
+
+**Concept: a hand-made source through the same pipe.** Not everything should be generated. HelloAtom's `hello_room` was modelled by hand. Its source is `Apps/Samples/HelloAtom/Source/hello_room.blend`, and the scene follows three conventions:
+- a collection `Visual`: what is drawn;
+- a collection `Collision`: what the player walks on and bumps into;
+- marker empties anywhere in the scene.
+
+`export_scene.py` exports it through the same code as the procedural build (exporter settings, marker conversion, write-if-changed), with an optional vertex bake.
+
+**Concept: let the authority name the outputs.** The first export wrote the models to `Hello_room/`, while the level file said `Room/`: two sources of truth for one path. `AtomLevelCheck` caught it. Now the export writes exactly where the level file's `model` and `collision` say. It also refuses to overwrite a file another source generated: the `_generated` note names the source.
+
+**Concept: binary sources leak.** Blender saves its UI along with the scene, including the file browser's last folder (`C:\Users\<you>\Documents`). In a public repository that is personal data, and a text-based privacy scan can't see inside a compressed `.blend`. `clean_scene.ps1` rewrites a `.blend` with the scene data only (`bpy.data.libraries.write`) and checks that no absolute path is left. `export.ps1 -Scene` refuses an unclean file, and the Blender test checks every committed `.blend`. The general price of a binary source: it doesn't diff or merge, and an agent can't edit it. So keep such scenes small, and keep everything that can be text in the level file.
+
+**Code.** `Tools/Blender/export_scene.py`, `clean_scene.{py,ps1}`, `Apps/Samples/HelloAtom/` (`Source/`, `Assets/Levels/hello_room.json`, `Scenarios/Room/`).
+
+---
+
+## 135. External models and the supported glTF subset (M117)
+
+**Concept: a file format is what the reader supports.** glTF has many extensions; the engine reads a subset (`Engine/Assets/Model.cpp`, through cgltf):
+
+| Supported | Not supported |
+|---|---|
+| triangle meshes with `TEXCOORD_0`, `TEXCOORD_1` (lightmap UVs) and `COLOR_0` (read as baked light) | compressed geometry (Draco, meshopt): refused |
+| metallic-roughness base colour, alpha mask or blend, double-sided, emissive with strength | morph targets: ignored |
+| skins of up to 255 joints, 4 weights per vertex | other material extensions: ignored |
+| translation, rotation and scale clips (step, linear, cubic spline) | cameras and lights in the file: ignored |
+
+An external model is its own source. To bring one in:
+1. check its licence first;
+2. export it as glTF 2.0 binary, in metres, Y up;
+3. put it in the app's `Assets/`, or in `Content/` if several apps share it;
+4. run `AtomLevelCheck`, which refuses a model the engine can't read.
+
+A model without `COLOR_0` draws unbaked (white baked light), which is correct for something lit only by live lights.
+
+**Code.** `docs/Authoring.md` (external models), `Framework/Level/LevelCheck.cpp` (`RequireModel`).
+
+---
+
+## 136. Releasing 0.0.17 (M117)
+
+- `check.ps1 -Level full`: Debug and Release, 41 tests each (CPU tests, level checks, every scenario, the two Blender tests), all passing.
+- **Packages:** `Demo-v0.0.17-win64.zip` 15.5 MB, `Drift-v0.0.17-win64.zip` 2.1 MB, both started from outside the repository. Privacy check passed. CI's configure registers 15 CPU tests and no scenarios.
+- **Performance:** the frame wasn't touched, so no A/B was run. The export timings are in §131.
+- **Known:** the Blender tests run only where Blender is installed (not CI); the panel was tested headless; only Blender 5.2 was used.
+- **After the release check:** the F10 point overlay and legend (§132) were checked with targeted tests only, not a second `-Level full`.
+
+**Code.** `CHANGELOG.md` 0.0.17, `docs/Authoring.md`, `docs/Architecture.md` (ADR-012), `docs/Getting-Started.md` §5.
+
+---
+
+## 137. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -3281,7 +3453,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 130. Build system and project layout
+## 138. Build system and project layout
 
 - **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomShaders` (custom target compiling HLSL). The apps live under `Apps/` by purpose (§127). **CPU tests** (v0.0.16, §123): one doctest executable per owner — `AtomEngineTests`, `AtomFrameworkTests`, `AtomContentTests`, `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` — declared with `atom_add_tests` and run as `Unit.<owner>` and `Content.<owner>`; `AtomTests` builds them all. **Scenarios** (§125): each app registers its `Scenarios/*.atomtest` (and runs of its command line) as `Scenario.<owner>.<name>` with `atom_add_scenarios` / `atom_add_scenario`, labels `scenario`, the owner and, for one short run per app, `smoke`. Both helpers are in `cmake/AtomTesting.cmake`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
@@ -3301,6 +3473,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97); since v0.0.15 `ATOM_TRACE=<prefix>` (§114), `ATOM_PREWARM=0` (§115). All are read through `Atom::DevSwitch` and ignored in a package (§101).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
+- **Authoring** (v0.0.17, §129–§135): `pwsh Tools/Blender/export.ps1 -List | -Only <unit> [-What markers] | -Scene <file.blend> -Level <name>`; `AtomLevelCheck --app <app> | --all` (`Tools/LevelCheck`); `pwsh Tools/Blender/open.ps1` (the marker panel); `clean_scene.ps1` before committing a `.blend`. Guide: `docs/Authoring.md`.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-L cpu` (the CPU tests, no GPU), `-L scenario` (in-game), `-L smoke` (one short run per app), `-L <owner>` (one owner's: `engine`, `framework`, `content`, `demo`, `drift`, `showcase`, `hello`, `arena`); `<target> -ts=benchmark` runs a target's timing comparisons by hand (§121).
 
 ```
@@ -3363,7 +3536,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 131. Glossary
+## 139. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -3623,3 +3796,9 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Test suite (doctest)** — a named group of test cases a run can include (`-ts=`) or exclude (`-tse=`) (§121, §123).
 - **Usage requirement (sources)** — a `PUBLIC` source in `target_sources` is added to every target that links the library, so it is compiled again in each (§121).
 - **Vacuous check** — a check that cannot fail, because it compares against nothing or always reports success (§122).
+- **Authority (content)** — the one file that decides a fact; everything else holding it is generated from it (§129).
+- **Entity report** — a read-only, filterable list of a level's entities and the properties of the selected one, after Hammer's (§132).
+- **Lazy evaluation** — computing a value only when something asks for it; Blender's `matrix_world` is updated that way (§131).
+- **Placement source** — where a spawn's or entity's position came from: the level file, a marker, or the file over a marker (§129).
+- **Unit (export)** — what one builder makes and the export can redo alone: the kit, the sky, a level folder (§131).
+- **Write-if-changed** — writing an output only when its bytes differ, so unchanged files keep their bytes and timestamps (§131).

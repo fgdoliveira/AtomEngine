@@ -1,0 +1,19 @@
+{
+  "name": "broken",
+  "model": "Floor/floor.glb",
+  "collision": "Floor/floor_col.glb",
+  "spawns": { "entry": { "position": [0, 0, 0] } },
+  "entities": [
+    { "name": "lamp", "position": [1, 0, 1], "model": "Kit/missing_lamp.glb" },
+    { "name": "lamp", "position": [2, 0, 1] },
+    { "name": "prop", "position": [3, 0, 1], "model": "Props/only_other.glb" },
+    { "name": "crate", "position": [4, 0, 1], "collider": { "halfExtents": [0.5, 0, 0.5] } },
+    { "name": "far", "position": [0, 0, 250000] },
+    { "name": "exit", "position": [0, 0, 5],
+      "interactable": { "prompt": "Go", "action": { "type": "changeLevel", "level": "nowhere" } } },
+    { "name": "back", "position": [0, 0, 6],
+      "interactable": { "prompt": "Back", "action": { "type": "changeLevel", "level": "good", "spawn": "nope" } } },
+    { "name": "lever", "position": [0, 0, 7],
+      "interactable": { "prompt": "Pull", "action": { "type": "playAnimation", "entity": "ghost", "clip": "open" } } }
+  ]
+}

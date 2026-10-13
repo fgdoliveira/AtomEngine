@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Level/LevelData.h"
+#include "Level/LevelCheck.h"
 #include "TestAssets.h"
 
 #include <doctest/doctest.h>
@@ -9,32 +9,25 @@
 
 namespace AtomTests
 {
-    // Every level file the owner ships (its Assets/Levels/) parses, and the
-    // files it names exist where the app looks: its own assets, then the
-    // shared Content (a level naming a missing lightmap would fail to load
-    // in the game). Returns how many were checked.
+    // Every level file the owner ships (its Assets/Levels/) passes the
+    // framework's level check (M112, the same one as AtomLevelCheck): it
+    // parses, and the models, collisions, lightmaps and clips it names
+    // exist where that app looks - its own assets, then the shared
+    // Content. Warnings don't fail it. Returns how many levels were read.
     inline int CheckShippedLevels()
     {
+        AtomFramework::LevelCheckOptions options;
+        options.assets = AtomFramework::AssetRoots({ OwnAssets, SharedContent });
+        for (const AtomFramework::LevelDiagnostic& diagnostic : AtomFramework::CheckLevels(options))
+        {
+            INFO(AtomFramework::FormatDiagnostic(diagnostic));
+            CHECK(diagnostic.severity != AtomFramework::LevelDiagnostic::Severity::Error);
+        }
         int count = 0;
         for (const auto& entry : std::filesystem::directory_iterator(Asset("Levels")))
         {
-            if (entry.path().extension() != ".json" || entry.path().filename().string().ends_with(".markers.json"))
-            {
-                continue; // markers are read with their level
-            }
-            const AtomFramework::LevelParseResult result = AtomFramework::LoadLevelFile(entry.path().string());
-            INFO(entry.path().filename().string() << ": " << result.error);
-            CHECK(result.level.has_value());
-            if (result.level)
-            {
-                CHECK(std::filesystem::exists(Asset(result.level->model)));
-                CHECK(std::filesystem::exists(Asset(result.level->collision)));
-                if (result.level->lightmap)
-                {
-                    CHECK(std::filesystem::exists(Asset(result.level->lightmap->texture)));
-                }
-            }
-            ++count;
+            const std::string name = entry.path().filename().string();
+            count += entry.path().extension() == ".json" && !name.ends_with(".markers.json") ? 1 : 0;
         }
         return count;
     }

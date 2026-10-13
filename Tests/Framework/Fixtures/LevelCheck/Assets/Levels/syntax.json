@@ -1,0 +1,5 @@
+{
+  "name": "syntax",
+  "model": "Floor/floor.glb"
+  "collision": "x"
+}

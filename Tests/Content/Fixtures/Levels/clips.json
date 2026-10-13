@@ -1,0 +1,13 @@
+{
+  "name": "clips",
+  "model": "First/first.glb",
+  "collision": "First/first_col.glb",
+  "spawns": { "start": { "position": [0, 0, 0] } },
+  "entities": [
+    { "name": "mill", "position": [0, 0, -6], "model": "Kit/windmill.glb", "animation": { "clip": "spin" } },
+    { "name": "mill2", "position": [4, 0, -6], "model": "Kit/windmill.glb", "animation": { "clip": "spinning" } },
+    { "name": "shed", "position": [-4, 0, -6], "model": "Kit/shed.glb", "animation": { "clip": "open", "autoplay": false },
+      "interactable": { "prompt": "Open", "action": { "type": "playAnimation", "entity": "shed", "clip": "slam" } } },
+    { "name": "statue", "position": [0, 0, -9], "model": "Props/not_a_model.glb" }
+  ]
+}

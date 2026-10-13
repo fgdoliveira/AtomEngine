@@ -141,7 +141,41 @@ toggles into the renderer's lighting.
   player's settings, saved by `SettingsStore`. The Showcase, the demo and
   DRIFT all use them.
 
-## 5. Where to go next
+## 5. Edit a level (v0.0.17)
+
+**In the level file.** Add an entity to `hello.json`, then check it before
+running anything:
+
+```json
+{ "name": "lamp", "position": [1.5, 0.0, 3.0], "model": "Kit/toro.glb" }
+```
+
+```powershell
+cmake --build build --config Debug --target AtomLevelCheck HelloAtom
+build\bin\Debug\AtomLevelCheck.exe --app hello      # a typo'd model path, a clip that isn't there... named here
+build\bin\Debug\HelloAtom\HelloAtom.exe
+```
+
+In the running app, F10 > Level lists the entities. Click `lamp` to see
+its data, where its position came from, and a box drawn around it.
+
+**In Blender.** HelloAtom's second level, `hello_room`, was modelled by
+hand. Its source is `Apps/Samples/HelloAtom/Source/hello_room.blend`.
+
+```powershell
+pwsh Tools/Blender/open.ps1 Apps/Samples/HelloAtom/Source/hello_room.blend
+#   move a wall or the cube's marker (sidebar N > AtomEngine), save, close
+pwsh Tools/Blender/clean_scene.ps1 Apps/Samples/HelloAtom/Source/hello_room.blend
+pwsh Tools/Blender/export.ps1 -Scene Apps/Samples/HelloAtom/Source/hello_room.blend -Level hello_room
+cmake --build build --config Debug --target HelloAtom
+$env:ATOM_START_LEVEL = "hello_room"; build\bin\Debug\HelloAtom\HelloAtom.exe
+```
+
+Blender is only needed to make content; HelloAtom and any game run
+without it. The full guide (who owns which file, the procedural build,
+markers, external models) is [Authoring.md](Authoring.md).
+
+## 6. Where to go next
 
 - **Add an entity** to `hello.json`: any piece in `Content/Kit/`. Give it
   `"animation": { "clip": ... }` if the model has clips, or a `"collider"`
