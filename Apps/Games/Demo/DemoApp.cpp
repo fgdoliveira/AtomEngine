@@ -1566,6 +1566,12 @@ namespace Demo
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on); // M82: the shared F1 overlay
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
+        else if (what == "inspect") // v0.0.17 (M114): F10's entity report, by name ("none" clears)
+        {
+            const AtomFramework::Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+            if (value == "none" || !level) m_devPanels.Inspector().Clear();
+            else m_devPanels.Inspector().Select(level->GetName(), value);
+        }
         else if (what == "menu" && onOff) { if (on) OpenPause(); else m_pause = PauseScreen::None; } // M90
         else if (what == "menu" && value == "settings") { OpenPause(); m_pause = PauseScreen::Settings; }
         else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on); // every panel, next frame

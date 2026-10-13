@@ -38,7 +38,11 @@ Hammer's entity tools; not an editor.
   inspects one: its JSON Pointer, placement source, transform, model,
   collider, interaction, animation, mover and live state, with its
   warnings. It draws the model's bounds and collider over the frame, with
-  no renderer change. The selection is a name, resolved again every
+  no renderer change, even with the panel collapsed. An entity with neither,
+  such as an interaction on the street's vending machine, is drawn as a
+  point with a line to where the player looks; at first it was drawn as a
+  0.5 m box that looked like wrong bounds. `set inspect <entity>` works in
+  every app with levels. The selection is a name, resolved again every
   frame, so a reload can't leave it dangling.
 - **The AtomEngine panel in Blender (M115):** add spawn and entity
   markers by name, see the level file's entry for the selected one, check

@@ -218,11 +218,15 @@ reports the level that is loaded:
 - **details:** for the selected entity, its JSON Pointer in the level file,
   **where its position came from** (file, marker, or file with the marker
   ignored), its transform, model, collider, interaction (prompt, action,
-  locked action, required flag), animation, animator, mover, style, and its
+  where to look and from how far, locked action, required flag), animation, animator, mover, style, and its
   live state (where it is now, shown or hidden, animating). The level's
   warnings about that entity are listed under it.
 - **Show where it is:** draws the entity's model bounds (yellow) and its
-  collider (cyan) over the frame.
+  collider (cyan) over the frame, even with the panel collapsed. An entity
+  with neither is drawn as a point: a cross at its position and a line to
+  where the player must look to use it. Such an entity is often an
+  interaction on something the level's own model draws, like the street's
+  vending machines, so there is no box to fit.
 
 The report only reads, and changes nothing. Its selection is the level's
 name plus the entity's name, looked up again every frame: reloading the

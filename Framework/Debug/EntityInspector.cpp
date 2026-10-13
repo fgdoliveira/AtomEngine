@@ -102,7 +102,17 @@ namespace AtomFramework
         lines.push_back("placed by: " + std::string(PlacementSourceName(e.placement)));
         lines.push_back("position: " + Vec(e.position) + "   yaw: " + Number(e.yawDegrees)
                         + (e.scale != 1.0f ? "   scale: " + Number(e.scale) : ""));
-        lines.push_back("model: " + (e.model.empty() ? std::string("none") : e.model));
+        if (!e.model.empty())
+        {
+            lines.push_back("model: " + e.model);
+        }
+        else
+        {
+            // Often an interaction point on something the level's own
+            // model draws (the street's vending machines).
+            lines.push_back(e.collider ? "model: none" : "model: none, collider: none - a point; what you see "
+                                                         "there is part of the level's model");
+        }
         if (e.collider)
         {
             lines.push_back("collider: centre " + Vec(e.collider->center) + ", half " + Vec(e.collider->halfExtents));
@@ -115,6 +125,8 @@ namespace AtomFramework
                 line += "   needs " + e.interactable->requiresFlag;
             }
             lines.push_back(line);
+            lines.push_back("  look at: " + Vec(e.position + e.interactable->focusOffset) + " (focus "
+                            + Vec(e.interactable->focusOffset) + "), within " + Number(e.interactable->radius) + " m");
             if (e.interactable->lockedAction)
             {
                 lines.push_back("  locked -> " + DescribeAction(*e.interactable->lockedAction));

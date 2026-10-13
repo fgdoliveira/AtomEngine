@@ -545,10 +545,6 @@ namespace AtomFramework
                     ImGui::TextWrapped("%s", warning->message.c_str());
                 }
                 ImGui::Checkbox("Show where it is", &m_showBounds);
-                if (m_showBounds && selectedLive)
-                {
-                    DrawEntityBounds(context, entity, *selectedLive);
-                }
             }
             else
             {
@@ -556,16 +552,38 @@ namespace AtomFramework
             }
         }
         ImGui::End();
+
+        // The overlay doesn't need the panel open: collapsed, or off the
+        // screen, it still shows the selected entity in the scene.
+        const LevelData& data = level->GetData();
+        const std::size_t selected = m_inspector.Resolve(level->GetName(), data);
+        if (m_showBounds && selected != EntityInspector::npos)
+        {
+            const Entity* live = nullptr;
+            level->GetWorld().ForEach([&](EntityId, const Entity& entity) {
+                if (!live && entity.name == data.entities[selected].name)
+                {
+                    live = &entity;
+                }
+            });
+            if (live)
+            {
+                DrawEntityBounds(context, data.entities[selected], *live);
+            }
+        }
     }
 
     void DevPanels::DrawEntityBounds(const DevContext& context, const EntityData& data, const Entity& live)
     {
         // The selected entity drawn over the frame (M114): its model's
         // bounds (yellow) and its collider as collision stores it (cyan,
-        // Level::AddCollider), or a small box at its position when it has
-        // neither. ImGui's foreground list, projected with the camera -
-        // nothing in the renderer changes, and like every F10 panel it is
-        // compiled out of packages.
+        // Level::AddCollider). An entity with neither has no shape - often
+        // an interaction point on something the level's own model draws (a
+        // vending machine in the street): it is drawn as a point, a cross
+        // at its position, with a line to where the player must look to use
+        // it. (A box there read as wrong bounds.) ImGui's foreground list,
+        // projected with the camera - nothing in the renderer changes, and
+        // like every F10 panel it is compiled out of packages.
         if (!context.camera)
         {
             return;
@@ -599,10 +617,6 @@ namespace AtomFramework
         {
             boxes.push_back({ live.position + offset(data.collider->center), turned(data.collider->halfExtents),
                               IM_COL32(80, 220, 255, 255) });
-        }
-        if (boxes.empty())
-        {
-            boxes.push_back({ live.position + glm::vec3{ 0.0f, 0.25f, 0.0f }, glm::vec3{ 0.25f }, IM_COL32(255, 210, 60, 255) });
         }
         const ImVec2 size = ImGui::GetIO().DisplaySize;
         if (size.x <= 0.0f || size.y <= 0.0f)
@@ -644,6 +658,38 @@ namespace AtomFramework
                     }
                 }
             }
+        }
+        if (boxes.empty())
+        {
+            const ImU32 colour = IM_COL32(255, 160, 220, 255);
+            const auto line = [&](const glm::vec3& a, const glm::vec3& b) {
+                ImVec2 pa, pb;
+                if (project(a, pa) && project(b, pb))
+                {
+                    list->AddLine(pa, pb, colour, 2.0f);
+                }
+            };
+            const glm::vec3 at = live.position;
+            constexpr float Arm = 0.3f;
+            line(at - glm::vec3{ Arm, 0.0f, 0.0f }, at + glm::vec3{ Arm, 0.0f, 0.0f });
+            line(at - glm::vec3{ 0.0f, 0.0f, Arm }, at + glm::vec3{ 0.0f, 0.0f, Arm });
+            glm::vec3 top = at + glm::vec3{ 0.0f, 0.5f, 0.0f };
+            if (live.interactable)
+            {
+                top = at + live.interactable->focusOffset; // what the player looks at to use it
+                ImVec2 focus;
+                if (project(top, focus))
+                {
+                    list->AddCircle(focus, 6.0f, colour, 0, 2.0f);
+                }
+            }
+            line(at, top);
+            ImVec2 label;
+            if (project(top + glm::vec3{ 0.0f, 0.15f, 0.0f }, label))
+            {
+                list->AddText(label, colour, (data.name + " (a point: no model, no collider)").c_str());
+            }
+            return;
         }
         ImVec2 label;
         if (project(boxes.front().center + glm::vec3{ 0.0f, boxes.front().half.y + 0.2f, 0.0f }, label))

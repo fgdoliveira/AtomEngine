@@ -670,6 +670,12 @@ namespace Showcase
         if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on);
         else if (what == "devtools" && onOff) GetDevTools().SetVisible(on);
         else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on);
+        else if (what == "inspect") // v0.0.17 (M114): F10's entity report, by name ("none" clears)
+        {
+            const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+            if (value == "none" || !level) m_devPanels.Inspector().Clear();
+            else m_devPanels.Inspector().Select(level->GetName(), value);
+        }
         else if (what == "hud" && onOff) m_showHud = on;
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "unease" && value == "off") {} // the demo's moments; the Showcase has none

@@ -83,8 +83,9 @@ TEST_CASE("Entity report: what it shows, from the level's data and the live enti
     CHECK(Has(lamp, "now: not in the world"));
 
     const std::vector<std::string> door = EntityInspector::Describe(data, 1, &live);
-    CHECK(Has(door, "model: none"));
+    CHECK(Has(door, "model: none, collider: none - a point"));
     CHECK(Has(door, "interactable: \"Leave\" -> changeLevel shrine : gate"));
+    CHECK(Has(door, "look at: 0.00 1.20 -4.00 (focus 0.00 1.20 0.00), within 2.20 m")); // the defaults
     CHECK(Has(door, "now: at 0.00 0.00 -4.00, hidden"));
     CHECK(EntityInspector::Describe(data, 7, nullptr).empty());
 }
