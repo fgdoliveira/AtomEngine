@@ -88,6 +88,58 @@ TEST_CASE("Markers place spawns and entities; the level file still wins")
     CHECK(noMarkers.error.rfind("/spawns/gate:", 0) == 0);
 }
 
+TEST_CASE("Where a position came from is kept, and a marker the file overrides is a warning (M111)")
+{
+    const std::string level = Level(R"("spawns": { "gate": {}, "fixed": { "position": [1,2,3] } },
+        "entities": [ { "name": "mill" }, { "name": "sign", "position": [9,0,9], "yaw": 5 },
+                      { "name": "rock", "position": [2,0,2] } ])");
+    const std::string markers = R"({
+        "spawns": { "gate": { "position": [0,0,18], "yaw": 90 }, "fixed": { "position": [5,5,5], "yaw": 10 },
+                    "extra": { "position": [7,0,7] } },
+        "entities": { "mill": { "position": [0,0,-12] }, "sign": { "position": [1,1,1], "yaw": 60 },
+                      "rock": { "position": [2,0,2] } } })";
+    const auto result = ParseLevel(level, markers);
+    INFO(result.error);
+    REQUIRE(result.level.has_value());
+    const LevelData& data = *result.level;
+
+    CHECK(data.FindSpawn("gate")->placement == PlacementSource::Marker);
+    CHECK(data.FindSpawn("fixed")->placement == PlacementSource::FileOverMarker);
+    CHECK(data.FindSpawn("extra")->placement == PlacementSource::Marker); // a placement-only spawn
+    CHECK(data.entities[0].placement == PlacementSource::Marker);
+    CHECK(data.entities[1].placement == PlacementSource::FileOverMarker);
+    CHECK(data.entities[2].placement == PlacementSource::FileOverMarker); // even at the same spot
+    CHECK(std::string(PlacementSourceName(PlacementSource::FileOverMarker)) == "file (marker ignored)");
+
+    // One warning per overridden marker, at the value that wins, naming the marker.
+    std::vector<std::string> paths;
+    for (const LevelWarning& warning : data.warnings)
+    {
+        paths.push_back(warning.path);
+        CHECK(warning.message.find(" marker") != std::string::npos);
+    }
+    CHECK(paths == std::vector<std::string>{ "/spawns/fixed/position", "/entities/1/position", "/entities/2/position" });
+    CHECK(data.warnings[1].message.find("entity:sign") != std::string::npos);
+
+    // Marker-placed with a yaw written in the file: the file's yaw wins, and says so.
+    const auto yaw = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "mill", "yaw": 45 } ])"), R"({ "entities": { "mill": { "position": [1,0,1], "yaw": 90 } } })");
+    REQUIRE(yaw.level.has_value());
+    CHECK(yaw.level->entities[0].yawDegrees == doctest::Approx(45.0f));
+    REQUIRE(yaw.level->warnings.size() == 1);
+    CHECK(yaw.level->warnings[0].path == "/entities/0/yaw");
+
+    // No markers file: every position is the file's, no warning - unless
+    // something drawn or solid was left at the origin.
+    const auto plain = ParseLevel(Level(R"("spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "note" }, { "name": "crate", "model": "Kit/crate.glb" } ])"));
+    REQUIRE(plain.level.has_value());
+    CHECK(plain.level->entities[0].placement == PlacementSource::File);
+    REQUIRE(plain.level->warnings.size() == 1);
+    CHECK(plain.level->warnings[0].path == "/entities/1");
+    CHECK(plain.level->warnings[0].message.find("origin") != std::string::npos);
+}
+
 TEST_CASE("The file watcher reports each change once")
 {
     const std::filesystem::path path = std::filesystem::temp_directory_path() / "atom_watch_test.json";
