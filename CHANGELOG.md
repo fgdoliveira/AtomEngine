@@ -1,5 +1,89 @@
 # Changelog
 
+## 0.0.17 — Authoring Workflow
+
+Editing a level gets shorter and safer, whether by hand or by an agent.
+One file decides each fact, and a generated file says so. One level, or
+only its markers, exports in seconds without rewriting anything that
+didn't change. One command checks every app's levels without starting a
+game. F10 inspects the entities of the running level. And a level can be
+modelled by hand in Blender, through the same export. Borrowed from
+Hammer's entity tools; not an editor.
+
+### Added
+- **Placement source and warnings (M111):** each spawn and entity keeps
+  where its position came from (the level file, its Blender marker, or
+  the file over the marker). `LevelData::warnings` explains what is
+  supported but easy to miss: a position or yaw the file writes over a
+  marker (moving the marker in Blender changed nothing, silently), and
+  something drawn or solid left at the origin. Behaviour is unchanged.
+- **`AtomLevelCheck` (M112):** `--app <app> | --all`, with no window and no
+  GPU. It reports the parser's errors and warnings, plus what needs other
+  files:
+  - missing or unreadable models (glTF that the engine can't read, such
+    as Draco-compressed);
+  - files found only in another app's assets;
+  - clips a model doesn't have;
+  - duplicate entity names and empty colliders;
+  - level changes to a level or spawn that doesn't exist.
+
+  Each problem is printed with its severity, level, file, entity, JSON
+  Pointer and a fix. CTest runs it per app (`LevelCheck.<owner>`, CI too);
+  the content tests share its code (`Framework/Level/LevelCheck`).
+- **Incremental export (M113):** `pwsh Tools/Blender/export.ps1 -Only
+  <unit> [-What markers]`, `-List`. Every output passes a byte comparison
+  and an unchanged file isn't rewritten (`atom_export.py`). Exported
+  alone, each of the 13 units gives the same bytes as the full build.
+- **F10 entity report (M114):** the Level panel filters entities and
+  inspects one: its JSON Pointer, placement source, transform, model,
+  collider, interaction, animation, mover and live state, with its
+  warnings. It draws the model's bounds and collider over the frame, with
+  no renderer change. The selection is a name, resolved again every
+  frame, so a reload can't leave it dangling.
+- **The AtomEngine panel in Blender (M115):** add spawn and entity
+  markers by name, see the level file's entry for the selected one, check
+  them all. `pwsh Tools/Blender/open.ps1`. The panel and the level
+  builders make markers through one function.
+- **A level made by hand (M116):** HelloAtom's `hello_room`, from
+  `Apps/Samples/HelloAtom/Source/hello_room.blend`, exported by
+  `export.ps1 -Scene` (`export_scene.py`, the same export as the
+  procedural build) to the paths its level file names.
+  `Scenario.hello.hello_room`; HelloAtom reads `ATOM_START_LEVEL`.
+  `clean_scene.ps1` removes the personal paths Blender saves in a
+  `.blend`.
+- `docs/Authoring.md`: who owns which file, the three ways of working,
+  checking, exporting, the panel, F10, hand-made levels, external models
+  and the glTF subset the engine reads. Getting-Started: "Edit a level".
+  Architecture: the authoring data flow, and ADR-012 (level rules have
+  one authority, the parser).
+
+### Fixed
+- A markers-only export would have written every marker at the origin:
+  Blender evaluates `matrix_world` lazily, and only a bake had triggered
+  it (found by the new tests, before any such export was committed).
+- The build wrote `lakeshore.markers.json` for a level that no longer
+  exists (its terrain became the Showcase's in v0.0.14). A level folder's
+  markers now need its level file.
+- Exported alone, a unit's models came out with different object and mesh
+  names than in the full build (`.001` vs `.061`: Blender's names are
+  global).
+
+### Known
+- The demo's `pachinko_hall`: `prize_counter`'s position in the level file
+  (x 3.6) overrides its marker (x 0). It is reported as a warning and left
+  for the author to decide.
+- The Blender tests (`Blender.export`, `Blender.markers`) run only where
+  Blender is installed, so not in CI. The panel is tested headless; its
+  drawing in Blender's UI was not clicked through.
+- Only Blender 5.2 was used.
+
+### Performance
+- The frame isn't touched (no runtime change but F10 and HelloAtom's
+  start level), so no A/B was run.
+- Export, with a warm lightmap cache (Blender 5.2): everything about
+  37 s; one unit 4-12 s; one level's markers 4 s (1.7 s of it is Blender's
+  start). `AtomLevelCheck --all`: about a second.
+
 ## 0.0.16 — Normalization
 
 Every test, scenario and asset now has an owner - the engine, the
