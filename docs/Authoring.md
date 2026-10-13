@@ -221,8 +221,16 @@ reports the level that is loaded:
   where to look and from how far, locked action, required flag), animation, animator, mover, style, and its
   live state (where it is now, shown or hidden, animating). The level's
   warnings about that entity are listed under it.
-- **Show where it is:** draws the entity's model bounds (yellow) and its
-  collider (cyan) over the frame, even with the panel collapsed. An entity
+- **Show where it is:** draws the selected entity over the frame, even
+  with the panel collapsed; the panel shows the legend:
+
+  | Colour | Means |
+  |---|---|
+  | yellow box | the model's bounds: what is drawn |
+  | cyan box | the collider: what blocks the player |
+  | pink cross, line and circle | a point (no model, no collider); the circle is where the player looks to use it |
+
+  Every drawn entity has a yellow box; a cyan box only if it has a collider. An entity
   with neither is drawn as a point: a cross at its position and a line to
   where the player must look to use it. Such an entity is often an
   interaction on something the level's own model draws, like the street's

@@ -535,6 +535,16 @@ namespace AtomFramework
             {
                 const EntityData& entity = data.entities[selected];
                 ImGui::SeparatorText(entity.name.c_str());
+                // First, so it is seen without scrolling the details.
+                ImGui::Checkbox("Show where it is", &m_showBounds);
+                if (m_showBounds)
+                {
+                    // The overlay's legend - the same colours as DrawEntityBounds.
+                    ImGui::TextColored({ 1.0f, 0.82f, 0.24f, 1.0f }, "yellow: model bounds (what is drawn)");
+                    ImGui::TextColored({ 0.31f, 0.86f, 1.0f, 1.0f }, "cyan: collider (what blocks the player)");
+                    ImGui::TextColored({ 1.0f, 0.63f, 0.86f, 1.0f }, "pink: a point - no model, no collider;");
+                    ImGui::TextColored({ 1.0f, 0.63f, 0.86f, 1.0f }, "  the circle is where the player looks to use it");
+                }
                 for (const std::string& line : EntityInspector::Describe(data, selected, selectedLive))
                 {
                     ImGui::TextWrapped("%s", line.c_str());
@@ -544,7 +554,6 @@ namespace AtomFramework
                     ImGui::TextColored({ 1.0f, 0.8f, 0.3f, 1.0f }, "warning %s:", warning->path.c_str());
                     ImGui::TextWrapped("%s", warning->message.c_str());
                 }
-                ImGui::Checkbox("Show where it is", &m_showBounds);
             }
             else
             {
