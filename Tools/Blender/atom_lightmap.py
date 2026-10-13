@@ -30,6 +30,7 @@ import bpy
 import numpy as np
 from mathutils import Euler
 
+import atom_export
 import atom_kit
 
 UV_LAYER = "lightmap"
@@ -125,13 +126,14 @@ def _write_png(path, width, rgb_bytes, height=None, channels=3, text=None):
 
     colour_type = 6 if channels == 4 else 2  # RGBA or RGB
     header = struct.pack(">IIBBBBB", width, height, 8, colour_type, 0, 0, 0)
-    with open(path, "wb") as file:
-        file.write(b"\x89PNG\r\n\x1a\n")
-        file.write(chunk(b"IHDR", header))
-        if text:
-            file.write(chunk(b"tEXt", b"Comment\x00" + text))
-        file.write(chunk(b"IDAT", zlib.compress(bytes(rows), 9)))
-        file.write(chunk(b"IEND", b""))
+    data = bytearray(b"\x89PNG\r\n\x1a\n")
+    data += chunk(b"IHDR", header)
+    if text:
+        data += chunk(b"tEXt", b"Comment\x00" + text)
+    data += chunk(b"IDAT", zlib.compress(bytes(rows), 9))
+    data += chunk(b"IEND", b"")
+    # M113: an unchanged image is not rewritten.
+    return atom_export.write_if_changed(path, bytes(data))
 
 
 def _to_srgb(value):

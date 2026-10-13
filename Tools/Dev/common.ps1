@@ -36,6 +36,22 @@ function Find-Dxc {
     return $null
 }
 
+# Blender (v0.0.17, M113): $env:ATOM_BLENDER, else on PATH, else the newest
+# under Program Files\Blender Foundation. $null if none. Development only:
+# no game needs it.
+function Find-Blender {
+    if ($env:ATOM_BLENDER -and (Test-Path $env:ATOM_BLENDER)) { return $env:ATOM_BLENDER }
+    $onPath = Get-Command blender -ErrorAction SilentlyContinue
+    if ($onPath) { return $onPath.Source }
+    $foundation = Join-Path $env:ProgramFiles "Blender Foundation"
+    if (Test-Path $foundation) {
+        $found = Get-ChildItem $foundation -Directory | Sort-Object { [version]($_.Name -replace '[^0-9.]', '') } -Descending |
+            ForEach-Object { Join-Path $_.FullName "blender.exe" } | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if ($found) { return $found }
+    }
+    return $null
+}
+
 # "plugged in", "battery", or "unknown" (desktops report no battery).
 function Get-PowerSource {
     $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1

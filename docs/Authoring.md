@@ -125,3 +125,55 @@ The checks live in the framework (`Framework/Level/LevelCheck.h`), and
 the parser stays the authority on what a level file may say. CTest runs
 the tool for every app (`LevelCheck.<owner>`, labels `cpu` and `content`),
 CI included, and the apps' content tests call the same code.
+
+## Exporting from Blender: `export.ps1`
+
+The procedural content is built and exported by `Tools/Blender/build_assets.py`,
+running in Blender in the background (Blender 5.2 is what this repository's
+outputs were made with; any 4.x or later with the glTF exporter should work).
+Run it through `Tools/Blender/export.ps1`, which finds Blender (on `PATH`, in
+`ATOM_BLENDER`, or the newest under `Program Files\Blender Foundation`),
+exports, then runs `AtomLevelCheck`:
+
+```powershell
+pwsh Tools/Blender/export.ps1 -List                       # the units, and what each writes
+pwsh Tools/Blender/export.ps1 -Only fields                # one level: its models, collision, bakes, markers
+pwsh Tools/Blender/export.ps1 -Only fields -What markers  # only its markers.json - no bake, no model
+pwsh Tools/Blender/export.ps1 -Only kit,street            # several units
+pwsh Tools/Blender/export.ps1                             # everything
+```
+
+Options: `-What all|geometry|markers`, `-NoCache` (re-bake every lightmap),
+`-Gpu` (lightmaps on the GPU: a preview, never committed; a test refuses
+them), `-NoCheck`.
+
+**Units.** A unit is what one builder makes:
+
+| Unit | Outputs |
+|---|---|
+| `kit`, `sky` | `Content/Kit/*.glb`, `Content/Sky/night_sky.png` |
+| `street`, `city`, `night` | the demo's street, city layers and night street |
+| `shrine`, `interior`, `fields`, `pachinko`, `passage` | the demo's other levels |
+| `first`, `lab`, `lakeshore` | the Showcase's stages and terrain (`first` goes to `Content/First`) |
+
+**What stays the same.** Every output passes through a byte comparison
+(`atom_export.write_if_changed`): a file whose content didn't change is not
+rewritten, so `git status` shows exactly what an edit changed. JSON is
+compared with line endings normalised (a checkout with `core.autocrlf` holds
+it with CRLF). A unit exported alone gives the same bytes as the full
+build: every unit is still *built* in memory (about a second), because
+Blender's object and mesh names are global, and `.001` vs `.006` would
+otherwise depend on what was built before.
+
+| Export (warm lightmap cache, Blender 5.2) | Time |
+|---|---|
+| everything | about 37 s |
+| one unit | 4-12 s |
+| one level's markers | about 4 s (1.7 s of it is Blender starting) |
+
+A changed lightmap still bakes for minutes (CPU path tracing); the bake
+cache in `build/bake_cache/` skips any lightmap whose inputs are unchanged.
+
+`pwsh Tools/Blender/test_export.ps1` checks these guarantees against the
+real build. CTest runs it as `Blender.export` (label `blender`) where
+Blender is installed.

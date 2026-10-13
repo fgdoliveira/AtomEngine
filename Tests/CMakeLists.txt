@@ -72,3 +72,13 @@ atom_add_tests(
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)
 add_custom_target(AtomTests DEPENDS ${ATOM_ALL_TESTS})
 
+
+# M113: the incremental export's guarantees (Tools/Blender/test_export.ps1),
+# against the real Blender build - registered only where Blender is
+# installed (not CI). Minutes, not seconds: label "blender", never "cpu".
+file(GLOB ATOM_BLENDER_INSTALLS "$ENV{ProgramFiles}/Blender Foundation/*/blender.exe")
+find_program(ATOM_PWSH pwsh)
+if(ATOM_PWSH AND (ATOM_BLENDER_INSTALLS OR DEFINED ENV{ATOM_BLENDER}))
+    add_test(NAME Blender.export COMMAND ${ATOM_PWSH} -NoProfile -File "${CMAKE_SOURCE_DIR}/Tools/Blender/test_export.ps1")
+    set_tests_properties(Blender.export PROPERTIES LABELS blender TIMEOUT 1800 PASS_REGULAR_EXPRESSION "^PASS|\nPASS")
+endif()
