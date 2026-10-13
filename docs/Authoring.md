@@ -4,6 +4,33 @@ How a level is made, which file says what, and who may edit it. For the
 concepts behind each step, see the [technical manual](AtomEngine-Tech-Manual.md);
 for where the pieces live, see [Architecture](Architecture.md).
 
+## Three ways to work (v0.0.17)
+
+Each works the same with or without an AI agent: every step is a
+command, and every check prints where the problem is.
+
+**A. Procedural content** (Python builders, JSON):
+1. Edit the builder (`Tools/Blender/atom_*.py`) or the level file
+   (`<app>/Assets/Levels/<level>.json`).
+2. Export only that unit: `pwsh Tools/Blender/export.ps1 -Only <unit>`, or
+   `-What markers` when only markers moved. Unchanged outputs aren't
+   rewritten, and lightmaps re-bake only if their inputs changed.
+3. `export.ps1` runs `AtomLevelCheck`; `git status` shows exactly what
+   changed.
+4. Run the level: `pwsh Tools/Dev/check.ps1 -Level changed`, or start it
+   with `ATOM_START_LEVEL=<level>`.
+
+**B. A level made by hand** (a `.blend`): open it with
+`pwsh Tools/Blender/open.ps1 <scene.blend>`, model it and place markers with
+the AtomEngine panel, save, clean
+(`pwsh Tools/Blender/clean_scene.ps1 <scene.blend>`), export
+(`export.ps1 -Scene <scene.blend> -Level <level>`), run.
+
+**C. Debugging a running level:** F10, then the Level panel. Filter,
+select an entity, and read where it came from and what it does; draw its
+bounds. Problems the loader warns about are listed there, with their JSON
+Pointer.
+
 ## The contract: one authority per fact
 
 Every fact about a level has exactly one file that decides it. Anything
@@ -86,8 +113,8 @@ build\bin\Debug\AtomLevelCheck.exe --app showcase showcase # one level
 build\bin\Debug\AtomLevelCheck.exe --all                   # every app
 ```
 
-Options: `--errors-only`, and `--no-clips` (don't open models to check
-clips). For a folder outside the repository, use `--assets <dir> [--content <dir>]`.
+Options: `--errors-only`, and `--no-clips` (don't open the models, so
+skip the clip and readability checks). For a folder outside the repository, use `--assets <dir> [--content <dir>]`.
 The exit code is 0 when there are no errors (warnings are allowed), 1 on
 errors and 2 on bad usage. Each problem names where to look:
 
@@ -112,6 +139,7 @@ What it checks:
 |---|---|
 | everything the parser refuses: syntax with line and column, types, unknown actions, missing fields, a marker naming no entity, a sequence step naming no entity | error |
 | the level's model, collision, lightmap, sky, chunk files, impostor descriptors, entity models, pachinko machines exist | error |
+| each model is one the engine reads: glTF 2.0, with a mesh, without compressed geometry (the model is opened, without a GPU) | error |
 | a file found only in **another app's** assets | error: an app reads only its own `Assets/` and the shared `Content/` |
 | an animation clip that its model doesn't have (entity animation, animator states, `playAnimation`) - the model is opened | error, listing the clips it has |
 | two entities with one name | error |
@@ -300,3 +328,35 @@ merge, and an agent can't edit it as text: that is the price of modelling
 by hand. Keep such scenes small and self-made (no third-party content),
 and keep everything that *can* be text - what entities are and do - in the
 level file.
+
+## External models (a GLB from another tool)
+
+A model made elsewhere (Blender by hand, another DCC tool, a store) is used
+as it is: the file is its own source.
+
+1. **Licence first.** The repository is public under MIT: only content you
+   made, or whose licence allows redistribution, with the licence and
+   credit beside it (see `Apps/Showcase/Assets/ThirdParty/README.md`).
+2. **Export it as glTF 2.0 binary** (`.glb`), metres, Y up (Blender's glTF
+   exporter does this by default), with embedded or neighbouring PNG/JPEG
+   textures.
+3. **Put it in the app that uses it** (`<app>/Assets/<Folder>/`), or in
+   `Content/<Folder>/` if several apps share it, and name it from a level
+   file: `{ "name": "statue", "model": "Props/statue.glb", "position": [0, 0, -4] }`.
+4. **Check:** `build\bin\Debug\AtomLevelCheck.exe --app <app>` opens the
+   model and fails if the engine can't read it, or if a clip the level
+   names isn't in it.
+
+What the engine reads (`Engine/Assets/Model.cpp`, cgltf):
+
+| Supported | Not supported |
+|---|---|
+| triangle meshes: positions, normals, `TEXCOORD_0`, `TEXCOORD_1` (lightmap UVs), `COLOR_0` (read as baked light) | compressed geometry (Draco, meshopt): such a file is refused |
+| metallic-roughness materials: base colour (texture and factor), alpha mask or blend, double-sided, emissive texture, factor and strength; the `atom_fog` material extra | morph targets (shape keys): ignored |
+| skins up to 255 joints, 4 weights per vertex | other material extensions (clearcoat, transmission, ...): ignored |
+| animation clips: translation, rotation, scale; step, linear, cubic spline | cameras and lights in the file: ignored (the level file lights the scene) |
+
+A model without `COLOR_0` is drawn unbaked (white baked light), which is
+right for something lit only live. Kit pieces get baked light from the
+build (`atom_bake`); an external model gets it only if it was baked
+before export.

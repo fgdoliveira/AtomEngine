@@ -42,7 +42,7 @@ namespace AtomFramework
     {
         AssetRoots assets;                         // the app's own Assets/, then the shared Content/
         std::vector<OtherAppAssets> otherApps;     // named when a missing file is only theirs
-        bool checkClips = true;                    // load models to check animation clips (reads the .glb)
+        bool checkClips = true;                    // open the models (.glb): readable, and their animation clips
     };
 
     // Checks <root>/Levels/<level>.json. `levelPath` may also be a full path.

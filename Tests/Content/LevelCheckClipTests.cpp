@@ -15,16 +15,21 @@ TEST_CASE("An animation clip the model doesn't have is an error that lists the c
     LevelCheckOptions options;
     options.assets = AssetRoots({ ATOM_SOURCE_DIR "/Tests/Content/Fixtures/", AtomTests::SharedContent });
     const std::vector<LevelDiagnostic> found = CheckLevelFile("clips", options);
-    REQUIRE(found.size() == 2);
+    REQUIRE(found.size() == 3);
 
     CHECK(found[0].entity == "mill2");
     CHECK(found[0].property == "/entities/1/animation/clip");
     CHECK(found[0].problem == "clip \"spinning\" is not in Kit/windmill.glb");
     CHECK(found[0].fix == "its clips: spin");
 
-    CHECK(found[1].entity == "shed");
-    CHECK(found[1].property == "/entities/2/interactable/action");
-    CHECK(found[1].problem == "clip \"slam\" is not in Kit/shed.glb");
+    // M117: a file that exists but isn't a model the engine reads.
+    CHECK(found[1].entity == "statue");
+    CHECK(found[1].property == "/entities/3/model");
+    CHECK(found[1].problem == "model \"Props/not_a_model.glb\" can't be read as a model");
+
+    CHECK(found[2].entity == "shed");
+    CHECK(found[2].property == "/entities/2/interactable/action");
+    CHECK(found[2].problem == "clip \"slam\" is not in Kit/shed.glb");
 
     options.checkClips = false; // the models aren't opened
     CHECK(CheckLevelFile("clips", options).empty());

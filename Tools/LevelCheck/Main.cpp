@@ -8,7 +8,7 @@
 //   AtomLevelCheck --app showcase showcase        one level
 //   AtomLevelCheck --all                          every app
 //   AtomLevelCheck --assets <dir> [--content <dir>] [level...]
-//   options: --errors-only, --no-clips (don't open models to check clips)
+//   options: --errors-only, --no-clips (don't open models: no clip or readability check)
 //
 // Exit code: 0 no errors (warnings allowed), 1 errors, 2 usage.
 #include "Level/LevelCheck.h"

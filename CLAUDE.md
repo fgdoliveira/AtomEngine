@@ -11,7 +11,11 @@
   commit** - not at every milestone. Debug for asserts and lifetime checks,
   Release for anything timed; `ab.ps1` only when a milestone touches
   performance. Docs-only changes: nothing to build. Never rebuild assets
-  unless Blender scripts or content products changed. Add a rule to
+  unless Blender scripts or content products changed - then export only
+  the unit you changed (`pwsh Tools/Blender/export.ps1 -Only <unit>`,
+  `-What markers` for markers; it runs `AtomLevelCheck`). After editing a
+  level file, `AtomLevelCheck --app <app>`. A `.blend` is cleaned before
+  it is committed (`Tools/Blender/clean_scene.ps1`). Add a rule to
   `changed.psd1` when you add a scenario, a test target or a folder.
 - **No local CI-configuration build** - except its configure step after
   touching CMake files or `.github/workflows/ci.yml`: CI configures with

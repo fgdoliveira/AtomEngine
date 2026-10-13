@@ -75,6 +75,35 @@ namespace AtomFramework
                       "check the path (relative to Assets/), or build it: Tools/Blender/export.ps1");
             }
 
+            // A model that exists must also be one the engine reads (M117):
+            // glTF 2.0 binary, no extension it lacks (Draco or meshopt
+            // compression, ...). Opened once per file, geometry only, no GPU.
+            void RequireModel(const std::string& relative, const std::string& entity, const std::string& property,
+                              const char* what)
+            {
+                RequireFile(relative, entity, property, what);
+                if (!m_options.checkClips || relative.empty() || !relative.ends_with(".glb"))
+                {
+                    return;
+                }
+                const std::string path = m_options.assets.Resolve(relative);
+                if (!fs::exists(path))
+                {
+                    return; // reported above
+                }
+                auto [found, inserted] = m_readable.try_emplace(relative, true);
+                if (inserted)
+                {
+                    found->second = !Atom::LoadModelGeometry(path).empty();
+                }
+                if (!found->second)
+                {
+                    Error(entity, property, std::string(what) + " \"" + relative + "\" can't be read as a model",
+                          "it must be glTF 2.0 (.glb) with a mesh, without compressed geometry (Draco, meshopt) "
+                          "- docs/Authoring.md, external models");
+                }
+            }
+
             // The clips a model holds, loaded once per model.
             const std::set<std::string>* Clips(const std::string& model)
             {
@@ -124,6 +153,7 @@ namespace AtomFramework
             std::string m_source;
             std::vector<LevelDiagnostic>& m_out;
             std::map<std::string, std::set<std::string>> m_clips;
+            std::map<std::string, bool> m_readable;
         };
 
         // "street.json:/entities/3/model: message" -> source, property, problem.
@@ -236,8 +266,8 @@ namespace AtomFramework
 
         void CheckLevel(const LevelData& level, Checker& check, const LevelCheckOptions& options)
         {
-            check.RequireFile(level.model, {}, "/model", "model");
-            check.RequireFile(level.collision, {}, "/collision", "collision");
+            check.RequireModel(level.model, {}, "/model", "model");
+            check.RequireModel(level.collision, {}, "/collision", "collision");
             if (level.lightmap)
             {
                 check.RequireFile(level.lightmap->texture, {}, "/lightmap/texture", "lightmap");
@@ -250,8 +280,8 @@ namespace AtomFramework
             {
                 const ChunkData& chunk = level.chunks[i];
                 const std::string at = "/chunks/" + std::to_string(i);
-                check.RequireFile(chunk.model, chunk.name, at + "/model", "chunk model");
-                check.RequireFile(chunk.collision, chunk.name, at + "/collision", "chunk collision");
+                check.RequireModel(chunk.model, chunk.name, at + "/model", "chunk model");
+                check.RequireModel(chunk.collision, chunk.name, at + "/collision", "chunk collision");
                 check.RequireFile(chunk.lightmap, chunk.name, at + "/lightmap", "chunk lightmap");
             }
             for (std::size_t i = 0; i < level.impostors.size(); ++i)
@@ -285,7 +315,7 @@ namespace AtomFramework
                         check.Error(e.name, at + "/collider/halfExtents", "a collider's half extents must all be positive");
                     }
                 }
-                check.RequireFile(e.model, e.name, at + "/model", "model");
+                check.RequireModel(e.model, e.name, at + "/model", "model");
                 if (e.animation)
                 {
                     check.RequireClip(e.model, e.animation->clip, e.name, at + "/animation/clip");
