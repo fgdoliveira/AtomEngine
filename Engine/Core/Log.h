@@ -42,6 +42,10 @@ namespace Atom::Log
     // user folder in a log a player sends). The engine adds the
     // executable's folder (and ATOM_ASSET_ROOT's) at start-up.
     void AddRoot(std::string root);
+    // The executable's folder, ATOM_ASSET_ROOT's and, as a last resort, the
+    // user's home folder. Called first thing (RunLog, Application), so no
+    // line - not even the first - carries a user folder.
+    void AddStandardRoots();
     // Pure (unit-tested): `message` with every root removed; '\' and '/'
     // count as the same separator.
     std::string Relative(std::string_view message, const std::vector<std::string>& roots);

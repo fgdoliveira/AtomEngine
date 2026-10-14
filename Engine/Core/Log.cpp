@@ -1,5 +1,7 @@
 #include "Core/Log.h"
+#include "Core/DevSwitch.h"
 
+#include <SDL3/SDL.h>
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -115,9 +117,31 @@ namespace Atom::Log
         }
         const std::lock_guard<std::mutex> lock(OutputMutex());
         std::vector<std::string>& roots = Roots();
+        if (std::find(roots.begin(), roots.end(), root) != roots.end())
+        {
+            return; // the game's RunLog and the Application both add the same ones
+        }
         roots.push_back(std::move(root));
         // Longest first, so a root inside another (the build inside the repository) wins.
         std::sort(roots.begin(), roots.end(), [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
+    }
+
+    void AddStandardRoots()
+    {
+        if (const char* base = SDL_GetBasePath())
+        {
+            AddRoot(base);
+        }
+        if (const char* root = Atom::DevSwitch("ATOM_ASSET_ROOT"); root && *root)
+        {
+            AddRoot(root);
+        }
+        // Last resort: anything else under the user's folder (the log in
+        // AppData, a build under Desktop) loses the part with the user name.
+        if (const char* home = SDL_GetUserFolder(SDL_FOLDER_HOME))
+        {
+            AddRoot(home);
+        }
     }
 
     void Write(Level level, std::string_view subsystem, std::string_view message)

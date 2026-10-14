@@ -1,5 +1,6 @@
 #include "Platform/RunLog.h"
 #include "Core/DevSwitch.h" // M82: ATOM_* switches, compiled out of packages
+#include "Core/Log.h"
 #include "Platform/CrashReport.h" // M101
 
 #include <SDL3/SDL.h>
@@ -73,6 +74,7 @@ namespace AtomFramework
 
     RunLog::RunLog(const std::string& app)
     {
+        Atom::Log::AddStandardRoots(); // before the game's first line names a folder
 #ifdef _WIN32
         // Output already goes somewhere (a pipe, a file): keep it. Else try
         // the console of the terminal that started us.
