@@ -368,6 +368,14 @@ What the engine reads (`Engine/Assets/Model.cpp`, cgltf):
 | skins up to 255 joints, 4 weights per vertex | other material extensions (clearcoat, transmission, ...): ignored |
 | animation clips: translation, rotation, scale; step, linear, cubic spline | cameras and lights in the file: ignored (the level file lights the scene) |
 
+A store model rarely arrives at the right size or with the clips you want.
+Fix both in the level file, not in the model: `"scale"` sizes it (measure
+it first), `"yaw"` turns it, and a held frame of any clip poses it -
+`"animation": { "clip": "<clip>", "autoplay": false, "time": <seconds> }`
+draws the skin at that time and keeps it still. The Demo's shrine keeper
+(`ThirdParty/old_man_psx.glb`, 3.3 m tall, its one clip a dance) is
+`"scale": 0.5` and frame 0 of that dance.
+
 A model without `COLOR_0` is drawn unbaked (white baked light), which is
 right for something lit only live. Kit pieces get baked light from the
 build (`atom_bake`); an external model gets it only if it was baked

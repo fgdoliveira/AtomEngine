@@ -332,6 +332,11 @@ namespace AtomFramework
                 a.loop = Bool(*animation, "loop", at, true);
                 a.autoplay = Bool(*animation, "autoplay", at, true);
                 a.speed = Number(*animation, "speed", at, 1.0f);
+                a.time = Number(*animation, "time", at, 0.0f);
+                if (a.time < 0.0f)
+                {
+                    throw LevelError(JsonPath(at, "time"), "\"time\" must not be negative");
+                }
                 a.sound = String(*animation, "sound", at);
                 a.soundsPerLoop = static_cast<int>(Number(*animation, "soundsPerLoop", at, 1.0f));
                 a.soundOffset = Vec3(*animation, "soundOffset", a.soundOffset, at);

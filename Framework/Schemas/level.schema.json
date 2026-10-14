@@ -440,6 +440,7 @@
             "loop": { "type": "boolean", "default": true },
             "autoplay": { "type": "boolean", "default": true },
             "speed": { "type": "number" },
+            "time": { "type": "number", "minimum": 0, "description": "Seconds into the clip it starts; with autoplay false, the pose it holds." },
             "sound": { "$ref": "#/definitions/sound" },
             "soundsPerLoop": { "type": "integer", "minimum": 1 },
             "soundOffset": { "$ref": "#/definitions/vec3" }

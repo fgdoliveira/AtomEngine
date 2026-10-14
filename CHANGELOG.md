@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — Demo vertical
+
+Work on the demo as a game, open-ended; what it finds is folded in
+properly in 0.0.18.
+
+### Changed
+- **The shrine keeper is a person:** the street's `shrine_keeper` uses
+  `ThirdParty/old_man_psx.glb` (author and licence in
+  `Apps/Games/Demo/Assets/ThirdParty/README.md`) instead of
+  the procedural `Kit/keeper.glb` (which AtomArena keeps). Scaled to
+  1.65 m, held on frame 0 of its only clip; collider and talk focus
+  fitted. `ThirdParty/` now ships with the demo, with its credits.
+
+### Added
+- **`animation.time`:** where in the clip an entity starts; with
+  `"autoplay": false`, the pose it holds. Negative is an error.
+
 ## 0.0.17 — Authoring Workflow
 
 Editing a level gets shorter and safer, whether by hand or by an agent.

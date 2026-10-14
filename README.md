@@ -669,5 +669,8 @@ Code: MIT, see [LICENSE.txt](LICENSE.txt). Third-party libraries keep their
 own licences (the table in [Building](#building)). Fonts: a Latin subset of
 Shippori Mincho for the demo and the Showcase (`Content/Fonts/`) and Space Grotesk for DRIFT
 (`Apps/Games/Drift/Assets/Fonts/`), both SIL Open Font License 1.1.
-Third-party assets used as they came (the lab's character) are credited in
-[Assets/ThirdParty/README.md](Assets/ThirdParty/README.md).
+Third-party assets used as they came are credited beside them: the demo's
+shrine keeper in
+[Apps/Games/Demo/Assets/ThirdParty/README.md](Apps/Games/Demo/Assets/ThirdParty/README.md)
+(shipped with the game), the Showcase's character in
+[Apps/Showcase/Assets/ThirdParty/README.md](Apps/Showcase/Assets/ThirdParty/README.md).

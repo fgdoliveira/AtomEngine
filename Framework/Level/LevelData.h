@@ -164,6 +164,7 @@ namespace AtomFramework
         bool loop = true;
         bool autoplay = true;
         float speed = 1.0f;
+        float time = 0.0f;        // where in the clip it starts; with autoplay off, the held pose
         std::string sound;        // optional, from the sound library
         int soundsPerLoop = 1;
         glm::vec3 soundOffset{ 0.0f, 1.0f, 0.0f };

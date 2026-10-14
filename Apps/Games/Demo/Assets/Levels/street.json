@@ -163,10 +163,12 @@
       "name": "shrine_keeper",
       "position": [-11.4, 0.0, 3.9],
       "yaw": 180,
-      "model": "Kit/keeper.glb",
-      "collider": { "center": [0.0, 0.85, 0.0], "halfExtents": [0.3, 0.85, 0.25] },
+      "model": "ThirdParty/old_man_psx.glb",
+      "scale": 0.5,
+      "animation": { "clip": "mixamo.com", "autoplay": false, "time": 0.0 },
+      "collider": { "center": [0.0, 0.82, 0.0], "halfExtents": [0.3, 0.82, 0.25] },
       "interactable": {
-        "prompt": "Talk", "focus": [0.0, 1.45, 0.0], "radius": 2.6,
+        "prompt": "Talk", "focus": [0.0, 1.5, 0.0], "radius": 2.6,
         "action": { "type": "dialogue", "id": "shrine_keeper" }
       }
     }

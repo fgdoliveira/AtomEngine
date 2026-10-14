@@ -213,6 +213,7 @@ namespace AtomFramework
                 Animated animated;
                 animated.clip = clip;
                 animated.duration = model->GetClip(clip)->duration;
+                animated.time = std::min(data.animation->time, animated.duration);
                 animated.speed = data.animation->speed;
                 animated.loop = data.animation->loop;
                 animated.playing = data.animation->autoplay;

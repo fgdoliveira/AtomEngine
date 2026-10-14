@@ -135,7 +135,7 @@ endif()
 # executable, so level files name them the same way.
 set(ATOM_SHIPPED_ASSETS
     City Data Dialogue Environments Fields Fonts Interior Kit
-    Levels Machines Night Pachinko Passage Shrine Sky Street
+    Levels Machines Night Pachinko Passage Shrine Sky Street ThirdParty
 )
 set(ATOM_DEV_ASSETS) # v0.0.14: none - the character lab moved to the Showcase
 set(ATOM_CONTENT_ASSETS Environments Fonts Kit Sky)

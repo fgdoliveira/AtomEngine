@@ -166,6 +166,25 @@ TEST_CASE("A lightmap is optional, and needs a texture when given")
     CHECK(noTexture.error.find("lightmap") != std::string::npos);
 }
 
+TEST_CASE("An animation may start at, and hold, a time in its clip")
+{
+    const auto held = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "man", "position": [0,0,0], "model": "m.glb",
+            "animation": { "clip": "Dance", "autoplay": false, "time": 1.5 } } ] })");
+    REQUIRE(held.level.has_value());
+    const EntityAnimation& animation = *held.level->entities.front().animation;
+    CHECK_FALSE(animation.autoplay);
+    CHECK(animation.time == doctest::Approx(1.5f));
+
+    const auto negative = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "man", "position": [0,0,0], "model": "m.glb",
+            "animation": { "clip": "Dance", "time": -1 } } ] })");
+    CHECK_FALSE(negative.level.has_value());
+    CHECK(negative.error.find("/animation/time") != std::string::npos);
+}
+
 TEST_CASE("A lab names its subject, and entities may be scaled")
 {
     const auto lab = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",

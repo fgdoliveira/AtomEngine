@@ -23,7 +23,7 @@ TEST_CASE("The street level keeps its content")
     bool keeper = false;
     for (const EntityData& entity : street.entities)
     {
-        keeper = keeper || (entity.name == "shrine_keeper" && entity.model == "Kit/keeper.glb");
+        keeper = keeper || (entity.name == "shrine_keeper" && entity.model == "ThirdParty/old_man_psx.glb");
     }
     CHECK(keeper);
     CHECK(street.emitters.size() == 3);
