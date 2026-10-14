@@ -13,6 +13,7 @@
 #include "Dialogue/Dialogue.h"
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
+#include "Dialogue/DialogueVoice.h"
 #include "Environment/EnvironmentController.h"
 #include "Flashlight.h"
 #include "Interaction/InteractionSystem.h"
@@ -238,6 +239,8 @@ namespace Demo
         }
         glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
+        // voice_syllables / voice_dropped: the dialogue's mumble so far.
+        std::optional<float> Stat(const std::string& name) const override;
         bool IsLit(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
@@ -313,6 +316,10 @@ namespace Demo
         DialogueLibrary m_dialogues;
         DialogueRunner m_dialogue;
         DialogueView m_dialogueView;
+        // Its mumble, on a synth stream of its own; heap: the synth's
+        // delay line is 256 KB.
+        std::unique_ptr<DialogueSpeech> m_speech = std::make_unique<DialogueSpeech>();
+        void LoadVoices();
         EntityId m_speaker{}; // who we're talking to
 
         // Where the last level load put the camera. Until the fade-in ends

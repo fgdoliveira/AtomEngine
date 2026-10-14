@@ -261,6 +261,7 @@ namespace Demo
         }
 
         m_dialogues.LoadDirectory(m_assets.Resolve("Dialogue"));
+        LoadVoices();
         LoadFlashlightSettings();
         LoadEnvironmentPresets();
 
@@ -346,6 +347,7 @@ namespace Demo
         if (m_dialogue.IsActive())
         {
             m_dialogue.Close();
+            m_speech->Update(m_dialogue); // cuts the voice
         }
         m_unease.Configure({}, nullptr);
         m_audioScape.SetSurfaceProvider(nullptr);
@@ -406,7 +408,7 @@ namespace Demo
             }
         }
         m_dialogueFiles.Watch(std::move(dialogues));
-        m_dataFiles.Watch({ m_assets.Resolve("Data/flashlight.json") });
+        m_dataFiles.Watch({ m_assets.Resolve("Data/flashlight.json"), m_assets.Resolve("Data/voices.json") });
         std::vector<std::string> presets;
         for (const auto& entry : std::filesystem::directory_iterator(m_assets.Resolve("Environments"), error))
         {
@@ -508,6 +510,32 @@ namespace Demo
         }
     }
 
+    void DemoApp::LoadVoices()
+    {
+        // The dialogue's mumble voices; without the file (or with no audio
+        // device) dialogue stays silent and reads the same.
+        const std::string path = m_assets.Resolve("Data/voices.json");
+        Atom::AssetLog::Opened(path);
+        std::ifstream file(path, std::ios::binary);
+        if (!file)
+        {
+            return;
+        }
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        std::vector<VoicePreset> voices;
+        if (const std::string error = ParseVoices(text, voices); !error.empty())
+        {
+            ATOM_LOG_ERROR("Demo") << path << ": " << error << '\n';
+            m_messages.Show("voices.json: " + error);
+            return;
+        }
+        // Restarted to change presets: the audio thread only reads them.
+        if (!m_speech->Start(voices))
+        {
+            ATOM_LOG_GAME("Demo") << "Dialogue voices: no audio device - silent\n";
+        }
+    }
+
     void DemoApp::UpdateHotReload(float deltaSeconds)
     {
         // Once a second, and only while walking: never mid-dialogue or
@@ -527,7 +555,8 @@ namespace Demo
         if (!m_dataFiles.Poll().empty())
         {
             LoadFlashlightSettings();
-            m_messages.Show("Flashlight reloaded");
+            LoadVoices();
+            m_messages.Show("Flashlight and voices reloaded");
         }
         if (!m_environmentFiles.Poll().empty())
         {
@@ -816,6 +845,7 @@ namespace Demo
         m_font.reset();
         m_unease.Shutdown();
         m_atmosphere.Shutdown();
+        m_speech->Stop();
     }
 
     void DemoApp::UpdateWindowTitle(float deltaSeconds)
@@ -996,6 +1026,11 @@ namespace Demo
             m_mode = RestingMode();
             m_speaker = {};
         }
+
+        // The mumble follows what's on screen now: new letters, a new line,
+        // a skip or the end. Its volume is the game's (the player's, or mute).
+        m_speech->SetGain(GetAudio().GetMasterGain());
+        m_speech->Update(m_dialogue);
     }
 
     void DemoApp::TurnCameraToward(const glm::vec3& point, float deltaSeconds)
@@ -1279,6 +1314,13 @@ namespace Demo
         m_dialogue.SelectIndex(index);
         m_dialogue.Confirm();
         return true;
+    }
+
+    std::optional<float> DemoApp::Stat(const std::string& name) const
+    {
+        if (name == "voice_syllables") return static_cast<float>(m_speech->Sent());
+        if (name == "voice_dropped") return static_cast<float>(m_speech->Dropped());
+        return std::nullopt;
     }
 
     void DemoApp::Advance()

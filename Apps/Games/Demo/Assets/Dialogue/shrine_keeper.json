@@ -2,6 +2,7 @@
   "$schema": "../Schemas/dialogue.schema.json",
   "id": "shrine_keeper",
   "start": "greet",
+  "voice": "old_man",
   "nodes": [
     {
       "id": "greet",

@@ -9,6 +9,11 @@ teleport_to shrine_keeper
 expect_target shrine_keeper
 interact shrine_keeper
 expect_mode dialogue
+# He mumbles as his first line appears (the old_man voice); choosing
+# skips the rest of the line, which still shows whole.
+wait 0.5
+expect_stat voice_syllables > 0
+expect_stat voice_dropped == 0
 choose 2                         # "What lies beyond the shrine gate?"
 expect_dialogue_node gate
 choose 2                         # "Never mind." (only 2 choices without bowing)

@@ -14,6 +14,20 @@ properly in 0.0.18.
   fitted. `ThirdParty/` now ships with the demo, with its credits.
 
 ### Added
+- **Mumbled dialogue:** as the typewriter reveals a line, the speaker
+  babbles in syllables (Banjo-Kazooie's voices, timed like Animal
+  Crossing's): every few letters one short note from the engine's synth
+  (DRIFT's), on a stream of the demo's own - no samples, no new
+  dependency, nothing shared with other sound. Voices are data
+  (`Assets/Data/voices.json`: `old_man`, `sinister`, `man`); a dialogue
+  names its `"voice"`, a node may override it. A letter at its place
+  always sounds the same, so a line replays identically. Skipping,
+  a new line or closing cuts the voice in ~30 ms; a backlog or a full
+  queue drops syllables, never the text; without a device it's silent.
+  The shrine keeper speaks as `old_man`. Stats `voice_syllables`,
+  `voice_dropped`.
+- **Typewriter pauses:** a beat after `, ; :`, a breath after `. ! ?`
+  and the ellipsis.
 - **`animation.time`:** where in the clip an entity starts; with
   `"autoplay": false`, the pose it holds. Negative is an error.
 

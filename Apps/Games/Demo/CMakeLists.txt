@@ -20,6 +20,8 @@ add_library(
     Dialogue/DialogueRunner.h
     Dialogue/DialogueView.cpp
     Dialogue/DialogueView.h
+    Dialogue/DialogueVoice.cpp
+    Dialogue/DialogueVoice.h
     Input/InputContext.cpp
     Input/InputContext.h
     Pachinko/MachineMode.cpp
@@ -76,6 +78,7 @@ if(ATOM_BUILD_TESTS)
             Tests/AuthoringContentTests.cpp
             Tests/CollisionContentTests.cpp
             Tests/DialogueTests.cpp
+            Tests/DialogueVoiceTests.cpp
             Tests/FlashlightTests.cpp
             Tests/ImpostorContentTests.cpp
             Tests/LevelContentTests.cpp

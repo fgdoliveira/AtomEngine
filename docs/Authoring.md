@@ -45,6 +45,8 @@ else holding the same fact is generated from that file, and says so.
 | Lighting, fog, sky, audio, sequences of a level | the level file | nothing |
 | Environment presets | `Content/Environments/*.json` | nothing |
 | A pachinko machine | `Tools/Machines/*_layout.py` | `Assets/Machines/*.json` |
+| A conversation, and whose voice mumbles it | the demo's `Assets/Dialogue/<id>.json` (`"voice"`, per dialogue or per node) | nothing |
+| What a voice sounds like (`old_man`, `sinister`, `man`) | the demo's `Assets/Data/voices.json`: pitch and its spread, glide, waveform, syllable length, letters per syllable, breath, low-pass, echo - hot-reloaded | nothing |
 | External models (third-party GLB) | the file as received, with its licence beside it | nothing |
 | The rules every data file follows | `Framework/Schemas/*.schema.json`, an app's `Assets/Schemas/` - and, above them, the C++ parser (`Framework/Level/LevelData.cpp`) | nothing |
 
