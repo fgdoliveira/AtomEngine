@@ -1,19 +1,19 @@
 {
   "voices": {
     "old_man": {
-      "waveform": "sawtooth", "pitch": 115, "pitchSpread": 0.22, "glide": 0.92,
-      "syllableSeconds": 0.11, "volume": 0.09, "lettersPerSyllable": 3,
-      "breath": 0.6, "breathCutoff": 2500, "cutoff": 900, "echo": 0.0
+      "waveform": "sawtooth", "pitch": 150, "pitchSpread": 0.22, "glide": 0.9,
+      "syllableSeconds": 0.12, "volume": 0.4, "lettersPerSyllable": 3,
+      "breath": 0.35, "breathCutoff": 2500, "cutoff": 2600, "echo": 0.0
     },
     "sinister": {
-      "waveform": "triangle", "pitch": 75, "pitchSpread": 0.12, "glide": 0.7,
-      "syllableSeconds": 0.16, "volume": 0.16, "lettersPerSyllable": 3,
-      "breath": 0.8, "breathCutoff": 1500, "cutoff": 700, "echo": 0.45
+      "waveform": "sawtooth", "pitch": 95, "pitchSpread": 0.12, "glide": 0.7,
+      "syllableSeconds": 0.16, "volume": 0.45, "lettersPerSyllable": 3,
+      "breath": 0.5, "breathCutoff": 1500, "cutoff": 2000, "echo": 0.4
     },
     "man": {
-      "waveform": "triangle", "pitch": 140, "pitchSpread": 0.15, "glide": 1.0,
-      "syllableSeconds": 0.08, "volume": 0.14, "lettersPerSyllable": 2,
-      "breath": 0.2, "breathCutoff": 4000, "cutoff": 2400, "echo": 0.0
+      "waveform": "triangle", "pitch": 175, "pitchSpread": 0.15, "glide": 1.0,
+      "syllableSeconds": 0.08, "volume": 0.45, "lettersPerSyllable": 2,
+      "breath": 0.15, "breathCutoff": 4000, "cutoff": 4000, "echo": 0.0
     }
   }
 }

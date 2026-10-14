@@ -209,6 +209,35 @@ TEST_CASE("A spoken line plays syllables, finite and below full scale")
     CHECK(peak < 1.0f);
 }
 
+TEST_CASE("Every voice is loud and bright enough for laptop speakers")
+{
+    // The first presets measured -40 dBFS RMS of mostly bass: silent on a
+    // laptop under the street's rain. A floor on the level (RMS over the
+    // spoken line) and on the highs (RMS of the sample-to-sample change).
+    for (const VoicePreset& voice : ShippedVoices())
+    {
+        INFO(voice.name);
+        auto speech = std::make_unique<DialogueSpeech>();
+        speech->Sequencer().SetPresets({ voice });
+        const Dialogue dialogue = OneLine("You walk this road in the fog? Few do, these days.");
+        AtomFramework::GameState state;
+        DialogueRunner runner;
+        runner.Start(dialogue, state);
+        std::vector<float> samples;
+        Speak(runner, *speech, &samples);
+        double level = 0.0;
+        double highs = 0.0;
+        for (std::size_t i = 1; i < samples.size(); ++i)
+        {
+            level += samples[i] * samples[i];
+            highs += (samples[i] - samples[i - 1]) * (samples[i] - samples[i - 1]);
+        }
+        CHECK(std::sqrt(level / samples.size()) > 0.03);  // about -30 dBFS
+        CHECK(std::sqrt(highs / samples.size()) > 0.001);
+        CHECK(Peak(samples) < 0.7f);
+    }
+}
+
 TEST_CASE("Empty and very long lines are safe")
 {
     auto speech = std::make_unique<DialogueSpeech>();

@@ -533,7 +533,9 @@ namespace Demo
         if (!m_speech->Start(voices))
         {
             ATOM_LOG_GAME("Demo") << "Dialogue voices: no audio device - silent\n";
+            return;
         }
+        ATOM_LOG_GAME("Demo") << "Dialogue voices: " << voices.size() << " loaded, speaking\n";
     }
 
     void DemoApp::UpdateHotReload(float deltaSeconds)
