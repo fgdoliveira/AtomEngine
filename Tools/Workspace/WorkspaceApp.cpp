@@ -96,10 +96,11 @@ namespace AtomWorkspace
         GetRenderer().SetOverlayPass([this](SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target) {
             m_imgui.Render(commandBuffer, target);
         });
-        // No scene in the window itself: the renderer draws into a small
-        // offscreen target and only clears the window, which the panels
-        // cover. M124's Scene Viewport sizes that target to its panel.
+        // No scene in the window itself: the renderer draws into an
+        // offscreen target, sized to the Scene panel each frame, and only
+        // clears the window, which the panels cover.
         GetRenderer().SetSceneTarget(16, 16);
+        m_preview = std::make_unique<AtomFramework::ScenePreview>(GetRenderer(), GetAudio());
 
         if (!m_settingsDir.empty())
         {
@@ -108,6 +109,18 @@ namespace AtomWorkspace
         Rediscover();
         ATOM_LOG_INFO("Workspace") << "Atom Workspace ready (detachable panels: " << (options.viewports ? "on" : "off") << ").\n";
         SetStatus(m_engineRoot.empty() ? "Ready. No engine source tree found beside the workspace." : "Ready.");
+        if (!m_startup.project.empty() && OpenProject(m_startup.project) && !m_startup.level.empty())
+        {
+            const auto found = std::find(m_project->levels.begin(), m_project->levels.end(), m_startup.level);
+            if (found == m_project->levels.end())
+            {
+                SetStatus(m_project->descriptor.name + " has no level '" + m_startup.level + "'.", true);
+            }
+            else
+            {
+                SelectLevel(static_cast<int>(found - m_project->levels.begin()));
+            }
+        }
         return true;
     }
 
@@ -118,7 +131,8 @@ namespace AtomWorkspace
             m_recents.Save(m_settingsDir + "recent.txt");
         }
         GetRenderer().SetOverlayPass({});
-        m_imgui.Shutdown(); // saves the layout
+        m_imgui.Shutdown(); // saves the layout; waits for the GPU
+        m_preview.reset();  // the level's GPU resources, before the device goes
     }
 
     bool WorkspaceApp::OnEvent(const SDL_Event& event)
@@ -137,6 +151,8 @@ namespace AtomWorkspace
     void WorkspaceApp::OnUpdate(float deltaSeconds)
     {
         TakeDialogResults();
+        m_frameHistory[m_frameHistoryNext] = deltaSeconds * 1000.0f;
+        m_frameHistoryNext = (m_frameHistoryNext + 1) % m_frameHistory.size();
         m_imgui.BeginFrame();
 
         DrawMenuBar();
@@ -150,47 +166,90 @@ namespace AtomWorkspace
         }
         ImGui::DockSpaceOverViewport(dockspace, ImGui::GetMainViewport());
 
+        DrawPanel(m_scenePanel, dockspace, &WorkspaceApp::DrawScenePanel);
         DrawPanel(m_startPanel, dockspace, &WorkspaceApp::DrawStartPage);
         DrawPanel(m_projectPanel, dockspace, &WorkspaceApp::DrawProjectPanel);
+        DrawPanel(m_assetsPanel, dockspace, &WorkspaceApp::DrawAssetsPanel);
+        DrawPanel(m_hierarchyPanel, dockspace, &WorkspaceApp::DrawHierarchyPanel);
+        DrawPanel(m_inspectorPanel, dockspace, &WorkspaceApp::DrawInspectorPanel);
+        DrawPanel(m_previewPanel, dockspace, &WorkspaceApp::DrawPreviewPanel);
+        if (!m_scenePanel.drawn)
+        {
+            // Nobody sees the scene (a hidden tab, a closed panel): keep the
+            // offscreen frame tiny rather than draw a full one for nothing.
+            GetRenderer().SetSceneTarget(16, 16);
+            m_flying = false;
+        }
 
         DrawCreateProjectPopup();
         DrawAboutPopup();
+
+        m_preview->Update(deltaSeconds);
+        m_preview->Submit();
     }
 
     void WorkspaceApp::BuildDefaultLayout(unsigned dockspace)
     {
-        // The default arrangement: the project on the left, the start page
-        // (from M124, the scene) in the middle. Saved as the user moves it.
+        // The default arrangement, saved as the user moves it:
+        //   Project | Assets    |  Scene | Start  |  Inspector
+        //   Hierarchy           |                 |  Preview
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::DockBuilderRemoveNode(dockspace);
         ImGui::DockBuilderAddNode(dockspace, ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dockspace, viewport->WorkSize);
         ImGuiID center = dockspace;
-        const ImGuiID left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.24f, nullptr, &center);
+        ImGuiID left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.20f, nullptr, &center);
+        ImGuiID right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.27f, nullptr, &center);
+        ImGuiID leftBottom = ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.55f, nullptr, &left);
+        ImGuiID rightBottom = ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.62f, nullptr, &right);
         ImGui::DockBuilderDockWindow(m_projectPanel.name, left);
+        ImGui::DockBuilderDockWindow(m_assetsPanel.name, left);
+        ImGui::DockBuilderDockWindow(m_hierarchyPanel.name, leftBottom);
+        ImGui::DockBuilderDockWindow(m_scenePanel.name, center);
         ImGui::DockBuilderDockWindow(m_startPanel.name, center);
+        ImGui::DockBuilderDockWindow(m_inspectorPanel.name, right);
+        ImGui::DockBuilderDockWindow(m_previewPanel.name, rightBottom);
         ImGui::DockBuilderFinish(dockspace);
-        m_startPanel.open = true;
-        m_projectPanel.open = true;
+        for (Panel* panel : { &m_startPanel, &m_projectPanel, &m_assetsPanel, &m_hierarchyPanel, &m_inspectorPanel,
+                              &m_scenePanel, &m_previewPanel })
+        {
+            panel->open = true;
+        }
+        m_startPanel.focus = !m_project; // the start page until a project is open
     }
 
     void WorkspaceApp::DrawPanel(Panel& panel, unsigned dockspace, void (WorkspaceApp::*contents)())
     {
+        panel.drawn = false;
         if (!panel.open)
         {
             return;
         }
-        if (panel.redock)
+        if (const ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(dockspace))
         {
-            if (const ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(dockspace))
-            {
-                ImGui::SetNextWindowDockID(central->ID, ImGuiCond_Always);
-            }
-            panel.redock = false;
+            // A panel the saved layout doesn't know (new in this version)
+            // starts as a tab in the middle; a closed floating one goes back there.
+            ImGui::SetNextWindowDockID(central->ID, panel.redock ? ImGuiCond_Always : ImGuiCond_FirstUseEver);
+        }
+        panel.redock = false;
+        if (panel.focus)
+        {
+            ImGui::SetNextWindowFocus();
+            panel.focus = false;
+        }
+        if (panel.noPadding)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
         }
         bool keep = true;
-        if (ImGui::Begin(panel.name, &keep))
+        const bool visible = ImGui::Begin(panel.name, &keep);
+        if (panel.noPadding)
         {
+            ImGui::PopStyleVar();
+        }
+        if (visible)
+        {
+            panel.drawn = true;
             (this->*contents)();
         }
         if (!keep)
@@ -281,8 +340,14 @@ namespace AtomWorkspace
         }
         if (ImGui::BeginMenu("View"))
         {
-            ImGui::MenuItem(m_startPanel.name, nullptr, &m_startPanel.open);
-            ImGui::MenuItem(m_projectPanel.name, nullptr, &m_projectPanel.open);
+            for (Panel* panel : { &m_scenePanel, &m_startPanel, &m_projectPanel, &m_assetsPanel, &m_hierarchyPanel,
+                                  &m_inspectorPanel, &m_previewPanel })
+            {
+                if (ImGui::MenuItem(panel->name, nullptr, &panel->open) && panel->open)
+                {
+                    panel->focus = true;
+                }
+            }
             ImGui::Separator();
             bool overlay = GetPerfOverlay().IsOverlayVisible();
             if (ImGui::MenuItem("Performance Overlay", "F1", &overlay, GetPerfOverlay().IsInitialized()))
@@ -359,7 +424,7 @@ namespace AtomWorkspace
                     const bool selected = static_cast<int>(i) == m_project->selectedLevel;
                     if (ImGui::Selectable(m_project->levels[i].c_str(), selected))
                     {
-                        m_project->selectedLevel = static_cast<int>(i);
+                        SelectLevel(static_cast<int>(i));
                     }
                 }
                 ImGui::EndCombo();
@@ -652,11 +717,24 @@ namespace AtomWorkspace
         ATOM_LOG_INFO("Workspace") << "Opened project " << project.descriptor.name << ".\n";
         SDL_SetWindowTitle(GetWindow().GetSDLWindow(), ("Atom Workspace - " + project.descriptor.name).c_str());
         m_project = std::move(project);
+
+        // Its files first, then the shared content - an app's payload order.
+        std::vector<std::string> roots{ (fs::path(m_project->directory) / m_project->descriptor.assets).string() };
+        if (!m_engineRoot.empty())
+        {
+            roots.push_back((fs::path(m_engineRoot) / "Content").string());
+        }
+        m_inspector.Clear();
+        m_preview->SetAssetRoots(std::move(roots));
+        SelectLevel(m_project->selectedLevel);
+        m_scenePanel.focus = true;
         return true;
     }
 
     void WorkspaceApp::CloseProject()
     {
+        m_inspector.Clear();
+        m_preview->Unload();
         m_project.reset();
         SDL_SetWindowTitle(GetWindow().GetSDLWindow(), "Atom Workspace");
         SetStatus("Ready.");

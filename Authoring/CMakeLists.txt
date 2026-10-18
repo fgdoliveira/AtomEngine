@@ -12,6 +12,8 @@ target_sources(
         Debug/EntityInspector.h
         Level/LevelCheck.cpp
         Level/LevelCheck.h
+        Preview/ScenePreview.cpp
+        Preview/ScenePreview.h
 )
 
 target_include_directories(

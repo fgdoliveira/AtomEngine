@@ -1,10 +1,16 @@
 #pragma once
 
 #include "Core/Application.h"
+#include "Debug/EntityInspector.h"
 #include "ImGuiHost.h"
+#include "Preview/ScenePreview.h"
 #include "Project/ProjectDiscovery.h"
 #include "RecentProjects.h"
 
+#include <array>
+#include <cstddef>
+#include <filesystem>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -20,6 +26,15 @@ namespace AtomWorkspace
     // device and renderer, with ImGui drawn in the renderer's overlay pass.
     class WorkspaceApp final : public Atom::Application
     {
+    public:
+        // From the command line: a project to open, and a level of it to show.
+        struct Startup
+        {
+            std::string project; // a <Name>.atomproject.json
+            std::string level;
+        };
+        void SetStartup(Startup startup) { m_startup = std::move(startup); }
+
     protected:
         bool OnInitialize() override;
         void OnUpdate(float deltaSeconds) override;
@@ -34,6 +49,9 @@ namespace AtomWorkspace
             const char* name;
             bool open = true;
             bool redock = false;
+            bool focus = false;     // brought to the front next frame
+            bool noPadding = false; // the scene fills its panel edge to edge
+            bool drawn = false;     // its contents were drawn this frame (visible, not a hidden tab)
         };
 
         struct OpenedProject
@@ -50,6 +68,23 @@ namespace AtomWorkspace
         void DrawStatusBar(float deltaSeconds);
         void DrawStartPage();
         void DrawProjectPanel();
+        // M124: the project's panels (WorkspacePanels.cpp).
+        void DrawAssetsPanel();
+        void DrawAssetFolder(const std::filesystem::path& folder);
+        void DrawHierarchyPanel();
+        void DrawInspectorPanel();
+        void DrawScenePanel();
+        void DrawPreviewPanel();
+        void DrawEnvironmentSection();
+        void DrawSkyPictureSection();
+        void DrawLightingSection();
+        void DrawRenderSection();
+        void DrawPerformanceSection();
+        void DrawSelectionBounds(float x, float y, float width, float height);
+        void UpdateFlyCamera(bool hovered, float deltaSeconds);
+        void FrameSelection();
+        void SelectLevel(int index);
+        void ApplyViewSwitch(const std::string& what, const std::string& value);
         void DrawCreateProjectPopup();
         void DrawAboutPopup();
         void BuildDefaultLayout(unsigned dockspace);
@@ -63,6 +98,7 @@ namespace AtomWorkspace
         void TakeDialogResults();
         void SetStatus(std::string text, bool error = false);
 
+        Startup m_startup;
         ImGuiHost m_imgui;
         std::string m_settingsDir;      // the user's pref path: layout, recents
         std::string m_engineRoot;       // the source tree this runs from, if any ("" in a package)
@@ -72,6 +108,23 @@ namespace AtomWorkspace
 
         Panel m_startPanel{ "Start" };
         Panel m_projectPanel{ "Project" };
+        Panel m_assetsPanel{ "Assets" };
+        Panel m_hierarchyPanel{ "Hierarchy" };
+        Panel m_inspectorPanel{ "Inspector" };
+        Panel m_scenePanel{ "Scene", true, false, false, true };
+        Panel m_previewPanel{ "Preview" };
+
+        // The level shown (M124): no game code, the project's data only.
+        std::unique_ptr<AtomFramework::ScenePreview> m_preview;
+        AtomFramework::EntityInspector m_inspector; // the selection, by name
+        std::array<char, 64> m_entityFilter{};
+        bool m_showBounds = true;
+        bool m_flying = false;          // right mouse held in the Scene panel
+        float m_flySpeed = 4.0f;        // m/s; the wheel changes it
+        float m_environmentSeconds = 3.0f;
+        std::string m_skyError;
+        std::array<float, 240> m_frameHistory{}; // ms, a ring
+        std::size_t m_frameHistoryNext = 0;
 
         std::string m_status;
         bool m_statusError = false;
