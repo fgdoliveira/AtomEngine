@@ -842,9 +842,19 @@ namespace Demo
             UpdateDialogue(deltaSeconds);
             break;
         case Mode::InSequence:
+        {
             m_target = {};
+            // Rooted to the spot, but free to look around (waiting for the
+            // bus, a frozen view read as a hang): the walk's own mouse look.
+            const Atom::Input& look = GetInput();
+            if (look.IsMouseCaptured())
+            {
+                m_camera.Rotate(look.GetMouseDeltaX() * m_player.mouseSensitivity,
+                                -look.GetMouseDeltaY() * m_player.mouseSensitivity);
+            }
             UpdateSequence(deltaSeconds);
             break;
+        }
         case Mode::AtMachine:
             m_target = {};
             UpdateMachine(deltaSeconds);
