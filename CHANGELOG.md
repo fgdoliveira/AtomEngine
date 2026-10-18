@@ -14,6 +14,12 @@ properly in 0.0.18.
   fitted. `ThirdParty/` now ships with the demo, with its credits.
 
 ### Added
+- **Sky picture in F10's Environment panel:** a checkbox turns the
+  level's sky picture off, so a weather preset's gradient sky shows (a
+  picture always covered it); a list offers every PNG in the asset roots'
+  `Sky/` folders to stand in for it, with an intensity, and Copy sky as
+  JSON gives the level file's `"sky"` block. Development only, nothing
+  saved. `set sky_picture on|off`; `AssetRoots::List`.
 - **The Kawasaki, the coast road and the shore:** a parked bike on the
   street (`ThirdParty/kawasaki_spectre_psx.glb`, credited in its
   README). "Ride" takes it down a new level, `coast_road`: about 950 m

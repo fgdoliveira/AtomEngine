@@ -39,6 +39,15 @@ namespace AtomFramework
             lighting.glowThreshold = l.glowThreshold;
             lighting.skyPanorama = level->GetSkyPanorama();
             lighting.skyIntensity = level->GetData().sky ? level->GetData().sky->intensity : 1.0f;
+            if (toggles.skyImage)
+            {
+                lighting.skyPanorama = toggles.skyImage.get();
+                lighting.skyIntensity = toggles.skyImageIntensity;
+            }
+            if (!toggles.skyPicture)
+            {
+                lighting.skyPanorama = nullptr; // the gradient below shows, if the environment has one
+            }
             if (e.sky)
             {
                 lighting.skyGradient = true;
@@ -179,6 +188,7 @@ namespace AtomFramework
         else if (what == "sun" && onOff) toggles.sun = on;
         else if (what == "glow" && onOff) toggles.glow = on;
         else if (what == "baked" && onOff) toggles.bakedLight = on;
+        else if (what == "sky_picture" && onOff) toggles.skyPicture = on;
         else if (what == "particles" && particles && onOff) particles->SetEnabled(on);
         else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
         else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on);
@@ -201,6 +211,24 @@ namespace AtomFramework
 
 namespace AtomFramework
 {
+    bool LoadSkyImage(Atom::Renderer& renderer, const std::string& path, const std::string& file, ViewToggles& toggles)
+    {
+        if (file.empty())
+        {
+            toggles.skyImage.reset();
+            toggles.skyImageName.clear();
+            return true;
+        }
+        std::shared_ptr<const Atom::Texture> texture = renderer.LoadTexture(path);
+        if (!texture)
+        {
+            return false;
+        }
+        toggles.skyImage = std::move(texture);
+        toggles.skyImageName = "Sky/" + file;
+        return true;
+    }
+
     void ApplyQualityTier(Atom::Renderer& renderer, ViewToggles& toggles, Atmosphere* particles, QualityTier tier)
     {
         // A tier caps features (M60): High allows what levels ask for (the

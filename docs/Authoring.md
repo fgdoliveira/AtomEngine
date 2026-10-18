@@ -44,6 +44,7 @@ else holding the same fact is generated from that file, and says so.
 | What an entity *is* and *does* (model, collider, interaction, animation, mover) | the level file, `<app>/Assets/Levels/<level>.json` | nothing |
 | Lighting, fog, sky, audio, sequences of a level | the level file | nothing |
 | Environment presets | `Content/Environments/*.json` | nothing |
+| A level's sky picture | the level file's `"sky"` (a PNG in a `Sky/` folder). F10 → Environment → Sky picture turns it off (a preset's gradient sky shows - a picture always covers it), tries any PNG dropped into `Content/Sky/` or `<app>/Assets/Sky/`, and copies the `"sky"` block | nothing (the panel saves nothing) |
 | A pachinko machine | `Tools/Machines/*_layout.py` | `Assets/Machines/*.json` |
 | A ride: the vehicle, speed, the rider's eye, when steering is allowed, a route per spawn (direction, end action, flag) | the level file's `"ride"` (the demo's `coast_road.json`) | nothing |
 | The ride's road | its Blender builder (`atom_coast.py`): the centre line it builds the road along | the markers' `"ride_path"`; a `path` in the level file wins, with a warning |

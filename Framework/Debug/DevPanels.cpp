@@ -392,6 +392,11 @@ namespace AtomFramework
                 ImGui::ProgressBar(environment.Progress(), { -1.0f, 0.0f }, "blending");
             }
 
+            if (context.view)
+            {
+                DrawSkyPicture(context);
+            }
+
             ImGui::SeparatorText("Showing now (live edits last until the next switch)");
             EnvironmentState e = environment.Current();
             bool changed = false;
@@ -461,6 +466,68 @@ namespace AtomFramework
             ImGui::TextDisabled("(Content/Environments/<name>.json)");
         }
         ImGui::End(); // always, even when Begin returned false (collapsed)
+    }
+
+    void DevPanels::DrawSkyPicture(const DevContext& context)
+    {
+        // The sky picture: off lets a preset's gradient sky show (a picture
+        // always wins over it); a picked PNG stands in for the level's own.
+        ViewToggles& view = *context.view;
+        const Level* level = context.levels->GetLevel();
+        const std::string own = level->GetData().sky ? level->GetData().sky->panorama : std::string{};
+        ImGui::SeparatorText("Sky picture");
+        bool picture = view.skyPicture;
+        if (ImGui::Checkbox("Sky picture", &picture) && context.set)
+        {
+            context.set("sky_picture", picture ? "on" : "off");
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("off: the preset's gradient sky, or none");
+
+        const std::string levelLabel = own.empty() ? "level's (none)" : "level's (" + own + ")";
+        const std::string current = view.skyImageName.empty() ? levelLabel : view.skyImageName;
+        if (ImGui::BeginCombo("Picture", current.c_str()))
+        {
+            if (ImGui::Selectable(levelLabel.c_str(), view.skyImageName.empty()) && context.loadSkyImage)
+            {
+                context.loadSkyImage("");
+            }
+            const std::vector<std::string> files = context.listSkyImages ? context.listSkyImages()
+                                                                           : std::vector<std::string>{};
+            for (const std::string& file : files)
+            {
+                const std::string name = "Sky/" + file;
+                if (ImGui::Selectable(name.c_str(), view.skyImageName == name) && context.loadSkyImage
+                    && !context.loadSkyImage(file))
+                {
+                    m_skyError = "can't load " + name;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (!view.skyImageName.empty()
+            && ImGui::SliderFloat("Picture intensity", &view.skyImageIntensity, 0.0f, 2.0f) && context.applyLighting)
+        {
+            context.applyLighting();
+        }
+        if (!m_skyError.empty())
+        {
+            ImGui::TextColored({ 1.0f, 0.5f, 0.4f, 1.0f }, "%s", m_skyError.c_str());
+        }
+        const std::string panorama = view.skyImageName.empty() ? own : view.skyImageName;
+        if (!panorama.empty() && ImGui::Button("Copy sky as JSON"))
+        {
+            const float intensity = view.skyImageName.empty() ? level->GetData().sky->intensity : view.skyImageIntensity;
+            char json[256];
+            std::snprintf(json, sizeof(json), "\"sky\": { \"panorama\": \"%s\", \"intensity\": %.3g }",
+                          panorama.c_str(), intensity);
+            SDL_SetClipboardText(json);
+        }
+        if (!panorama.empty())
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(a level file's \"sky\")");
+        }
     }
 
     void DevPanels::DrawLevel(const DevContext& context)

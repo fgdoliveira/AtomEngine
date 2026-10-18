@@ -25,6 +25,11 @@ namespace AtomFramework
 
         const std::vector<std::string>& Roots() const { return m_roots; }
 
+        // The files in `folder` (relative, e.g. "Sky") under every root
+        // whose name ends in `extension` (".png"): names only, sorted, each
+        // once - a file in two roots is the first root's, as Resolve has it.
+        std::vector<std::string> List(std::string_view folder, std::string_view extension) const;
+
     private:
         std::vector<std::string> m_roots;
     };

@@ -47,6 +47,7 @@ atom_add_tests(
         Framework/InteractionTests.cpp
         Framework/LabViewerTests.cpp
         Framework/LevelCheckTests.cpp
+        Framework/AssetRootsTests.cpp
         Framework/LevelTests.cpp
         Framework/LogTests.cpp
         Framework/NightStreetTests.cpp
