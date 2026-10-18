@@ -206,7 +206,13 @@ in `GpuResources`, and `Renderer::Shutdown` reports anything still alive
 asserts in Debug. Scenarios fail on that report.
 
 Ownership stays unique (`unique_ptr` by the semantic owner; `shared_ptr`
-only for models shared through `ModelCache`).
+only for models shared through `ModelCache`, and F10's picked sky picture
+in `ViewToggles`).
+
+An app member that holds a GPU wrapper outlives `OnShutdown`, so it is
+released there explicitly (v0.0.18: the picked sky texture, released
+after the device, aborted the Debug build on exit; the `devtools`
+scenario now picks one and quits).
 
 ## 6. World
 
@@ -215,6 +221,13 @@ of entities - a name and transform plus optional capabilities (renderable,
 interactable, animated, animator) - addressed by generation-checked
 handles. Bulk static geometry is model parts and chunks, not entities.
 Keep it that way; it is not an ECS and doesn't need to be (ADR-003).
+
+**Demo vertical (v0.0.18).** A renderable may carry a world-space `tilt`
+after its yaw (a bike leaning), and the camera a `roll`; both default to
+none. Data a game drives but the framework parses follows ADR-012: a
+level's `ride` (vehicle, road, routes) and the `save` action are checked
+by `LevelData`; riding (`Demo::RideController`) and what a save holds are
+the game's.
 
 ## 7. Assets: source and product
 
@@ -305,6 +318,12 @@ flowchart LR
 - **Precedence:** command line > `ATOM_*` > saved file > defaults
   (`low-power`, `High`). All of it is pure (`Game/Settings/`) and
   unit-tested; a bad file yields the defaults.
+- **Progress (v0.0.18)** is a second file beside it, `save.json`
+  (`Framework/Settings/SaveGame`), written only at a game's save points,
+  atomically (beside, then renamed). It follows the same rules: never
+  read or written by a scripted run (which uses `out/test_save.json`),
+  `--no-save` / `--reset-save`, and a broken or newer file is no save,
+  never a guess.
 - **Before the device:** `Application::OnConfigure()` lets the game fill a
   `StartupConfig` before the renderer exists - the only point where the
   adapter can be chosen. Changing it later means a restart; there is no

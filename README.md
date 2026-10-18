@@ -20,13 +20,13 @@ A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)** - with a showcase that shows
 what it can do, two games made with it, and a sample to start your own.
 
-Current version: **0.0.17 "Authoring Workflow"** - editing a level gets
-shorter and safer, by hand or by an agent. One file decides each fact; one
-level, or only its markers, exports in seconds; `AtomLevelCheck` checks
-every app's levels without the game; F10 inspects the running level's
-entities; and a level can be modelled by hand in Blender
-([Authoring](docs/Authoring.md)). (0.0.16 was Normalization: owners for
-tests, scenarios and assets; 0.0.15 Observability.)
+Current version: **0.0.18 "Demo Vertical"** - the demo becomes a game to
+play. A Kawasaki on the street rides a foggy coast road at night, steered
+from the rider's eye, to a shore walked on foot; people mumble as their
+lines appear (procedural voices on the engine's synth); progress is kept
+at lanterns and continued from a title screen; and F10 can swap or switch
+off a level's sky picture. (0.0.17 was Authoring Workflow: one authority
+per fact, `AtomLevelCheck`, incremental export; 0.0.16 Normalization.)
 See [CHANGELOG.md](CHANGELOG.md) · [Features](docs/Features.md) ·
 [Architecture](docs/Architecture.md) · [Getting started](docs/Getting-Started.md).
 Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
@@ -133,15 +133,19 @@ night bus to the city: walk its street and alley, listen for the train,
 and step into the pachinko hall - one machine is free, and 300 balls buy
 something from the prize shelf. Back in the house, a flashlight lies on
 the entry step: with it, the dark corridor leads down into a cellar and a
-tunnel - follow the chalk only the beam shows.
+tunnel - follow the chalk only the beam shows. The Kawasaki parked by the
+east end rides a foggy coast road at night to a shore with a jetty, and
+back. It opens on a title (Continue / New game); stone lanterns keep your
+progress.
 
 | Key | Action |
 |---|---|
 | WASD / Shift / Mouse | move / jog / look |
 | E | interact; in dialogue: continue / confirm |
-| F | flashlight on / off (once found) |
+| F | flashlight on / off (once found); on the bike, the headlight |
 | W S or 1–4 | choose a dialogue option |
-| Esc | pause menu: resume, settings, quit |
+| A D / W S (riding) | steer / speed |
+| Esc | pause menu: resume, settings, quit to title, quit |
 | F1 / F2-F8 / F9 / M | overlay / view switches / unease events / mute |
 | F10 | developer tools |
 
@@ -272,6 +276,8 @@ saved file, which overrides the defaults):
 | `--diagnostics <file>` | write a report (SDL, adapter, driver, memory, present modes, MSAA, display, power, tier, effective settings) and quit |
 | `--no-settings` | ignore the saved file and don't write it |
 | `--reset-settings` | overwrite the saved file with the defaults |
+| `--no-save` | the demo: neither read nor write the saved progress (`save.json`) |
+| `--reset-save` | the demo: forget the saved progress |
 
 Scenarios, benchmarks and `ab.ps1` never read the saved file: their
 results don't depend on what someone last chose.

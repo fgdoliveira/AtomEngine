@@ -1,11 +1,20 @@
 # Changelog
 
-## Unreleased — Demo vertical
+## 0.0.18 — Demo Vertical
 
-Work on the demo as a game, open-ended; what it finds is folded in
-properly in 0.0.18.
+The demo becomes a game to play, not a tour of features: a road out of
+town on a motorbike to a shore at night, people who mumble when they
+speak, and progress kept at lanterns, behind a title screen. What the
+game needed went into the engine and framework where it belonged.
 
 ### Changed
+- **Logs name no user folder, from the first line:** the executable's,
+  the asset root's and, last, the user's home folder are removed from
+  every line before the game writes its first one (the log path in
+  AppData read with the user name).
+- **Looking around during a sequence:** waiting for the bus (any
+  sequence) froze the view as well as the feet and read as a hang; the
+  mouse now looks around, movement stays off.
 - **The shrine keeper is a person:** the street's `shrine_keeper` uses
   `ThirdParty/old_man_psx.glb` (author and licence in
   `Apps/Games/Demo/Assets/ThirdParty/README.md`) instead of
@@ -67,6 +76,17 @@ properly in 0.0.18.
   and the ellipsis.
 - **`animation.time`:** where in the clip an entity starts; with
   `"autoplay": false`, the pose it holds. Negative is an error.
+
+### Fixed
+- Quitting after picking a sky picture in F10 aborted (Debug): the
+  picture's texture outlived the GPU device. Released at shutdown; the
+  `devtools` scenario picks one and quits.
+- The first dialogue voices were inaudible on laptop speakers (-40 dBFS,
+  mostly bass); a test now keeps every voice above a level and
+  brightness floor.
+- Riding felt stepped: the road's direction now blends along each
+  sample, steering accelerates, the edge is a damped spring; a test
+  bounds the frame-to-frame change of turn.
 
 ## 0.0.17 — Authoring Workflow
 
