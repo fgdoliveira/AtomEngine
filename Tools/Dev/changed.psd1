@@ -20,7 +20,8 @@
     TestTargets = @{ engine = 'AtomEngineTests'; framework = 'AtomFrameworkTests'; content = 'AtomContentTests'
                      demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests'
                      project = 'AtomProjectTests'; workspace = 'AtomWorkspaceTests' }
-    Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena' }
+    Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena'
+             workspace = 'AtomWorkspace' }
 
     Rules = @(
         # Docs and repository text: nothing to build. The CI workflow tests itself.
@@ -97,7 +98,9 @@
         # v0.0.19: the project service and its command line.
         @{ Pattern = '^(Project/|Tools/ProjectTool/|Tests/Project/)'; Tests = @('project') }
         # v0.0.19: the workspace - its UI library, the program, ImGui (only it uses it).
-        @{ Pattern = '^(WorkspaceUI/|Tools/Workspace/|Tests/Workspace/|external/imgui)'; Tests = @('workspace') }
+        @{ Pattern = '^(WorkspaceUI/|Tools/Workspace/|Tests/Workspace/|external/imgui)'; Tests = @('workspace'); Scenarios = @('workspace.workspace_self_test') }
+        # The preview the workspace draws, and the level checks it runs.
+        @{ Pattern = '^Authoring/Preview/'; Tests = @('framework'); Scenarios = @('workspace.workspace_self_test') }
         @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.

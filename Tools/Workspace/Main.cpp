@@ -2,6 +2,7 @@
 // WorkspaceApp.h; docs/Getting-Started.md creates a project with it.
 //
 //   AtomWorkspace [--project <Name>.atomproject.json [--level <name>]]
+//   AtomWorkspace --test <folder>     the self-test (WorkspaceSelfTest.cpp)
 #include "WorkspaceApp.h"
 
 #include <SDL3/SDL_main.h> // the Windows entry point of a windowed program
@@ -21,6 +22,10 @@ int main(int argc, char** argv)
         else if (option == "--level")
         {
             startup.level = argv[i + 1];
+        }
+        else if (option == "--test")
+        {
+            startup.testFolder = argv[i + 1];
         }
     }
     AtomWorkspace::WorkspaceApp app;

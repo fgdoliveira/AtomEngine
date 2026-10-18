@@ -73,7 +73,9 @@ namespace AtomWorkspace
         SDL_SetWindowTitle(window, "Atom Workspace");
         SDL_MaximizeWindow(window);
 
-        if (char* pref = SDL_GetPrefPath("AtomEngine", "Workspace"))
+        // The self-test leaves the user's layout and recent projects alone:
+        // no settings folder, so nothing is read or written there.
+        if (char* pref = TestMode() ? nullptr : SDL_GetPrefPath("AtomEngine", "Workspace"))
         {
             m_settingsDir = pref;
             SDL_free(pref);
@@ -86,7 +88,7 @@ namespace AtomWorkspace
         // window, for a machine whose driver mishandles extra swapchains.
         const char* viewports = SDL_getenv("ATOM_WORKSPACE_VIEWPORTS");
         ImGuiHost::Options options;
-        options.viewports = !(viewports && std::strcmp(viewports, "0") == 0);
+        options.viewports = !TestMode() && !(viewports && std::strcmp(viewports, "0") == 0);
         options.layoutFile = m_settingsDir.empty() ? std::string{} : m_settingsDir + "layout.ini";
         if (!m_imgui.Initialize(window, GetRenderer().GetDevice(), options))
         {
@@ -185,6 +187,13 @@ namespace AtomWorkspace
         DrawCreateProjectPopup();
         DrawAboutPopup();
 
+        // The self-test acts where the panels do: before the frame is
+        // submitted, so a level it reloads or switches is never one the
+        // renderer still holds draws of.
+        if (TestMode())
+        {
+            RunSelfTest();
+        }
         m_preview->Update(deltaSeconds);
         m_preview->Submit();
     }

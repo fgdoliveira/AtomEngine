@@ -34,6 +34,11 @@ namespace AtomWorkspace
         {
             std::string project; // a <Name>.atomproject.json
             std::string level;
+            // --test <folder>: the self-test (M126) - drives the workspace
+            // through its tools and quits with 0 when all passed. Projects
+            // it creates go under <folder>; the user's layout and recent
+            // projects are neither read nor written.
+            std::string testFolder;
         };
         void SetStartup(Startup startup) { m_startup = std::move(startup); }
 
@@ -104,6 +109,11 @@ namespace AtomWorkspace
         void DrawConsolePanel();
         std::string GameExecutable() const;
 
+        // M126: the self-test (WorkspaceSelfTest.cpp), one step a frame or more.
+        void RunSelfTest();
+        bool Check(bool passed, const std::string& what);
+        bool TestMode() const { return !m_startup.testFolder.empty(); }
+
         void DrawCreateProjectPopup();
         void DrawAboutPopup();
         void BuildDefaultLayout(unsigned dockspace);
@@ -151,6 +161,12 @@ namespace AtomWorkspace
         std::string m_firstProblem;    // the run's first error line with a file, for the status bar
         std::array<char, 64> m_consoleFilter{};
         bool m_consoleScroll = false;  // follow the output (until scrolled up)
+        std::optional<int> m_lastExitCode; // the last operation's, once it ended
+
+        // The self-test's progress.
+        int m_testStep = 0;
+        int m_testFrames = 0;   // frames spent in the current step
+        int m_testFailures = 0;
 
         // The level shown (M124): no game code, the project's data only.
         std::unique_ptr<AtomFramework::ScenePreview> m_preview;

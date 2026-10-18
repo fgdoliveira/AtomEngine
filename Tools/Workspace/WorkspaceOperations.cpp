@@ -157,6 +157,7 @@ namespace AtomWorkspace
         }
         m_console.clear();
         m_firstProblem.clear();
+        m_lastExitCode.reset();
         m_operation = operation;
         std::string commandLine;
         for (const std::string& arg : args)
@@ -197,6 +198,7 @@ namespace AtomWorkspace
         {
             return;
         }
+        m_lastExitCode = exitCode;
         const char* name = NameOf(static_cast<int>(m_operation));
         char summary[160];
         if (m_runner.WasStopped())
