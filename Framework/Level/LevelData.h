@@ -245,7 +245,7 @@ namespace AtomFramework
         PlacementSource pathSource = PlacementSource::File; // or the markers' "ride_path"
         float speed = 14.0f;          // m/s
         glm::vec3 eye{ 0.0f, 1.35f, 0.0f }; // the rider's eye, vehicle-local (+Z forward)
-        std::string steerAfterFlag;   // steering allowed once set ("" never)
+        std::string steerAfterFlag;   // steering waits for this flag ("": the rider always steers)
         float steerWidth = 3.0f;      // metres either side of the centre
         float steerRate = 2.5f;       // lateral m/s at full input
         std::vector<RideRoute> routes;

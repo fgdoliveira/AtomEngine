@@ -1098,7 +1098,9 @@ namespace Demo
         }
 
         RideSettings settings;
-        settings.style = !ride.steerAfterFlag.empty() && m_gameState.HasFlag(ride.steerAfterFlag)
+        // The rider steers - unless the level makes steering wait for a flag
+        // (then the bike rides itself until it's set).
+        settings.style = ride.steerAfterFlag.empty() || m_gameState.HasFlag(ride.steerAfterFlag)
             ? RideStyle::Steer : RideStyle::Cinematic;
         settings.reverse = m_rideRoute->reverse;
         settings.speed = ride.speed;

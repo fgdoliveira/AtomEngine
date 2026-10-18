@@ -73,6 +73,7 @@ namespace Demo
     public:
         static constexpr float EaseInSeconds = 3.0f; // cinematic: 0 to cruising
         static constexpr float SwayMetres = 0.3f;
+        static constexpr float SteerResponse = 0.35f; // seconds to close most of a steering change
         static constexpr float MaxLean = 0.45f;     // radians, about 26 degrees
         static constexpr float SpeedRange[2] = { 0.5f, 1.6f }; // steer: of cruising
 
@@ -92,5 +93,6 @@ namespace Demo
         float m_travelled = 0.0f; // metres along the route
         float m_time = 0.0f;
         float m_lateralSpeed = 0.0f;
+        float m_steerYaw = 0.0f; // the turn toward the sideways motion, eased
     };
 }

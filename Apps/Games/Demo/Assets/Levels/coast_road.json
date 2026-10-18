@@ -43,7 +43,7 @@
     "vehicle": "kawasaki",
     "speed": 14.0,
     "eye": [0.0, 1.5, -0.55],
-    "steer": { "afterFlag": "rode_to_shore", "width": 3.0, "rate": 4.0 },
+    "steer": { "width": 3.0, "rate": 4.0 },
     "routes": [
       { "spawn": "from_street", "sets": "rode_to_shore",
         "end": { "type": "changeLevel", "level": "shore", "spawn": "from_road" } },

@@ -18,13 +18,15 @@ properly in 0.0.18.
   street (`ThirdParty/kawasaki_spectre_psx.glb`, credited in its
   README). "Ride" takes it down a new level, `coast_road`: about 950 m
   of night road along a cliff over the sea, seen from the rider's eye,
-  the headlight on the bike's nose. The first ride is cinematic; once
-  ridden (`rode_to_shore`), rides steer on a soft leash like DRIFT's, the
-  speed nudged with W/S. The bike leans into the bends; the engine is
-  synthesised. At the road's end: `shore`, a beach under dunes with a
+  the headlight on the bike's nose. The rider steers (A/D) on a soft
+  leash like DRIFT's - eased, the bike swinging toward where it goes -
+  and sets the speed (W/S); it never stops. The bike leans into the
+  bends; the engine is synthesised. Reaching the shore sets
+  `rode_to_shore`. At the road's end: `shore`, a beach under dunes with a
   jetty, walked on foot; the bike rides back to the street.
   - **`ride` (level data, framework-parsed):** the vehicle, speed, the
-    rider's eye, `steer.afterFlag`, and a route per spawn - direction,
+    rider's eye, `steer` (an optional `afterFlag` makes it ride itself
+    until the flag is set), and a route per spawn - direction,
     the end action, a flag. The road is the builder's: written as the
     markers' `ride_path`, so the bike rides the road that was built.
   - **Engine:** `Camera::roll`. **Framework:** `Renderable::tilt`.

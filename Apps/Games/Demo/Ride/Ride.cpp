@@ -81,10 +81,26 @@ namespace Demo
         {
             return { 0.0f, 0.0f, 1.0f };
         }
-        const std::size_t i = SegmentAt(std::clamp(distance, 0.0f, Length()));
-        const glm::vec3 d = m_samples[i + 1] - m_samples[i];
-        const float length = glm::length(d);
-        return length > 0.0f ? d / length : glm::vec3{ 0.0f, 0.0f, 1.0f };
+        // Blended along the segment between the directions at its two ends
+        // (each the average of the segments meeting there): a polyline's own
+        // direction steps at every sample, and the heading - and the
+        // camera - would jump with it.
+        distance = std::clamp(distance, 0.0f, Length());
+        const std::size_t i = SegmentAt(distance);
+        const auto direction = [&](std::size_t segment) {
+            const glm::vec3 d = m_samples[segment + 1] - m_samples[segment];
+            const float length = glm::length(d);
+            return length > 0.0f ? d / length : glm::vec3{ 0.0f, 0.0f, 1.0f };
+        };
+        const std::size_t last = m_samples.size() - 2;
+        const glm::vec3 here = direction(i);
+        const glm::vec3 start = i > 0 ? direction(i - 1) + here : here * 2.0f;
+        const glm::vec3 end = i < last ? here + direction(i + 1) : here * 2.0f;
+        const float span = m_length[i + 1] - m_length[i];
+        const float t = span > 0.0f ? (distance - m_length[i]) / span : 0.0f;
+        const glm::vec3 blended = start + (end - start) * t;
+        const float length = glm::length(blended);
+        return length > 0.0f ? blended / length : here;
     }
 
     void RideController::Start(const RoadPath& road, const RideSettings& settings)
@@ -95,6 +111,7 @@ namespace Demo
         m_travelled = 0.0f;
         m_time = 0.0f;
         m_lateralSpeed = 0.0f;
+        m_steerYaw = 0.0f;
         Place(0.0f);
     }
 
@@ -139,19 +156,28 @@ namespace Demo
         }
         else
         {
+            // The keys ask for a sideways speed; the bike gets there as a
+            // weight does - an acceleration, not a jump - so a tap is a
+            // gentle swing and a hold a committed one.
             const float wanted = std::clamp(input.steer, -1.0f, 1.0f) * m_settings.steerRate;
-            m_lateralSpeed += (wanted - m_lateralSpeed) * Approach(dt, 0.25f);
-            m_state.offset += m_lateralSpeed * dt;
-            // The soft leash (DRIFT's): past the edge it pulls back, and
-            // never lets go further than a third beyond.
+            float accel = (wanted - m_lateralSpeed) / SteerResponse;
+            // The soft leash (DRIFT's), as a spring with damping: past the
+            // edge it pulls back in proportion, never with a jolt.
             const float width = m_settings.steerWidth;
-            if (std::abs(m_state.offset) > width)
+            const float excess = std::abs(m_state.offset) - width;
+            if (excess > 0.0f)
             {
-                const float edge = std::copysign(width, m_state.offset);
-                m_state.offset += (edge - m_state.offset) * Approach(dt, 0.2f);
-                m_lateralSpeed *= 0.5f;
+                accel -= std::copysign(excess, m_state.offset) * 30.0f + m_lateralSpeed * 6.0f;
             }
-            m_state.offset = std::clamp(m_state.offset, -width * 1.33f, width * 1.33f);
+            m_lateralSpeed += accel * dt;
+            m_state.offset += m_lateralSpeed * dt;
+            // The last word: never more than a third beyond the edge.
+            const float hard = width * 1.33f;
+            if (std::abs(m_state.offset) > hard)
+            {
+                m_state.offset = std::copysign(hard, m_state.offset);
+                m_lateralSpeed = 0.0f;
+            }
         }
 
         Place(dt);
@@ -195,7 +221,10 @@ namespace Demo
         // Steering turns the bike toward where it's going across the road
         // (right of the heading is a smaller angle), so the rider sees it
         // swing, not slide sideways.
-        m_state.heading = heading - std::atan2(m_lateralSpeed, std::max(m_state.speed, 1.0f));
+        // Eased, so the turn-in follows the swing instead of the key.
+        const float steerYaw = std::atan2(m_lateralSpeed, std::max(m_state.speed, 1.0f));
+        m_steerYaw += (steerYaw - m_steerYaw) * (dt > 0.0f ? Approach(dt, 0.15f) : 1.0f);
+        m_state.heading = heading - m_steerYaw;
         m_state.position = m_road->PointAt(distance) + right * m_state.offset;
         m_state.progress = length > 0.0f ? along / length : 1.0f;
         m_state.done = m_state.done || m_travelled >= length;

@@ -329,7 +329,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "afterFlag": { "type": "string", "description": "Steering allowed once this flag is set." },
+            "afterFlag": { "type": "string", "description": "Steering waits for this flag; until it is set the vehicle rides itself. Absent: the rider always steers." },
             "width": { "type": "number", "exclusiveMinimum": 0 },
             "rate": { "type": "number", "exclusiveMinimum": 0 }
           }

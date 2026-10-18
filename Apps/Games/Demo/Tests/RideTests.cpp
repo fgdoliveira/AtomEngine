@@ -83,6 +83,34 @@ TEST_CASE("A cinematic ride eases up to speed, keeps to the road and ends once")
     CHECK(glm::length(ride.State().position - end) < 1e-5f);
 }
 
+TEST_CASE("The heading turns smoothly: no steps at the road's samples, none when steering")
+{
+    // Riding the bend at 60 fps, the heading's change from frame to frame
+    // must itself change gently - a step shows as a spike in it.
+    const RoadPath road(Points);
+    RideController ride;
+    ride.Start(road, { RideStyle::Steer, false, 14.0f, 3.0f, 4.0f });
+    ride.SetProgress(0.3f);
+    float last = ride.Update(1.0f / 60.0f).heading;
+    float lastRate = 0.0f;
+    float worstJerk = 0.0f;
+    for (int frame = 0; frame < 240; ++frame)
+    {
+        // Steering on and off every half second, as a player taps keys.
+        const float steer = (frame / 30) % 2 ? 1.0f : -1.0f;
+        const float heading = ride.Update(1.0f / 60.0f, { steer, 0.0f }).heading;
+        const float rate = heading - last;
+        if (frame > 1)
+        {
+            worstJerk = std::max(worstJerk, std::abs(rate - lastRate));
+        }
+        last = heading;
+        lastRate = rate;
+    }
+    INFO("worst change of turn rate between frames: " << worstJerk);
+    CHECK(worstJerk < 0.004f); // radians per frame, per frame
+}
+
 TEST_CASE("Leaning goes into the turn")
 {
     // The bend turns east (+X); facing +Z, east is to the left (right is -X).
