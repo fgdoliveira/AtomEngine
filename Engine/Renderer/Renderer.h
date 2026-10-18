@@ -227,6 +227,21 @@ namespace Atom
         void SetOverlayPass(OverlayPass pass) { m_overlayPass = std::move(pass); }
         SDL_GPUDevice* GetDevice() const { return m_device; }
 
+        // An offscreen scene target (v0.0.19, the workspace's viewport): while
+        // set, the whole frame - scene, glow, post - is drawn into a
+        // sampleable texture of this size instead of the window, which is
+        // only cleared (the overlay pass then draws the tools on it, showing
+        // the texture in a panel). The same device, the same passes; the
+        // scene's targets and aspect follow this size. 0 x 0 goes back to
+        // the window. Games never set it.
+        void SetSceneTarget(std::uint32_t width, std::uint32_t height);
+        bool HasSceneTarget() const { return m_viewWidth > 0 && m_viewHeight > 0; }
+        // The last frame's image (null before one is drawn). Valid until the
+        // next SetSceneTarget of another size, or shutdown.
+        SDL_GPUTexture* GetSceneTargetTexture() const { return m_viewTexture; }
+        std::uint32_t GetSceneTargetWidth() const { return m_viewTextureWidth; }
+        std::uint32_t GetSceneTargetHeight() const { return m_viewTextureHeight; }
+
         // Debug (M36): skinned meshes coloured by their joint weights.
         void SetSkinWeightsView(bool on) { m_skinWeightsView = on; }
         bool GetSkinWeightsView() const { return m_skinWeightsView; }
@@ -481,6 +496,16 @@ namespace Atom
         std::string m_capturePath;
         bool m_captureUi = false;
         SDL_GPUTexture* m_captureTexture = nullptr;
+        // The offscreen scene target (SetSceneTarget): requested size, and
+        // the texture as created (it follows the request at the next frame).
+        std::uint32_t m_viewWidth = 0;
+        std::uint32_t m_viewHeight = 0;
+        SDL_GPUTexture* m_viewTexture = nullptr;
+        std::uint32_t m_viewTextureWidth = 0;
+        std::uint32_t m_viewTextureHeight = 0;
+        bool EnsureViewTexture();
+        void ReleaseViewTexture();
+        bool ClearWindow(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target);
         SDL_GPUTransferBuffer* m_captureTransfer = nullptr;
         std::uint32_t m_captureWidth = 0;
         std::uint32_t m_captureHeight = 0;

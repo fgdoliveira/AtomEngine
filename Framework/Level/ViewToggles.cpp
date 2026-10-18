@@ -10,6 +10,8 @@
 
 #include <glm/trigonometric.hpp>
 
+#include <cstdio>
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -189,6 +191,26 @@ namespace AtomFramework
         else if (what == "glow" && onOff) toggles.glow = on;
         else if (what == "baked" && onOff) toggles.bakedLight = on;
         else if (what == "sky_picture" && onOff) toggles.skyPicture = on;
+        else if (what == "scene_target")
+        {
+            // v0.0.19: the frame into an offscreen texture ("<w>x<h>") or the
+            // window again ("off") - the workspace viewport's path, for tests.
+            unsigned width = 0;
+            unsigned height = 0;
+            if (value == "off")
+            {
+                renderer.SetSceneTarget(0, 0);
+            }
+            else if (std::sscanf(value.c_str(), "%ux%u", &width, &height) == 2 && width > 0 && height > 0
+                     && width <= 8192 && height <= 8192)
+            {
+                renderer.SetSceneTarget(width, height);
+            }
+            else
+            {
+                return false;
+            }
+        }
         else if (what == "particles" && particles && onOff) particles->SetEnabled(on);
         else if (what == "water" && onOff) renderer.SetWaterEnabled(on); // M51: for benchmarks
         else if (what == "reflection" && onOff) renderer.SetReflectionEnabled(on);

@@ -1,0 +1,21 @@
+# The offscreen scene target (v0.0.19, the workspace viewport's path): the
+# frame drawn into a texture of a given size instead of the window, then
+# back. Captures of the same view, direct and offscreen at the window's
+# size, are written to out/img/ (compared when M122 landed: identical but
+# for the spinning cubes); the run also proves the texture is resized and
+# released cleanly (the GPU lifetime check at exit fails it otherwise).
+expect_level hello
+set post grade
+teleport 0 0 4 0
+wait 0.3
+screenshot scene_direct
+set scene_target 1280x720
+wait 0.3
+screenshot scene_offscreen
+set scene_target 640x360
+wait 0.2
+set scene_target 960x540
+wait 0.2
+set scene_target off
+wait 0.2
+log hello scene target done

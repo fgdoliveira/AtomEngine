@@ -1090,10 +1090,18 @@ namespace Atom
         const glm::mat4 lightViewProjection = ComputeLightViewProjection();
         const glm::mat4 spotViewProjection = m_spotActive ? SpotMath::ViewProjection(m_spot) : glm::mat4{ 1.0f };
 
+        // v0.0.19: with a scene target (the workspace's viewport) the frame
+        // is drawn at the panel's size into its texture; the window is only
+        // cleared, for the overlay pass to draw the tools on.
+        const bool offscreen = HasSceneTarget() && EnsureViewTexture();
+        const Uint32 frameWidth = offscreen ? m_viewTextureWidth : swapchainWidth;
+        const Uint32 frameHeight = offscreen ? m_viewTextureHeight : swapchainHeight;
+        SDL_GPUTexture* frameTarget = offscreen ? m_viewTexture : swapchainTexture;
+
         const bool ok =
             m_targets.Ensure(
-                scaled(swapchainWidth),
-                scaled(swapchainHeight),
+                scaled(frameWidth),
+                scaled(frameHeight),
                 m_settings.msaaSamples)
             && UploadParticles(commandBuffer)
             && m_ui.Upload(commandBuffer)
@@ -1107,16 +1115,17 @@ namespace Atom
                                  m_targets.GetWidth(), m_targets.GetHeight(), m_lighting.glowThreshold))
             && RenderPostPass(
                 commandBuffer,
-                swapchainTexture,
-                swapchainWidth,
-                swapchainHeight)
+                frameTarget,
+                frameWidth,
+                frameHeight)
             && m_ui.Render(
                 commandBuffer,
-                swapchainTexture,
-                swapchainWidth,
-                swapchainHeight)
+                frameTarget,
+                frameWidth,
+                frameHeight)
+            && (!offscreen || ClearWindow(commandBuffer, swapchainTexture))
             && (m_overlayPass ? (m_overlayPass(commandBuffer, swapchainTexture), true) : true)
-            && (m_capturePath.empty() || RenderCapture(commandBuffer, swapchainWidth, swapchainHeight));
+            && (m_capturePath.empty() || RenderCapture(commandBuffer, frameWidth, frameHeight));
 
         ++m_frameIndex;
 
@@ -1958,6 +1967,75 @@ namespace Atom
         m_captureUi = includeUi;
     }
 
+    void Renderer::SetSceneTarget(std::uint32_t width, std::uint32_t height)
+    {
+        // Applied at the next frame (EnsureViewTexture); 0 x 0 releases it.
+        m_viewWidth = width;
+        m_viewHeight = height;
+        if (!HasSceneTarget())
+        {
+            ReleaseViewTexture();
+        }
+    }
+
+    bool Renderer::EnsureViewTexture()
+    {
+        if (m_viewTexture && m_viewTextureWidth == m_viewWidth && m_viewTextureHeight == m_viewHeight)
+        {
+            return true;
+        }
+        ReleaseViewTexture();
+        // The swapchain's format: the post pass and the UI are built for it,
+        // and the tools sample this texture into the window.
+        SDL_GPUTextureCreateInfo info{};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = SDL_GetGPUSwapchainTextureFormat(m_device, m_window);
+        info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = m_viewWidth;
+        info.height = m_viewHeight;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        m_viewTexture = SDL_CreateGPUTexture(m_device, &info);
+        if (!m_viewTexture)
+        {
+            ATOM_LOG_ERROR("Renderer") << "Cannot create the scene target (" << m_viewWidth << "x" << m_viewHeight
+                                       << "): " << SDL_GetError() << '\n';
+            return false; // this frame draws to the window instead
+        }
+        m_viewTextureWidth = m_viewWidth;
+        m_viewTextureHeight = m_viewHeight;
+        return true;
+    }
+
+    void Renderer::ReleaseViewTexture()
+    {
+        if (m_viewTexture)
+        {
+            SDL_ReleaseGPUTexture(m_device, m_viewTexture);
+            m_viewTexture = nullptr;
+        }
+        m_viewTextureWidth = 0;
+        m_viewTextureHeight = 0;
+    }
+
+    bool Renderer::ClearWindow(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target)
+    {
+        // The window behind the tools, when the scene went to its texture:
+        // a dark, defined background instead of last frame's leftovers.
+        SDL_GPUColorTargetInfo colorTarget{};
+        colorTarget.texture = target;
+        colorTarget.clear_color = SDL_FColor{ 0.06f, 0.05f, 0.05f, 1.0f };
+        colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
+        if (!pass)
+        {
+            return false;
+        }
+        SDL_EndGPURenderPass(pass);
+        return true;
+    }
+
     bool Renderer::RenderCapture(SDL_GPUCommandBuffer* commandBuffer, std::uint32_t width, std::uint32_t height)
     {
         // The same passes that drew the swapchain image, drawn again into a
@@ -2712,6 +2790,7 @@ namespace Atom
             }
             m_whiteTexture.reset();
             m_targets.Release();
+            ReleaseViewTexture();
             if (m_captureTexture)
             {
                 SDL_ReleaseGPUTexture(m_device, m_captureTexture);
