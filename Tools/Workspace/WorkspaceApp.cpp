@@ -430,12 +430,18 @@ namespace AtomWorkspace
         {
             std::error_code error;
             const bool exists = fs::is_regular_file(entry, error);
+            // ImGui identifies an item by its label within a scope: the same
+            // project in both lists (or two of the same name) needs its own.
+            ImGui::PushID("recent");
+            ImGui::PushID(entry.c_str());
             ImGui::BeginDisabled(!exists);
             if (ImGui::Selectable(ProjectNameOf(entry).c_str()))
             {
                 chosen = entry;
             }
             ImGui::EndDisabled();
+            ImGui::PopID();
+            ImGui::PopID();
             ImGui::SameLine();
             ImGui::TextDisabled("%s%s", entry.c_str(), exists ? "" : "  (missing)");
         }
@@ -445,10 +451,14 @@ namespace AtomWorkspace
             ImGui::SeparatorText("Projects in this engine");
             for (const AtomProject::DiscoveredProject& project : m_examples.projects)
             {
+                ImGui::PushID("engine");
+                ImGui::PushID(project.descriptorPath.c_str());
                 if (ImGui::Selectable(project.descriptor.name.c_str()))
                 {
                     chosen = project.descriptorPath;
                 }
+                ImGui::PopID();
+                ImGui::PopID();
                 ImGui::SameLine();
                 ImGui::TextDisabled("%s", fs::relative(project.directory, m_engineRoot).generic_string().c_str());
             }
@@ -621,7 +631,9 @@ namespace AtomWorkspace
         for (const fs::directory_entry& entry :
              fs::directory_iterator(fs::path(project.directory) / project.descriptor.assets / "Levels", error))
         {
-            if (entry.is_regular_file() && entry.path().extension() == ".json")
+            // <level>.markers.json beside a level is its Blender markers, not a level.
+            if (entry.is_regular_file() && entry.path().extension() == ".json"
+                && entry.path().stem().extension() != ".markers")
             {
                 project.levels.push_back(entry.path().stem().string());
             }
