@@ -166,6 +166,83 @@ TEST_CASE("A lightmap is optional, and needs a texture when given")
     CHECK(noTexture.error.find("lightmap") != std::string::npos);
 }
 
+TEST_CASE("A ride names its vehicle, its path and a route per spawn")
+{
+    const auto ride = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] }, "back": { "position": [0,0,90] } },
+        "entities": [ { "name": "bike", "position": [0,0,0], "model": "b.glb" } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0],[0,0,50],[10,0,90]], "speed": 12,
+                  "steer": { "afterFlag": "rode", "width": 2.5 },
+                  "routes": [
+                    { "spawn": "start", "end": { "type": "changeLevel", "level": "shore", "spawn": "a" }, "sets": "rode" },
+                    { "spawn": "back", "reverse": true, "end": { "type": "changeLevel", "level": "street", "spawn": "b" } } ] } })");
+    INFO(ride.error);
+    REQUIRE(ride.level.has_value());
+    REQUIRE(ride.level->ride.has_value());
+    const LevelRide& r = *ride.level->ride;
+    CHECK(r.vehicle == "bike");
+    CHECK(r.path.size() == 3);
+    CHECK(r.speed == doctest::Approx(12.0f));
+    CHECK(r.steerAfterFlag == "rode");
+    CHECK(r.steerWidth == doctest::Approx(2.5f));
+    REQUIRE(r.RouteFor("back") != nullptr);
+    CHECK(r.RouteFor("back")->reverse);
+    CHECK(r.RouteFor("start")->setsFlag == "rode");
+    CHECK(std::holds_alternative<ChangeLevel>(r.RouteFor("start")->end));
+    CHECK(r.RouteFor("nowhere") == nullptr);
+
+    const char* noVehicle = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "ride": { "vehicle": "ghost", "path": [[0,0,0],[0,0,1]],
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    CHECK(ParseLevel(noVehicle).error.find("/ride/vehicle") != std::string::npos);
+
+    const char* badSpawn = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0],[0,0,1]],
+                  "routes": [ { "spawn": "elsewhere", "end": { "type": "message", "text": "." } } ] } })";
+    CHECK(ParseLevel(badSpawn).error.find("/ride/routes/0/spawn") != std::string::npos);
+
+    const char* onePoint = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0]],
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    CHECK(ParseLevel(onePoint).error.find("/ride/path") != std::string::npos);
+}
+
+TEST_CASE("A ride's road comes from the markers; a path in the file wins with a warning")
+{
+    const char* level = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike",
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    const char* markers = R"({ "_generated": "test", "ride_path": [[0,0,0],[0,0,40],[5,0,80]] })";
+    const auto fromMarkers = ParseLevel(level, markers);
+    INFO(fromMarkers.error);
+    REQUIRE(fromMarkers.level.has_value());
+    CHECK(fromMarkers.level->ride->path.size() == 3);
+    CHECK(fromMarkers.level->ride->pathSource == PlacementSource::Marker);
+    CHECK(fromMarkers.level->warnings.empty());
+
+    const char* written = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0],[0,0,10]],
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    const auto overridden = ParseLevel(written, markers);
+    REQUIRE(overridden.level.has_value());
+    CHECK(overridden.level->ride->path.size() == 2);
+    CHECK(overridden.level->ride->pathSource == PlacementSource::FileOverMarker);
+    REQUIRE(overridden.level->warnings.size() == 1);
+    CHECK(overridden.level->warnings.front().path == "/ride/path");
+
+    // Without either, it's an error naming both places.
+    CHECK(ParseLevel(level).error.find("ride_path") != std::string::npos);
+}
+
 TEST_CASE("An animation may start at, and hold, a time in its clip")
 {
     const auto held = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",

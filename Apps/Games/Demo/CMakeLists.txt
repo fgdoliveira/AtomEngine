@@ -34,6 +34,8 @@ add_library(
     Pachinko/PachinkoGame.h
     Pachinko/PachinkoRules.cpp
     Pachinko/PachinkoRules.h
+    Ride/Ride.cpp
+    Ride/Ride.h
     Pachinko/Playfield.cpp
     Pachinko/Playfield.h
     Pachinko/PixelDraw.h
@@ -88,6 +90,7 @@ if(ATOM_BUILD_TESTS)
             Tests/PachinkoRulesTests.cpp
             Tests/Physics2DTests.cpp
             Tests/PlayfieldTests.cpp
+            Tests/RideTests.cpp
         LIBS DemoLib nlohmann_json::nlohmann_json
     )
 endif()

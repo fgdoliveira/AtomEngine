@@ -79,6 +79,7 @@
         @{ Pattern = '^Apps/Games/Demo/Pachinko/'; Tests = @('demo'); Scenarios = @('demo.pachinko_session') }
         @{ Pattern = '^Apps/Games/Demo/Input/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.pachinko_session') }
         @{ Pattern = '^Apps/Games/Demo/Dialogue/'; Tests = @('demo'); Scenarios = @('demo.street_keeper') }
+        @{ Pattern = '^Apps/Games/Demo/Ride/'; Tests = @('demo') }
         @{ Pattern = '^Apps/Games/Demo/Flashlight'; Tests = @('demo'); Scenarios = @('demo.flashlight', 'demo.passage') }
         @{ Pattern = '^Apps/Games/Demo/DemoAppDevTools'; Tests = @('demo'); Scenarios = @('demo.devtools') }
         @{ Pattern = '^Apps/Games/Demo/DemoAppCalibration'; Tests = @('demo'); Scenarios = @('demo.calibration', 'demo.quality_tiers') }

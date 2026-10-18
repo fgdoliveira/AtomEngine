@@ -756,6 +756,58 @@ namespace AtomFramework
                 level.lab = l;
             }
 
+            if (const auto ride = root.find("ride"); ride != root.end())
+            {
+                LevelRide r;
+                r.vehicle = String(*ride, "vehicle", "/ride");
+                if (r.vehicle.empty())
+                {
+                    throw LevelError("/ride", "a ride needs a \"vehicle\" entity");
+                }
+                std::size_t index = 0;
+                for (const Json& point : Array(*ride, "path", "/ride"))
+                {
+                    r.path.push_back(Vec3(point, JsonPath("/ride/path", index++)));
+                }
+                r.speed = Number(*ride, "speed", "/ride", r.speed);
+                if (!(r.speed > 0.0f))
+                {
+                    throw LevelError("/ride/speed", "must be above 0");
+                }
+                r.eye = Vec3(*ride, "eye", r.eye, "/ride");
+                if (const auto steer = ride->find("steer"); steer != ride->end())
+                {
+                    r.steerAfterFlag = String(*steer, "afterFlag", "/ride/steer");
+                    r.steerWidth = Number(*steer, "width", "/ride/steer", r.steerWidth);
+                    r.steerRate = Number(*steer, "rate", "/ride/steer", r.steerRate);
+                    if (!(r.steerWidth > 0.0f) || !(r.steerRate > 0.0f))
+                    {
+                        throw LevelError("/ride/steer", "\"width\" and \"rate\" must be above 0");
+                    }
+                }
+                index = 0;
+                for (const Json& item : Array(*ride, "routes", "/ride"))
+                {
+                    const std::string at = JsonPath("/ride/routes", index++);
+                    RideRoute route;
+                    route.spawn = String(item, "spawn", at);
+                    route.reverse = Bool(item, "reverse", at, false);
+                    route.setsFlag = String(item, "sets", at);
+                    const auto end = item.find("end");
+                    if (route.spawn.empty() || end == item.end())
+                    {
+                        throw LevelError(at, "a route needs a \"spawn\" and an \"end\" action");
+                    }
+                    route.end = ParseAction(*end, JsonPath(at, "end"));
+                    r.routes.push_back(std::move(route));
+                }
+                if (r.routes.empty())
+                {
+                    throw LevelError("/ride/routes", "a ride needs at least one route");
+                }
+                level.ride = std::move(r);
+            }
+
             if (const auto env = root.find("environment"); env != root.end())
             {
                 LevelEnvironment e;
@@ -1065,6 +1117,31 @@ namespace AtomFramework
                         overridden(JsonPath(at, "yaw"), "entity:" + name, "the yaw");
                     }
                 }
+
+                // A ride's road, as the builder that made it wrote it: the
+                // same rule - a path in the level file wins, with a warning.
+                if (const auto ridePath = markers->find("ride_path"); ridePath != markers->end() && level.ride)
+                {
+                    if (!ridePath->is_array())
+                    {
+                        throw LevelError("(markers)/ride_path", "must be an array of points");
+                    }
+                    if (level.ride->path.empty())
+                    {
+                        std::size_t index = 0;
+                        for (const Json& point : *ridePath)
+                        {
+                            level.ride->path.push_back(Vec3(point, "(markers)" + JsonPath("/ride_path", index++)));
+                        }
+                        level.ride->pathSource = PlacementSource::Marker;
+                    }
+                    else
+                    {
+                        level.ride->pathSource = PlacementSource::FileOverMarker;
+                        level.warnings.push_back({ "/ride/path", "the path written here overrides the markers' "
+                            "ride_path; remove it to ride the road the builder made" });
+                    }
+                }
             }
             if (!unplacedSpawns.empty())
             {
@@ -1115,6 +1192,26 @@ namespace AtomFramework
             if (level.lab && !entityExists(level.lab->subject))
             {
                 throw LevelError("/lab/subject", "no entity named \"" + level.lab->subject + "\"");
+            }
+
+            if (level.ride)
+            {
+                if (!entityExists(level.ride->vehicle))
+                {
+                    throw LevelError("/ride/vehicle", "no entity named \"" + level.ride->vehicle + "\"");
+                }
+                if (level.ride->path.size() < 2)
+                {
+                    throw LevelError("/ride/path", "a ride needs at least 2 points, here or in the markers' ride_path");
+                }
+                for (std::size_t i = 0; i < level.ride->routes.size(); ++i)
+                {
+                    if (!level.FindSpawn(level.ride->routes[i].spawn))
+                    {
+                        throw LevelError(JsonPath(JsonPath("/ride/routes", i), "spawn"),
+                            "no spawn named \"" + level.ride->routes[i].spawn + "\"");
+                    }
+                }
             }
 
             // Sequences name entities and are named by actions (M26).
