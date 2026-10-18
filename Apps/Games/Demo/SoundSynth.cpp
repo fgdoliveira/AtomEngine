@@ -528,6 +528,31 @@ namespace Demo::SoundSynth
         return Finish(std::move(out));
     }
 
+    Atom::SoundHandle BikeEngine()
+    {
+        // A single cylinder at a steady cruise: a firing every other turn,
+        // 42 Hz (whole cycles in two seconds, so it loops seamlessly),
+        // through the exhaust's boom, a rasp on each bark, and wind.
+        std::vector<float> out(Frames(2.0f));
+        Noise noise(977);
+        Biquad boom = Biquad::Bandpass(120.0f, 1.8f);
+        Biquad rasp = Biquad::Bandpass(1100.0f, 2.5f);
+        OnePoleLowpass wind;
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            const float t = static_cast<float>(i) / Rate;
+            const float cycle = std::fmod(t * 42.0f, 1.0f);
+            const float bark = std::exp(-cycle / 0.09f);
+            float s = boom.Process(bark * 2.0f + noise() * 0.15f) * 3.0f;
+            s += std::sin(TwoPi * 84.0f * t) * 0.12f * bark;
+            s += rasp.Process(noise() * bark) * 0.5f;
+            s += wind.Process(noise(), 600.0f) * 0.2f;
+            out[i] = s;
+        }
+        Normalize(out, 0.8f);
+        return Finish(std::move(out));
+    }
+
     Atom::SoundHandle DoorHiss()
     {
         // Compressed air let out as the doors fold: a sharp hiss that

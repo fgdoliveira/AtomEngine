@@ -79,6 +79,7 @@ namespace Demo
         void Start(const RoadPath& road, const RideSettings& settings);
         const RideState& Update(float dt, const RideInput& input = {});
         const RideState& State() const { return m_state; }
+        const RideSettings& Settings() const { return m_settings; }
         // Jumps along the route (tests and scripted runs): 0..1.
         void SetProgress(float progress);
 

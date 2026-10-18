@@ -38,6 +38,7 @@ namespace Demo
         m_library["pachinko_leak"] = SoundSynth::PachinkoLeak();
         m_library["train"] = SoundSynth::Train();
         m_library["bus_engine"] = SoundSynth::BusEngine();
+        m_library["bike_engine"] = SoundSynth::BikeEngine();
         m_library["door_hiss"] = SoundSynth::DoorHiss();
         m_library["pachinko_hall"] = SoundSynth::PachinkoHall();
         m_library["ball_click"] = SoundSynth::BallClick();

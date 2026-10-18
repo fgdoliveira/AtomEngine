@@ -36,6 +36,9 @@ namespace Atom
         float verticalFov = 1.0472f; // 60 degrees
         float nearPlane = 0.05f;
         float farPlane = 200.0f;
+        // Radians about the view axis; + tilts the view's up toward its right
+        // (leaning into a right-hand bend). 0 for a level horizon.
+        float roll = 0.0f;
 
     private:
         glm::vec3 m_position{ 0.0f };

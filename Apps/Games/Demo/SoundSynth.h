@@ -37,6 +37,7 @@ namespace Demo
         Atom::SoundHandle PachinkoLeak(float seconds = 12.0f);  // the hall through its doors
         Atom::SoundHandle Train(float seconds = 6.0f);          // wheels and rail joints
         Atom::SoundHandle BusEngine();                          // M26: a diesel idling, looped
+        Atom::SoundHandle BikeEngine();                         // the Kawasaki cruising, looped
         Atom::SoundHandle DoorHiss();                           // M26: air doors folding open
         Atom::SoundHandle PachinkoHall(float seconds = 12.0f);  // M27: inside, full blast
 

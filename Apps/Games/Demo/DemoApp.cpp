@@ -1103,11 +1103,16 @@ namespace Demo
         settings.steerRate = ride.steerRate;
         m_road = RoadPath(ride.path);
         m_ride.Start(m_road, settings);
+        m_rideCruise = ride.speed;
         m_rideEye = ride.eye;
         m_lookYaw = 0.0f;
         m_lookPitch = 0.0f;
         m_rideEnded = false;
         m_rideActive = true;
+        Atom::PlayParams engine{};
+        engine.loop = true;
+        engine.gain = 0.0f; // follows the speed (UpdateRide)
+        m_engineVoice = GetAudio().Play(m_audioScape.GetSound("bike_engine"), engine);
         ATOM_LOG_GAME("Demo") << "Riding '" << ride.vehicle << "' from " << m_rideRoute->spawn << " ("
                               << (settings.style == RideStyle::Steer ? "steer" : "cinematic") << ", "
                               << static_cast<int>(m_road.Length()) << " m)\n";
@@ -1121,6 +1126,9 @@ namespace Demo
         }
         m_rideActive = false;
         m_rideRoute = nullptr;
+        m_camera.roll = 0.0f;
+        GetAudio().Stop(m_engineVoice);
+        m_engineVoice = 0;
     }
 
     void DemoApp::UpdateRide(float deltaSeconds)
@@ -1138,6 +1146,8 @@ namespace Demo
         const glm::vec3 forward{ std::sin(state.heading), 0.0f, std::cos(state.heading) };
         const glm::vec3 up{ 0.0f, 1.0f, 0.0f };
         const glm::vec3 right = glm::cross(forward, up);
+        // Leaning into the bend, about the line of travel (+ leans right).
+        const glm::quat lean = glm::angleAxis(state.lean, forward);
         if (GameWorld* world = CurrentWorld())
         {
             world->ForEach([&](EntityId, Entity& entity) {
@@ -1147,10 +1157,13 @@ namespace Demo
                     if (entity.renderable)
                     {
                         entity.renderable->yaw = state.heading + m_rideBaseYaw;
+                        entity.renderable->tilt = lean;
                     }
                 }
             });
         }
+        // Louder as it pulls (no pitch control: the loop's gain carries it).
+        GetAudio().SetVoiceGain(m_engineVoice, 0.1f + 0.3f * std::clamp(state.speed / m_rideCruise, 0.0f, 1.3f));
 
         // The rider's eye, looking down the road; the mouse looks around
         // within a cone and drifts back when it rests.
@@ -1166,9 +1179,12 @@ namespace Demo
             m_lookPitch *= back;
         }
         m_player.Teleport(state.position, m_camera); // listeners and emitters follow the rider
-        m_camera.SetPosition(state.position + forward * m_rideEye.z + up * m_rideEye.y + right * m_rideEye.x);
+        // The eye leans with the bike; the head a little less (riders hold
+        // it nearer level than the bike).
+        m_camera.SetPosition(state.position + lean * (forward * m_rideEye.z + up * m_rideEye.y + right * m_rideEye.x));
         // Camera yaw 0 looks down -Z; the ride's heading 0 faces +Z.
         m_camera.SetRotation(glm::pi<float>() - state.heading + m_lookYaw, m_lookPitch - 0.04f);
+        m_camera.roll = state.lean * 0.75f;
 
         // The headlight: on the bike's nose, ahead of the bars (a light at the
         // eye would blind the rider with their own handlebars), dipped a
@@ -1487,6 +1503,9 @@ namespace Demo
     {
         if (name == "voice_syllables") return static_cast<float>(m_speech->Sent());
         if (name == "voice_dropped") return static_cast<float>(m_speech->Dropped());
+        // The ride: how far along (0..1), and 1 once it steers (not cinematic).
+        if (name == "ride_progress") return m_rideActive ? m_ride.State().progress : 0.0f;
+        if (name == "ride_steer") return m_rideActive && m_ride.Settings().style == RideStyle::Steer ? 1.0f : 0.0f;
         return std::nullopt;
     }
 

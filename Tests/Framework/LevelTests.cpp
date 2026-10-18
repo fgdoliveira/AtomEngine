@@ -1,7 +1,13 @@
 #include "Level/LevelData.h"
+#include "Level/Level.h" // EntityModelTransform
 
 #include <doctest/doctest.h>
 
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/vec4.hpp>
+
+#include <cmath>
 #include <ostream> // doctest prints the std::string_view values it compares
 
 using namespace AtomFramework; // v0.0.14: the world layer
@@ -164,6 +170,30 @@ TEST_CASE("A lightmap is optional, and needs a texture when given")
         "spawns": { "a": { "position": [0,0,0] } }, "lightmap": { "intensity": 1 } })");
     CHECK_FALSE(noTexture.level.has_value());
     CHECK(noTexture.error.find("lightmap") != std::string::npos);
+}
+
+TEST_CASE("An entity's tilt turns its model about its origin, after its yaw")
+{
+    Entity entity;
+    entity.position = { 10.0f, 0.0f, 0.0f };
+    entity.renderable = Renderable{};
+    entity.renderable->yaw = glm::half_pi<float>(); // model +Z now faces +X
+
+    // Upright: the model's top stays up.
+    const glm::vec4 top = EntityModelTransform(entity) * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    CHECK(top.x == doctest::Approx(10.0f));
+    CHECK(top.y == doctest::Approx(1.0f));
+
+    // Leaning right about its line of travel (+X): its top swings toward
+    // the right of +X - cross(+X, up), which is +Z; the origin stays put.
+    entity.renderable->tilt = glm::angleAxis(0.4f, glm::vec3{ 1.0f, 0.0f, 0.0f });
+    const glm::mat4 tilted = EntityModelTransform(entity);
+    const glm::vec4 leaningTop = tilted * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    CHECK(leaningTop.z == doctest::Approx(std::sin(0.4f)).epsilon(0.001));
+    CHECK(leaningTop.y == doctest::Approx(std::cos(0.4f)).epsilon(0.001));
+    const glm::vec4 origin = tilted * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    CHECK(origin.x == doctest::Approx(10.0f));
+    CHECK(origin.y == doctest::Approx(0.0f));
 }
 
 TEST_CASE("A ride names its vehicle, its path and a route per spawn")

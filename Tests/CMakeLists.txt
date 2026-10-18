@@ -8,6 +8,7 @@ atom_add_tests(
     OWNER engine
     SOURCES
         Engine/AnimationTests.cpp
+        Engine/CameraTests.cpp
         Engine/CollisionGridTests.cpp
         Engine/CrashReportTests.cpp
         Engine/FrameStatsTests.cpp

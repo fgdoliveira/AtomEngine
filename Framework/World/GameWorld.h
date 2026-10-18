@@ -5,6 +5,7 @@
 #include "Core/SlotMap.h"
 #include "Interaction/Actions.h"
 
+#include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 
 #include <optional>
@@ -27,6 +28,9 @@ namespace AtomFramework
         const Atom::Model* model = nullptr;
         float yaw = 0.0f; // radians around +Y
         float scale = 1.0f; // uniform (M35)
+        // A turn in world space about the entity's origin, after its yaw:
+        // a bike leaning into a bend. Identity for everything that stands.
+        glm::quat tilt{ 1.0f, 0.0f, 0.0f, 0.0f };
     };
 
     // A capability: "the player can use this". Any entity can have it; the

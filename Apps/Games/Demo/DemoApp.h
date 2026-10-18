@@ -243,7 +243,8 @@ namespace Demo
         }
         glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
-        // voice_syllables / voice_dropped: the dialogue's mumble so far.
+        // voice_syllables / voice_dropped: the dialogue's mumble so far;
+        // ride_progress / ride_steer: the ride.
         std::optional<float> Stat(const std::string& name) const override;
         bool IsLit(const std::string& entity) const override;
         void Log(const std::string& text) override;
@@ -344,6 +345,8 @@ namespace Demo
         float m_lookYaw = 0.0f;       // the rider looking around, relative to the heading
         float m_lookPitch = 0.0f;
         Atom::SpotLight m_headlight;
+        Atom::VoiceId m_engineVoice = 0; // the bike's engine, looping while riding
+        float m_rideCruise = 14.0f;      // the ride's cruising speed, m/s
 
         // Where the last level load put the camera. Until the fade-in ends
         // the camera must stay there: those frames show the new level.
