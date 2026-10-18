@@ -404,8 +404,10 @@ namespace Demo
             return false;
         }
         // The title, over the street - not for scripted runs (or a chosen
-        // start level), which go straight in.
-        if (!Atom::DevSwitch("ATOM_TEST_SCRIPT") && !Atom::DevSwitch("ATOM_START_LEVEL"))
+        // start level), which go straight in, nor for runs that measure or
+        // report (calibration drives the camera; --diagnostics exits).
+        if (!Atom::DevSwitch("ATOM_TEST_SCRIPT") && !Atom::DevSwitch("ATOM_START_LEVEL") && !m_calibrateThisRun
+            && !m_commandLine.diagnosticsFile)
         {
             OpenTitle();
         }
