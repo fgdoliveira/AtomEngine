@@ -74,7 +74,7 @@ namespace Demo
         static constexpr float EaseInSeconds = 3.0f; // cinematic: 0 to cruising
         static constexpr float SwayMetres = 0.3f;
         static constexpr float MaxLean = 0.45f;     // radians, about 26 degrees
-        static constexpr float SpeedRange[2] = { 0.6f, 1.3f }; // steer: of cruising
+        static constexpr float SpeedRange[2] = { 0.5f, 1.6f }; // steer: of cruising
 
         void Start(const RoadPath& road, const RideSettings& settings);
         const RideState& Update(float dt, const RideInput& input = {});

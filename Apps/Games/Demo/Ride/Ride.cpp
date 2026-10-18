@@ -188,11 +188,14 @@ namespace Demo
             const float behind = m_settings.reverse ? distance + Span : distance - Span;
             const float curvature = WrapAngle(headingAt(ahead) - headingAt(behind)) / (2.0f * Span); // rad/m
             const float yawRate = curvature * m_state.speed;
-            const float wanted = std::clamp(std::atan(m_state.speed * -yawRate / 9.81f) + 0.06f * m_lateralSpeed,
+            const float wanted = std::clamp(std::atan(m_state.speed * -yawRate / 9.81f) + 0.07f * m_lateralSpeed,
                                             -MaxLean, MaxLean);
             m_state.lean += (wanted - m_state.lean) * Approach(dt, 0.3f);
         }
-        m_state.heading = heading;
+        // Steering turns the bike toward where it's going across the road
+        // (right of the heading is a smaller angle), so the rider sees it
+        // swing, not slide sideways.
+        m_state.heading = heading - std::atan2(m_lateralSpeed, std::max(m_state.speed, 1.0f));
         m_state.position = m_road->PointAt(distance) + right * m_state.offset;
         m_state.progress = length > 0.0f ? along / length : 1.0f;
         m_state.done = m_state.done || m_travelled >= length;

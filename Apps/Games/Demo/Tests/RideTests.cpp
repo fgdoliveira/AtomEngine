@@ -114,6 +114,11 @@ TEST_CASE("Steering moves across the road on a soft leash and nudges the speed")
     RideController ride;
     RideSettings settings{ RideStyle::Steer, false, 14.0f, 3.0f, 2.5f };
     ride.Start(road, settings);
+    for (int i = 0; i < 300; ++i) ride.Update(1.0f / 60.0f); // up to speed, straight
+    CHECK(std::abs(ride.State().heading) < 1e-3f);
+    for (int i = 0; i < 20; ++i) ride.Update(1.0f / 60.0f, { 1.0f, 0.0f });
+    // Steering right swings the bike's heading right (toward -X: a smaller angle).
+    CHECK(ride.State().heading < -0.05f);
     for (int i = 0; i < 600; ++i) ride.Update(1.0f / 60.0f, { 1.0f, 0.0f }); // hard right, 10 s
     const float offset = ride.State().offset;
     CHECK(offset > 2.5f);                      // it went right
@@ -124,9 +129,9 @@ TEST_CASE("Steering moves across the road on a soft leash and nudges the speed")
     CHECK(std::abs(ride.State().offset) <= 3.0f + 0.05f); // let go: pulled back inside
 
     for (int i = 0; i < 600; ++i) ride.Update(1.0f / 60.0f, { 0.0f, 1.0f });
-    CHECK(ride.State().speed == doctest::Approx(14.0f * 1.3f).epsilon(0.02));
+    CHECK(ride.State().speed == doctest::Approx(14.0f * RideController::SpeedRange[1]).epsilon(0.02));
     for (int i = 0; i < 600; ++i) ride.Update(1.0f / 60.0f, { 0.0f, -1.0f });
-    CHECK(ride.State().speed == doctest::Approx(14.0f * 0.6f).epsilon(0.02)); // slower, never stopped
+    CHECK(ride.State().speed == doctest::Approx(14.0f * RideController::SpeedRange[0]).epsilon(0.02)); // slower, never stopped
 }
 
 TEST_CASE("Jumping along the route lands there at cruising speed; frame rate doesn't change the ride")

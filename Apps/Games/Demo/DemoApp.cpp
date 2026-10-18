@@ -929,7 +929,10 @@ namespace Demo
         const float hintAlpha = m_showHud && m_pause == PauseScreen::None ?std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
-            const char* hint = m_flashlight.IsOwned()
+            const bool steering = m_rideActive && m_ride.Settings().style == RideStyle::Steer;
+            const char* hint = steering ? "A D steer   W S speed   Mouse look"
+                : m_rideActive ? "Mouse look   (the bike rides itself the first time)"
+                : m_flashlight.IsOwned()
                 ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
                 : "WASD move   Shift jog   Mouse look   E interact   F1 debug";
             // The kit's hint bar (M89), as every app shows its keys.
@@ -1109,6 +1112,7 @@ namespace Demo
         m_lookPitch = 0.0f;
         m_rideEnded = false;
         m_rideActive = true;
+        m_hintTime = 0.0f; // show the ride's keys
         Atom::PlayParams engine{};
         engine.loop = true;
         engine.gain = 0.0f; // follows the speed (UpdateRide)
@@ -1505,6 +1509,7 @@ namespace Demo
         if (name == "voice_dropped") return static_cast<float>(m_speech->Dropped());
         // The ride: how far along (0..1), and 1 once it steers (not cinematic).
         if (name == "ride_progress") return m_rideActive ? m_ride.State().progress : 0.0f;
+        if (name == "ride_offset") return m_rideActive ? m_ride.State().offset : 0.0f;
         if (name == "ride_steer") return m_rideActive && m_ride.Settings().style == RideStyle::Steer ? 1.0f : 0.0f;
         return std::nullopt;
     }
