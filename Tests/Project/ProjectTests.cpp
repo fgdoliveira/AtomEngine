@@ -74,7 +74,7 @@ TEST_CASE("A descriptor round-trips, keeps no machine paths, and refuses paths l
     CHECK(load.descriptor->assets == "Assets");
     CHECK(load.descriptor->startupLevel == "first");
 
-    CHECK(ParseDescriptor(R"({ "schema": 1, "name": "A", "assets": "C:/Users/x/Assets" })").error.find("/assets") != std::string::npos);
+    CHECK(ParseDescriptor(R"({ "schema": 1, "name": "A", "assets": "D:/Games/Assets" })").error.find("/assets") != std::string::npos);
     CHECK(ParseDescriptor(R"({ "schema": 1, "name": "A", "source": "../elsewhere" })").error.find("/source") != std::string::npos);
     CHECK(ParseDescriptor(R"({ "schema": 1, "name": "A", "assets": "/abs" })").error.find("/assets") != std::string::npos);
     CHECK(ParseDescriptor(R"({ "schema": 2, "name": "A" })").error.find("schema") != std::string::npos);
