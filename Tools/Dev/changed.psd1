@@ -18,7 +18,8 @@
 @{
     # Owner -> its CPU test target; app owner -> the executable its scenarios run.
     TestTargets = @{ engine = 'AtomEngineTests'; framework = 'AtomFrameworkTests'; content = 'AtomContentTests'
-                     demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests' }
+                     demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests'
+                     project = 'AtomProjectTests' }
     Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena' }
 
     Rules = @(
@@ -93,6 +94,8 @@
         @{ Pattern = '^Tests/Content/'; Tests = @('content') }
         # M112: the level check - its tool and every app's levels through it.
         @{ Pattern = '^Tools/LevelCheck/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena') }
+        # v0.0.19: the project service and its command line.
+        @{ Pattern = '^(Project/|Tools/ProjectTool/|Tests/Project/)'; Tests = @('project') }
         @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.

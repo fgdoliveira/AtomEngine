@@ -72,6 +72,16 @@ atom_add_tests(
     LIBS AtomAuthoring nlohmann_json::nlohmann_json
 )
 
+# The project service's (v0.0.19): descriptors, names, creation. No GPU,
+# no engine - it runs anywhere CI does.
+atom_add_tests(
+    AtomProjectTests
+    OWNER project
+    SOURCES
+        Project/ProjectTests.cpp
+    LIBS AtomProject
+)
+
 # AtomTests: every CPU test target, built together (CI, the full check).
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)
 add_custom_target(AtomTests DEPENDS ${ATOM_ALL_TESTS})
