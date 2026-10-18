@@ -5,4 +5,4 @@ build (`Tools/Blender/build_assets.py`) and are never baked.
 
 | File | What | Author | Source | Licence |
 |---|---|---|---|---|
-| `rudy.glb` | Rigged character: 22-joint skin; clips Idle, Walk, Run, Jump | _to be added_ | _to be added_ | _to be added_ |
+| `rudy.glb` | Rigged character: 22-joint skin; clips Idle, Walk, Run, Jump | Duong Bui Duc | [sketchfab](https://sketchfab.com/duongbui04) | CC |

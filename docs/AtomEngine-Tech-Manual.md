@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.17 / M117**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136).
+A study guide to every concept the engine uses, as of **v0.0.18**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136). v0.0.18 makes the demo a game to play: a store character held on a frame, mumbled speech on the synthesiser timed to the text, a ride down a procedural coast road (a spline by arc length, a soft-leash controller, a leaning camera), terrain and night lighting for a coast and a shore, progress kept at save points with an atomic save file and a title screen, and the development tools and bugs that came with them (§137–§143).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -145,9 +145,16 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 134. [A level made by hand (M116)](#134-a-level-made-by-hand-m116)
 135. [External models and the supported glTF subset (M117)](#135-external-models-and-the-supported-gltf-subset-m117)
 136. [Releasing 0.0.17 (M117)](#136-releasing-0017-m117)
-137. [Anatomy of a frame and what it costs](#137-anatomy-of-a-frame-and-what-it-costs)
-138. [Build system and project layout](#138-build-system-and-project-layout)
-139. [Glossary](#139-glossary)
+137. [A third-party character, held on a frame (v0.0.18)](#137-a-third-party-character-held-on-a-frame-v0018)
+138. [Mumbled speech on a synthesiser](#138-mumbled-speech-on-a-synthesiser)
+139. [Riding: a road, a controller and a camera](#139-riding-a-road-a-controller-and-a-camera)
+140. [Building a coast and a shore, and lighting them at night](#140-building-a-coast-and-a-shore-and-lighting-them-at-night)
+141. [Keeping progress: save points and a title screen](#141-keeping-progress-save-points-and-a-title-screen)
+142. [Development conveniences, and the bugs they found](#142-development-conveniences-and-the-bugs-they-found)
+143. [Releasing 0.0.18](#143-releasing-0018)
+144. [Anatomy of a frame and what it costs](#144-anatomy-of-a-frame-and-what-it-costs)
+145. [Build system and project layout](#145-build-system-and-project-layout)
+146. [Glossary](#146-glossary)
 
 ---
 
@@ -3406,7 +3413,190 @@ A model without `COLOR_0` draws unbaked (white baked light), which is correct fo
 
 ---
 
-## 137. Anatomy of a frame and what it costs
+## 137. A third-party character, held on a frame (v0.0.18)
+
+v0.0.18 has no milestone numbers. It was open-ended work on the demo as a game: what the game needed, built into the engine and framework where it belonged.
+
+**Concept: a store model is its own source, at its own scale.** The shrine keeper became `old_man_psx.glb` (Sketchfab, CC BY 4.0; credits beside the file, in `ThirdParty/README.md`, and nowhere else). It arrived as most store models do:
+- a skinned Mixamo rig in centimetres under a chain of scaled nodes;
+- about 3.3 m tall;
+- its only clip a hip-hop dance.
+
+Nothing in the file was edited (§135's rule). The level file fixes it:
+- `"scale": 0.5` brings it to 1.65 m;
+- `"yaw"` turns it to face the street;
+- a held frame poses it.
+
+**Measuring before scaling.** The mesh's bounds are in the skin's space, not the world's, so they say little about its height. Walking the node hierarchy, and multiplying each joint's translation, rotation and scale down to `HeadTop_End` and the toes, gave the rest height in metres. That is what `scale` is set from.
+
+**A held frame.** `animation.time` is the new field: where in the clip an entity starts. With `"autoplay": false` the skin is drawn at that time and stays still. The dance's frame 0 happened to be a calm standing pose with the arms down, so the keeper stands in it. A negative time is a parse error.
+
+**Credits ship with the game.** The demo's `ThirdParty/` folder is now in the shipped payload (§86), because CC BY requires attribution wherever the file goes.
+
+**Code.** `Apps/Games/Demo/Assets/Levels/street.json` (`shrine_keeper`), `Framework/Level/LevelData.cpp` (`animation.time`), `Apps/Games/Demo/Assets/ThirdParty/README.md`.
+
+---
+
+## 138. Mumbled speech on a synthesiser
+
+**Concept: babble, not words.** Characters in *Banjo-Kazooie* speak in syllable-like noises; *Animal Crossing* times them to the text as it types out. The voice says who is talking and how, without recording a line.
+
+**How AtomEngine does it.**
+- **Voices are data:** `Data/voices.json` holds `old_man`, `sinister` and `man`, each with pitch and its spread, glide, waveform, syllable length, letters per syllable, breath noise, low-pass cutoff and echo. A dialogue names its `"voice"`, and a node may override it.
+- **The same letter at the same place always sounds the same.** A small integer hash of the letter and its index picks the syllable's pitch, length and loudness inside the voice's bounds, so a line replays identically. It is pure and unit-tested.
+- **On the engine's synth (DRIFT's, §99), on a stream of its own.** The game thread posts commands through the lock-free queue (`Say`, `Select`, `Stop`); the audio thread turns each syllable into one or two `SynthNote`s.
+  - Nothing is shared with other sound: its own `Synth`, filter, delay and gain.
+  - Nothing allocates on the audio thread: presets are a fixed array, set while the stream is stopped.
+- **Timed by the typewriter:** `DialogueSpeech` watches the runner each frame and sends one syllable every few revealed letters, at most one per frame. Skipping, a new line or closing sends `Stop`, which fades the master gain out in about 30 ms. A full queue drops syllables, never the text.
+- **Typewriter pauses:** a beat after `, ; :` and a breath after `. ! ?` and the ellipsis.
+
+**Lessons the tests taught.**
+- **A backlog stacks voices.** 256 syllables processed in one block peaked at 4.7, which clips. A syllable now needs a quarter of its length since the last one, so a backlog plays one.
+- **"Same node" isn't "same line".** A line shown again (the keeper's "anything else" loop) kept the same node pointer and was silent. Lines are now identified by a serial number the runner bumps on every entry.
+- **Inaudible isn't silent.** The first presets measured −40 dBFS RMS, mostly below 150 Hz: nothing on laptop speakers under rain. A test now keeps every voice above a level floor (RMS) and a brightness floor (the RMS of the sample-to-sample difference, a crude high-pass).
+
+**Code.** `Apps/Games/Demo/Dialogue/DialogueVoice.{h,cpp}`, `Apps/Games/Demo/Assets/Data/voices.json`, `Apps/Games/Demo/Tests/DialogueVoiceTests.cpp`.
+
+---
+
+## 139. Riding: a road, a controller and a camera
+
+**Concept: separate the data, the motion and the view.** A ride is three things:
+- **the road:** where it can go;
+- **a controller:** how it moves along the road;
+- **a camera:** what the rider sees.
+
+Keeping them apart made each one testable without the other two.
+
+**The data (framework, ADR-012).** A level may hold a `ride` block:
+- the vehicle entity;
+- the cruising speed;
+- the rider's eye, in the vehicle's local space;
+- an optional `steer.afterFlag`;
+- a route per spawn: its direction, the action at its end, and a flag to set.
+
+The spawn you arrive by picks the route, so one coast road serves both directions. The parser checks that the vehicle and the spawns exist and that the path has at least two points. **The road itself belongs to its builder:** `atom_coast.py` writes the centre line it built as the markers file's `ride_path` (§131). A `path` written in the level file wins, with a warning (§129's rule), so the bike can't silently ride a different road from the one drawn.
+
+**The road (`RoadPath`).** A uniform Catmull-Rom spline through the control points, sampled into a polyline with cumulative lengths, so a position is a *distance* and a speed in m/s means the same on every bend. Two refinements:
+- **Smooth direction.** A polyline's direction steps at every sample, and the heading and the camera jumped with it about every 6 m. The tangent is now blended along each segment, between the averaged directions at its two ends.
+- **Curvature over a span.** The lean comes from the change of heading over 4 m of road, not from frame to frame.
+
+**The controller (`RideController`).**
+- **Cinematic:** eases up to speed with a gentle sway. It's kept for levels that ask for it with `afterFlag`; the coast road doesn't.
+- **Steer:** DRIFT's soft leash (§96), rebuilt as physics.
+  - The keys ask for a sideways speed, reached as an acceleration over about 0.35 s, so a tap is a gentle swing and a hold a committed one.
+  - Past the road's edge a damped spring pulls back. The first version halved the speed every frame, which was a jolt that also changed with the frame rate.
+  - The bike's heading turns toward its sideways motion, eased, so you see it swing rather than slide.
+  - W/S set the speed between 0.5 and 1.6 times cruising; the bike never stops.
+- **Lean:** `atan(v · yawRate / g)` is the bank that balances a turn, plus a share of the sideways speed, eased.
+- A test drives the bend tapping the keys and bounds how much the turn rate changes between frames. It measured 0.05 rad per frame² before the smoothing, and under 0.004 after.
+
+**The view.**
+- **The camera** sits at the rider's eye, transformed by the bike's heading *and* lean. The mouse looks around inside a cone and drifts back when it rests.
+- **New in the engine and framework, both default 0:**
+  - `Camera::roll` turns the view's up vector about the view axis (Rodrigues' formula);
+  - `Renderable::tilt` is a world-space quaternion about the entity's origin, applied after its yaw. It assumes nothing about which way a model faces; this bike's model faces ±X, which a chase-camera screenshot revealed.
+- **The headlight is on the bike's nose, not at the eye.** A spot light at the camera lit the handlebars a few centimetres away at full strength and blinded the view. F switches it, as it does the flashlight on foot.
+
+**Code.** `Framework/Level/LevelData.{h,cpp}` (`LevelRide`), `Apps/Games/Demo/Ride/Ride.{h,cpp}`, `Apps/Games/Demo/Tests/RideTests.cpp`, `DemoApp::StartRide`/`UpdateRide`, `Engine/Scene/Camera.cpp`, `Framework/World/GameWorld.h`, `Tools/Blender/atom_coast.py`.
+
+---
+
+## 140. Building a coast and a shore, and lighting them at night
+
+**Concept: terrain from a height function.** Both new levels are built the lakeshore's way (§65):
+- a function `height(x, y)` describes the ground;
+- a grid that shares its vertices samples it;
+- the water is a flat surface whose first UV holds the depth, which the water shader reads (§65).
+
+The coast road keeps the ground flat along the road, drops it into a cliff on the sea side and raises hills on the other; the shore slopes sand into the sea under dunes.
+
+**What the lint caught: interpolation is not the function.** With 4 m grid cells, a cell straddling the road's edge has some corners on the hill or the cliff. Its flat faces interpolate between them, so they came within millimetres of the asphalt, and the export's lint refused to write them (§33; the 5 mm near-coplanar rule, §37). The fix keeps the function flat for a full cell beyond the shoulder, and lifts the road 6 cm above it.
+
+**Collision that follows the shape.** A flat floor box is fine for a meadow, but not for sand sloping 0.6 m into the sea, or for dunes. The shore's collision is the same height function on the same grid, built as a mesh, so the player walks on the surface that is drawn.
+
+**Night lighting, three lessons.**
+- **Fog colour is linear.** 0.07 linear displays as about 29 % sRGB. At a density of 0.03, everything past 30 m becomes that grey, and the night looked snowy. The road now uses a much darker fog colour at 40 % of the density.
+- **Hemisphere ambient lights vertical faces from both halves.** At night a face turned from the moon gets about (sky + ground) / 2 ≈ 0.045, which renders as black. Sand bounces light, so the shore's ground colour carries that bounce, and the moon is brighter, lower and more side-on.
+- **A texture can say "concrete".** The kit's `stone` is a paving texture with joints: boulders built from irregular rings of jittered points still read as blocks until they got a jointless `rock` material. The same went for driftwood: round logs in a bleached `driftwood` material, not bark.
+
+**Content checked by eye.** Every iteration was a scratch scenario of screenshots: teleport, face, capture. Several were wrong in ways no test checks: a bike facing backwards, lanterns inside walls, a gate in the sea that had to go.
+
+**Code.** `Tools/Blender/atom_coast.py`, `atom_shore.py`, `atom_kit.py` (`rock`, `driftwood`), `Apps/Games/Demo/Assets/Levels/coast_road.json`, `shore.json`.
+
+---
+
+## 141. Keeping progress: save points and a title screen
+
+**Concept: what a save is, and when it is written.** A save is a snapshot of the progress the game can't rebuild:
+- story flags and counters;
+- where you are: the level, position and facing;
+- small preferences: the flashlight and the headlight.
+
+The demo writes it only at **save points**, stone lanterns you light, so the world decides when progress is safe to keep.
+
+**The format (`SaveGame`, framework).**
+- **Plain JSON with a schema number.** Flags are sorted and objects keyed in order, so the same progress writes the same bytes.
+- **Reading is defensive, and never guesses:**
+  - a broken, truncated, level-less or newer file is reported as a warning and treated as *no save*;
+  - unknown keys are ignored;
+  - bad values are dropped or clamped.
+- **Writing is atomic.** `WriteFileAtomically` writes `save.json.tmp` and renames it over the old file. A crash or power cut mid-write leaves the previous save whole, never half of the new one.
+
+**The action.** `{ "type": "save", "place": "the lantern by the torii" }` is a new action (§29). The framework parses and executes it through `ActionContext::save`; what a save holds and where it goes is the game's. The place is what the title shows. One small fix came with it: the F10 inspector's action descriptions are now a compile-time list (`static_assert`), so a new action type can't silently show as "?".
+
+**Loading.**
+- **Continue** restores the flags and counters, then requests the saved level. When that level arrives, it places the player at the saved position and facing instead of the spawn. If the saved level no longer exists, you get its spawn, with a warning.
+- **New game** clears the state and asks first if a save exists. The old save stays on disk until the next lantern, so a mistaken "Start over" costs nothing until you save again.
+
+**The title screen** reuses the pause menu's `MenuScreen` and `SettingsScreen` over the live street, the camera drifting down the road. Continue is listed only when there's a save; the line under the title says where and when.
+- **Who skips it:** scripted runs, chosen start levels, and runs that measure or report.
+- `-Level full` found the last case: the title held calibration runs paused, so `--calibrate` never finished.
+
+**Tests never touch the player's progress.** A scripted run saves to `out/test_save.json`, deleted at start, exactly as settings are never read or written by tests (§78). `--no-save` and `--reset-save` match the settings flags. The scenario `save_continue` checks the title's items before and after a save, lights a lantern, starts over, and continues.
+
+**Code.** `Framework/Settings/SaveGame.{h,cpp}`, `Framework/Interaction/{Actions.h, ActionExecutor.cpp}`, `Tests/Framework/SaveGameTests.cpp`, `DemoApp::OpenSaveFile`/`SaveAt`/`ContinueFromSave`/`OpenTitle`.
+
+---
+
+## 142. Development conveniences, and the bugs they found
+
+**The sky picture in F10.** A level's sky panorama always wins over the environment's gradient sky, so on a level with a picture, a weather preset's sky never showed. F10's Environment panel now has a Sky picture section:
+- **a checkbox** to turn the picture off, so the preset's gradient shows;
+- **a list** of every PNG in the asset roots' `Sky/` folders (`AssetRoots::List`), read when the list opens rather than every frame, to stand in for the level's picture;
+- **an intensity** slider;
+- **Copy sky as JSON**, for the level file's `"sky"` block.
+
+It is view state (`ViewToggles`), applied in `SceneLightingFor`, and nothing is saved.
+
+**Bug: a GPU texture outlived the device.** The picked picture is a texture held by the app's `ViewToggles`. App members outlive `OnShutdown`, so it was released after the device was destroyed, and the Debug lifetime check (§70) aborted on exit. The fix releases it in `OnShutdown`. The lesson went into Architecture §5: an app member that holds a GPU wrapper must release it there. The `devtools` scenario now picks a picture and quits; without the fix the run exits with code 3.
+
+**Logs name no user folder, from the first line.** The log already replaced known folders in every line (§117). But the roots were registered when `Application` started, *after* the game's `RunLog` had written the executable folder and the log path in `AppData`, with the user name in it. `Log::AddStandardRoots` now runs first in `RunLog` as well. It adds the executable folder, `ATOM_ASSET_ROOT`, and the user's home folder as a last resort, longest first so a build under the home folder still reads relative to the executable.
+
+**Blender's names are global.** The coast and shore builders place kit pieces, and placing more objects shifted the names other units' exports carry (§131). A one-unit export of the untouched shrine then rewrote `shrine.glb`, which `Blender.export` caught. A full re-export fixed it. Comparing the old and new files with names stripped showed identical structure and binary data: names only.
+
+**Looking around while rooted.** A scripted sequence (waiting for the bus) froze the view along with the feet, which read as a hang. Mouse look now stays on during sequences; only movement and interaction stop.
+
+**Code.** `Framework/Debug/DevPanels.cpp` (`DrawSkyPicture`), `Framework/Level/ViewToggles.cpp`, `Framework/Platform/AssetRoots.cpp`, `Engine/Core/Log.cpp` (`AddStandardRoots`), `Framework/Platform/RunLog.cpp`.
+
+---
+
+## 143. Releasing 0.0.18
+
+- `check.ps1 -Level full`: 43/43 in Debug (CPU tests, level checks, every scenario including `ride_to_shore`, `save_continue` and calibration, and the two Blender tests). Release: 41/41 (the Blender tests don't depend on the configuration).
+- **Packages:** `Demo-v0.0.18-win64.zip` 17.5 MB, `Drift-v0.0.18-win64.zip` 2.1 MB, both passing the package check.
+- `AtomLevelCheck --all`, CI configure and the privacy check passed.
+- **Found by the full run, fixed before the release commit:**
+  - the title screen stopped calibration runs (§141);
+  - the new levels shifted names in four exported files (§142).
+- **Not measured:** no A/B was run. The renderer's per-entity work gained one quaternion multiply (`tilt`), and the camera gained one branch.
+- **Known:** the voices, the ride's feel and the title were judged from tests, screenshots and play on the development laptop only, not on another machine.
+
+**Code.** `CHANGELOG.md` 0.0.18, `README.md`, `docs/Architecture.md` (§5, §6, §8).
+
+---
+
+## 144. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -3453,7 +3643,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 138. Build system and project layout
+## 145. Build system and project layout
 
 - **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomShaders` (custom target compiling HLSL). The apps live under `Apps/` by purpose (§127). **CPU tests** (v0.0.16, §123): one doctest executable per owner — `AtomEngineTests`, `AtomFrameworkTests`, `AtomContentTests`, `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` — declared with `atom_add_tests` and run as `Unit.<owner>` and `Content.<owner>`; `AtomTests` builds them all. **Scenarios** (§125): each app registers its `Scenarios/*.atomtest` (and runs of its command line) as `Scenario.<owner>.<name>` with `atom_add_scenarios` / `atom_add_scenario`, labels `scenario`, the owner and, for one short run per app, `smoke`. Both helpers are in `cmake/AtomTesting.cmake`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
@@ -3467,13 +3657,14 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - `NoTrack/` and `build/` are git-ignored; this manual lives in `docs/`.
 - **Machines**: `Assets/Machines/*.json` (schema `machine.schema.json`), laid out by `Tools/Machines/*_layout.py`; plain JSON, read at runtime, no Blender needed.
 - **Documentation captures**: `pwsh Tools/Docs/capture_first_render.ps1` renders the first-render shots and GIFs into `out/img/` (§47); `capture_character_lab.ps1` does the lab's (§57).
-- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value; in v0.0.10 `expect_quality`, `move_window`, `set quality`; in v0.0.14 `expect_stat <name> <op> <value>` (an app's named statistics), and `set lens|feature_<id>|clock|clock_hold|menu|benchmark|benchmark_seconds|fullscreen|devtools_collapsed|glow|baked` (§105–§110).
+- **Harness commands** added since v0.0.4: `screenshot`, `capture`, `pan`, `set`, `hold_action`, `press_action`, `expect_counter`, `set_counter`; in v0.0.6 `clip`, `expect_clip`, `set_param`, `expect_state`, and `set skeleton|weights|bind|pause|mode|blend`; in v0.0.7 `set devtools|flashlight|spot|particles|msaa…`, `expect_lit`, `bench`, `expect_bench_under`; in v0.0.8 `expect_water`, `environment`, `expect_environment`, `expect_particles`, `timeout`, and `set water|rain|weather|reflection`; in v0.0.9 `expect_reflection`, and `bench` always ends on its second value; in v0.0.10 `expect_quality`, `move_window`, `set quality`; in v0.0.14 `expect_stat <name> <op> <value>` (an app's named statistics), and `set lens|feature_<id>|clock|clock_hold|menu|benchmark|benchmark_seconds|fullscreen|devtools_collapsed|glow|baked` (§105–§110); in v0.0.18 the demo's `set ride_progress|sky_picture|sky_image|save|continue|new_game|title` and the stats `ride_progress`, `ride_steer`, `ride_offset`, `ride_headlight`, `voice_syllables`, `voice_dropped`, `save_exists`, `title`, `title_items` (§138–§142).
 - **Game command line** (v0.0.10, §77): `--gpu low-power|high-performance`, `--quality auto|low|balanced|high`, `--calibrate`, `--diagnostics <file>`, `--no-settings`, `--reset-settings`. Settings are saved per app in `%APPDATA%\AtomEngine\<app>\settings.json` (§78, §109); exit code 3 means the renderer failed mid-run (§80). After a start-up fallback, the diagnostics report adds `gpu.fallback.adapter|stage|error` (§83); `Scenario.gpu_fallback` runs a high-performance request on any machine.
 - **Doctor** (§79): `pwsh Tools/Dev/doctor.ps1 [-Configure] [-GamePath <exe>]`.
 - **Asset build options** (after `--`): `--no-cache` re-bakes every lightmap, `--gpu` bakes on the NVIDIA GPU for light tuning (§46), `--no-export` stops after the lint.
 - **Environment switches** for development: `ATOM_VSYNC=0` (uncapped frame rate), `ATOM_AUDIO_CAPTURE=file.wav` (record the mix), `ATOM_START_LEVEL=<level>[:<spawn>]` (start anywhere), `ATOM_TEST_SCRIPT=<file>` (run a scenario, exit 0/1), `ATOM_ASSET_ROOT=<repo>` (read the source tree and hot-reload, §39); since v0.0.7 `ATOM_PRESENT=immediate`, `ATOM_PERF_LOG=1`, `ATOM_PERF_BLOCK=<frames>`, `ATOM_PERF_CSV=<file>` (§63); since v0.0.9 `ATOM_ASSET_LOG=<file>` (§73); since v0.0.10 `ATOM_GPU`, `ATOM_QUALITY` (§76), `ATOM_FRAMES_IN_FLIGHT`, `ATOM_CALIBRATE_SECONDS` (§81), `ATOM_WINDOW_POSITION=x,y`, `ATOM_SIMULATE_SWAPCHAIN_LOSS=<seconds>` (§80); since v0.0.12 `ATOM_LATENCY_LOG=1`, `ATOM_LATENCY_FLASH=1` (§90–§91), `ATOM_LATENCY_WAIT=late` (§92), `ATOM_PRESENTMON=<exe>` (§93); since v0.0.13, for DRIFT, `ATOM_DRIFT_SECONDS=<n>` (autopilot, then a summary with the frame rate), `ATOM_DRIFT_SEED`, `ATOM_DRIFT_TITLE=1`, `ATOM_DRIFT_CAPTURE=<png>` (§96–§97); since v0.0.15 `ATOM_TRACE=<prefix>` (§114), `ATOM_PREWARM=0` (§115). All are read through `Atom::DevSwitch` and ignored in a package (§101).
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Authoring** (v0.0.17, §129–§135): `pwsh Tools/Blender/export.ps1 -List | -Only <unit> [-What markers] | -Scene <file.blend> -Level <name>`; `AtomLevelCheck --app <app> | --all` (`Tools/LevelCheck`); `pwsh Tools/Blender/open.ps1` (the marker panel); `clean_scene.ps1` before committing a `.blend`. Guide: `docs/Authoring.md`.
+- **Demo vertical** (v0.0.18, §137–§142): Blender units `coast` and `shore` (`export.ps1 -Only coast|shore`); the demo's progress in `save.json` beside `settings.json` (`--no-save`, `--reset-save`; scripted runs use `out/test_save.json`); voices in `Assets/Data/voices.json`; third-party models and their credits in `Apps/Games/Demo/Assets/ThirdParty/` (shipped). Scenarios `ride_to_shore`, `save_continue`.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-L cpu` (the CPU tests, no GPU), `-L scenario` (in-game), `-L smoke` (one short run per app), `-L <owner>` (one owner's: `engine`, `framework`, `content`, `demo`, `drift`, `showcase`, `hello`, `arena`); `<target> -ts=benchmark` runs a target's timing comparisons by hand (§121).
 
 ```
@@ -3536,7 +3727,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 139. Glossary
+## 146. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -3802,3 +3993,10 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Placement source** — where a spawn's or entity's position came from: the level file, a marker, or the file over a marker (§129).
 - **Unit (export)** — what one builder makes and the export can redo alone: the kit, the sky, a level folder (§131).
 - **Write-if-changed** — writing an output only when its bytes differ, so unchanged files keep their bytes and timestamps (§131).
+- **Arc length** — distance measured along a curve; a spline parameterised by it moves at the same speed on every bend (§139).
+- **Atomic write** — writing a file beside its target and renaming it over, so a reader or a crash sees the old file or the new one, never half (§141).
+- **Catmull-Rom spline** — a curve that passes through each of its control points, its tangent at each from the neighbours (§139).
+- **Damped spring** — a pull proportional to the distance from rest, minus a share of the speed, so a push back settles instead of jolting or oscillating (§139).
+- **Hemisphere ambient** — ambient light from a sky colour above and a ground colour below, blended by the surface's facing; vertical faces get half of each (§140).
+- **Save point** — a place in the world where the game keeps its progress, chosen by the level design rather than the player's timing (§141).
+- **Soft leash** — a limit that pulls back past its edge instead of stopping hard (DRIFT's lateral bound, the ride's road edge) (§139).
