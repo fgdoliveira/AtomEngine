@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../Framework/Schemas/level.schema.json",
+  "name": "shore",
+  "model": "Shore/shore.glb",
+  "collision": "Shore/shore_col.glb",
+  "defaultSpawn": "from_road",
+  "spawns": {
+    "from_road": {},
+    "jetty_end": {}
+  },
+  "lighting": {
+    "sunDirection": [0.15, 0.2, -0.97],
+    "sunColor": [0.2, 0.23, 0.32],
+    "skyColor": [0.05, 0.06, 0.1],
+    "groundColor": [0.02, 0.02, 0.03],
+    "fogColor": [0.014, 0.016, 0.022],
+    "fogDensity": 0.008,
+    "water": { "shallow": [0.07, 0.13, 0.14], "deep": [0.01, 0.03, 0.05], "skyReflection": 0.6, "ripple": 1.6, "reflection": false },
+    "shadows": false,
+    "glow": { "strength": 0.7, "threshold": 0.7 }
+  },
+  "sky": { "panorama": "Sky/night_sky.png", "intensity": 0.7 },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.3 },
+      { "sound": "rain", "gain": 0.12 }
+    ]
+  },
+  "surfaces": {
+    "default": "dirt",
+    "zones": [
+      { "min": [-3.5, 0, -1.0], "max": [3.5, 0, 46.0], "surface": "asphalt" },
+      { "min": [8.0, 0, -42.0], "max": [10.0, 0, -15.0], "surface": "wood" }
+    ]
+  },
+  "particles": { "leaves": false, "fogBanks": false },
+  "unease": { "figure": false },
+  "entities": [
+    {
+      "name": "kawasaki",
+      "position": [2.5, 0.85, 6.0],
+      "yaw": -90,
+      "model": "ThirdParty/kawasaki_spectre_psx.glb",
+      "scale": 0.22,
+      "collider": { "center": [0.0, 0.45, 0.0], "halfExtents": [0.35, 0.5, 1.1] },
+      "interactable": {
+        "prompt": "Ride back", "focus": [0.0, 0.9, 0.0], "radius": 2.4,
+        "action": { "type": "changeLevel", "level": "coast_road", "spawn": "from_shore" }
+      }
+    }
+  ]
+}

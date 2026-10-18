@@ -176,11 +176,12 @@ def collect_markers(objects):
     return placements, errors
 
 
-def write_markers(collection, path, source="Tools/Blender/build_assets.py"):
+def write_markers(collection, path, source="Tools/Blender/build_assets.py", extra=None):
     """Writes the collection's spawn:/entity: empties to `path`. Sorted and
     rounded, so the file is byte-identical across rebuilds. A bad marker
     stops the build instead of silently losing a spawn. Returns the
-    number of markers."""
+    number of markers. `extra`: more of what the builder made that the
+    level file reads, e.g. a ride's road ("ride_path", in game axes)."""
     # Blender updates matrix_world lazily: an empty placed (or parented) by
     # a builder reads as the origin until the scene is evaluated. A full
     # build evaluated it while baking; a markers-only export (M113) bakes
@@ -199,6 +200,7 @@ def write_markers(collection, path, source="Tools/Blender/build_assets.py"):
         return 0
     document = {"_generated": f"by {source} from the level's markers; do not edit"}
     document.update(placements)
+    document.update(extra or {})
     text = json.dumps(document, indent=2, sort_keys=True) + "\n"
     report(path, write_if_changed(path, text.encode("utf-8"), text=True), f"{count} markers")
     return count

@@ -13,6 +13,7 @@
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/constants.hpp>
+#include <limits>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -337,6 +338,7 @@ namespace Demo
         // Drop everything that points into the level that's about to die.
         m_target = {};
         m_speaker = {};
+        StopRide(); // its route points into the old level's data
         m_sequence.Stop(); // its steps name the old level's entities
         if (m_machine.IsActive())
         {
@@ -365,14 +367,27 @@ namespace Demo
         m_arriving = true;
 
         ConfigureForLevel(incoming);
+        if (data.ride)
+        {
+            StartRide(incoming, spawn);
+        }
         m_mode = RestingMode();
         ATOM_LOG_GAME("Demo") << "Entered level '" << data.name << "'\n";
     }
 
     void DemoApp::OnLevelReloaded(Level& incoming)
     {
-        // Same place, same view: only the level's content changed.
+        // Same place, same view: only the level's content changed. A ride
+        // starts over on its first route (its data was just replaced).
         ConfigureForLevel(incoming);
+        StopRide();
+        if (const auto& ride = incoming.GetData().ride; ride && !ride->routes.empty())
+        {
+            if (const SpawnPoint* spawn = incoming.GetData().FindSpawn(ride->routes.front().spawn))
+            {
+                StartRide(incoming, *spawn);
+            }
+        }
         m_mode = RestingMode();
     }
 
@@ -702,6 +717,10 @@ namespace Demo
             m_target = {};
             UpdateMachine(deltaSeconds);
             break;
+        case Mode::Riding:
+            m_target = {};
+            UpdateRide(deltaSeconds);
+            break;
         case Mode::Transitioning:
             m_target = {};
             // The fade-in is drawn from here: it must be the spawn.
@@ -736,7 +755,11 @@ namespace Demo
             drawn->Submit(renderer, m_player.GetFeetPosition());
         }
         UpdateFlashlight(deltaSeconds);
-        if (m_flashlight.IsOn() && !m_devSpotOn)
+        if (m_rideActive && !m_devSpotOn)
+        {
+            renderer.SubmitSpotLight(m_headlight); // the bike's own, not the flashlight
+        }
+        else if (m_flashlight.IsOn() && !m_devSpotOn)
         {
             renderer.SubmitSpotLight(m_flashlight.GetLight());
         }
@@ -1035,6 +1058,143 @@ namespace Demo
         m_speech->Update(m_dialogue);
     }
 
+    void DemoApp::StartRide(const Level& level, const SpawnPoint& spawn)
+    {
+        const LevelData& data = level.GetData();
+        const LevelRide& ride = *data.ride;
+
+        // The route of the spawn we came in by (the nearest: the callback
+        // gives the point, not its name).
+        m_rideRoute = nullptr;
+        float nearest = std::numeric_limits<float>::max();
+        for (const RideRoute& route : ride.routes)
+        {
+            const SpawnPoint* at = data.FindSpawn(route.spawn);
+            const float distance = at ? glm::length(at->position - spawn.position) : nearest;
+            if (distance < nearest)
+            {
+                nearest = distance;
+                m_rideRoute = &route;
+            }
+        }
+        if (!m_rideRoute)
+        {
+            return;
+        }
+
+        // The file's yaw and height for the vehicle are its model's own turn
+        // and how high it sits over the road.
+        m_rideVehicle = ride.vehicle;
+        for (const EntityData& entity : data.entities)
+        {
+            if (entity.name == ride.vehicle)
+            {
+                m_rideBaseYaw = glm::radians(entity.yawDegrees);
+                m_rideLift = entity.position.y;
+            }
+        }
+
+        RideSettings settings;
+        settings.style = !ride.steerAfterFlag.empty() && m_gameState.HasFlag(ride.steerAfterFlag)
+            ? RideStyle::Steer : RideStyle::Cinematic;
+        settings.reverse = m_rideRoute->reverse;
+        settings.speed = ride.speed;
+        settings.steerWidth = ride.steerWidth;
+        settings.steerRate = ride.steerRate;
+        m_road = RoadPath(ride.path);
+        m_ride.Start(m_road, settings);
+        m_rideEye = ride.eye;
+        m_lookYaw = 0.0f;
+        m_lookPitch = 0.0f;
+        m_rideEnded = false;
+        m_rideActive = true;
+        ATOM_LOG_GAME("Demo") << "Riding '" << ride.vehicle << "' from " << m_rideRoute->spawn << " ("
+                              << (settings.style == RideStyle::Steer ? "steer" : "cinematic") << ", "
+                              << static_cast<int>(m_road.Length()) << " m)\n";
+    }
+
+    void DemoApp::StopRide()
+    {
+        if (!m_rideActive)
+        {
+            return;
+        }
+        m_rideActive = false;
+        m_rideRoute = nullptr;
+    }
+
+    void DemoApp::UpdateRide(float deltaSeconds)
+    {
+        if (!m_rideActive)
+        {
+            return;
+        }
+        RideInput input;
+        input.steer = (m_actions.Held(InputAction::MoveRight) ? 1.0f : 0.0f) - (m_actions.Held(InputAction::MoveLeft) ? 1.0f : 0.0f);
+        input.throttle = (m_actions.Held(InputAction::MoveForward) ? 1.0f : 0.0f) - (m_actions.Held(InputAction::MoveBack) ? 1.0f : 0.0f);
+        const RideState& state = m_ride.Update(deltaSeconds, input);
+
+        // The bike on the road.
+        const glm::vec3 forward{ std::sin(state.heading), 0.0f, std::cos(state.heading) };
+        const glm::vec3 up{ 0.0f, 1.0f, 0.0f };
+        const glm::vec3 right = glm::cross(forward, up);
+        if (GameWorld* world = CurrentWorld())
+        {
+            world->ForEach([&](EntityId, Entity& entity) {
+                if (entity.name == m_rideVehicle)
+                {
+                    entity.position = state.position + up * m_rideLift;
+                    if (entity.renderable)
+                    {
+                        entity.renderable->yaw = state.heading + m_rideBaseYaw;
+                    }
+                }
+            });
+        }
+
+        // The rider's eye, looking down the road; the mouse looks around
+        // within a cone and drifts back when it rests.
+        const Atom::Input& in = GetInput();
+        const float dx = in.IsMouseCaptured() ? in.GetMouseDeltaX() : 0.0f;
+        const float dy = in.IsMouseCaptured() ? in.GetMouseDeltaY() : 0.0f;
+        m_lookYaw = std::clamp(m_lookYaw + dx * m_player.mouseSensitivity, -1.22f, 1.22f);   // +-70 degrees
+        m_lookPitch = std::clamp(m_lookPitch - dy * m_player.mouseSensitivity, -0.61f, 0.61f); // +-35 degrees
+        if (dx == 0.0f && dy == 0.0f)
+        {
+            const float back = std::exp(-0.8f * deltaSeconds);
+            m_lookYaw *= back;
+            m_lookPitch *= back;
+        }
+        m_player.Teleport(state.position, m_camera); // listeners and emitters follow the rider
+        m_camera.SetPosition(state.position + forward * m_rideEye.z + up * m_rideEye.y + right * m_rideEye.x);
+        // Camera yaw 0 looks down -Z; the ride's heading 0 faces +Z.
+        m_camera.SetRotation(glm::pi<float>() - state.heading + m_lookYaw, m_lookPitch - 0.04f);
+
+        // The headlight: on the bike's nose, ahead of the bars (a light at the
+        // eye would blind the rider with their own handlebars), dipped a
+        // little toward the road.
+        m_headlight.position = state.position + forward * 0.95f + up * 1.0f;
+        m_headlight.direction = glm::normalize(forward - up * 0.1f);
+        m_headlight.range = 50.0f;
+        m_headlight.innerAngleDegrees = 13.0f;
+        m_headlight.outerAngleDegrees = 30.0f;
+        m_headlight.intensity = 180.0f;
+        m_headlight.color = glm::vec3{ 1.0f, 0.93f, 0.78f };
+        m_headlight.castsShadows = false;
+
+        if (state.done && !m_rideEnded)
+        {
+            m_rideEnded = true;
+            if (!m_rideRoute->setsFlag.empty())
+            {
+                m_gameState.SetFlag(m_rideRoute->setsFlag);
+                ATOM_LOG_GAME("Demo") << "Flag set: " << m_rideRoute->setsFlag << '\n';
+            }
+            ActionContext context = MakeActionContext();
+            ExecuteAction(m_rideRoute->end, context);
+        }
+    }
+
     void DemoApp::TurnCameraToward(const glm::vec3& point, float deltaSeconds)
     {
         const glm::vec3 offset = point - m_camera.GetPosition();
@@ -1071,7 +1231,14 @@ namespace Demo
 
     void DemoApp::InteractWith(const Entity& target)
     {
-        ActionContext context{
+        ActionContext context = MakeActionContext();
+        ATOM_LOG_GAME("Demo") << "Interacted with " << target.name << '\n';
+        ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
+    }
+
+    ActionContext DemoApp::MakeActionContext()
+    {
+        return ActionContext{
             m_gameState,
             m_messages,
             [this](const std::string& id) { return BeginDialogue(id); },
@@ -1085,8 +1252,6 @@ namespace Demo
             [this](const std::string& id) { return RunSequence(id); },
             [this](const PlayMachine& play) { return BeginMachine(play); },
         };
-        ATOM_LOG_GAME("Demo") << "Interacted with " << target.name << '\n';
-        ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
     }
 
     bool DemoApp::RunSequence(const std::string& id)
@@ -1352,6 +1517,7 @@ namespace Demo
         case Mode::Transitioning: return "transitioning";
         case Mode::InSequence: return "sequence";
         case Mode::AtMachine: return "machine";
+        case Mode::Riding: return "riding";
         default: return "exploring";
         }
     }
@@ -1603,6 +1769,16 @@ namespace Demo
                 return false;
             }
             SetQualityMode(*mode, false);
+            return true;
+        }
+        if (what == "ride_progress" && isNumber)
+        {
+            // Jumps along the ride (0..1), so a scenario needn't ride a minute.
+            if (!m_rideActive)
+            {
+                return false;
+            }
+            m_ride.SetProgress(number);
             return true;
         }
         if (what == "unease" && onOff) m_unease.SetEnabled(on);

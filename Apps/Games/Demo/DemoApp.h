@@ -16,8 +16,10 @@
 #include "Dialogue/DialogueVoice.h"
 #include "Environment/EnvironmentController.h"
 #include "Flashlight.h"
+#include "Interaction/ActionExecutor.h"
 #include "Interaction/InteractionSystem.h"
 #include "Interaction/MessageFeed.h"
+#include "Ride/Ride.h"
 #include "Level/FileWatcher.h"
 #include "Input/InputContext.h"
 #include "Level/LevelManager.h"
@@ -77,11 +79,13 @@ namespace Demo
             Transitioning, // fading between levels; input ignored
             InSequence,    // M26: a sequence runs; the player is frozen
             AtMachine,     // M29: sitting at a pachinko machine
+            Riding,        // on the Kawasaki: the level is a ride
         };
 
         // Where play rests between dialogues and transitions. (The character
         // lab's viewer and drive modes moved to the Showcase in v0.0.14.)
-        Mode RestingMode() const { return Mode::Exploring; }
+        // A ride level rests in the ride.
+        Mode RestingMode() const { return m_rideActive ? Mode::Riding : Mode::Exploring; }
 
         void OnLevelUnloading(Level& outgoing);
         void OnLevelLoaded(Level& incoming, const SpawnPoint& spawn);
@@ -321,6 +325,25 @@ namespace Demo
         std::unique_ptr<DialogueSpeech> m_speech = std::make_unique<DialogueSpeech>();
         void LoadVoices();
         EntityId m_speaker{}; // who we're talking to
+
+        // The ride (a level with a "ride" block): the bike follows the road,
+        // the camera is the rider's eye; the route was picked by the spawn.
+        void StartRide(const Level& level, const SpawnPoint& spawn);
+        void UpdateRide(float deltaSeconds);
+        void StopRide();
+        ActionContext MakeActionContext();
+        bool m_rideActive = false;
+        bool m_rideEnded = false;     // the end action ran
+        RoadPath m_road;
+        RideController m_ride;
+        const RideRoute* m_rideRoute = nullptr; // into the level's data
+        std::string m_rideVehicle;    // found by name each frame, like the inspector's selection
+        float m_rideBaseYaw = 0.0f;   // the model's own turn (the file's yaw), radians
+        float m_rideLift = 0.0f;      // the model's height over the road (the file's y)
+        glm::vec3 m_rideEye{ 0.0f };
+        float m_lookYaw = 0.0f;       // the rider looking around, relative to the heading
+        float m_lookPitch = 0.0f;
+        Atom::SpotLight m_headlight;
 
         // Where the last level load put the camera. Until the fade-in ends
         // the camera must stay there: those frames show the new level.

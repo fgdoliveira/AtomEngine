@@ -14,7 +14,8 @@
     "from_shrine": { "position": [-14.0, 0.0, 12.6], "yaw": 0 },
     "from_house":  { "position": [34.3, 0.0, -3.2], "yaw": 180 },
     "from_fields": { "position": [-37.5, 0.0, 0.0], "yaw": 90 },
-    "from_bus":    { "position": [38.0, 0.0, -3.0], "yaw": -90 }
+    "from_bus":    { "position": [38.0, 0.0, -3.0], "yaw": -90 },
+    "by_bike":     { "position": [29.5, 0.0, -0.6], "yaw": 150 }
   },
   "lighting": {
     "sunDirection": [0.35, 0.6, -0.55],
@@ -157,6 +158,18 @@
       "interactable": {
         "prompt": "Enter the house", "focus": [0.0, 1.2, 0.15],
         "action": { "type": "changeLevel", "level": "machiya_interior", "spawn": "entrance" }
+      }
+    },
+    {
+      "name": "kawasaki",
+      "position": [31.0, 0.19, 2.9],
+      "yaw": 180,
+      "model": "ThirdParty/kawasaki_spectre_psx.glb",
+      "scale": 0.22,
+      "collider": { "center": [0.0, 0.45, 0.0], "halfExtents": [1.1, 0.5, 0.35] },
+      "interactable": {
+        "prompt": "Ride", "focus": [0.0, 0.9, 0.0], "radius": 2.4,
+        "action": { "type": "changeLevel", "level": "coast_road", "spawn": "from_street" }
       }
     },
     {
