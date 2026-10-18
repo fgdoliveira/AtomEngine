@@ -90,6 +90,16 @@ add_test(NAME Project.empty_configures
 set_tests_properties(Project.empty_configures PROPERTIES LABELS "configure;project" TIMEOUT 600)
 set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomProjectTool)
 
+# The workspace's (v0.0.19): what it keeps between sessions, without a window.
+atom_add_tests(
+    AtomWorkspaceTests
+    OWNER workspace
+    SOURCES
+        Workspace/RecentProjectsTests.cpp
+    LIBS AtomWorkspaceUI
+)
+set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomWorkspace)
+
 # AtomTests: every CPU test target, built together (CI, the full check).
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)
 add_custom_target(AtomTests DEPENDS ${ATOM_ALL_TESTS})

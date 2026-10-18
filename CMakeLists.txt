@@ -109,6 +109,7 @@ add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
 add_subdirectory(Authoring) # v0.0.19: what the tools know about content; no game links it
 add_subdirectory(Project) # v0.0.19: project descriptors and creation; no GPU, no engine
+add_subdirectory(WorkspaceUI) # v0.0.19: the workspace's ImGui host - the only ImGui user
 
 # v0.0.19: the runtime carries no tool code. A guard, not a convention:
 # configuring fails if ImGui reaches the engine, the framework or the
@@ -164,6 +165,7 @@ endif()
 
 add_subdirectory(Tools/LevelCheck) # M112: AtomLevelCheck, levels checked without the game
 add_subdirectory(Tools/ProjectTool) # v0.0.19: AtomProjectTool create --workspace <folder> --name <Name>
+add_subdirectory(Tools/Workspace) # v0.0.19: AtomWorkspace, the development program
 
 if(ATOM_BUILD_TESTS)
     add_subdirectory(Tests) # last: the aggregate AtomTests names every owner's

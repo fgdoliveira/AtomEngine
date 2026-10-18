@@ -19,7 +19,7 @@
     # Owner -> its CPU test target; app owner -> the executable its scenarios run.
     TestTargets = @{ engine = 'AtomEngineTests'; framework = 'AtomFrameworkTests'; content = 'AtomContentTests'
                      demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests'
-                     project = 'AtomProjectTests' }
+                     project = 'AtomProjectTests'; workspace = 'AtomWorkspaceTests' }
     Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena' }
 
     Rules = @(
@@ -96,6 +96,8 @@
         @{ Pattern = '^Tools/LevelCheck/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena') }
         # v0.0.19: the project service and its command line.
         @{ Pattern = '^(Project/|Tools/ProjectTool/|Tests/Project/)'; Tests = @('project') }
+        # v0.0.19: the workspace - its UI library, the program, ImGui (only it uses it).
+        @{ Pattern = '^(WorkspaceUI/|Tools/Workspace/|Tests/Workspace/|external/imgui)'; Tests = @('workspace') }
         @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.
