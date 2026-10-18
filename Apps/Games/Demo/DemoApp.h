@@ -345,6 +345,7 @@ namespace Demo
         float m_lookYaw = 0.0f;       // the rider looking around, relative to the heading
         float m_lookPitch = 0.0f;
         Atom::SpotLight m_headlight;
+        bool m_headlightOn = true; // F, as the flashlight; kept from ride to ride
         Atom::VoiceId m_engineVoice = 0; // the bike's engine, looping while riding
         float m_rideCruise = 14.0f;      // the ride's cruising speed, m/s
 

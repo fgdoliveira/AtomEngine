@@ -757,7 +757,10 @@ namespace Demo
         UpdateFlashlight(deltaSeconds);
         if (m_rideActive && !m_devSpotOn)
         {
-            renderer.SubmitSpotLight(m_headlight); // the bike's own, not the flashlight
+            if (m_headlightOn)
+            {
+                renderer.SubmitSpotLight(m_headlight); // the bike's own, not the flashlight
+            }
         }
         else if (m_flashlight.IsOn() && !m_devSpotOn)
         {
@@ -930,7 +933,7 @@ namespace Demo
         if (hintAlpha > 0.0f)
         {
             const bool steering = m_rideActive && m_ride.Settings().style == RideStyle::Steer;
-            const char* hint = steering ? "A D steer   W S speed   Mouse look"
+            const char* hint = steering ? "A D steer   W S speed   F light   Mouse look"
                 : m_rideActive ? "Mouse look   (the bike rides itself the first time)"
                 : m_flashlight.IsOwned()
                 ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
@@ -1192,6 +1195,14 @@ namespace Demo
         m_camera.SetRotation(glm::pi<float>() - state.heading + m_lookYaw, m_lookPitch - 0.04f);
         m_camera.roll = state.lean * 0.75f;
 
+        // F switches the headlight, as it does the flashlight on foot.
+        if (m_actions.Pressed(InputAction::ToggleLight))
+        {
+            m_headlightOn = !m_headlightOn;
+            Atom::PlayParams click{};
+            click.gain = 0.6f;
+            GetAudio().Play(m_audioScape.GetSound("switch_click"), click);
+        }
         // The headlight: on the bike's nose, ahead of the bars (a light at the
         // eye would blind the rider with their own handlebars), dipped a
         // little toward the road.
@@ -1511,6 +1522,7 @@ namespace Demo
         if (name == "voice_dropped") return static_cast<float>(m_speech->Dropped());
         // The ride: how far along (0..1), and 1 once it steers (not cinematic).
         if (name == "ride_progress") return m_rideActive ? m_ride.State().progress : 0.0f;
+        if (name == "ride_headlight") return m_rideActive && m_headlightOn ? 1.0f : 0.0f;
         if (name == "ride_offset") return m_rideActive ? m_ride.State().offset : 0.0f;
         if (name == "ride_steer") return m_rideActive && m_ride.Settings().style == RideStyle::Steer ? 1.0f : 0.0f;
         return std::nullopt;

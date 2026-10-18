@@ -21,6 +21,15 @@ hold_action move_right on
 wait 1.5
 hold_action move_right off
 expect_stat ride_offset > 1.5
+
+# F switches the headlight, and back.
+expect_stat ride_headlight == 1
+press_action toggle_light
+wait 0.2
+expect_stat ride_headlight == 0
+press_action toggle_light
+wait 0.2
+expect_stat ride_headlight == 1
 set ride_progress 0.995
 wait 4
 
