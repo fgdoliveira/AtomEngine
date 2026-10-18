@@ -123,6 +123,10 @@ MATERIALS = {
     "sand": (lambda: tex.flat((0.70, 0.62, 0.46), size=32, seed=110, variation=0.12), 2.0, 1.0, 0.0),
     "meadow": (lambda: tex.flat((0.28, 0.36, 0.16), size=32, seed=111, variation=0.22), 3.0, 1.0, 0.0),
     "water": (lambda: tex.flat((0.10, 0.28, 0.32), size=16, seed=112, variation=0.0), 1.0, 0.05, 0.0),
+    # The shore: boulders (no joints - "stone" is paving and reads as
+    # concrete on a beach) and driftwood bleached grey by the sea.
+    "rock": (lambda: tex.flat((0.40, 0.39, 0.36), size=32, seed=113, variation=0.35), 1.5, 0.95, 0.0),
+    "driftwood": (lambda: tex.flat((0.62, 0.58, 0.52), size=32, seed=114, variation=0.25), 1.0, 0.9, 0.0),
 }
 
 # Emissive masks (M23): material -> (mask generator, strength, fog amount).

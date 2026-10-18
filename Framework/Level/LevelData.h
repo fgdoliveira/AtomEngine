@@ -164,6 +164,7 @@ namespace AtomFramework
         bool loop = true;
         bool autoplay = true;
         float speed = 1.0f;
+        float time = 0.0f;        // where in the clip it starts; with autoplay off, the held pose
         std::string sound;        // optional, from the sound library
         int soundsPerLoop = 1;
         glm::vec3 soundOffset{ 0.0f, 1.0f, 0.0f };
@@ -223,6 +224,43 @@ namespace AtomFramework
         float distance = 3.6f;
         float yawDegrees = 0.0f;
         float pitchDegrees = 12.0f;
+    };
+
+    // A ride (demo vertical): the level is crossed on `vehicle` along
+    // `path`. The spawn the level was entered by picks the route - its
+    // direction and what happens at the end. The game drives it; this is
+    // only the data.
+    struct RideRoute
+    {
+        std::string spawn;
+        bool reverse = false;   // from the path's last point to its first
+        Action end;             // run once the end is reached
+        std::string setsFlag;   // set when the end is reached ("sets")
+    };
+
+    struct LevelRide
+    {
+        std::string vehicle;          // an entity of this level
+        std::vector<glm::vec3> path;  // the road's centre (Catmull-Rom), at least 2 points
+        PlacementSource pathSource = PlacementSource::File; // or the markers' "ride_path"
+        float speed = 14.0f;          // m/s
+        glm::vec3 eye{ 0.0f, 1.35f, 0.0f }; // the rider's eye, vehicle-local (+Z forward)
+        std::string steerAfterFlag;   // steering waits for this flag ("": the rider always steers)
+        float steerWidth = 3.0f;      // metres either side of the centre
+        float steerRate = 2.5f;       // lateral m/s at full input
+        std::vector<RideRoute> routes;
+
+        const RideRoute* RouteFor(std::string_view spawnName) const
+        {
+            for (const RideRoute& route : routes)
+            {
+                if (route.spawn == spawnName)
+                {
+                    return &route;
+                }
+            }
+            return nullptr;
+        }
     };
 
     struct LevelUnease
@@ -310,6 +348,7 @@ namespace AtomFramework
         float beam = 0.0f;        // M45: the flashlight's beam seen in the air here
         LevelUnease unease;
         std::optional<LevelLab> lab; // M36: opens in the model viewer
+        std::optional<LevelRide> ride; // the level is a ride (the coast road)
         std::vector<EntityData> entities;
         std::optional<LevelSky> sky;
         std::optional<LevelEnvironment> environment; // M49

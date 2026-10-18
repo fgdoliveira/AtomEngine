@@ -20,6 +20,8 @@ add_library(
     Dialogue/DialogueRunner.h
     Dialogue/DialogueView.cpp
     Dialogue/DialogueView.h
+    Dialogue/DialogueVoice.cpp
+    Dialogue/DialogueVoice.h
     Input/InputContext.cpp
     Input/InputContext.h
     Pachinko/MachineMode.cpp
@@ -32,6 +34,8 @@ add_library(
     Pachinko/PachinkoGame.h
     Pachinko/PachinkoRules.cpp
     Pachinko/PachinkoRules.h
+    Ride/Ride.cpp
+    Ride/Ride.h
     Pachinko/Playfield.cpp
     Pachinko/Playfield.h
     Pachinko/PixelDraw.h
@@ -76,6 +80,7 @@ if(ATOM_BUILD_TESTS)
             Tests/AuthoringContentTests.cpp
             Tests/CollisionContentTests.cpp
             Tests/DialogueTests.cpp
+            Tests/DialogueVoiceTests.cpp
             Tests/FlashlightTests.cpp
             Tests/ImpostorContentTests.cpp
             Tests/LevelContentTests.cpp
@@ -85,6 +90,7 @@ if(ATOM_BUILD_TESTS)
             Tests/PachinkoRulesTests.cpp
             Tests/Physics2DTests.cpp
             Tests/PlayfieldTests.cpp
+            Tests/RideTests.cpp
         LIBS DemoLib nlohmann_json::nlohmann_json
     )
 endif()
@@ -134,8 +140,8 @@ endif()
 # (ATOM_CONTENT_ASSETS). Both land in Assets/<folder> beside the
 # executable, so level files name them the same way.
 set(ATOM_SHIPPED_ASSETS
-    City Data Dialogue Environments Fields Fonts Interior Kit
-    Levels Machines Night Pachinko Passage Shrine Sky Street
+    City Coast Data Dialogue Environments Fields Fonts Interior Kit
+    Levels Machines Night Pachinko Passage Shore Shrine Sky Street ThirdParty
 )
 set(ATOM_DEV_ASSETS) # v0.0.14: none - the character lab moved to the Showcase
 set(ATOM_CONTENT_ASSETS Environments Fonts Kit Sky)

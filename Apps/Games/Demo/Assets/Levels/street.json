@@ -14,7 +14,8 @@
     "from_shrine": { "position": [-14.0, 0.0, 12.6], "yaw": 0 },
     "from_house":  { "position": [34.3, 0.0, -3.2], "yaw": 180 },
     "from_fields": { "position": [-37.5, 0.0, 0.0], "yaw": 90 },
-    "from_bus":    { "position": [38.0, 0.0, -3.0], "yaw": -90 }
+    "from_bus":    { "position": [38.0, 0.0, -3.0], "yaw": -90 },
+    "by_bike":     { "position": [29.5, 0.0, -0.6], "yaw": 150 }
   },
   "lighting": {
     "sunDirection": [0.35, 0.6, -0.55],
@@ -73,6 +74,7 @@
     ]
   },
   "halos": [
+    { "position": [0.0, 1.25, 0.0], "size": 0.6, "color": [1.0, 0.72, 0.4], "intensity": 0.3, "flicker": 0.6, "entity": "save_lantern" },
     { "position": [-5.3, 0.8, -0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" },
     { "position": [-5.3, 0.8, 0.85], "size": 1.8, "color": [1.0, 0.92, 0.75], "intensity": 0.7, "entity": "bus" }
   ],
@@ -160,13 +162,37 @@
       }
     },
     {
+      "name": "save_lantern",
+      "position": [-16.6, 0.0, 6.2],
+      "model": "Kit/toro.glb",
+      "collider": { "center": [0.0, 0.9, 0.0], "halfExtents": [0.33, 0.9, 0.33] },
+      "interactable": {
+        "prompt": "Light the lantern", "focus": [0.0, 1.2, 0.0], "radius": 2.2,
+        "action": { "type": "save", "place": "the lantern by the torii" }
+      }
+    },
+    {
+      "name": "kawasaki",
+      "position": [31.0, 0.19, 2.9],
+      "yaw": 180,
+      "model": "ThirdParty/kawasaki_spectre_psx.glb",
+      "scale": 0.22,
+      "collider": { "center": [0.0, 0.45, 0.0], "halfExtents": [1.1, 0.5, 0.35] },
+      "interactable": {
+        "prompt": "Ride", "focus": [0.0, 0.9, 0.0], "radius": 2.4,
+        "action": { "type": "changeLevel", "level": "coast_road", "spawn": "from_street" }
+      }
+    },
+    {
       "name": "shrine_keeper",
       "position": [-11.4, 0.0, 3.9],
       "yaw": 180,
-      "model": "Kit/keeper.glb",
-      "collider": { "center": [0.0, 0.85, 0.0], "halfExtents": [0.3, 0.85, 0.25] },
+      "model": "ThirdParty/old_man_psx.glb",
+      "scale": 0.5,
+      "animation": { "clip": "mixamo.com", "autoplay": false, "time": 0.0 },
+      "collider": { "center": [0.0, 0.82, 0.0], "halfExtents": [0.3, 0.82, 0.25] },
       "interactable": {
-        "prompt": "Talk", "focus": [0.0, 1.45, 0.0], "radius": 2.6,
+        "prompt": "Talk", "focus": [0.0, 1.5, 0.0], "radius": 2.6,
         "action": { "type": "dialogue", "id": "shrine_keeper" }
       }
     }

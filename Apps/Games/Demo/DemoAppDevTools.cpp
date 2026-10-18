@@ -56,6 +56,12 @@ namespace Demo
         context.setEnvironment = [this](const std::string& name, float seconds) { return SetEnvironment(name, seconds); };
         context.refreshEnvironment = [this] { RefreshEnvironment(); };
         context.applyLighting = [this] { ApplyLighting(); };
+        context.listSkyImages = [this] { return m_assets.List("Sky", ".png"); };
+        context.loadSkyImage = [this](const std::string& file) {
+            const bool loaded = LoadSkyImage(GetRenderer(), m_assets.Resolve("Sky/" + file), file, m_view);
+            ApplyLighting();
+            return loaded;
+        };
         context.toggles = { { "Unease", "unease", m_unease.IsEnabled() }, { "World", "world", m_drawWorld },
                             { "HUD", "hud", m_showHud } };
         m_devPanels.Draw(context, deltaSeconds);

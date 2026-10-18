@@ -213,6 +213,7 @@ namespace AtomFramework
                 Animated animated;
                 animated.clip = clip;
                 animated.duration = model->GetClip(clip)->duration;
+                animated.time = std::min(data.animation->time, animated.duration);
                 animated.speed = data.animation->speed;
                 animated.loop = data.animation->loop;
                 animated.playing = data.animation->autoplay;
@@ -707,6 +708,7 @@ namespace AtomFramework
         glm::mat4 transform = glm::translate(glm::mat4{ 1.0f }, entity.position);
         if (entity.renderable)
         {
+            transform = transform * glm::mat4_cast(entity.renderable->tilt);
             transform = glm::rotate(transform, entity.renderable->yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
             transform = glm::scale(transform, glm::vec3{ entity.renderable->scale });
         }

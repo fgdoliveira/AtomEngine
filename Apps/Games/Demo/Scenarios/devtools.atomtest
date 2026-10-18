@@ -11,3 +11,19 @@ set devtools_collapsed off
 wait 0.2
 set devtools off
 wait 0.1
+
+# The Environment panel's sky picture, on a level that has one: off lets
+# a preset's gradient sky show, and back.
+goto_level coast_road from_street
+wait_for_level coast_road
+set devtools on
+set sky_picture off
+wait 0.2
+set sky_picture on
+wait 0.2
+# A picked picture is a GPU texture the app holds: it must be gone before
+# the device at exit (it wasn't - the Debug build aborted on quitting).
+set sky_image night_sky.png
+wait 0.2
+set devtools off
+wait 0.1

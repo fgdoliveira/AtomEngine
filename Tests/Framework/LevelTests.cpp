@@ -1,7 +1,13 @@
 #include "Level/LevelData.h"
+#include "Level/Level.h" // EntityModelTransform
 
 #include <doctest/doctest.h>
 
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/vec4.hpp>
+
+#include <cmath>
 #include <ostream> // doctest prints the std::string_view values it compares
 
 using namespace AtomFramework; // v0.0.14: the world layer
@@ -164,6 +170,145 @@ TEST_CASE("A lightmap is optional, and needs a texture when given")
         "spawns": { "a": { "position": [0,0,0] } }, "lightmap": { "intensity": 1 } })");
     CHECK_FALSE(noTexture.level.has_value());
     CHECK(noTexture.error.find("lightmap") != std::string::npos);
+}
+
+TEST_CASE("A save point's action names its place")
+{
+    const auto level = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "shrine", "position": [0,0,0],
+            "interactable": { "prompt": "Pray", "action": { "type": "save", "place": "the roadside shrine" } } } ] })");
+    INFO(level.error);
+    REQUIRE(level.level.has_value());
+    const auto* save = std::get_if<SaveProgress>(&level.level->entities.front().interactable->action);
+    REQUIRE(save != nullptr);
+    CHECK(save->place == "the roadside shrine");
+
+    const auto noPlace = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "shrine", "position": [0,0,0],
+            "interactable": { "prompt": "Pray", "action": { "type": "save" } } } ] })");
+    CHECK(noPlace.error.find("place") != std::string::npos);
+}
+
+TEST_CASE("An entity's tilt turns its model about its origin, after its yaw")
+{
+    Entity entity;
+    entity.position = { 10.0f, 0.0f, 0.0f };
+    entity.renderable = Renderable{};
+    entity.renderable->yaw = glm::half_pi<float>(); // model +Z now faces +X
+
+    // Upright: the model's top stays up.
+    const glm::vec4 top = EntityModelTransform(entity) * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    CHECK(top.x == doctest::Approx(10.0f));
+    CHECK(top.y == doctest::Approx(1.0f));
+
+    // Leaning right about its line of travel (+X): its top swings toward
+    // the right of +X - cross(+X, up), which is +Z; the origin stays put.
+    entity.renderable->tilt = glm::angleAxis(0.4f, glm::vec3{ 1.0f, 0.0f, 0.0f });
+    const glm::mat4 tilted = EntityModelTransform(entity);
+    const glm::vec4 leaningTop = tilted * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    CHECK(leaningTop.z == doctest::Approx(std::sin(0.4f)).epsilon(0.001));
+    CHECK(leaningTop.y == doctest::Approx(std::cos(0.4f)).epsilon(0.001));
+    const glm::vec4 origin = tilted * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    CHECK(origin.x == doctest::Approx(10.0f));
+    CHECK(origin.y == doctest::Approx(0.0f));
+}
+
+TEST_CASE("A ride names its vehicle, its path and a route per spawn")
+{
+    const auto ride = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] }, "back": { "position": [0,0,90] } },
+        "entities": [ { "name": "bike", "position": [0,0,0], "model": "b.glb" } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0],[0,0,50],[10,0,90]], "speed": 12,
+                  "steer": { "afterFlag": "rode", "width": 2.5 },
+                  "routes": [
+                    { "spawn": "start", "end": { "type": "changeLevel", "level": "shore", "spawn": "a" }, "sets": "rode" },
+                    { "spawn": "back", "reverse": true, "end": { "type": "changeLevel", "level": "street", "spawn": "b" } } ] } })");
+    INFO(ride.error);
+    REQUIRE(ride.level.has_value());
+    REQUIRE(ride.level->ride.has_value());
+    const LevelRide& r = *ride.level->ride;
+    CHECK(r.vehicle == "bike");
+    CHECK(r.path.size() == 3);
+    CHECK(r.speed == doctest::Approx(12.0f));
+    CHECK(r.steerAfterFlag == "rode");
+    CHECK(r.steerWidth == doctest::Approx(2.5f));
+    REQUIRE(r.RouteFor("back") != nullptr);
+    CHECK(r.RouteFor("back")->reverse);
+    CHECK(r.RouteFor("start")->setsFlag == "rode");
+    CHECK(std::holds_alternative<ChangeLevel>(r.RouteFor("start")->end));
+    CHECK(r.RouteFor("nowhere") == nullptr);
+
+    const char* noVehicle = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "ride": { "vehicle": "ghost", "path": [[0,0,0],[0,0,1]],
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    CHECK(ParseLevel(noVehicle).error.find("/ride/vehicle") != std::string::npos);
+
+    const char* badSpawn = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0],[0,0,1]],
+                  "routes": [ { "spawn": "elsewhere", "end": { "type": "message", "text": "." } } ] } })";
+    CHECK(ParseLevel(badSpawn).error.find("/ride/routes/0/spawn") != std::string::npos);
+
+    const char* onePoint = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0]],
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    CHECK(ParseLevel(onePoint).error.find("/ride/path") != std::string::npos);
+}
+
+TEST_CASE("A ride's road comes from the markers; a path in the file wins with a warning")
+{
+    const char* level = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike",
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    const char* markers = R"({ "_generated": "test", "ride_path": [[0,0,0],[0,0,40],[5,0,80]] })";
+    const auto fromMarkers = ParseLevel(level, markers);
+    INFO(fromMarkers.error);
+    REQUIRE(fromMarkers.level.has_value());
+    CHECK(fromMarkers.level->ride->path.size() == 3);
+    CHECK(fromMarkers.level->ride->pathSource == PlacementSource::Marker);
+    CHECK(fromMarkers.level->warnings.empty());
+
+    const char* written = R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "start": { "position": [0,0,0] } },
+        "entities": [ { "name": "bike", "position": [0,0,0] } ],
+        "ride": { "vehicle": "bike", "path": [[0,0,0],[0,0,10]],
+                  "routes": [ { "spawn": "start", "end": { "type": "message", "text": "." } } ] } })";
+    const auto overridden = ParseLevel(written, markers);
+    REQUIRE(overridden.level.has_value());
+    CHECK(overridden.level->ride->path.size() == 2);
+    CHECK(overridden.level->ride->pathSource == PlacementSource::FileOverMarker);
+    REQUIRE(overridden.level->warnings.size() == 1);
+    CHECK(overridden.level->warnings.front().path == "/ride/path");
+
+    // Without either, it's an error naming both places.
+    CHECK(ParseLevel(level).error.find("ride_path") != std::string::npos);
+}
+
+TEST_CASE("An animation may start at, and hold, a time in its clip")
+{
+    const auto held = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "man", "position": [0,0,0], "model": "m.glb",
+            "animation": { "clip": "Dance", "autoplay": false, "time": 1.5 } } ] })");
+    REQUIRE(held.level.has_value());
+    const EntityAnimation& animation = *held.level->entities.front().animation;
+    CHECK_FALSE(animation.autoplay);
+    CHECK(animation.time == doctest::Approx(1.5f));
+
+    const auto negative = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "man", "position": [0,0,0], "model": "m.glb",
+            "animation": { "clip": "Dance", "time": -1 } } ] })");
+    CHECK_FALSE(negative.level.has_value());
+    CHECK(negative.error.find("/animation/time") != std::string::npos);
 }
 
 TEST_CASE("A lab names its subject, and entities may be scaled")

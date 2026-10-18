@@ -41,7 +41,8 @@ namespace AtomFramework
                 else if constexpr (std::is_same_v<T, PlayMachine>) return "playMachine " + a.machine;
                 else if constexpr (std::is_same_v<T, AddCounter>) return "addCounter " + a.counter;
                 else if constexpr (std::is_same_v<T, Exchange>) return "exchange " + a.counter + " -> " + a.flag;
-                else return "?";
+                else if constexpr (std::is_same_v<T, SaveProgress>) return "save at " + a.place;
+                else static_assert(sizeof(T) == 0, "describe the new action type here");
             }, action);
         }
     }

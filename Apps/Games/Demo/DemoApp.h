@@ -13,10 +13,13 @@
 #include "Dialogue/Dialogue.h"
 #include "Dialogue/DialogueRunner.h"
 #include "Dialogue/DialogueView.h"
+#include "Dialogue/DialogueVoice.h"
 #include "Environment/EnvironmentController.h"
 #include "Flashlight.h"
+#include "Interaction/ActionExecutor.h"
 #include "Interaction/InteractionSystem.h"
 #include "Interaction/MessageFeed.h"
+#include "Ride/Ride.h"
 #include "Level/FileWatcher.h"
 #include "Input/InputContext.h"
 #include "Level/LevelManager.h"
@@ -28,6 +31,7 @@
 #include "Character/PlayerController.h"
 #include "Settings/Calibration.h"
 #include "Settings/GameSettings.h"
+#include "Settings/SaveGame.h"
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "Scene/Camera.h"
@@ -76,11 +80,13 @@ namespace Demo
             Transitioning, // fading between levels; input ignored
             InSequence,    // M26: a sequence runs; the player is frozen
             AtMachine,     // M29: sitting at a pachinko machine
+            Riding,        // on the Kawasaki: the level is a ride
         };
 
         // Where play rests between dialogues and transitions. (The character
         // lab's viewer and drive modes moved to the Showcase in v0.0.14.)
-        Mode RestingMode() const { return Mode::Exploring; }
+        // A ride level rests in the ride.
+        Mode RestingMode() const { return m_rideActive ? Mode::Riding : Mode::Exploring; }
 
         void OnLevelUnloading(Level& outgoing);
         void OnLevelLoaded(Level& incoming, const SpawnPoint& spawn);
@@ -92,9 +98,15 @@ namespace Demo
         void UpdateMouseCapture();
         // Esc's pause menu (M90): Resume, Settings (the framework's player
         // settings screen, saved with the rest), Quit. True while it is open.
-        enum class PauseScreen { None, Menu, Settings };
+        // The pause menu and (persistence) the title: both freeze the game
+        // and draw over the level. Settings is shared; the title returns
+        // to the title from it.
+        enum class PauseScreen { None, Menu, Settings, Title, ConfirmNewGame };
         void OpenPause();
-        bool UpdatePause();
+        void OpenTitle();
+        bool m_settingsFromTitle = false;
+        float m_titleTime = 0.0f; // the backdrop's slow drift
+        bool UpdatePause(float deltaSeconds);
         void DrawPause();
         PauseScreen m_pause = PauseScreen::None;
         bool m_justPaused = false; // the Esc that opened it is not the Esc that closes it
@@ -238,6 +250,9 @@ namespace Demo
         }
         glm::vec3 FeetPosition() const override { return m_player.GetFeetPosition(); }
         bool AnimationPlaying(const std::string& entity) const override;
+        // voice_syllables / voice_dropped: the dialogue's mumble so far;
+        // ride_progress / ride_steer: the ride.
+        std::optional<float> Stat(const std::string& name) const override;
         bool IsLit(const std::string& entity) const override;
         void Log(const std::string& text) override;
 
@@ -313,7 +328,45 @@ namespace Demo
         DialogueLibrary m_dialogues;
         DialogueRunner m_dialogue;
         DialogueView m_dialogueView;
+        // Its mumble, on a synth stream of its own; heap: the synth's
+        // delay line is 256 KB.
+        std::unique_ptr<DialogueSpeech> m_speech = std::make_unique<DialogueSpeech>();
+        void LoadVoices();
         EntityId m_speaker{}; // who we're talking to
+
+        // Persistence: the save file (save points write it; the title's
+        // Continue reads it). A scripted run uses its own file under out/,
+        // never the player's.
+        void OpenSaveFile();
+        bool SaveAt(const std::string& place);
+        bool ContinueFromSave();
+        void StartNewGame();
+        std::string m_savePath;
+        bool m_savePersist = false;
+        SaveLoad m_save;                          // what's on disk now
+        std::optional<SaveGame> m_pendingArrival; // Continue: placed when its level arrives
+
+        // The ride (a level with a "ride" block): the bike follows the road,
+        // the camera is the rider's eye; the route was picked by the spawn.
+        void StartRide(const Level& level, const SpawnPoint& spawn);
+        void UpdateRide(float deltaSeconds);
+        void StopRide();
+        ActionContext MakeActionContext();
+        bool m_rideActive = false;
+        bool m_rideEnded = false;     // the end action ran
+        RoadPath m_road;
+        RideController m_ride;
+        const RideRoute* m_rideRoute = nullptr; // into the level's data
+        std::string m_rideVehicle;    // found by name each frame, like the inspector's selection
+        float m_rideBaseYaw = 0.0f;   // the model's own turn (the file's yaw), radians
+        float m_rideLift = 0.0f;      // the model's height over the road (the file's y)
+        glm::vec3 m_rideEye{ 0.0f };
+        float m_lookYaw = 0.0f;       // the rider looking around, relative to the heading
+        float m_lookPitch = 0.0f;
+        Atom::SpotLight m_headlight;
+        bool m_headlightOn = true; // F, as the flashlight; kept from ride to ride
+        Atom::VoiceId m_engineVoice = 0; // the bike's engine, looping while riding
+        float m_rideCruise = 14.0f;      // the ride's cruising speed, m/s
 
         // Where the last level load put the camera. Until the fade-in ends
         // the camera must stay there: those frames show the new level.

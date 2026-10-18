@@ -31,6 +31,7 @@ namespace Demo
     {
         std::string id;
         std::string speaker;
+        std::string voice;          // overrides the dialogue's ("voice")
         std::string text;
         std::string next;           // used when there are no choices
         std::string setsFlag;       // flag set when the node is shown ("sets")
@@ -41,6 +42,7 @@ namespace Demo
     {
         std::string id;
         std::string start;
+        std::string voice; // its speaker's mumble, a name in Data/voices.json
         std::unordered_map<std::string, DialogueNode> nodes;
 
         const DialogueNode* Find(std::string_view nodeId) const

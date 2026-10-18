@@ -62,6 +62,12 @@ namespace Showcase
             m_environment.Reset(m_presets.Resolve(m_levels->GetLevel(), m_environmentName));
         };
         context.applyLighting = [this] { ApplyLighting(); };
+        context.listSkyImages = [this] { return m_assets.List("Sky", ".png"); };
+        context.loadSkyImage = [this](const std::string& file) {
+            const bool loaded = LoadSkyImage(GetRenderer(), m_assets.Resolve("Sky/" + file), file, m_view);
+            ApplyLighting();
+            return loaded;
+        };
         context.toggles = { { "World", "world", m_drawWorld }, { "HUD", "hud", m_showHud }, { "Lens (Tab)", "lens", m_lens } };
         m_devPanels.Draw(context, deltaSeconds);
     }

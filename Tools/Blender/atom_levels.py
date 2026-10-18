@@ -7,11 +7,13 @@ and exported to its own pair of files.
 
 import math
 
+import atom_coast
 import atom_kit as kit
 import atom_lab
 import atom_lakeshore
 import atom_passage
 import atom_pachinko
+import atom_shore
 from atom_street import Street
 
 
@@ -273,6 +275,8 @@ LEVELS = [
     ("lab", atom_lab.build_character_lab),
     ("passage", atom_passage.build_passage),
     ("lakeshore", atom_lakeshore.build_lakeshore),
+    ("coast", atom_coast.build_coast_road),
+    ("shore", atom_shore.build_shore),
 ]
 
 # The level file each Blender level belongs to (markers are written next to
@@ -281,13 +285,17 @@ LEVELS = [
 # writes its own spawns.
 LEVEL_FILES = {"shrine": "shrine_grounds", "interior": "machiya_interior", "fields": "windmill_field",
                "pachinko": "pachinko_hall", "first": "first_render",
-               "lab": "character_lab", "passage": "passage"}
+               "lab": "character_lab", "passage": "passage", "coast": "coast_road",
+               "shore": "shore"}
 
 # How each level's light is baked (atom_bake): outdoors from the sky,
 # indoors as ambient occlusion.
 # "none": no vertex bake - the documentation scene shows the unbaked,
 # v0.0.1 look (and a bare plane would bake to plain white anyway).
-BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none", "passage": "ao"}
+# "coast": a kilometre of night road lit by the headlight and the level's
+# ambient - a sky bake would cost minutes and barely show in the fog.
+BAKE_MODES = {"interior": "ao", "pachinko": "ao", "first": "none", "passage": "ao", "coast": "none",
+              "shore": "none"}
 
 # Levels that also get a lightmap (atom_lightmap), with the bake-only lights
 # that make it: (location, rotation in degrees, (width, height), watts, rgb).

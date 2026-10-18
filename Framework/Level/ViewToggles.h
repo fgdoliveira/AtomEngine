@@ -5,6 +5,7 @@
 #include "Settings/GameSettings.h"
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -47,6 +48,13 @@ namespace AtomFramework
         bool sun = true;
         bool glow = true;           // v0.0.14: the glow pass (the Showcase's lens A/B)
         std::optional<float> rain;  // M51: "set rain" for benchmarks
+        // The sky picture (F10 Environment): off shows the environment's
+        // gradient sky (or none); a picked PNG stands in for the level's own.
+        // Kept alive here - the renderer only borrows it.
+        bool skyPicture = true;
+        std::shared_ptr<const Atom::Texture> skyImage;
+        std::string skyImageName;       // "Sky/<file>", for the panel and Copy as JSON
+        float skyImageIntensity = 1.0f;
     };
 
     // The renderer's lighting for `level` (null: none loaded) under the
@@ -74,4 +82,10 @@ namespace AtomFramework
 
     bool ApplyViewSwitch(Atom::Renderer& renderer, ViewToggles& toggles, Atom::Camera* camera,
                          Atmosphere* particles, const std::string& what, const std::string& value);
+
+    // F10's sky picture: loads <root>/Sky/<file> into `toggles` over the
+    // level's own; "" goes back to the level's. False (and nothing changed)
+    // if the file can't be loaded. The caller reapplies SceneLightingFor.
+    bool LoadSkyImage(Atom::Renderer& renderer, const std::string& path, const std::string& file,
+                      ViewToggles& toggles);
 }

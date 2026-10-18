@@ -8,6 +8,7 @@ atom_add_tests(
     OWNER engine
     SOURCES
         Engine/AnimationTests.cpp
+        Engine/CameraTests.cpp
         Engine/CollisionGridTests.cpp
         Engine/CrashReportTests.cpp
         Engine/FrameStatsTests.cpp
@@ -46,7 +47,9 @@ atom_add_tests(
         Framework/InteractionTests.cpp
         Framework/LabViewerTests.cpp
         Framework/LevelCheckTests.cpp
+        Framework/AssetRootsTests.cpp
         Framework/LevelTests.cpp
+        Framework/SaveGameTests.cpp
         Framework/LogTests.cpp
         Framework/NightStreetTests.cpp
         Framework/PairedBenchTests.cpp

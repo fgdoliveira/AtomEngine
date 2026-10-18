@@ -1,5 +1,6 @@
 #include "Scene/Camera.h"
 
+#include <glm/geometric.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -47,10 +48,15 @@ namespace Atom
 
     glm::mat4 Camera::GetViewMatrix() const
     {
-        return glm::lookAt(
-            m_position,
-            m_position + GetForward(),
-            glm::vec3{ 0.0f, 1.0f, 0.0f }
-        );
+        const glm::vec3 forward = GetForward();
+        glm::vec3 up{ 0.0f, 1.0f, 0.0f };
+        if (roll != 0.0f)
+        {
+            // Rodrigues about the view axis: up * cos + (forward x up) * sin
+            // (forward x up is the view's right; up . forward drops out of
+            // the lookAt below).
+            up = up * std::cos(roll) + glm::cross(forward, up) * std::sin(roll);
+        }
+        return glm::lookAt(m_position, m_position + forward, up);
     }
 }

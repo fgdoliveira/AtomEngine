@@ -314,6 +314,43 @@
         "pitch": { "type": "number" }
       }
     },
+    "ride": {
+      "type": "object",
+      "description": "The level is crossed on a vehicle along a path; the spawn it was entered by picks the route.",
+      "additionalProperties": false,
+      "required": ["vehicle", "routes"],
+      "properties": {
+        "vehicle": { "type": "string", "description": "An entity of this level." },
+        "path": { "type": "array", "items": { "$ref": "#/definitions/vec3" }, "minItems": 2,
+                  "description": "The road's centre (Catmull-Rom). Usually left out: the builder writes it as the markers' ride_path." },
+        "speed": { "type": "number", "exclusiveMinimum": 0, "description": "m/s" },
+        "eye": { "$ref": "#/definitions/vec3", "description": "The rider's eye, vehicle-local (+Z forward)." },
+        "steer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "afterFlag": { "type": "string", "description": "Steering waits for this flag; until it is set the vehicle rides itself. Absent: the rider always steers." },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "rate": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["spawn", "end"],
+            "properties": {
+              "spawn": { "type": "string" },
+              "reverse": { "type": "boolean", "default": false },
+              "end": { "$ref": "#/definitions/action" },
+              "sets": { "type": "string", "description": "Flag set when the end is reached." }
+            }
+          }
+        }
+      }
+    },
     "unease": {
       "type": "object",
       "additionalProperties": false,
@@ -440,6 +477,7 @@
             "loop": { "type": "boolean", "default": true },
             "autoplay": { "type": "boolean", "default": true },
             "speed": { "type": "number" },
+            "time": { "type": "number", "minimum": 0, "description": "Seconds into the clip it starts; with autoplay false, the pose it holds." },
             "sound": { "$ref": "#/definitions/sound" },
             "soundsPerLoop": { "type": "integer", "minimum": 1 },
             "soundOffset": { "$ref": "#/definitions/vec3" }
@@ -467,9 +505,15 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine", "addCounter", "exchange"] }
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine", "addCounter", "exchange", "save"] }
       },
       "oneOf": [
+        {
+          "properties": { "type": { "const": "save" },
+                          "place": { "type": "string", "description": "The save point's name; the title's Continue shows it." },
+                          "message": { "type": "string" } },
+          "required": ["place"], "additionalProperties": false
+        },
         {
           "properties": { "type": { "const": "message" }, "text": { "type": "string" } },
           "required": ["text"], "additionalProperties": false

@@ -13,6 +13,7 @@
 #include <SDL3/SDL.h>
 
 #include <glm/gtc/constants.hpp>
+#include <limits>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -164,6 +165,116 @@ namespace Demo
         return AtomFramework::WriteDiagnosticsFile(path, out.str());
     }
 
+    void DemoApp::OpenSaveFile()
+    {
+        // The player's progress, beside settings.json - except in a scripted
+        // run, which keeps its own under out/ (fresh each run), and with
+        // --no-save.
+        const bool scripted = m_diagnostics.HasTestScript() || Atom::DevSwitch("ATOM_TEST_SCRIPT");
+        if (scripted)
+        {
+            m_savePath = m_outputRoot + "out/test_save.json";
+            std::error_code error;
+            std::filesystem::create_directories(m_outputRoot + "out", error);
+            std::filesystem::remove(m_savePath, error);
+        }
+        else
+        {
+            m_savePath = SavePathFor("Demo");
+        }
+        m_savePersist = !m_savePath.empty() && !m_commandLine.noSave;
+        if (!m_savePersist)
+        {
+            return;
+        }
+        if (m_commandLine.resetSave)
+        {
+            std::error_code error;
+            std::filesystem::remove(m_savePath, error);
+            ATOM_LOG_GAME("Demo") << "Saved progress forgotten (--reset-save)\n";
+        }
+        std::ifstream file(m_savePath, std::ios::binary);
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        m_save = ParseSave(text);
+        if (!m_save.warning.empty())
+        {
+            ATOM_LOG_ERROR("Demo") << m_savePath << ": " << m_save.warning << '\n';
+        }
+        else if (m_save.found)
+        {
+            ATOM_LOG_GAME("Demo") << "Saved progress: " << m_save.save.place << ", " << m_save.save.savedAt << '\n';
+        }
+    }
+
+    bool DemoApp::SaveAt(const std::string& place)
+    {
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        if (!m_savePersist || !level)
+        {
+            return false;
+        }
+        SaveGame save;
+        save.level = level->GetName();
+        save.spawn = level->GetData().defaultSpawn;
+        save.position = m_player.GetFeetPosition();
+        save.yawRadians = m_camera.GetYaw();
+        save.pitchRadians = m_camera.GetPitch();
+        save.flags.assign(m_gameState.GetFlags().begin(), m_gameState.GetFlags().end());
+        save.counters.insert(m_gameState.GetCounters().begin(), m_gameState.GetCounters().end());
+        save.flashlightOn = m_flashlight.IsOn();
+        save.headlightOn = m_headlightOn;
+        save.place = place;
+        const std::time_t now = std::time(nullptr);
+        std::tm local{};
+#ifdef _WIN32
+        localtime_s(&local, &now);
+#else
+        localtime_r(&now, &local);
+#endif
+        char stamp[32];
+        std::strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M", &local);
+        save.savedAt = stamp;
+        if (!WriteFileAtomically(m_savePath, WriteSave(save)))
+        {
+            ATOM_LOG_ERROR("Demo") << "Could not save progress to " << m_savePath << '\n';
+            return false;
+        }
+        m_save = SaveLoad{ true, save, {} };
+        ATOM_LOG_GAME("Demo") << "Progress saved at " << place << " (" << save.level << ", "
+                              << save.flags.size() << " flags)\n";
+        return true;
+    }
+
+    bool DemoApp::ContinueFromSave()
+    {
+        if (!m_save.found)
+        {
+            return false;
+        }
+        const SaveGame& save = m_save.save;
+        m_gameState.Restore(save.flags, save.counters);
+        m_flashlight.SetOwned(m_gameState.HasFlag(FlashlightFlag));
+        m_flashlight.SetOn(save.flashlightOn);
+        m_headlightOn = save.headlightOn;
+        m_pendingArrival = save; // placed exactly when its level arrives
+        m_levels->RequestChange(save.level, save.spawn);
+        ATOM_LOG_GAME("Demo") << "Continuing from " << save.place << '\n';
+        return true;
+    }
+
+    void DemoApp::StartNewGame()
+    {
+        // The old save stays on disk until the next save point: starting
+        // over by mistake costs nothing until then.
+        m_gameState.Clear();
+        m_flashlight.SetOwned(false);
+        m_flashlight.SetOn(false);
+        m_headlightOn = true;
+        m_pendingArrival.reset();
+        m_levels->RequestChange("street", "");
+        ATOM_LOG_GAME("Demo") << "New game\n";
+    }
+
     void DemoApp::SaveSettings()
     {
         if (!m_settingsPersist)
@@ -261,6 +372,7 @@ namespace Demo
         }
 
         m_dialogues.LoadDirectory(m_assets.Resolve("Dialogue"));
+        LoadVoices();
         LoadFlashlightSettings();
         LoadEnvironmentPresets();
 
@@ -273,6 +385,8 @@ namespace Demo
             OnLevelLoaded(incoming, spawn);
         };
         m_levels->onReloaded = [this](Level& incoming) { OnLevelReloaded(incoming); };
+
+        OpenSaveFile();
 
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
@@ -288,6 +402,14 @@ namespace Demo
         if (!m_levels->Load(startLevel, startSpawn))
         {
             return false;
+        }
+        // The title, over the street - not for scripted runs (or a chosen
+        // start level), which go straight in, nor for runs that measure or
+        // report (calibration drives the camera; --diagnostics exits).
+        if (!Atom::DevSwitch("ATOM_TEST_SCRIPT") && !Atom::DevSwitch("ATOM_START_LEVEL") && !m_calibrateThisRun
+            && !m_commandLine.diagnosticsFile)
+        {
+            OpenTitle();
         }
 
         ATOM_LOG_GAME("Demo")
@@ -336,6 +458,7 @@ namespace Demo
         // Drop everything that points into the level that's about to die.
         m_target = {};
         m_speaker = {};
+        StopRide(); // its route points into the old level's data
         m_sequence.Stop(); // its steps name the old level's entities
         if (m_machine.IsActive())
         {
@@ -346,6 +469,7 @@ namespace Demo
         if (m_dialogue.IsActive())
         {
             m_dialogue.Close();
+            m_speech->Update(m_dialogue); // cuts the voice
         }
         m_unease.Configure({}, nullptr);
         m_audioScape.SetSurfaceProvider(nullptr);
@@ -360,17 +484,44 @@ namespace Demo
         // Expected from the spawn itself, not read back from the camera.
         m_arrivalEye = spawn.position + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f };
         m_arrivalYaw = glm::radians(spawn.yawDegrees);
+        // Continue: exactly where the save was made, if it's this level.
+        if (m_pendingArrival && m_pendingArrival->level == data.name)
+        {
+            m_player.Teleport(m_pendingArrival->position, m_camera);
+            m_camera.SetRotation(m_pendingArrival->yawRadians, m_pendingArrival->pitchRadians);
+            m_arrivalEye = m_pendingArrival->position + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f };
+            m_arrivalYaw = m_pendingArrival->yawRadians;
+        }
+        else if (m_pendingArrival)
+        {
+            ATOM_LOG_ERROR("Demo") << "Saved level '" << m_pendingArrival->level << "' didn't load; starting at "
+                                   << data.name << "'s spawn\n";
+        }
+        m_pendingArrival.reset();
         m_arriving = true;
 
         ConfigureForLevel(incoming);
+        if (data.ride)
+        {
+            StartRide(incoming, spawn);
+        }
         m_mode = RestingMode();
         ATOM_LOG_GAME("Demo") << "Entered level '" << data.name << "'\n";
     }
 
     void DemoApp::OnLevelReloaded(Level& incoming)
     {
-        // Same place, same view: only the level's content changed.
+        // Same place, same view: only the level's content changed. A ride
+        // starts over on its first route (its data was just replaced).
         ConfigureForLevel(incoming);
+        StopRide();
+        if (const auto& ride = incoming.GetData().ride; ride && !ride->routes.empty())
+        {
+            if (const SpawnPoint* spawn = incoming.GetData().FindSpawn(ride->routes.front().spawn))
+            {
+                StartRide(incoming, *spawn);
+            }
+        }
         m_mode = RestingMode();
     }
 
@@ -406,7 +557,7 @@ namespace Demo
             }
         }
         m_dialogueFiles.Watch(std::move(dialogues));
-        m_dataFiles.Watch({ m_assets.Resolve("Data/flashlight.json") });
+        m_dataFiles.Watch({ m_assets.Resolve("Data/flashlight.json"), m_assets.Resolve("Data/voices.json") });
         std::vector<std::string> presets;
         for (const auto& entry : std::filesystem::directory_iterator(m_assets.Resolve("Environments"), error))
         {
@@ -508,6 +659,34 @@ namespace Demo
         }
     }
 
+    void DemoApp::LoadVoices()
+    {
+        // The dialogue's mumble voices; without the file (or with no audio
+        // device) dialogue stays silent and reads the same.
+        const std::string path = m_assets.Resolve("Data/voices.json");
+        Atom::AssetLog::Opened(path);
+        std::ifstream file(path, std::ios::binary);
+        if (!file)
+        {
+            return;
+        }
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        std::vector<VoicePreset> voices;
+        if (const std::string error = ParseVoices(text, voices); !error.empty())
+        {
+            ATOM_LOG_ERROR("Demo") << path << ": " << error << '\n';
+            m_messages.Show("voices.json: " + error);
+            return;
+        }
+        // Restarted to change presets: the audio thread only reads them.
+        if (!m_speech->Start(voices))
+        {
+            ATOM_LOG_GAME("Demo") << "Dialogue voices: no audio device - silent\n";
+            return;
+        }
+        ATOM_LOG_GAME("Demo") << "Dialogue voices: " << voices.size() << " loaded, speaking\n";
+    }
+
     void DemoApp::UpdateHotReload(float deltaSeconds)
     {
         // Once a second, and only while walking: never mid-dialogue or
@@ -527,7 +706,8 @@ namespace Demo
         if (!m_dataFiles.Poll().empty())
         {
             LoadFlashlightSettings();
-            m_messages.Show("Flashlight reloaded");
+            LoadVoices();
+            m_messages.Show("Flashlight and voices reloaded");
         }
         if (!m_environmentFiles.Poll().empty())
         {
@@ -591,7 +771,7 @@ namespace Demo
             RequestQuit(*exitCode);
         }
         // Paused: the world stands still and the keys are the menu's.
-        const bool paused = UpdatePause();
+        const bool paused = UpdatePause(deltaSeconds);
         if (paused)
         {
             deltaSeconds = 0.0f;
@@ -664,12 +844,26 @@ namespace Demo
             UpdateDialogue(deltaSeconds);
             break;
         case Mode::InSequence:
+        {
             m_target = {};
+            // Rooted to the spot, but free to look around (waiting for the
+            // bus, a frozen view read as a hang): the walk's own mouse look.
+            const Atom::Input& look = GetInput();
+            if (look.IsMouseCaptured())
+            {
+                m_camera.Rotate(look.GetMouseDeltaX() * m_player.mouseSensitivity,
+                                -look.GetMouseDeltaY() * m_player.mouseSensitivity);
+            }
             UpdateSequence(deltaSeconds);
             break;
+        }
         case Mode::AtMachine:
             m_target = {};
             UpdateMachine(deltaSeconds);
+            break;
+        case Mode::Riding:
+            m_target = {};
+            UpdateRide(deltaSeconds);
             break;
         case Mode::Transitioning:
             m_target = {};
@@ -705,7 +899,14 @@ namespace Demo
             drawn->Submit(renderer, m_player.GetFeetPosition());
         }
         UpdateFlashlight(deltaSeconds);
-        if (m_flashlight.IsOn() && !m_devSpotOn)
+        if (m_rideActive && !m_devSpotOn)
+        {
+            if (m_headlightOn)
+            {
+                renderer.SubmitSpotLight(m_headlight); // the bike's own, not the flashlight
+            }
+        }
+        else if (m_flashlight.IsOn() && !m_devSpotOn)
         {
             renderer.SubmitSpotLight(m_flashlight.GetLight());
         }
@@ -811,11 +1012,13 @@ namespace Demo
         GetRenderer().SetParticleAtlas(nullptr, 1);
         m_unease.Configure({}, nullptr);
         m_levels.reset(); // the current level cleans itself up
+        m_view.skyImage.reset(); // F10's picked sky: a GPU texture, gone before the device is
         m_uiFonts.reset();
         m_smallFont.reset();
         m_font.reset();
         m_unease.Shutdown();
         m_atmosphere.Shutdown();
+        m_speech->Stop();
     }
 
     void DemoApp::UpdateWindowTitle(float deltaSeconds)
@@ -874,7 +1077,10 @@ namespace Demo
         const float hintAlpha = m_showHud && m_pause == PauseScreen::None ?std::clamp((9.0f - m_hintTime) / 1.5f, 0.0f, 1.0f) : 0.0f;
         if (hintAlpha > 0.0f)
         {
-            const char* hint = m_flashlight.IsOwned()
+            const bool steering = m_rideActive && m_ride.Settings().style == RideStyle::Steer;
+            const char* hint = steering ? "A D steer   W S speed   F light   Mouse look"
+                : m_rideActive ? "Mouse look   (the bike rides itself the first time)"
+                : m_flashlight.IsOwned()
                 ? "WASD move   Shift jog   Mouse look   E interact   F light   F1 debug"
                 : "WASD move   Shift jog   Mouse look   E interact   F1 debug";
             // The kit's hint bar (M89), as every app shows its keys.
@@ -996,6 +1202,175 @@ namespace Demo
             m_mode = RestingMode();
             m_speaker = {};
         }
+
+        // The mumble follows what's on screen now: new letters, a new line,
+        // a skip or the end. Its volume is the game's (the player's, or mute).
+        m_speech->SetGain(GetAudio().GetMasterGain());
+        m_speech->Update(m_dialogue);
+    }
+
+    void DemoApp::StartRide(const Level& level, const SpawnPoint& spawn)
+    {
+        const LevelData& data = level.GetData();
+        const LevelRide& ride = *data.ride;
+
+        // The route of the spawn we came in by (the nearest: the callback
+        // gives the point, not its name).
+        m_rideRoute = nullptr;
+        float nearest = std::numeric_limits<float>::max();
+        for (const RideRoute& route : ride.routes)
+        {
+            const SpawnPoint* at = data.FindSpawn(route.spawn);
+            const float distance = at ? glm::length(at->position - spawn.position) : nearest;
+            if (distance < nearest)
+            {
+                nearest = distance;
+                m_rideRoute = &route;
+            }
+        }
+        if (!m_rideRoute)
+        {
+            return;
+        }
+
+        // The file's yaw and height for the vehicle are its model's own turn
+        // and how high it sits over the road.
+        m_rideVehicle = ride.vehicle;
+        for (const EntityData& entity : data.entities)
+        {
+            if (entity.name == ride.vehicle)
+            {
+                m_rideBaseYaw = glm::radians(entity.yawDegrees);
+                m_rideLift = entity.position.y;
+            }
+        }
+
+        RideSettings settings;
+        // The rider steers - unless the level makes steering wait for a flag
+        // (then the bike rides itself until it's set).
+        settings.style = ride.steerAfterFlag.empty() || m_gameState.HasFlag(ride.steerAfterFlag)
+            ? RideStyle::Steer : RideStyle::Cinematic;
+        settings.reverse = m_rideRoute->reverse;
+        settings.speed = ride.speed;
+        settings.steerWidth = ride.steerWidth;
+        settings.steerRate = ride.steerRate;
+        m_road = RoadPath(ride.path);
+        m_ride.Start(m_road, settings);
+        m_rideCruise = ride.speed;
+        m_rideEye = ride.eye;
+        m_lookYaw = 0.0f;
+        m_lookPitch = 0.0f;
+        m_rideEnded = false;
+        m_rideActive = true;
+        m_hintTime = 0.0f; // show the ride's keys
+        Atom::PlayParams engine{};
+        engine.loop = true;
+        engine.gain = 0.0f; // follows the speed (UpdateRide)
+        m_engineVoice = GetAudio().Play(m_audioScape.GetSound("bike_engine"), engine);
+        ATOM_LOG_GAME("Demo") << "Riding '" << ride.vehicle << "' from " << m_rideRoute->spawn << " ("
+                              << (settings.style == RideStyle::Steer ? "steer" : "cinematic") << ", "
+                              << static_cast<int>(m_road.Length()) << " m)\n";
+    }
+
+    void DemoApp::StopRide()
+    {
+        if (!m_rideActive)
+        {
+            return;
+        }
+        m_rideActive = false;
+        m_rideRoute = nullptr;
+        m_camera.roll = 0.0f;
+        GetAudio().Stop(m_engineVoice);
+        m_engineVoice = 0;
+    }
+
+    void DemoApp::UpdateRide(float deltaSeconds)
+    {
+        if (!m_rideActive)
+        {
+            return;
+        }
+        RideInput input;
+        input.steer = (m_actions.Held(InputAction::MoveRight) ? 1.0f : 0.0f) - (m_actions.Held(InputAction::MoveLeft) ? 1.0f : 0.0f);
+        input.throttle = (m_actions.Held(InputAction::MoveForward) ? 1.0f : 0.0f) - (m_actions.Held(InputAction::MoveBack) ? 1.0f : 0.0f);
+        const RideState& state = m_ride.Update(deltaSeconds, input);
+
+        // The bike on the road.
+        const glm::vec3 forward{ std::sin(state.heading), 0.0f, std::cos(state.heading) };
+        const glm::vec3 up{ 0.0f, 1.0f, 0.0f };
+        const glm::vec3 right = glm::cross(forward, up);
+        // Leaning into the bend, about the line of travel (+ leans right).
+        const glm::quat lean = glm::angleAxis(state.lean, forward);
+        if (GameWorld* world = CurrentWorld())
+        {
+            world->ForEach([&](EntityId, Entity& entity) {
+                if (entity.name == m_rideVehicle)
+                {
+                    entity.position = state.position + up * m_rideLift;
+                    if (entity.renderable)
+                    {
+                        entity.renderable->yaw = state.heading + m_rideBaseYaw;
+                        entity.renderable->tilt = lean;
+                    }
+                }
+            });
+        }
+        // Louder as it pulls (no pitch control: the loop's gain carries it).
+        GetAudio().SetVoiceGain(m_engineVoice, 0.1f + 0.3f * std::clamp(state.speed / m_rideCruise, 0.0f, 1.3f));
+
+        // The rider's eye, looking down the road; the mouse looks around
+        // within a cone and drifts back when it rests.
+        const Atom::Input& in = GetInput();
+        const float dx = in.IsMouseCaptured() ? in.GetMouseDeltaX() : 0.0f;
+        const float dy = in.IsMouseCaptured() ? in.GetMouseDeltaY() : 0.0f;
+        m_lookYaw = std::clamp(m_lookYaw + dx * m_player.mouseSensitivity, -1.22f, 1.22f);   // +-70 degrees
+        m_lookPitch = std::clamp(m_lookPitch - dy * m_player.mouseSensitivity, -0.61f, 0.61f); // +-35 degrees
+        if (dx == 0.0f && dy == 0.0f)
+        {
+            const float back = std::exp(-0.8f * deltaSeconds);
+            m_lookYaw *= back;
+            m_lookPitch *= back;
+        }
+        m_player.Teleport(state.position, m_camera); // listeners and emitters follow the rider
+        // The eye leans with the bike; the head a little less (riders hold
+        // it nearer level than the bike).
+        m_camera.SetPosition(state.position + lean * (forward * m_rideEye.z + up * m_rideEye.y + right * m_rideEye.x));
+        // Camera yaw 0 looks down -Z; the ride's heading 0 faces +Z.
+        m_camera.SetRotation(glm::pi<float>() - state.heading + m_lookYaw, m_lookPitch - 0.04f);
+        m_camera.roll = state.lean * 0.75f;
+
+        // F switches the headlight, as it does the flashlight on foot.
+        if (m_actions.Pressed(InputAction::ToggleLight))
+        {
+            m_headlightOn = !m_headlightOn;
+            Atom::PlayParams click{};
+            click.gain = 0.6f;
+            GetAudio().Play(m_audioScape.GetSound("switch_click"), click);
+        }
+        // The headlight: on the bike's nose, ahead of the bars (a light at the
+        // eye would blind the rider with their own handlebars), dipped a
+        // little toward the road.
+        m_headlight.position = state.position + forward * 0.95f + up * 1.0f;
+        m_headlight.direction = glm::normalize(forward - up * 0.1f);
+        m_headlight.range = 50.0f;
+        m_headlight.innerAngleDegrees = 13.0f;
+        m_headlight.outerAngleDegrees = 30.0f;
+        m_headlight.intensity = 180.0f;
+        m_headlight.color = glm::vec3{ 1.0f, 0.93f, 0.78f };
+        m_headlight.castsShadows = false;
+
+        if (state.done && !m_rideEnded)
+        {
+            m_rideEnded = true;
+            if (!m_rideRoute->setsFlag.empty())
+            {
+                m_gameState.SetFlag(m_rideRoute->setsFlag);
+                ATOM_LOG_GAME("Demo") << "Flag set: " << m_rideRoute->setsFlag << '\n';
+            }
+            ActionContext context = MakeActionContext();
+            ExecuteAction(m_rideRoute->end, context);
+        }
     }
 
     void DemoApp::TurnCameraToward(const glm::vec3& point, float deltaSeconds)
@@ -1034,7 +1409,14 @@ namespace Demo
 
     void DemoApp::InteractWith(const Entity& target)
     {
-        ActionContext context{
+        ActionContext context = MakeActionContext();
+        ATOM_LOG_GAME("Demo") << "Interacted with " << target.name << '\n';
+        ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
+    }
+
+    ActionContext DemoApp::MakeActionContext()
+    {
+        return ActionContext{
             m_gameState,
             m_messages,
             [this](const std::string& id) { return BeginDialogue(id); },
@@ -1047,9 +1429,18 @@ namespace Demo
             },
             [this](const std::string& id) { return RunSequence(id); },
             [this](const PlayMachine& play) { return BeginMachine(play); },
+            [this](const SaveProgress& save) {
+                if (!SaveAt(save.place))
+                {
+                    return false;
+                }
+                Atom::PlayParams chime{};
+                chime.gain = 0.35f;
+                chime.pitch = 0.8f; // lower and softer than a pachinko pocket
+                GetAudio().Play(m_audioScape.GetSound("pocket_chime"), chime);
+                return true;
+            },
         };
-        ATOM_LOG_GAME("Demo") << "Interacted with " << target.name << '\n';
-        ExecuteAction(InteractionSystem::ResolveAction(*target.interactable, m_gameState), context);
     }
 
     bool DemoApp::RunSequence(const std::string& id)
@@ -1281,6 +1672,21 @@ namespace Demo
         return true;
     }
 
+    std::optional<float> DemoApp::Stat(const std::string& name) const
+    {
+        if (name == "voice_syllables") return static_cast<float>(m_speech->Sent());
+        if (name == "voice_dropped") return static_cast<float>(m_speech->Dropped());
+        // The ride: how far along (0..1), and 1 once it steers (not cinematic).
+        if (name == "ride_progress") return m_rideActive ? m_ride.State().progress : 0.0f;
+        if (name == "save_exists") return m_save.found ? 1.0f : 0.0f;
+        if (name == "title") return m_pause == PauseScreen::Title ? 1.0f : 0.0f;
+        if (name == "title_items") return static_cast<float>(m_pauseMenu.Items().size());
+        if (name == "ride_headlight") return m_rideActive && m_headlightOn ? 1.0f : 0.0f;
+        if (name == "ride_offset") return m_rideActive ? m_ride.State().offset : 0.0f;
+        if (name == "ride_steer") return m_rideActive && m_ride.Settings().style == RideStyle::Steer ? 1.0f : 0.0f;
+        return std::nullopt;
+    }
+
     void DemoApp::Advance()
     {
         if (m_mode == Mode::InDialogue)
@@ -1308,6 +1714,7 @@ namespace Demo
         case Mode::Transitioning: return "transitioning";
         case Mode::InSequence: return "sequence";
         case Mode::AtMachine: return "machine";
+        case Mode::Riding: return "riding";
         default: return "exploring";
         }
     }
@@ -1561,6 +1968,33 @@ namespace Demo
             SetQualityMode(*mode, false);
             return true;
         }
+        // Persistence, for scenarios: save here (value: the place), continue
+        // from the save, start over.
+        if (what == "save") return SaveAt(value);
+        if (what == "continue") return ContinueFromSave();
+        if (what == "new_game")
+        {
+            StartNewGame();
+            return true;
+        }
+        if (what == "sky_image")
+        {
+            // F10's sky picture list, for scenarios: a PNG in Sky/, or "level".
+            const std::string file = value == "level" ? std::string{} : value;
+            const bool loaded = LoadSkyImage(renderer, m_assets.Resolve("Sky/" + file), file, m_view);
+            ApplyLighting();
+            return loaded;
+        }
+        if (what == "ride_progress" && isNumber)
+        {
+            // Jumps along the ride (0..1), so a scenario needn't ride a minute.
+            if (!m_rideActive)
+            {
+                return false;
+            }
+            m_ride.SetProgress(number);
+            return true;
+        }
         if (what == "unease" && onOff) m_unease.SetEnabled(on);
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
@@ -1573,6 +2007,7 @@ namespace Demo
             else m_devPanels.Inspector().Select(level->GetName(), value);
         }
         else if (what == "menu" && onOff) { if (on) OpenPause(); else m_pause = PauseScreen::None; } // M90
+        else if (what == "title" && onOff) { if (on) OpenTitle(); else m_pause = PauseScreen::None; }
         else if (what == "menu" && value == "settings") { OpenPause(); m_pause = PauseScreen::Settings; }
         else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on); // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
@@ -1640,7 +2075,7 @@ namespace Demo
 
     void DemoApp::OpenPause()
     {
-        m_pauseMenu = MenuScreen("Paused", "The demo - AtomEngine", { "Resume", "Settings", "Quit" });
+        m_pauseMenu = MenuScreen("Paused", "The demo - AtomEngine", { "Resume", "Settings", "Quit to title", "Quit" });
         m_pauseSettings = SettingsScreen();
         m_pause = PauseScreen::Menu;
         m_justPaused = true;
@@ -1648,7 +2083,27 @@ namespace Demo
         GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
     }
 
-    bool DemoApp::UpdatePause()
+    void DemoApp::OpenTitle()
+    {
+        // Continue is there only when there's something to continue; the
+        // line under the title says where and when it was kept.
+        std::vector<std::string> items;
+        std::string subtitle = "A night on the old road";
+        if (m_save.found)
+        {
+            items.push_back("Continue");
+            subtitle = "Kept at " + m_save.save.place + " - " + m_save.save.savedAt;
+        }
+        items.insert(items.end(), { "New game", "Settings", "Quit" });
+        m_pauseMenu = MenuScreen("The demo", subtitle, items);
+        m_pauseSettings = SettingsScreen();
+        m_pause = PauseScreen::Title;
+        m_titleTime = 0.0f;
+        m_justPaused = true;
+        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+    }
+
+    bool DemoApp::UpdatePause(float deltaSeconds)
     {
         Atom::Input& input = GetInput();
         const bool escape = input.WasKeyPressed(SDL_SCANCODE_ESCAPE);
@@ -1664,18 +2119,76 @@ namespace Demo
                 chosen = 0; // Esc again: resume
             }
             m_justPaused = false;
-            if (chosen == 0)
+            const std::string item = chosen ? m_pauseMenu.Items()[static_cast<std::size_t>(*chosen)] : std::string{};
+            if (item == "Resume")
             {
                 m_pause = PauseScreen::None;
                 input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
             }
-            else if (chosen == 1)
+            else if (item == "Settings")
             {
+                m_settingsFromTitle = false;
                 m_pause = PauseScreen::Settings;
             }
-            else if (chosen == 2)
+            else if (item == "Quit to title")
+            {
+                OpenTitle(); // unsaved progress since the last lantern is left behind, as in any save-point game
+            }
+            else if (item == "Quit")
             {
                 RequestQuit();
+            }
+            return true;
+        }
+        case PauseScreen::Title:
+        {
+            // The street behind it, the view drifting slowly down the road.
+            m_titleTime += deltaSeconds;
+            m_camera.SetPosition({ -24.0f + 1.2f * m_titleTime, 2.1f, 1.0f });
+            m_camera.SetRotation(glm::radians(90.0f) + 0.08f * std::sin(m_titleTime * 0.2f), -0.06f);
+            const std::optional<int> chosen = m_pauseMenu.Update(input);
+            m_justPaused = false;
+            const std::string item = chosen ? m_pauseMenu.Items()[static_cast<std::size_t>(*chosen)] : std::string{};
+            if (item == "Continue" && ContinueFromSave())
+            {
+                m_pause = PauseScreen::None;
+            }
+            else if (item == "New game")
+            {
+                if (m_save.found)
+                {
+                    m_pauseMenu = MenuScreen("Start over?", "Your kept progress will be lost at the next lantern.",
+                                             { "No", "Yes, start over" });
+                    m_pause = PauseScreen::ConfirmNewGame;
+                }
+                else
+                {
+                    StartNewGame();
+                    m_pause = PauseScreen::None;
+                }
+            }
+            else if (item == "Settings")
+            {
+                m_settingsFromTitle = true;
+                m_pause = PauseScreen::Settings;
+            }
+            else if (item == "Quit")
+            {
+                RequestQuit();
+            }
+            return true;
+        }
+        case PauseScreen::ConfirmNewGame:
+        {
+            const std::optional<int> chosen = m_pauseMenu.Update(input);
+            if (chosen == 1)
+            {
+                StartNewGame();
+                m_pause = PauseScreen::None;
+            }
+            else if (chosen == 0 || escape)
+            {
+                OpenTitle();
             }
             return true;
         }
@@ -1693,7 +2206,14 @@ namespace Demo
             }
             if (result.back)
             {
-                m_pause = PauseScreen::Menu;
+                if (m_settingsFromTitle)
+                {
+                    OpenTitle();
+                }
+                else
+                {
+                    m_pause = PauseScreen::Menu;
+                }
             }
             return true;
         }
@@ -1708,13 +2228,14 @@ namespace Demo
             return;
         }
         UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
-        if (m_pause == PauseScreen::Menu)
+        if (m_pause == PauseScreen::Settings)
         {
-            m_pauseMenu.Draw(kit);
+            m_pauseSettings.Draw(kit, m_savedSettings, m_resolvedSettings.gpu);
         }
         else
         {
-            m_pauseSettings.Draw(kit, m_savedSettings, m_resolvedSettings.gpu);
+            // The title lets more of the street through than the pause does.
+            m_pauseMenu.Draw(kit, m_pause == PauseScreen::Title ? 0.35f : 0.55f);
         }
     }
 }

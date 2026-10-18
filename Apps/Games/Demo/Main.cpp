@@ -13,9 +13,9 @@ int main(int argc, char** argv)
 {
     // First: where this run's output goes (the terminal, a pipe, the log).
     AtomFramework::RunLog log("Demo"); // M76: the framework's, named for this game (AtomGame until v0.0.14)
-    const char* basePath = SDL_GetBasePath();
-    ATOM_LOG_GAME("Demo") << "Executable folder: " << (basePath ? basePath : "unknown") << '\n'
-              << "Log: " << (log.GetPath().empty() ? std::string("none (scripted run)") : log.GetPath()) << '\n';
+    // Paths in the log read relative to the executable (or the user's
+    // folder): a log a player sends names no user folder.
+    ATOM_LOG_GAME("Demo") << "Log: " << (log.GetPath().empty() ? std::string("none (scripted run)") : log.GetPath()) << '\n';
 
     // The arguments after the program name (M60): --gpu, --quality, ...
     std::vector<std::string> arguments;

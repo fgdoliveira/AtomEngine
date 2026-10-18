@@ -35,6 +35,42 @@ namespace Demo
             }
             return text;
         }
+
+        // The codepoint at `index` (its UTF-8 bytes); empty past the end.
+        std::string_view CodepointAt(const std::string& text, std::size_t index)
+        {
+            std::size_t seen = 0;
+            for (std::size_t i = 0; i < text.size(); ++i)
+            {
+                if ((static_cast<unsigned char>(text[i]) & 0xC0) == 0x80)
+                {
+                    continue;
+                }
+                if (seen++ == index)
+                {
+                    std::size_t end = i + 1;
+                    while (end < text.size() && (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80)
+                    {
+                        ++end;
+                    }
+                    return std::string_view(text).substr(i, end - i);
+                }
+            }
+            return {};
+        }
+    }
+
+    float DialogueRunner::PauseAfter(std::string_view codepoint)
+    {
+        if (codepoint == "," || codepoint == ";" || codepoint == ":")
+        {
+            return 0.12f;
+        }
+        if (codepoint == "." || codepoint == "!" || codepoint == "?" || codepoint == "\xE2\x80\xA6") // U+2026
+        {
+            return 0.3f;
+        }
+        return 0.0f;
     }
 
     void DialogueRunner::Start(const Dialogue& dialogue, GameState& state)
@@ -61,6 +97,9 @@ namespace Demo
             ATOM_LOG_GAME("Demo") << "Flag set: " << m_node->setsFlag << '\n';
         }
         m_revealed = 0.0f;
+        m_pause = 0.0f;
+        m_skipped = false;
+        ++m_lineSerial;
         m_selection = 0;
         m_state = State::Revealing;
     }
@@ -71,8 +110,33 @@ namespace Demo
         {
             return;
         }
+        // Resting after punctuation spends the frame's time first.
+        if (m_pause > 0.0f)
+        {
+            const float rest = std::min(m_pause, deltaSeconds);
+            m_pause -= rest;
+            deltaSeconds -= rest;
+            if (m_pause > 0.0f)
+            {
+                return;
+            }
+        }
+        const std::size_t total = CountCodepoints(m_node->text);
+        const std::size_t before = static_cast<std::size_t>(m_revealed);
         m_revealed += charactersPerSecond * deltaSeconds;
-        if (m_revealed >= static_cast<float>(CountCodepoints(m_node->text)))
+        // Stop at the first punctuation revealed this frame (not the last
+        // one of the line: nothing follows it to wait for).
+        const std::size_t after = std::min(static_cast<std::size_t>(m_revealed), total);
+        for (std::size_t i = before; i < after && i + 1 < total; ++i)
+        {
+            if (const float pause = PauseAfter(CodepointAt(m_node->text, i)); pause > 0.0f)
+            {
+                m_revealed = static_cast<float>(i + 1);
+                m_pause = pause;
+                break;
+            }
+        }
+        if (m_revealed >= static_cast<float>(total))
         {
             m_state = State::WaitingForInput;
         }
@@ -84,6 +148,8 @@ namespace Demo
         {
             // First press shows the whole line; it doesn't skip it.
             m_revealed = static_cast<float>(CountCodepoints(m_node->text));
+            m_pause = 0.0f;
+            m_skipped = true;
             m_state = State::WaitingForInput;
         }
         else if (m_state == State::WaitingForInput && GetVisibleChoices().empty())
@@ -138,6 +204,7 @@ namespace Demo
     void DialogueRunner::Close()
     {
         m_state = State::Inactive;
+        m_pause = 0.0f;
         m_node = nullptr;
         m_dialogue = nullptr;
     }

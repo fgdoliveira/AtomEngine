@@ -1,5 +1,93 @@
 # Changelog
 
+## 0.0.18 — Demo Vertical
+
+The demo becomes a game to play, not a tour of features: a road out of
+town on a motorbike to a shore at night, people who mumble when they
+speak, and progress kept at lanterns, behind a title screen. What the
+game needed went into the engine and framework where it belonged.
+
+### Changed
+- **Logs name no user folder, from the first line:** the executable's,
+  the asset root's and, last, the user's home folder are removed from
+  every line before the game writes its first one (the log path in
+  AppData read with the user name).
+- **Looking around during a sequence:** waiting for the bus (any
+  sequence) froze the view as well as the feet and read as a hang; the
+  mouse now looks around, movement stays off.
+- **The shrine keeper is a person:** the street's `shrine_keeper` uses
+  `ThirdParty/old_man_psx.glb` (author and licence in
+  `Apps/Games/Demo/Assets/ThirdParty/README.md`) instead of
+  the procedural `Kit/keeper.glb` (which AtomArena keeps). Scaled to
+  1.65 m, held on frame 0 of its only clip; collider and talk focus
+  fitted. `ThirdParty/` now ships with the demo, with its credits.
+
+### Added
+- **Progress is kept: save points and a title screen.** Lighting a stone
+  lantern (the street by the torii, the night street's bus stop, the
+  shore's beach hut) keeps the story flags, counters, the level, where
+  you stand and look, and the flashlight and headlight. The demo now
+  opens on a title over the street: Continue (shown only when something
+  is kept, with where and when), New game (asks first; the old save
+  stays until the next lantern), Settings, Quit; the pause menu gains
+  Quit to title.
+  - **Framework:** `SaveGame` (`ParseSave` never crashes or guesses: a
+    broken or newer file is no save), `WriteFileAtomically` (a crash
+    mid-save leaves the old file), `GameState::Clear`/`Restore`, and a
+    `save` action (`{ "place" }`, `ActionContext::save`).
+  - `--no-save`, `--reset-save`. Scripted runs skip the title and save to
+    `out/test_save.json`, never the player's. Scenario `save_continue`.
+- **Sky picture in F10's Environment panel:** a checkbox turns the
+  level's sky picture off, so a weather preset's gradient sky shows (a
+  picture always covered it); a list offers every PNG in the asset roots'
+  `Sky/` folders to stand in for it, with an intensity, and Copy sky as
+  JSON gives the level file's `"sky"` block. Development only, nothing
+  saved. `set sky_picture on|off`; `AssetRoots::List`.
+- **The Kawasaki, the coast road and the shore:** a parked bike on the
+  street (`ThirdParty/kawasaki_spectre_psx.glb`, credited in its
+  README). "Ride" takes it down a new level, `coast_road`: about 950 m
+  of night road along a cliff over the sea, seen from the rider's eye,
+  the headlight on the bike's nose. The rider steers (A/D) on a soft
+  leash like DRIFT's - eased, the bike swinging toward where it goes -
+  and sets the speed (W/S); it never stops. The bike leans into the
+  bends; the engine is synthesised. Reaching the shore sets
+  `rode_to_shore`. At the road's end: `shore`, a beach under dunes with a
+  jetty, walked on foot; the bike rides back to the street.
+  - **`ride` (level data, framework-parsed):** the vehicle, speed, the
+    rider's eye, `steer` (an optional `afterFlag` makes it ride itself
+    until the flag is set), and a route per spawn - direction,
+    the end action, a flag. The road is the builder's: written as the
+    markers' `ride_path`, so the bike rides the road that was built.
+  - **Engine:** `Camera::roll`. **Framework:** `Renderable::tilt`.
+  - Blender units `coast` and `shore`; scenario `ride_to_shore`.
+- **Mumbled dialogue:** as the typewriter reveals a line, the speaker
+  babbles in syllables (Banjo-Kazooie's voices, timed like Animal
+  Crossing's): every few letters one short note from the engine's synth
+  (DRIFT's), on a stream of the demo's own - no samples, no new
+  dependency, nothing shared with other sound. Voices are data
+  (`Assets/Data/voices.json`: `old_man`, `sinister`, `man`); a dialogue
+  names its `"voice"`, a node may override it. A letter at its place
+  always sounds the same, so a line replays identically. Skipping,
+  a new line or closing cuts the voice in ~30 ms; a backlog or a full
+  queue drops syllables, never the text; without a device it's silent.
+  The shrine keeper speaks as `old_man`. Stats `voice_syllables`,
+  `voice_dropped`.
+- **Typewriter pauses:** a beat after `, ; :`, a breath after `. ! ?`
+  and the ellipsis.
+- **`animation.time`:** where in the clip an entity starts; with
+  `"autoplay": false`, the pose it holds. Negative is an error.
+
+### Fixed
+- Quitting after picking a sky picture in F10 aborted (Debug): the
+  picture's texture outlived the GPU device. Released at shutdown; the
+  `devtools` scenario picks one and quits.
+- The first dialogue voices were inaudible on laptop speakers (-40 dBFS,
+  mostly bass); a test now keeps every voice above a level and
+  brightness floor.
+- Riding felt stepped: the road's direction now blends along each
+  sample, steering accelerates, the edge is a damped spring; a test
+  bounds the frame-to-frame change of turn.
+
 ## 0.0.17 — Authoring Workflow
 
 Editing a level gets shorter and safer, whether by hand or by an agent.

@@ -10,6 +10,7 @@
     "$schema": { "type": "string" },
     "id": { "type": "string", "description": "What levels refer to (a \"dialogue\" action's id)." },
     "start": { "type": "string", "description": "Id of the first node." },
+    "voice": { "type": "string", "description": "The speaker's mumble: a voice in Data/voices.json." },
     "nodes": {
       "type": "array",
       "items": {
@@ -19,6 +20,7 @@
         "properties": {
           "id": { "type": "string" },
           "speaker": { "type": "string" },
+          "voice": { "type": "string", "description": "This line's voice, over the dialogue's." },
           "text": { "type": "string" },
           "next": { "type": "string", "description": "A node id or \"end\"; used when there are no choices." },
           "sets": { "type": "string", "description": "Flag set when this node is shown." },

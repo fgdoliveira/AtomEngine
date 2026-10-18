@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../Framework/Schemas/level.schema.json",
+  "name": "coast_road",
+  "model": "Coast/coast.glb",
+  "collision": "Coast/coast_col.glb",
+  "defaultSpawn": "from_street",
+  "spawns": {
+    "from_street": {},
+    "from_shore": {}
+  },
+  "lighting": {
+    "sunDirection": [-0.4, 0.25, -0.88],
+    "sunColor": [0.16, 0.18, 0.26],
+    "skyColor": [0.06, 0.07, 0.11],
+    "groundColor": [0.02, 0.02, 0.03],
+    "fogColor": [0.014, 0.016, 0.022],
+    "fogDensity": 0.012,
+    "water": { "shallow": [0.06, 0.12, 0.13], "deep": [0.01, 0.03, 0.05], "skyReflection": 0.5, "ripple": 1.4, "reflection": false },
+    "shadows": false,
+    "glow": { "strength": 0.7, "threshold": 0.7 }
+  },
+  "sky": { "panorama": "Sky/night_sky.png", "intensity": 0.6 },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.35 },
+      { "sound": "drone", "gain": 0.05 }
+    ]
+  },
+  "surfaces": { "default": "asphalt" },
+  "particles": { "leaves": false, "fogBanks": false },
+  "unease": { "figure": false },
+  "entities": [
+    {
+      "name": "kawasaki",
+      "position": [0.0, 0.25, 10.0],
+      "yaw": 90,
+      "model": "ThirdParty/kawasaki_spectre_psx.glb",
+      "scale": 0.22
+    }
+  ],
+  "ride": {
+    "vehicle": "kawasaki",
+    "speed": 14.0,
+    "eye": [0.0, 1.5, -0.55],
+    "steer": { "width": 3.0, "rate": 4.0 },
+    "routes": [
+      { "spawn": "from_street", "sets": "rode_to_shore",
+        "end": { "type": "changeLevel", "level": "shore", "spawn": "from_road" } },
+      { "spawn": "from_shore", "reverse": true,
+        "end": { "type": "changeLevel", "level": "street", "spawn": "by_bike" } }
+    ]
+  }
+}

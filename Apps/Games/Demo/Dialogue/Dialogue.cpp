@@ -49,6 +49,7 @@ namespace Demo
         Dialogue dialogue;
         dialogue.id = OptionalString(root, "id");
         dialogue.start = OptionalString(root, "start");
+        dialogue.voice = OptionalString(root, "voice");
         if (dialogue.id.empty() || dialogue.start.empty())
         {
             return { std::nullopt, "/: missing \"id\" or \"start\"" };
@@ -69,6 +70,7 @@ namespace Demo
             DialogueNode node;
             node.id = OptionalString(item, "id");
             node.speaker = OptionalString(item, "speaker");
+            node.voice = OptionalString(item, "voice");
             node.text = OptionalString(item, "text");
             node.next = OptionalString(item, "next");
             node.setsFlag = OptionalString(item, "sets");

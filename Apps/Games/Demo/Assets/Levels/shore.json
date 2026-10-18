@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../../Framework/Schemas/level.schema.json",
+  "name": "shore",
+  "model": "Shore/shore.glb",
+  "collision": "Shore/shore_col.glb",
+  "defaultSpawn": "from_road",
+  "spawns": {
+    "from_road": {},
+    "jetty_end": {}
+  },
+  "lighting": {
+    "sunDirection": [0.55, 0.3, -0.78],
+    "sunColor": [0.42, 0.47, 0.62],
+    "skyColor": [0.1, 0.11, 0.17],
+    "groundColor": [0.08, 0.075, 0.065],
+    "fogColor": [0.014, 0.016, 0.022],
+    "fogDensity": 0.008,
+    "water": { "shallow": [0.07, 0.13, 0.14], "deep": [0.01, 0.03, 0.05], "skyReflection": 0.6, "ripple": 1.6, "reflection": false },
+    "shadows": false,
+    "glow": { "strength": 0.7, "threshold": 0.7 }
+  },
+  "sky": { "panorama": "Sky/night_sky.png", "intensity": 0.7 },
+  "outdoor": true,
+  "audio": {
+    "beds": [
+      { "sound": "wind", "gain": 0.3 },
+      { "sound": "rain", "gain": 0.12 }
+    ]
+  },
+  "surfaces": {
+    "default": "dirt",
+    "zones": [
+      { "min": [-3.5, 0, -1.0], "max": [3.5, 0, 46.0], "surface": "asphalt" },
+      { "min": [8.0, 0, -42.0], "max": [10.0, 0, -15.0], "surface": "wood" }
+    ]
+  },
+  "particles": { "leaves": false, "fogBanks": false },
+  "halos": [
+    { "position": [0.0, 1.25, 0.0], "size": 0.6, "color": [1.0, 0.72, 0.4], "intensity": 0.3, "flicker": 0.6, "entity": "save_lantern" },
+    { "position": [6.6, 4.4, 6.0], "size": 1.4, "color": [1.0, 0.78, 0.5], "intensity": 0.3 },
+    { "position": [7.0, 1.25, -14.2], "size": 0.8, "color": [1.0, 0.7, 0.4], "intensity": 0.35, "flicker": 0.5 },
+    { "position": [11.0, 1.25, -14.2], "size": 0.8, "color": [1.0, 0.7, 0.4], "intensity": 0.35, "flicker": 0.5 },
+    { "position": [17.0, 2.75, 4.2], "size": 0.7, "color": [0.75, 0.85, 1.0], "intensity": 0.25, "flicker": 0.9 }
+  ],
+  "lights": [
+    { "position": [6.6, 4.4, 6.0], "color": [1.0, 0.78, 0.5], "intensity": 1.8, "radius": 12.0 },
+    { "position": [9.0, 1.3, -14.2], "color": [1.0, 0.7, 0.4], "intensity": 0.9, "radius": 7.0 },
+    { "position": [17.0, 2.7, 4.6], "color": [0.75, 0.85, 1.0], "intensity": 0.6, "radius": 6.0 }
+  ],
+  "unease": { "figure": false },
+  "entities": [
+    {
+      "name": "save_lantern",
+      "position": [13.5, 0.6, 4.0],
+      "model": "Kit/toro.glb",
+      "collider": { "center": [0.0, 0.9, 0.0], "halfExtents": [0.33, 0.9, 0.33] },
+      "interactable": {
+        "prompt": "Light the lantern", "focus": [0.0, 1.2, 0.0], "radius": 2.2,
+        "action": { "type": "save", "place": "the lantern by the beach hut" }
+      }
+    },
+    {
+      "name": "kawasaki",
+      "position": [2.5, 0.85, 6.0],
+      "yaw": -90,
+      "model": "ThirdParty/kawasaki_spectre_psx.glb",
+      "scale": 0.22,
+      "collider": { "center": [0.0, 0.45, 0.0], "halfExtents": [0.35, 0.5, 1.1] },
+      "interactable": {
+        "prompt": "Ride back", "focus": [0.0, 0.9, 0.0], "radius": 2.4,
+        "action": { "type": "changeLevel", "level": "coast_road", "spawn": "from_shore" }
+      }
+    }
+  ]
+}

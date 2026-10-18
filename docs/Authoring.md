@@ -44,7 +44,13 @@ else holding the same fact is generated from that file, and says so.
 | What an entity *is* and *does* (model, collider, interaction, animation, mover) | the level file, `<app>/Assets/Levels/<level>.json` | nothing |
 | Lighting, fog, sky, audio, sequences of a level | the level file | nothing |
 | Environment presets | `Content/Environments/*.json` | nothing |
+| A level's sky picture | the level file's `"sky"` (a PNG in a `Sky/` folder). F10 → Environment → Sky picture turns it off (a preset's gradient sky shows - a picture always covers it), tries any PNG dropped into `Content/Sky/` or `<app>/Assets/Sky/`, and copies the `"sky"` block | nothing (the panel saves nothing) |
 | A pachinko machine | `Tools/Machines/*_layout.py` | `Assets/Machines/*.json` |
+| A ride: the vehicle, speed, the rider's eye, when steering is allowed, a route per spawn (direction, end action, flag) | the level file's `"ride"` (the demo's `coast_road.json`) | nothing |
+| The ride's road | its Blender builder (`atom_coast.py`): the centre line it builds the road along | the markers' `"ride_path"`; a `path` in the level file wins, with a warning |
+| A save point | a level-file entity whose action is `{ "type": "save", "place": "the lantern by the torii" }` (the demo's stone lanterns); `place` is what the title's Continue shows | the player's progress, `save.json` beside `settings.json` (never in the repository; a scripted run writes `out/test_save.json`) |
+| A conversation, and whose voice mumbles it | the demo's `Assets/Dialogue/<id>.json` (`"voice"`, per dialogue or per node) | nothing |
+| What a voice sounds like (`old_man`, `sinister`, `man`) | the demo's `Assets/Data/voices.json`: pitch and its spread, glide, waveform, syllable length, letters per syllable, breath, low-pass, echo - hot-reloaded | nothing |
 | External models (third-party GLB) | the file as received, with its licence beside it | nothing |
 | The rules every data file follows | `Framework/Schemas/*.schema.json`, an app's `Assets/Schemas/` - and, above them, the C++ parser (`Framework/Level/LevelData.cpp`) | nothing |
 
@@ -367,6 +373,14 @@ What the engine reads (`Engine/Assets/Model.cpp`, cgltf):
 | metallic-roughness materials: base colour (texture and factor), alpha mask or blend, double-sided, emissive texture, factor and strength; the `atom_fog` material extra | morph targets (shape keys): ignored |
 | skins up to 255 joints, 4 weights per vertex | other material extensions (clearcoat, transmission, ...): ignored |
 | animation clips: translation, rotation, scale; step, linear, cubic spline | cameras and lights in the file: ignored (the level file lights the scene) |
+
+A store model rarely arrives at the right size or with the clips you want.
+Fix both in the level file, not in the model: `"scale"` sizes it (measure
+it first), `"yaw"` turns it, and a held frame of any clip poses it -
+`"animation": { "clip": "<clip>", "autoplay": false, "time": <seconds> }`
+draws the skin at that time and keeps it still. The Demo's shrine keeper
+(`ThirdParty/old_man_psx.glb`, 3.3 m tall, its one clip a dance) is
+`"scale": 0.5` and frame 0 of that dance.
 
 A model without `COLOR_0` is drawn unbaked (white baked light), which is
 right for something lit only live. Kit pieces get baked light from the

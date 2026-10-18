@@ -42,4 +42,13 @@ TEST_CASE("Paths in log lines read relative to the registered folders")
     // A folder only matches whole: no root, no change.
     CHECK(Log::Relative("C:/Games/AtomEngineX/file", { "C:/Games/AtomEngine/" }) == "C:/Games/AtomEngineX/file");
     CHECK(Log::Relative("no paths here", roots) == "no paths here");
+
+    // The home folder is the last resort: a build under it still reads from
+    // the executable, and anything else under it loses the user name.
+    // (A made-up home: the privacy check rejects anything shaped like a real one.)
+    const std::vector<std::string> withHome = { "D:/Profiles/someone/Desktop/Atom/build/bin/Debug/Demo/", "D:/Profiles/someone/" };
+    CHECK(Log::Relative("D:\\Profiles\\someone\\Desktop\\Atom\\build\\bin\\Debug\\Demo\\Assets/Kit/x.glb", withHome)
+          == "Assets/Kit/x.glb");
+    CHECK(Log::Relative("Log: D:\\Profiles\\someone\\AppData\\Roaming\\AtomEngine\\Demo\\logs\\Demo.log", withHome)
+          == "Log: AppData\\Roaming\\AtomEngine\\Demo\\logs\\Demo.log");
 }

@@ -412,7 +412,7 @@ def main():
                            materials=False)
         path = markers_path(args, folder)
         if markers and path:
-            write_markers(level.collection, path)
+            write_markers(level.collection, path, extra=getattr(level, "markers_extra", None))
 
     stats = atom_export.STATS
     print(f"export: {stats['written']} written, {stats['unchanged']} unchanged, "
