@@ -1,0 +1,39 @@
+# The Kawasaki: street -> coast road -> shore and back. The first ride is
+# cinematic and sets rode_to_shore; the ride back steers. Jumps along the
+# road (set ride_progress) so the run doesn't take two minutes.
+# Run: ATOM_TEST_SCRIPT=Apps/Games/Demo/Scenarios/ride_to_shore.atomtest Demo
+
+expect_level street
+teleport_to kawasaki
+expect_target kawasaki
+interact kawasaki
+wait 2.5
+expect_level coast_road
+expect_mode riding
+expect_stat ride_steer == 0
+expect_no_flag rode_to_shore
+
+# Under way: it moves on its own.
+wait 2
+expect_stat ride_progress > 0.005
+set ride_progress 0.995
+wait 4
+
+# The shore: on foot, the flag set.
+expect_level shore
+expect_mode exploring
+expect_flag rode_to_shore
+teleport_to kawasaki
+expect_target kawasaki
+interact kawasaki
+wait 3
+
+# The road back, the other way: now it steers.
+expect_level coast_road
+expect_mode riding
+expect_stat ride_steer == 1
+set ride_progress 0.995
+wait 4
+expect_level street
+expect_mode exploring
+log ride_to_shore done

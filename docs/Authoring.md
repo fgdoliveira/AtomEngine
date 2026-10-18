@@ -45,6 +45,8 @@ else holding the same fact is generated from that file, and says so.
 | Lighting, fog, sky, audio, sequences of a level | the level file | nothing |
 | Environment presets | `Content/Environments/*.json` | nothing |
 | A pachinko machine | `Tools/Machines/*_layout.py` | `Assets/Machines/*.json` |
+| A ride: the vehicle, speed, the rider's eye, when steering is allowed, a route per spawn (direction, end action, flag) | the level file's `"ride"` (the demo's `coast_road.json`) | nothing |
+| The ride's road | its Blender builder (`atom_coast.py`): the centre line it builds the road along | the markers' `"ride_path"`; a `path` in the level file wins, with a warning |
 | A conversation, and whose voice mumbles it | the demo's `Assets/Dialogue/<id>.json` (`"voice"`, per dialogue or per node) | nothing |
 | What a voice sounds like (`old_man`, `sinister`, `man`) | the demo's `Assets/Data/voices.json`: pitch and its spread, glide, waveform, syllable length, letters per syllable, breath, low-pass, echo - hot-reloaded | nothing |
 | External models (third-party GLB) | the file as received, with its licence beside it | nothing |

@@ -69,6 +69,7 @@
         @{ Pattern = '^Apps/Games/Demo/Tests/'; Tests = @('demo') }
 
         # The demo's content (before its code: first match wins). Its content tests check it; the levels load it.
+        @{ Pattern = '^Apps/Games/Demo/Assets/(Coast|Shore)/|^Apps/Games/Demo/Assets/Levels/(coast_road|shore)\.'; Tests = @('demo'); Scenarios = @('demo.ride_to_shore') }
         @{ Pattern = '^Apps/Games/Demo/Assets/(Levels|Environments)/'; Tests = @('demo'); Scenarios = @('demo.levels_roundtrip', 'demo.hot_reload', 'demo.environment') }
         @{ Pattern = '^Apps/Games/Demo/Assets/(Machines|Pachinko)/'; Tests = @('demo'); Scenarios = @('demo.pachinko_session') }
         @{ Pattern = '^Apps/Games/Demo/Assets/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.levels_roundtrip') }
@@ -79,7 +80,7 @@
         @{ Pattern = '^Apps/Games/Demo/Pachinko/'; Tests = @('demo'); Scenarios = @('demo.pachinko_session') }
         @{ Pattern = '^Apps/Games/Demo/Input/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.pachinko_session') }
         @{ Pattern = '^Apps/Games/Demo/Dialogue/'; Tests = @('demo'); Scenarios = @('demo.street_keeper') }
-        @{ Pattern = '^Apps/Games/Demo/Ride/'; Tests = @('demo') }
+        @{ Pattern = '^Apps/Games/Demo/Ride/'; Tests = @('demo'); Scenarios = @('demo.ride_to_shore') }
         @{ Pattern = '^Apps/Games/Demo/Flashlight'; Tests = @('demo'); Scenarios = @('demo.flashlight', 'demo.passage') }
         @{ Pattern = '^Apps/Games/Demo/DemoAppDevTools'; Tests = @('demo'); Scenarios = @('demo.devtools') }
         @{ Pattern = '^Apps/Games/Demo/DemoAppCalibration'; Tests = @('demo'); Scenarios = @('demo.calibration', 'demo.quality_tiers') }

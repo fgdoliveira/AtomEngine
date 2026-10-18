@@ -14,6 +14,21 @@ properly in 0.0.18.
   fitted. `ThirdParty/` now ships with the demo, with its credits.
 
 ### Added
+- **The Kawasaki, the coast road and the shore:** a parked bike on the
+  street (`ThirdParty/kawasaki_spectre_psx.glb`, credited in its
+  README). "Ride" takes it down a new level, `coast_road`: about 950 m
+  of night road along a cliff over the sea, seen from the rider's eye,
+  the headlight on the bike's nose. The first ride is cinematic; once
+  ridden (`rode_to_shore`), rides steer on a soft leash like DRIFT's, the
+  speed nudged with W/S. The bike leans into the bends; the engine is
+  synthesised. At the road's end: `shore`, a beach under dunes with a
+  jetty, walked on foot; the bike rides back to the street.
+  - **`ride` (level data, framework-parsed):** the vehicle, speed, the
+    rider's eye, `steer.afterFlag`, and a route per spawn - direction,
+    the end action, a flag. The road is the builder's: written as the
+    markers' `ride_path`, so the bike rides the road that was built.
+  - **Engine:** `Camera::roll`. **Framework:** `Renderable::tilt`.
+  - Blender units `coast` and `shore`; scenario `ride_to_shore`.
 - **Mumbled dialogue:** as the typewriter reveals a line, the speaker
   babbles in syllables (Banjo-Kazooie's voices, timed like Animal
   Crossing's): every few letters one short note from the engine's synth
