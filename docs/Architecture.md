@@ -7,13 +7,24 @@ when a change alters a diagram or a rule here, the change updates this page.
 
 ## 1. Targets and dependency direction
 
-Since v0.0.14 the repository has three layers; since v0.0.16 the apps
-live under `Apps/`, by purpose:
+Since v0.0.14 the repository has three runtime layers; since v0.0.16 the
+apps live under `Apps/`, by purpose; since v0.0.19 the development tools
+are libraries of their own beside the runtime, which no game links
+(ADR-013):
 
 ```text
-Engine/      AtomEngine     (namespace Atom)           window, GPU renderer, audio, input, physics, UI drawing, dev tools host
+Engine/      AtomEngine     (namespace Atom)           window, GPU renderer (+ an offscreen scene target), audio,
+                                                       input, physics, UI drawing, the F1 overlay
 Framework/   AtomFramework  (namespace AtomFramework)  levels, world, player, environments, UI kit and menus,
-                                                       settings, diagnostics, F10 panels, the scenario harness
+                                                       settings, diagnostics, the scenario harness
+Authoring/   AtomAuthoring  (namespace AtomFramework)  what tools know about content: LevelCheck, the entity
+                                                       inspector, ScenePreview (a level without its game)
+Project/     AtomProject    (namespace AtomProject)    the project descriptor, creation, discovery - no GPU, no engine
+WorkspaceUI/ AtomWorkspaceUI (namespace AtomWorkspace) the Dear ImGui host (docking, detachable windows), recent
+                                                       projects, the operations' processes, the Console's parsing
+Tools/Workspace/            AtomWorkspace               the development program
+Tools/ProjectTool/          AtomProjectTool             `create --workspace <folder> --name <Name>`
+Tools/LevelCheck/           AtomLevelCheck              levels checked without the game (`--project`, `--app`, `--all`)
 Apps/Showcase/              ShowcaseLib + Showcase      the engine's front door: a lakeside village and the lens
 Apps/Games/Demo/            DemoLib + Demo              the demo: a night street, its story
 Apps/Games/Drift/           DriftLib + Drift            DRIFT, a port of a three.js game
@@ -56,12 +67,21 @@ graph TD
     FrameworkTests[AtomFrameworkTests] --> Framework
     AppTests["DemoTests, DriftTests, ShowcaseTests, ArenaTests"] --> DemoLib & DriftLib & ShowcaseLib & ArenaLib
     Framework -.->|private| JSON[nlohmann/json]
-    Framework -.->|private| ImGui[Dear ImGui]
     Engine --> SDL[SDL3]
     Engine --> GLM
-    Engine -.->|private| ImGui
     Engine -.->|private| CGLTF[cgltf + stb]
+    Authoring[AtomAuthoring] --> Framework
+    Project[AtomProject] -.->|private| JSON
+    WorkspaceUI[AtomWorkspaceUI] --> Authoring & Project & ImGui[Dear ImGui docking]
+    Workspace[AtomWorkspace] --> WorkspaceUI
+    LevelCheck[AtomLevelCheck] --> Authoring & Project
+    ProjectTool[AtomProjectTool] --> Project
 ```
+
+The games sit on the left of this picture and the tools on the right;
+nothing on the left points right. A configure-time guard in the root
+`CMakeLists.txt` fails if `imgui` reaches AtomEngine, AtomFramework or
+AtomAuthoring.
 
 - **The one rule that matters most:** a layer never includes the one above
   it. The engine knows nothing of levels or players; the framework names no
@@ -72,8 +92,17 @@ graph TD
   `--diagnostics` report; since M85 the world layer moved from the demo -
   data-driven levels, the entity world, interaction, environments, the
   character and the scenario harness; since M89-M91 the UI every app shares
-  (`DevPanels` for F10, `UiKit`, `MenuScreen`, `SettingsScreen`) and
-  `BasicTestHooks`.
+  (`UiKit`, `MenuScreen`, `SettingsScreen`) and `BasicTestHooks`. The F10
+  panels it held until v0.0.19 are the workspace's now.
+- **The tools** (v0.0.19): **Atom Workspace** is an `Application` like the
+  games - the same window, device and renderer - that draws Dear ImGui in
+  the renderer's overlay pass and the scene into an offscreen target shown
+  in a panel. It previews a project's levels with `ScenePreview` (levels
+  are data, ADR-012) and runs Validate, Build and Run as separate
+  processes. **Projects** are folders with a `<Name>.atomproject.json`
+  (relative paths only); CMake discovers `Apps/*/*.atomproject.json`, and
+  the bundled apps, listed in `ATOM_EXAMPLE_DIRS` (`ATOM_EXAMPLE_APPS`),
+  have descriptors too.
 - **The Showcase** (v0.0.14) is the engine's front door, built only from the
   engine and the framework. Each capability it shows is a *Feature* in its
   catalog (`Apps/Showcase/Features/`) with a source file, a manual section, a
@@ -91,10 +120,11 @@ graph TD
   executables run.
 - **Usage requirements are honest** (M54): PUBLIC only for what a target's
   headers expose (SDL types, GLM maths and its settings); PRIVATE for what
-  only its `.cpp` files use (ImGui, JSON, cgltf, stb, the version string).
+  only its `.cpp` files use (JSON, cgltf, stb, the version string).
 - **Build options:** `ATOM_BUILD_GAME` (the apps' shaders, needs `dxc`),
-  `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`. CI builds with the
-  game off, the unit tests and HelloAtom (§11).
+  `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`, `ATOM_EXAMPLE_APPS`
+  (the bundled apps), `ATOM_PROJECTS_DIR` (where projects are discovered).
+  CI builds with the game off, the unit tests and HelloAtom (§11).
 
 ## 2. Application, engine and app: the real layering
 
@@ -102,19 +132,20 @@ There is **no runtime `Engine` object**, and none should be added.
 
 ```mermaid
 graph LR
-    Main[main] -->|constructs| App[an app: ShowcaseApp, DemoApp, DriftApp, HelloApp]
+    Main[main] -->|constructs| App[an app: ShowcaseApp, DemoApp, DriftApp, HelloApp, WorkspaceApp]
     App -->|inherits| Base[Atom::Application]
-    Base -->|owns| Window & Renderer & Audio & Input & DevTools & Time
+    Base -->|owns| Window & Renderer & Audio & Input & PerfOverlay & Time
     App -->|owns| Levels[LevelManager] & Systems[its systems] & Diag[GameDiagnostics]
     Levels -->|owns| Level
 ```
 
 - **`Atom::Application`** is the engine's runtime: the platform loop, the
   owner of every process-lifetime subsystem (window, renderer, audio,
-  input, developer tools, time) and the composition root that creates them
+  input, the F1 overlay, time) and the composition root that creates them
   in order. It is not a service locator: there is no global lookup.
 - **An app** derives from `Application`, receives its hooks
-  (`OnConfigure`, `OnInitialize`, `OnUpdate`, `OnShutdown`) and coordinates
+  (`OnConfigure`, `OnInitialize`, `OnUpdate`, `OnShutdown`, and since
+  v0.0.19 `OnEvent`, which sees each window event before input) and coordinates
   its systems in an explicit frame order. Measurement and scripted tests
   live beside it in `GameDiagnostics` (M57).
 - Inheritance keeps the ownership order visible in one place. An `IGame`
@@ -124,8 +155,8 @@ graph LR
 ## 3. Lifecycles
 
 **Start:** `OnConfigure` (settings resolved, adapter chosen - §8) → SDL
-video → window → GPU renderer → audio (optional) → ImGui →
-the app's `OnInitialize` (asset roots, sound library, persistent GPU assets
+video → window → GPU renderer → audio (optional) → the F1 overlay's
+font → the app's `OnInitialize` (the workspace starts ImGui here) (asset roots, sound library, persistent GPU assets
 and fonts, data libraries, the `LevelManager` and the first level,
 diagnostics) → the renderer's prewarm: every pipeline variant and scene
 target built, and the first frames drawn, while still loading (v0.0.15,
@@ -136,9 +167,8 @@ framework's `RunLog` before any of it (§9).
 
 ```mermaid
 flowchart TD
-    Wait[Wait for a free swapchain image - M74] --> Events[Poll events]
-    Events --> Tools[DevTools frame]
-    Tools --> Diag[Diagnostics: frame time, fixed step, test script]
+    Wait[Wait for a free swapchain image - M74] --> Events[Poll events: OnEvent, then input]
+    Events --> Diag[Diagnostics: frame time, fixed step, test script]
     Diag --> Context[Input context]
     Context --> Levels[Transitions + level update]
     Levels --> Mode[Mode: exploring / dialogue / machine / lab]
@@ -148,8 +178,9 @@ flowchart TD
 ```
 
 **Shutdown** is the start in reverse: the app's `OnShutdown` releases levels,
-game GPU objects and fonts; then the base shuts down ImGui, audio, the
-renderer and its device, the window and SDL.
+game GPU objects and fonts (the workspace: ImGui and its preview); then
+the base shuts down the F1 overlay, audio, the renderer and its device,
+the window and SDL.
 
 **Levels** own everything level-lifetime (world, collision, models, voices,
 screens); persistent progress (flags, counters) lives above them in
@@ -181,8 +212,15 @@ flowchart TD
     Q[Frame queue] --> RT[Render textures] --> SS[Sun shadow] --> SP[Spot shadow]
     SP --> Ref[Reflection, optional] --> Scene[HDR scene, MSAA]
     Scene --> Glow[Glow, optional] --> Post[Post / tonemap] --> UI[Game UI]
-    UI --> ImGui[Developer overlay] --> Cap[Capture, optional] --> Present
+    UI --> Overlay[Overlay pass: the workspace's ImGui] --> Cap[Capture, optional] --> Present
 ```
+
+- **Offscreen scene target (v0.0.19):** `SetSceneTarget(w, h)` sends the
+  whole post-processed frame into a sampleable texture of that size
+  instead of the window, which is then only cleared before the overlay
+  pass draws on it - the workspace shows the texture in its Scene panel.
+  The size applies at the next `Render()`; `0 x 0` returns to the window.
+  Games keep the direct path.
 
 - **Immediate submission:** each frame the game pushes references (meshes,
   materials, chunks, lights, particles); `Render()` sorts, culls, draws and
@@ -206,13 +244,18 @@ in `GpuResources`, and `Renderer::Shutdown` reports anything still alive
 asserts in Debug. Scenarios fail on that report.
 
 Ownership stays unique (`unique_ptr` by the semantic owner; `shared_ptr`
-only for models shared through `ModelCache`, and F10's picked sky picture
-in `ViewToggles`).
+only for models shared through `ModelCache`, and a picked sky picture in
+`ViewToggles`).
 
 An app member that holds a GPU wrapper outlives `OnShutdown`, so it is
 released there explicitly (v0.0.18: the picked sky texture, released
-after the device, aborted the Debug build on exit; the `devtools`
-scenario now picks one and quits).
+after the device, aborted the Debug build on exit).
+
+**Draws hold pointers until `Render()`.** What a frame submits refers to
+the level's models; a level destroyed between `Submit` and `Render()`
+leaves the renderer drawing freed memory. Levels change before the
+frame's submission (the workspace's panels and self-test act before it,
+as the games' hot reload does).
 
 ## 6. World
 
@@ -250,13 +293,13 @@ graph LR
     Py[Python builders<br/>Tools/Blender] --> Export[atom_export<br/>glTF export, markers,<br/>write-if-changed]
     Blend[hand-made .blend] --> Export
     Export --> Out[GLB + lightmaps<br/>+ markers.json]
-    Json[level JSON] --> Check[AtomLevelCheck<br/>Framework LevelCheck]
+    Json[level JSON] --> Check[AtomLevelCheck<br/>Authoring LevelCheck]
     Out --> Check
     Out --> Parse[ParseLevel<br/>errors + warnings]
     Json --> Parse
     Parse --> Level[Level, GameWorld]
     Level --> Engine[AtomEngine]
-    Level --> F10[F10 entity report]
+    Level --> Workspace[Atom Workspace<br/>preview, Inspector]
 ```
 
 The parser (`Framework/Level/LevelData.cpp`) is the one authority on what
@@ -273,7 +316,8 @@ runtime dependency; most of them disappear into the executable:
 
 | Class | What | Reaches the player as |
 |---|---|---|
-| **Compile-time only** | GLM, nlohmann/json, cgltf, stb (headers or compiled-in sources), Dear ImGui (a static library), the MSVC C++ runtime (linked statically) | code inside each app's executable |
+| **Compile-time only** | GLM, nlohmann/json, cgltf, stb (headers or compiled-in sources), the MSVC C++ runtime (linked statically) | code inside each app's executable |
+| **Tools only** | Dear ImGui (docking; a static library) | nothing: only Atom Workspace links it |
 | **Runtime library** | SDL3 | `SDL3.dll`, the only DLL shipped |
 | **Operating system** | Direct3D 12, DXGI, Win32 (kernel32, user32, gdi32, shell32, winmm, imm32, ole32, …) | already on Windows 10/11 |
 | **Runtime asset** | the shipped asset folders, DXIL shaders | files beside the executable |
@@ -400,7 +444,8 @@ stranger report a problem; every developer facility is compiled out.
 | The log file, `--diagnostics`, the start-failure message box | **always available** |
 | Crash reports (a minidump and a text report, v0.0.15) | **always available**, written to the per-user folder (ADR-011) |
 | The `.pdb` symbols of a Release build | **not packaged**: kept in the developer's build folder to read dumps (ADR-011) |
-| F10 developer panels, the shared F1 overlay (every game) | **development only**: compiled out (`ATOM_DEV_TOOLS=0`) |
+| The F1 overlay (every game; drawn by the engine since v0.0.19) | **development only**: compiled out (`ATOM_DEV_TOOLS=0`) |
+| Developer panels (F10 until v0.0.18) | **not in the games at all** since v0.0.19: they're Atom Workspace's, which no package contains (ADR-013) |
 | The demo's F2–F8 display toggles | **shipped**: plain game keys |
 | `ATOM_*` switches, the scenario harness (`ATOM_TEST_SCRIPT`), `bench`, `screenshot`, PERF and LAT logs, DRIFT's autopilot | **development only**: `Atom::DevSwitch` reads nothing in a package |
 | Hot reload (`ATOM_ASSET_ROOT`) | **development only**: needs the source tree |
@@ -411,21 +456,33 @@ stranger report a problem; every developer facility is compiled out.
 M82 reverses M70's "nothing stripped": `-DATOM_DISTRIBUTION=ON` also defines
 `ATOM_DEV_TOOLS=0`. The cost is that the shipped executable is not byte for
 byte the tested one; the switch gates only entry points (environment reads,
-ImGui start-up), so game code paths are the same. The log says which:
-"Developer tools: off (distribution build)", and `package.ps1` refuses a
+the F1 overlay), so game code paths are the same. The log says which:
+"Developer switches: off (distribution build)" (v0.0.19; "Developer tools" before), and `package.ps1` refuses a
 package that says "on".
 
 ## 10. Tools
 
-- **Runtime:** Dear ImGui panels (F10) and the F1 overlay (M82: shared by every game, engine lines first, then the game's) - an overlay, not
-  an editor framework, and kept out of captures.
+- **In the games:** only the F1 overlay (M82: shared by every game,
+  engine lines first, then the game's; since v0.0.19 drawn with the
+  engine's own `UIRenderer` and an embedded font, not ImGui).
+- **Atom Workspace (v0.0.19):** the development program. Panels dock in
+  one window or detach into windows of their own (ImGui's multi-viewport:
+  one GPU device, a swapchain per window, all in the main window's
+  format). Start page, Assets, Hierarchy, Inspector (`EntityInspector`:
+  read-only, selection by name resolved every frame), Scene (the
+  renderer's offscreen target, resized with the panel; the frame of a
+  resize draws nothing, since the old texture is released later that
+  frame), Preview (environments, sky picture, level lighting, render
+  switches, performance - nothing saved), Console. Validate, Build and Run
+  are child processes (SDL's process API, output read on a thread), one at
+  a time, never blocking the UI. Layout and recent projects live in the
+  user's settings.
 - **Scripted:** `.atomtest` scenarios, paired benches, captures - compiled
-  in, switched on by the environment.
+  in, switched on by the environment; `AtomWorkspace --test` drives the
+  workspace itself.
 - **Offline:** Blender scripts (`export.ps1`: one unit or only markers; the
   AtomEngine marker panel, `open.ps1`), `AtomLevelCheck` (levels checked
-  without the game), documentation captures, `ab.ps1`.
-- **Inspecting (v0.0.17):** F10 > Level, the entity report - read-only,
-  selection by name resolved every frame (`EntityInspector`).
+  without the game), `AtomProjectTool`, documentation captures, `ab.ps1`.
 - **External:** PIX, Intel GPA, RenderDoc for per-pass GPU timing (SDL GPU
   has no GPU timers).
 
@@ -434,7 +491,8 @@ package that says "on".
 | Layer | Runs where | Catches |
 |---|---|---|
 | CPU tests (`ctest -L cpu`), one target per owner: `Unit.<owner>`, `Content.<owner>` | locally and in **CI** on pull requests and pushes to master | logic, parsing, shipped-content errors; a clean clone that doesn't build |
-| In-game scenarios (`ctest -L scenario`), each app's own: `Scenario.<owner>.<name>`; `-L smoke` one short run per app | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources |
+| In-game scenarios (`ctest -L scenario`), each app's own: `Scenario.<owner>.<name>`; `-L smoke` one short run per app, and the workspace's self-test | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources; the workspace's tools end to end |
+| Configure tests (`-L configure`): `Project.empty_configures` | locally, the full check | a fresh project configures and builds nothing yet; the engine and workspace configure with the bundled apps off |
 
 `check.ps1 -Level changed` (v0.0.16) maps each changed file to owners
 (`Tools/Dev/changed.psd1`) and builds and runs only theirs: an app's
@@ -533,10 +591,13 @@ facilities were uneven, and a player could reach tools meant for
 development. **Decision (M82):** a distribution build defines
 `ATOM_DEV_TOOLS=0`; `Atom::DevSwitch` reads no environment and ImGui never
 starts. Players keep the log, the start-failure box and `--diagnostics`.
-`package.ps1` refuses a package whose run says "Developer tools: on".
+`package.ps1` refuses a package whose run doesn't say the switches are off.
 **Cost:** the package is not byte for byte the tested build; the switch
 gates entry points only, so game code paths are the same. **Revisit when**
 a player-facing diagnostic needs a developer facility.
+**Addendum (v0.0.19):** the decision became structural. The panels left
+the games altogether (ADR-013), so there is no tool code to strip; the
+switch now gates only F1 and the `ATOM_*` reads.
 
 ### ADR-009 — A capability enters the engine as a Feature, with a test and a measurement
 **Context:** by v0.0.13 the engine's capabilities were scattered across the
@@ -609,7 +670,7 @@ own copy of "what a level may say", and the copies would drift.
 **Decision:** `ParseLevel` (`Framework/Level/LevelData.cpp`) decides what
 a level file may say: errors stop a load, warnings explain supported
 surprises (a marker the file overrides). `LevelCheck`
-(`Framework/Level/LevelCheck.h`) adds only what needs other files:
+(`Authoring/Level/LevelCheck.h` since v0.0.19) adds only what needs other files:
 referenced models exist and are readable, clips exist on their models,
 level changes land on a level and spawn, names are unique, no file comes
 from another app. The content tests, `AtomLevelCheck` and `export.ps1`
@@ -623,6 +684,38 @@ folder during the pilot. **Rejected:** a Python validator in the export
 Schema can't see other files). **Revisit when** a tool outside C++ needs
 the full rules: then expose `AtomLevelCheck`'s output as JSON rather than
 porting the rules.
+
+### ADR-013 — The tools are a program of their own; the runtime carries none
+**Context (v0.0.19):** the development tools lived inside the games.
+`Application` owned the ImGui host, the framework held the F10 panels and
+the entity inspector, and the root CMake and `AtomLevelCheck` listed the
+bundled apps by hand. Every game linked ImGui to start it only in
+development builds; a new project meant editing engine files; the tools
+could only look at a level while its game ran it.
+**Decision:** the tools leave the runtime. AtomEngine and AtomFramework
+link no ImGui, enforced by a configure-time guard; the F1 overlay is
+redrawn with the engine's own `UIRenderer`. What tools know about content
+(`LevelCheck`, the inspector, the scene preview) is `AtomAuthoring`; what
+a project is, `AtomProject`; the ImGui host and the parts of the UI,
+`AtomWorkspaceUI`; the program, `AtomWorkspace`. The engine gains only
+hooks a tool needs and a game may use: `Application::OnEvent`, the
+renderer's overlay pass, and an offscreen scene target. Projects are
+described by a descriptor with relative paths and found by CMake, not
+listed. The workspace previews levels without game code (ADR-012 makes
+that possible) and runs Validate, Build and Run as separate processes.
+**Evidence:** the guard fails a configure that links ImGui into the
+runtime; the offscreen frame matched a direct one (M122); the self-test
+opens the Demo, previews, inspects, switches skies and environments,
+creates and opens a project and validates one as a process; a fresh
+project configures with the bundled apps off. **Cost:** live tuning
+inside a running game is gone (F10 while riding): the preview runs levels,
+not gameplay. **Rejected:** keeping F10 compiled into development builds
+of the games beside the workspace (two homes for the same panels); an
+editor that hosts game code in-process (a game's crash would take the
+tools down; the process boundary is the isolation); a plugin or DLL
+system for projects (ADR-002). **Revisit when** a tool needs a running
+game's live state - then talk to the game across the process boundary,
+not by linking the tools back into it.
 
 ## 13. When to add what
 
@@ -646,5 +739,6 @@ porting the rules.
 **Rejected now:** an ECS framework, plugins, an RHI, a render graph, a
 reflection system, dependency injection or a service locator, an event bus,
 a job system or custom allocators, scripting, an asset daemon, an editor
-framework around ImGui, splitting every engine folder into a library, and
-library migrations without their trigger.
+framework around ImGui (the workspace uses ImGui directly; ADR-013),
+splitting every engine folder into a library, and library migrations
+without their trigger.

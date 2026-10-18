@@ -11,7 +11,7 @@
 
 [![SDL 3.4.18](https://img.shields.io/badge/SDL-3.4.18-1D4F8C)](https://github.com/libsdl-org/SDL/releases/tag/release-3.4.18)
 [![GLM 1.0.1](https://img.shields.io/badge/GLM-1.0.1-2E7D32)](https://github.com/g-truc/glm/releases/tag/1.0.1)
-[![Dear ImGui 1.92.9](https://img.shields.io/badge/Dear%20ImGui-1.92.9-7B3FA0)](https://github.com/ocornut/imgui/releases/tag/v1.92.9)
+[![Dear ImGui 1.92.9 docking](https://img.shields.io/badge/Dear%20ImGui-1.92.9%20docking-7B3FA0)](https://github.com/ocornut/imgui/releases/tag/v1.92.9-docking)
 [![cgltf 1.15](https://img.shields.io/badge/cgltf-1.15-E65100)](https://github.com/jkuhlmann/cgltf/releases/tag/v1.15)
 [![nlohmann/json 3.12.0](https://img.shields.io/badge/nlohmann%2Fjson-3.12.0-C62828)](https://github.com/nlohmann/json/releases/tag/v3.12.0)
 [![doctest 2.5.3](https://img.shields.io/badge/doctest-2.5.3-00838F)](https://github.com/doctest/doctest/releases/tag/v2.5.3)
@@ -20,13 +20,14 @@ A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)** - with a showcase that shows
 what it can do, two games made with it, and a sample to start your own.
 
-Current version: **0.0.18 "Demo Vertical"** - the demo becomes a game to
-play. A Kawasaki on the street rides a foggy coast road at night, steered
-from the rider's eye, to a shore walked on foot; people mumble as their
-lines appear (procedural voices on the engine's synth); progress is kept
-at lanterns and continued from a title screen; and F10 can swap or switch
-off a level's sky picture. (0.0.17 was Authoring Workflow: one authority
-per fact, `AtomLevelCheck`, incremental export; 0.0.16 Normalization.)
+Current version: **0.0.19 "Atom Workspace"** - the development tools
+leave the games for a program of their own. **Atom Workspace** opens and
+creates projects, previews their levels without the game in a docked
+scene viewport (panels can leave the window), inspects entities, tries
+environments and skies, and validates, builds and runs a project as
+separate processes. Games now carry no tool code: F10 is gone from them.
+(0.0.18 was Demo Vertical: the Kawasaki, the shore, save points; 0.0.17
+Authoring Workflow.)
 See [CHANGELOG.md](CHANGELOG.md) · [Features](docs/Features.md) ·
 [Architecture](docs/Architecture.md) · [Getting started](docs/Getting-Started.md).
 Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
@@ -34,7 +35,10 @@ Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atom
 ```text
 Engine/      the engine (namespace Atom): window, GPU renderer, audio, input, physics, UI drawing
 Framework/   what every app shares (AtomFramework): levels, world, player, environments, UI kit, settings, testing
-Apps/        what is made with them, by purpose:
+Authoring/   what the tools know about content (AtomAuthoring): level checks, the inspector, the scene preview
+Project/     what a project is (AtomProject): its descriptor, creation, discovery
+WorkspaceUI/ the workspace's ImGui host and its parts; Tools/Workspace is the program
+Apps/        what is made with them, by purpose (each a project with a <Name>.atomproject.json):
   Showcase/    the engine's front door: a lakeside village, and the lens
   Games/       products: the demo (a night street and its story) and DRIFT (a three.js port)
   Samples/     HelloAtom: the smallest app - start here to build your own
@@ -88,8 +92,8 @@ command queue (DRIFT's whole soundtrack).
 
 **UI, settings and tools** — one UI kit and theme for every app (captions,
 hint bars, callouts, menus), a title/pause menu and a player settings
-screen (display, quality, volume, GPU), saved per app; Dear ImGui
-developer panels (F10) shared by every app; one F1 overlay; frame-time
+screen (display, quality, volume, GPU), saved per app; one F1 overlay,
+drawn by the engine; Atom Workspace for development (below); frame-time
 logging, paired A/B benchmarks and a Showcase benchmark mode.
 
 **Observability** — log lines with a time, a level and the subsystem that
@@ -121,7 +125,7 @@ only from the engine and the framework. It opens on a title: **Explore**,
   times of day; writes `out/benchmark-<date>-<time>.txt` (graphics card,
   resolution, settings, median / p95 / p99 frame times overall and per
   time of day).
-- Esc brings the menu back; F1 numbers, F2-F8 view switches, F10 tools.
+- Esc brings the menu back; F1 numbers, F2-F8 view switches.
 
 ## The games
 
@@ -147,7 +151,6 @@ progress.
 | A D / W S (riding) | steer / speed |
 | Esc | pause menu: resume, settings, quit to title, quit |
 | F1 / F2-F8 / F9 / M | overlay / view switches / unease events / mute |
-| F10 | developer tools |
 
 At the pachinko machine: Space (hold) launches balls, Up / Down or the
 wheel set the strength, B or Enter buys 50 balls for 10 tokens, Q or
@@ -162,11 +165,42 @@ quit).
 Both are packaged for players: `pwsh Tools/Dist/package.ps1 -Game Demo`
 or `-Game Drift` (see Distribution).
 
+## Atom Workspace
+
+`build/bin/<config>/AtomWorkspace/AtomWorkspace.exe`: the engine's
+development program (v0.0.19). One window of docked panels; any panel can
+be dragged out into a window of its own, and closing it docks it back.
+
+- **Start:** create a project, open one (`<Name>.atomproject.json`), the
+  recent ones and the engine's own (the bundled apps are projects too).
+- **Scene:** the project's level, drawn without its game - levels are
+  data. Right mouse + WASD/QE flies, the wheel sets the speed, F frames
+  the selection, whose bounds are drawn over the scene.
+- **Assets, Hierarchy, Inspector:** the project's files (double-click a
+  level to show it), the level's entities, and what the selected one is -
+  where its position came from, model, collider, interaction, warnings.
+- **Preview:** environment presets and live edits, the sky picture, the
+  level's lighting, render switches, performance - nothing saved; Copy as
+  JSON gives the block for the file.
+- **Validate, Build, Run** (the toolbar): `AtomLevelCheck`, `cmake
+  --build` and the game, each a separate process, with its output in the
+  **Console** as it comes - double-click a line naming a file to open it -
+  its exit code, and Stop. A disabled button says why.
+
+Layout and recent projects are kept in `%APPDATA%\AtomEngine\Workspace\`
+(View > Reset Layout restores the default). `ATOM_WORKSPACE_VIEWPORTS=0`
+keeps every panel inside the window. `AtomWorkspace --project <descriptor>
+[--level <name>]` opens one at start.
+
 ## Build your own
 
-`Apps/Samples/HelloAtom` is a complete app in about 150 lines: a window, a
-level from JSON, walking, F1, F10 and scenarios.
-[docs/Getting-Started.md](docs/Getting-Started.md) walks through it.
+Create a project in the workspace (File > Create Project) or with
+`AtomProjectTool create --workspace <folder> --name <Name>`: a folder
+`Apps/<Name>/` with its descriptor, the standard folders and its CMake
+file, found by the next configure. `Apps/Samples/HelloAtom` is a complete
+app in about 150 lines: a window, a level from JSON, walking, F1 and
+scenarios. [docs/Getting-Started.md](docs/Getting-Started.md) walks
+through both.
 
 ## Building
 
@@ -178,6 +212,7 @@ git clone --recursive https://github.com/fgdoliveira/AtomEngine.git
 cmake -B build -S .
 cmake --build build --config Release
 build/bin/Release/Showcase/Showcase.exe   # or Demo/Demo.exe, Drift/Drift.exe, HelloAtom/HelloAtom.exe
+build/bin/Release/AtomWorkspace/AtomWorkspace.exe   # the development program
 ```
 
 Dependencies are git submodules in `external/`, each pinned to one commit
@@ -187,13 +222,13 @@ Dependencies are git submodules in `external/`, each pinned to one commit
 |---|---|---|---|---|
 | [SDL](https://github.com/libsdl-org/SDL) | 3.4.18 | zlib | window, input, audio, the GPU API (Direct3D 12) | yes (`SDL3.dll`) |
 | [GLM](https://github.com/g-truc/glm) | 1.0.1 | MIT (or Happy Bunny) | vector and matrix maths | yes (header-only) |
-| [Dear ImGui](https://github.com/ocornut/imgui) | 1.92.9 | MIT | developer panels and the F1 overlay | linked, never started (development builds only) |
+| [Dear ImGui](https://github.com/ocornut/imgui) | 1.92.9 (docking) | MIT | Atom Workspace's panels | no (the workspace only) |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | 1.15 | MIT | loading glTF / `.glb` models | yes |
 | [nlohmann/json](https://github.com/nlohmann/json) | 3.12.0 | MIT | levels, dialogue, settings | yes |
 | [doctest](https://github.com/doctest/doctest) | 2.5.3 | MIT | unit tests | no (tests only) |
 
 Fonts: Shippori Mincho (the demo) and Space Grotesk (DRIFT), both under the
-SIL Open Font License 1.1. Every shipped licence travels in a package's
+SIL Open Font License 1.1; ProggyClean (MIT), embedded for the F1 overlay. Every shipped licence travels in a package's
 `THIRD_PARTY_NOTICES.txt`.
 
 Build options (CMake `-D`):
@@ -236,9 +271,8 @@ F2–F8 still change single settings; the tier then shows as *Custom*.
 
 **The Settings screen** (v0.0.14: the Showcase's title, Esc in the demo
 and DRIFT) changes the display (window or fullscreen), the quality, the
-volume and the GPU preference ("changes on the next launch"). The demo's
-F10 Settings panel adds the tier being drawn, the calibration result, and
-*Calibrate now*, *Calibrate next launch* and *Reset*. Choices are saved
+volume and the GPU preference ("changes on the next launch"). The demo
+calibrates with `--calibrate` (below). Choices are saved
 per app in `%APPDATA%\AtomEngine\<app>\settings.json` (`Showcase`, `Demo`,
 `Drift`); a damaged or unknown file is ignored, never fatal.
 
@@ -328,7 +362,7 @@ that moment.
 
 Developer switches (environment variables). Development builds only: a
 package (`ATOM_DISTRIBUTION=ON`, M82) compiles them out and ignores them,
-as it does F1 and F10.
+as it does F1.
 
 | Variable | Effect |
 |---|---|
@@ -374,7 +408,7 @@ Demo/
 ├── Assets/                 the shipped asset folders (the character lab stays out)
 ├── README.txt              for players: controls, settings, logs, what to try
 ├── LICENSE.txt
-└── THIRD_PARTY_NOTICES.txt SDL, GLM, nlohmann/json, cgltf, stb, Dear ImGui, the font
+└── THIRD_PARTY_NOTICES.txt SDL, GLM, nlohmann/json, cgltf, stb, the fonts
 ```
 
 The check fails the package if anything is missing (a shipped asset
@@ -383,7 +417,7 @@ folder, a shader, a licence), if anything development-only got in
 needs a DLL Windows doesn't have, or if a shader is unsigned. The same
 revision gives the same files.
 
-What ships and what doesn't (players keep the log and `--diagnostics`; developer tools are compiled out), and the
+What ships and what doesn't (players keep the log and `--diagnostics`; the games carry no tool code, and F1 and the switches are compiled out), and the
 whole flow, are in [docs/Architecture.md](docs/Architecture.md) §9. A
 release candidate is tested on a clean Windows VM (a local procedure).
 
@@ -407,12 +441,14 @@ Things they can try: `--gpu low-power` (laptops), `--quality low`,
 ctest --test-dir build -C Release              # everything
 ctest --test-dir build -C Release -L cpu       # the CPU tests only (no GPU)
 ctest --test-dir build -C Release -L scenario  # in-game scenarios
-ctest --test-dir build -C Release -L demo      # one owner's: engine, framework, content, demo, drift, showcase, arena
+ctest --test-dir build -C Release -L demo      # one owner's: engine, framework, content, project, workspace, demo, drift, showcase, arena
 ```
 
 The CPU tests are split by owner (v0.0.16): `AtomEngineTests` (the
 engine's algorithms on synthetic data), `AtomFrameworkTests` (its
-policies and parsers), `AtomContentTests` (the shared `Content/`), and
+policies and parsers), `AtomContentTests` (the shared `Content/`),
+`AtomProjectTests` (descriptors, creation, discovery), `AtomWorkspaceTests`
+(recent projects, the operations' processes, the Console's parsing), and
 each app's own (`DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests`,
 in `<app>/Tests/`). A test sees only its owner's assets and the shared
 content, never another app's. Each runs as `Unit.<owner>` and, where it
@@ -431,6 +467,12 @@ then stages, verifies and zips the distribution. It's a check, not a
 release channel: the ZIP isn't kept, and packages for players are made
 and published by hand. The in-game scenarios and every performance measurement stay local: they
 need a real GPU, and hosted machines time things too noisily.
+
+The workspace tests itself: `AtomWorkspace --test <folder>`
+(`Scenario.workspace.workspace_self_test`) opens the Demo, previews and
+inspects, switches the sky picture and an environment, creates and opens
+a project, and validates HelloAtom as a process. `Project.empty_configures`
+configures a fresh project with the bundled apps off.
 
 Every scenario also checks, on each level change, that the new level is
 first drawn from its spawn. The asset build has its own check: it refuses
@@ -463,8 +505,8 @@ AtomEngine compares A and B **close together in time** and reports the
   each switch settle (rebuilt targets aren't steady state), and reports the
   median of the rounds' differences (it always ends with the switch on B):
   `bench particles on/off: median paired delta (B - A) -0.41 ms (8 rounds, range …)`.
-- **Is a frame CPU-bound or GPU-bound?** (v0.0.15) F1 and the F10 Frame
-  panel show the CPU's work (update + render) and its wait for the GPU;
+- **Is a frame CPU-bound or GPU-bound?** (v0.0.15) F1 (and the
+  workspace's Preview > Performance) show the CPU's work (update + render) and its wait for the GPU;
   the Showcase's and ATOM ARENA's benchmark reports record both
   (`cpu_*`, `gpu_wait_*`). Mostly waiting: the GPU (or vsync) sets the
   pace, and CPU work is free; no waiting: the CPU is the limit. There is
@@ -611,7 +653,7 @@ entities can be placed in Blender with `spawn:<name>` / `entity:<name>`
 empties (the AtomEngine panel, `pwsh Tools/Blender/open.ps1`, makes them),
 exported to `Assets/Levels/<level>.markers.json`. A position written in the
 level file wins over its marker, and the level says so in a warning.
-F10 > Level inspects the entities of the running level. Run the game with
+The workspace's Hierarchy and Inspector show a level's entities. Run the game with
 `ATOM_ASSET_ROOT=<repo>` to see edits to level files, markers, models and
 dialogue within a second, without restarting.
 
@@ -649,8 +691,11 @@ pwsh Tools/Docs/capture_character_lab.ps1
 
 ```text
 Engine/    Assets Audio Core Debug Physics Platform Renderer Scene UI
-Framework/ what every app shares: Character Debug (F10 panels) Diagnostics Environment Interaction
+Framework/ what every app shares: Character Diagnostics Environment Interaction
            Level Platform Schemas Settings Testing UI (kit, menus, settings screen) World
+Authoring/ the tools' content knowledge: Level (LevelCheck), Debug (the inspector), Preview (the scene preview)
+Project/   project descriptors, creation, discovery (AtomProject)
+WorkspaceUI/ the ImGui host, recent projects, the operations' processes, the Console's parsing
 Apps/      each app owns its Assets/, Tests/ (CPU tests) and Scenarios/ (in-game runs):
   Showcase/            the engine's front door: the village, the lens and its Features, menus, benchmark
   Games/Demo/          dialogue, pachinko, the flashlight, its levels and assets, its package
@@ -659,9 +704,10 @@ Apps/      each app owns its Assets/, Tests/ (CPU tests) and Scenarios/ (in-game
   Benchmarks/AtomArena/ a seeded benchmark
 Content/   assets several apps share: Kit, Sky, Fonts, Environments, First (the first-render stage)
 Shaders/   HLSL, compiled to DXIL at build time
-Tools/     Blender (the content build, export.ps1, the marker panel), LevelCheck (AtomLevelCheck),
+Tools/     Workspace (AtomWorkspace), ProjectTool (AtomProjectTool),
+           Blender (the content build, export.ps1, the marker panel), LevelCheck (AtomLevelCheck),
            Perf (benchmark scripts), Dev (check, doctor), Dist, Docs
-Tests/     the CPU tests of what isn't an app's: Engine/, Framework/, Content/, and Support/
+Tests/     the CPU tests of what isn't an app's: Engine/, Framework/, Content/, Project/, Workspace/, and Support/
 cmake/     AtomTesting (test targets, scenarios), AtomApps (each app's runtime folder)
 docs/      the technical manual (concepts), Architecture.md (structure), Features.md (the catalog),
            Getting-Started.md, Authoring.md (making content)

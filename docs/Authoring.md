@@ -26,10 +26,11 @@ the AtomEngine panel, save, clean
 (`pwsh Tools/Blender/clean_scene.ps1 <scene.blend>`), export
 (`export.ps1 -Scene <scene.blend> -Level <level>`), run.
 
-**C. Debugging a running level:** F10, then the Level panel. Filter,
-select an entity, and read where it came from and what it does; draw its
-bounds. Problems the loader warns about are listed there, with their JSON
-Pointer.
+**C. Looking into a level:** open its project in Atom Workspace and pick
+the level. In the Hierarchy, filter and select an entity; the Inspector
+says where it came from and what it does, the Scene draws its bounds.
+Problems the loader warns about are listed there, with their JSON
+Pointer; Validate runs `AtomLevelCheck` on every level.
 
 ## The contract: one authority per fact
 
@@ -44,7 +45,7 @@ else holding the same fact is generated from that file, and says so.
 | What an entity *is* and *does* (model, collider, interaction, animation, mover) | the level file, `<app>/Assets/Levels/<level>.json` | nothing |
 | Lighting, fog, sky, audio, sequences of a level | the level file | nothing |
 | Environment presets | `Content/Environments/*.json` | nothing |
-| A level's sky picture | the level file's `"sky"` (a PNG in a `Sky/` folder). F10 → Environment → Sky picture turns it off (a preset's gradient sky shows - a picture always covers it), tries any PNG dropped into `Content/Sky/` or `<app>/Assets/Sky/`, and copies the `"sky"` block | nothing (the panel saves nothing) |
+| A level's sky picture | the level file's `"sky"` (a PNG in a `Sky/` folder). The workspace's Preview → Sky picture turns it off (a preset's gradient sky shows - a picture always covers it), tries any PNG dropped into `Content/Sky/` or `<app>/Assets/Sky/`, and copies the `"sky"` block | nothing (the panel saves nothing) |
 | A pachinko machine | `Tools/Machines/*_layout.py` | `Assets/Machines/*.json` |
 | A ride: the vehicle, speed, the rider's eye, when steering is allowed, a route per spawn (direction, end action, flag) | the level file's `"ride"` (the demo's `coast_road.json`) | nothing |
 | The ride's road | its Blender builder (`atom_coast.py`): the centre line it builds the road along | the markers' `"ride_path"`; a `path` in the level file wins, with a warning |
@@ -72,7 +73,7 @@ graph LR
     Json[level JSON<br/>hand-written] --> Runtime
     Out --> Runtime[AtomFramework<br/>ParseLevel, Level]
     Runtime --> Engine[AtomEngine<br/>renderer, physics, audio]
-    Runtime --> F10[F10 entity report]
+    Runtime --> Workspace[Atom Workspace<br/>preview, Inspector]
 ```
 
 ## Placement: marker or level file
@@ -212,23 +213,25 @@ cache in `build/bake_cache/` skips any lightmap whose inputs are unchanged.
 real build. CTest runs it as `Blender.export` (label `blender`) where
 Blender is installed.
 
-## Inspecting a loaded level: F10's entity report
+## Inspecting a level: the workspace's Hierarchy and Inspector
 
-In a development build, F10 opens the developer panels. The **Level** panel
-reports the level that is loaded:
+Atom Workspace (v0.0.19; the games' F10 Level panel until then) loads a
+project's level without its game and reports it:
 
-- **warnings:** a count, if the level has any (`AtomLevelCheck` prints them in full);
+- **warnings:** a count in the Hierarchy, each in full in the Inspector
+  (Validate runs `AtomLevelCheck` on them all);
 - **filter:** a box that matches any part of an entity's name, in any case;
-- **list:** each entity's name, position and capabilities (drawn, use, anim,
-  animator, hidden). Click a row to inspect it.
-- **details:** for the selected entity, its JSON Pointer in the level file,
+- **Hierarchy:** each entity's name and capabilities (model, use, anim,
+  hidden). Click a row to inspect it; double-click (or F over the Scene)
+  brings the camera to it.
+- **Inspector:** for the selected entity, its JSON Pointer in the level file,
   **where its position came from** (file, marker, or file with the marker
   ignored), its transform, model, collider, interaction (prompt, action,
   where to look and from how far, locked action, required flag), animation, animator, mover, style, and its
   live state (where it is now, shown or hidden, animating). The level's
   warnings about that entity are listed under it.
-- **Show where it is:** draws the selected entity over the frame, even
-  with the panel collapsed; the panel shows the legend:
+- **Show in the scene:** draws the selected entity over the Scene panel;
+  the Inspector shows the legend:
 
   | Colour | Means |
   |---|---|
@@ -245,13 +248,13 @@ reports the level that is loaded:
 The report only reads, and changes nothing. Its selection is the level's
 name plus the entity's name, looked up again every frame: reloading the
 level (hot reload) finds the entity again, and another level clears the
-selection, so nothing it holds can outlive the level. Apps without levels
-(DRIFT) don't get the panel. Packages have no F10 at all.
+selection, so nothing it holds can outlive the level. What the preview
+runs is the level only - no player, riding or dialogue, by design. Games
+carry none of this: the inspector lives in `AtomAuthoring`, which no game
+links.
 
-Scenarios can use it too: `set inspect <entity>` (or `none`) selects, and
-`expect_stat inspect_found == 1` checks the selection resolves
-(`Apps/Samples/HelloAtom/Scenarios/hello_inspect.atomtest`). In apps built
-on `BasicTestHooks`, `set devtools on|off` shows or hides F10.
+The workspace's self-test (`AtomWorkspace --test <folder>`) checks it:
+it selects the street's `shrine_keeper`, inspects it and frames it.
 
 ## Placing markers in Blender: the AtomEngine panel
 

@@ -1,5 +1,87 @@
 # Changelog
 
+## 0.0.19 — Atom Workspace
+
+The development tools leave the games for a program of their own. Atom
+Workspace opens and creates projects, shows their levels without the
+game, and validates, builds and runs them; the games carry no tool code.
+(The relocatable source SDK is the next version's.)
+
+### Added
+- **Atom Workspace** (`Tools/Workspace`, `AtomWorkspace.exe`): one window
+  of docked panels, any of which can be dragged out into a window of its
+  own (Dear ImGui's docking branch, multi-viewport on SDL_GPU: one device,
+  a swapchain per window); closing a detached panel docks it back.
+  - **Start, menu, toolbar, status bar:** create a project, open one (the
+    system file dialog), recent projects, the engine's own; File, Project,
+    Build, View, Help; the project and level pickers; Validate, Build,
+    Run, Stop.
+  - **Scene:** the project's level drawn without its game, in the
+    renderer's offscreen target sized to the panel. A fly camera (right
+    mouse + WASD/QE, wheel for speed), F frames the selection, whose
+    bounds are drawn over the scene.
+  - **Assets, Hierarchy, Inspector:** the project's folders and the shared
+    `Content/` (double-click a level to show it); the level's entities,
+    filtered; the selected one's report - where its position came from,
+    model, collider, interaction, animation, warnings.
+  - **Preview:** environment presets with blends and live edits, the sky
+    picture, the level's lighting, render switches, performance -
+    temporary, with Copy as JSON (what F10 had).
+  - **Validate, Build, Run as separate processes:** `AtomLevelCheck
+    --project`, `cmake --build` for the project's executable (in the build
+    tree the workspace runs from), the built game. Output in the
+    **Console** as it comes, coloured; a line naming a file opens it with
+    a double-click; exit code and time; Stop. A disabled button says why
+    (Run without `Source/Main.cpp`, not built yet, another running).
+  - Layout and recent projects in `%APPDATA%\AtomEngine\Workspace\`, View >
+    Reset Layout; `ATOM_WORKSPACE_VIEWPORTS=0` keeps panels inside;
+    `--project <descriptor> [--level <name>]`; `--test <folder>`.
+- **Projects:** `<Name>.atomproject.json` - schema version, name, engine
+  version, source and assets folders, executable, startup level; relative
+  paths only. `AtomProjectTool create --workspace <folder> --name <Name>`
+  (and the workspace's Create Project) makes `Apps/<Name>/` with the
+  standard folders, a README and a CMake file that builds an executable
+  only once `Source/Main.cpp` exists - written in a temporary sibling and
+  renamed into place, never overwriting. Names: a letter first, then
+  letters, digits, `_`; never a Windows device name.
+- **Discovery:** CMake finds `Apps/*/*.atomproject.json`
+  (`ATOM_PROJECTS_DIR`); the bundled apps stay a list
+  (`ATOM_EXAMPLE_DIRS`, `ATOM_EXAMPLE_APPS=OFF` leaves them out) and have
+  descriptors too. `AtomLevelCheck --project <descriptor>`; `--app` and
+  `--all` resolve through the descriptors.
+- **Engine:** `Renderer::SetSceneTarget` (the frame into a texture, the
+  window only cleared); `Application::OnEvent`; the F1 overlay drawn with
+  the engine's `UIRenderer` and an embedded ProggyClean font (MIT, credited
+  in `Engine/Debug/Fonts/`); `Font::LoadFromMemory`.
+- **Libraries:** `AtomAuthoring` (LevelCheck, the entity inspector,
+  `ScenePreview`), `AtomProject`, `AtomWorkspaceUI` (the ImGui host,
+  recent projects, `ProcessRunner`, the Console's parsing).
+- **Tests:** `AtomProjectTests`, `AtomWorkspaceTests`;
+  `Project.empty_configures` (a fresh project configures with the bundled
+  apps off, builds nothing yet, and the workspace configures without
+  them); `Scenario.workspace.workspace_self_test` - the workspace driven
+  through opening the Demo, preview, inspection, the sky picture,
+  environments, a reload, creating and opening a project, and Validate as
+  a process; `hello_scene_target` (the offscreen target resized and
+  released).
+
+### Changed
+- **F10 is gone from the games.** Its panels are the workspace's; the
+  games keep logging, crash reports, `--diagnostics` and F1. Live tuning
+  inside a running game (F10 while riding) goes with it: the preview runs
+  levels, not gameplay. The demo calibrates with `--calibrate`.
+- **The runtime links no ImGui:** AtomEngine and AtomFramework lose it, a
+  configure-time guard keeps it out, and the packages' notices list the
+  embedded font instead. `DevTools` and `DevPanels` are removed;
+  `LevelCheck` and `EntityInspector` moved to `Authoring/`.
+- **Dear ImGui** moves to 1.92.9-docking (the workspace only).
+- **The run log says "Developer switches: off (distribution build)"**
+  (was "Developer tools"): what's left to compile out is F1 and the
+  `ATOM_*` switches. `package.ps1`'s guard looks for the new line.
+- **Scenarios:** `demo.devtools` and `hello_inspect` replaced by the
+  workspace's self-test; `showcase_lens` and `hello_room` lose their F10
+  lines; the `set devtools`, `inspect` and `sky_*` hooks are gone.
+
 ## 0.0.18 — Demo Vertical
 
 The demo becomes a game to play, not a tour of features: a road out of
