@@ -1,6 +1,8 @@
 #pragma once
 
+#include "ConsoleLines.h"
 #include "Core/Application.h"
+#include "ProcessRunner.h"
 #include "Debug/EntityInspector.h"
 #include "ImGuiHost.h"
 #include "Preview/ScenePreview.h"
@@ -85,6 +87,23 @@ namespace AtomWorkspace
         void FrameSelection();
         void SelectLevel(int index);
         void ApplyViewSwitch(const std::string& what, const std::string& value);
+        // M125: Validate, Build, Run as separate processes (WorkspaceOperations.cpp).
+        enum class Operation
+        {
+            Validate,
+            Build,
+            Run,
+        };
+        void FindBuildTree();
+        // "" when `operation` can start now; otherwise why not, for its tooltip.
+        std::string WhyNot(Operation operation) const;
+        void StartOperation(Operation operation);
+        void StopOperation();
+        void PumpOperation();
+        void AddConsoleLine(std::string text);
+        void DrawConsolePanel();
+        std::string GameExecutable() const;
+
         void DrawCreateProjectPopup();
         void DrawAboutPopup();
         void BuildDefaultLayout(unsigned dockspace);
@@ -113,6 +132,25 @@ namespace AtomWorkspace
         Panel m_inspectorPanel{ "Inspector" };
         Panel m_scenePanel{ "Scene", true, false, false, true };
         Panel m_previewPanel{ "Preview" };
+        Panel m_consolePanel{ "Console" };
+
+        // The operations (M125): the build tree this workspace runs from
+        // (<build>/bin/<config>/AtomWorkspace/), and the one child process.
+        std::string m_buildDir;
+        std::string m_buildConfig;
+        std::string m_cmake;           // from the build's CMakeCache.txt
+        ProcessRunner m_runner;
+        Operation m_operation = Operation::Validate;
+        struct ConsoleLine
+        {
+            std::string text;
+            LineKind kind = LineKind::Plain;
+            std::string file; // the file it names, opened with a double-click
+        };
+        std::vector<ConsoleLine> m_console;
+        std::string m_firstProblem;    // the run's first error line with a file, for the status bar
+        std::array<char, 64> m_consoleFilter{};
+        bool m_consoleScroll = false;  // follow the output (until scrolled up)
 
         // The level shown (M124): no game code, the project's data only.
         std::unique_ptr<AtomFramework::ScenePreview> m_preview;

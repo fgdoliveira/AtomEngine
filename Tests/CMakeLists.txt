@@ -95,9 +95,12 @@ atom_add_tests(
     AtomWorkspaceTests
     OWNER workspace
     SOURCES
+        Workspace/OperationsTests.cpp
         Workspace/RecentProjectsTests.cpp
     LIBS AtomWorkspaceUI
 )
+# The process tests run cmake -E (echo, false, sleep): always there in a build.
+target_compile_definitions(AtomWorkspaceTests PRIVATE ATOM_TEST_CMAKE="${CMAKE_COMMAND}")
 set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomWorkspace)
 
 # AtomTests: every CPU test target, built together (CI, the full check).

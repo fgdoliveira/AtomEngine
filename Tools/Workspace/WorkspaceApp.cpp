@@ -60,13 +60,11 @@ namespace AtomWorkspace
 
         void DisabledHint(const char* hint)
         {
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            if (hint && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             {
                 ImGui::SetTooltip("%s", hint);
             }
         }
-
-        constexpr const char* OperationsHint = "Validate, Build and Run arrive with the workspace's operations (M125).";
     }
 
     bool WorkspaceApp::OnInitialize()
@@ -81,6 +79,7 @@ namespace AtomWorkspace
             SDL_free(pref);
         }
         m_engineRoot = FindEngineRoot();
+        FindBuildTree();
         std::snprintf(m_newWorkspace, sizeof(m_newWorkspace), "%s", m_engineRoot.c_str());
 
         // ATOM_WORKSPACE_VIEWPORTS=0 keeps every panel inside the main
@@ -151,6 +150,7 @@ namespace AtomWorkspace
     void WorkspaceApp::OnUpdate(float deltaSeconds)
     {
         TakeDialogResults();
+        PumpOperation();
         m_frameHistory[m_frameHistoryNext] = deltaSeconds * 1000.0f;
         m_frameHistoryNext = (m_frameHistoryNext + 1) % m_frameHistory.size();
         m_imgui.BeginFrame();
@@ -173,6 +173,7 @@ namespace AtomWorkspace
         DrawPanel(m_hierarchyPanel, dockspace, &WorkspaceApp::DrawHierarchyPanel);
         DrawPanel(m_inspectorPanel, dockspace, &WorkspaceApp::DrawInspectorPanel);
         DrawPanel(m_previewPanel, dockspace, &WorkspaceApp::DrawPreviewPanel);
+        DrawPanel(m_consolePanel, dockspace, &WorkspaceApp::DrawConsolePanel);
         if (!m_scenePanel.drawn)
         {
             // Nobody sees the scene (a hidden tab, a closed panel): keep the
@@ -192,7 +193,7 @@ namespace AtomWorkspace
     {
         // The default arrangement, saved as the user moves it:
         //   Project | Assets    |  Scene | Start  |  Inspector
-        //   Hierarchy           |                 |  Preview
+        //   Hierarchy           |  Console        |  Preview
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::DockBuilderRemoveNode(dockspace);
         ImGui::DockBuilderAddNode(dockspace, ImGuiDockNodeFlags_DockSpace);
@@ -200,6 +201,8 @@ namespace AtomWorkspace
         ImGuiID center = dockspace;
         ImGuiID left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.20f, nullptr, &center);
         ImGuiID right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.27f, nullptr, &center);
+        const ImGuiID bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, 0.28f, nullptr, &center);
+        ImGui::DockBuilderDockWindow(m_consolePanel.name, bottom);
         ImGuiID leftBottom = ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.55f, nullptr, &left);
         ImGuiID rightBottom = ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.62f, nullptr, &right);
         ImGui::DockBuilderDockWindow(m_projectPanel.name, left);
@@ -211,7 +214,7 @@ namespace AtomWorkspace
         ImGui::DockBuilderDockWindow(m_previewPanel.name, rightBottom);
         ImGui::DockBuilderFinish(dockspace);
         for (Panel* panel : { &m_startPanel, &m_projectPanel, &m_assetsPanel, &m_hierarchyPanel, &m_inspectorPanel,
-                              &m_scenePanel, &m_previewPanel })
+                              &m_scenePanel, &m_previewPanel, &m_consolePanel })
         {
             panel->open = true;
         }
@@ -330,18 +333,33 @@ namespace AtomWorkspace
         }
         if (ImGui::BeginMenu("Build"))
         {
-            ImGui::MenuItem("Validate", nullptr, false, false);
-            ImGui::MenuItem("Build", nullptr, false, false);
-            ImGui::MenuItem("Run", nullptr, false, false);
-            ImGui::MenuItem("Stop", nullptr, false, false);
-            ImGui::Separator();
-            ImGui::TextDisabled("%s", OperationsHint);
+            if (ImGui::MenuItem("Validate", nullptr, false, WhyNot(Operation::Validate).empty()))
+            {
+                StartOperation(Operation::Validate);
+            }
+            if (ImGui::MenuItem("Build", nullptr, false, WhyNot(Operation::Build).empty()))
+            {
+                StartOperation(Operation::Build);
+            }
+            if (ImGui::MenuItem("Run", nullptr, false, WhyNot(Operation::Run).empty()))
+            {
+                StartOperation(Operation::Run);
+            }
+            if (ImGui::MenuItem("Stop", nullptr, false, m_runner.IsRunning()))
+            {
+                StopOperation();
+            }
+            if (!m_buildDir.empty())
+            {
+                ImGui::Separator();
+                ImGui::TextDisabled("Build tree: %s (%s)", m_buildDir.c_str(), m_buildConfig.c_str());
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("View"))
         {
             for (Panel* panel : { &m_scenePanel, &m_startPanel, &m_projectPanel, &m_assetsPanel, &m_hierarchyPanel,
-                                  &m_inspectorPanel, &m_previewPanel })
+                                  &m_inspectorPanel, &m_previewPanel, &m_consolePanel })
             {
                 if (ImGui::MenuItem(panel->name, nullptr, &panel->open) && panel->open)
                 {
@@ -431,16 +449,31 @@ namespace AtomWorkspace
             }
             ImGui::EndDisabled();
 
+            // The operations; a disabled one says why on hover.
             ImGui::SameLine(0.0f, style.ItemSpacing.x * 4.0f);
-            ImGui::BeginDisabled(true);
-            for (const char* operation : { "Validate", "Build", "Run", "Stop" })
+            const struct
             {
-                ImGui::Button(operation);
-                DisabledHint(OperationsHint);
+                const char* label;
+                Operation operation;
+            } operations[] = { { "Validate", Operation::Validate }, { "Build", Operation::Build }, { "Run", Operation::Run } };
+            for (const auto& [label, operation] : operations)
+            {
+                const std::string why = WhyNot(operation);
+                ImGui::BeginDisabled(!why.empty());
+                if (ImGui::Button(label))
+                {
+                    StartOperation(operation);
+                }
+                ImGui::EndDisabled();
+                DisabledHint(why.empty() ? nullptr : why.c_str());
                 ImGui::SameLine();
             }
+            ImGui::BeginDisabled(!m_runner.IsRunning());
+            if (ImGui::Button("Stop"))
+            {
+                StopOperation();
+            }
             ImGui::EndDisabled();
-            ImGui::NewLine();
         }
         ImGui::End();
     }
