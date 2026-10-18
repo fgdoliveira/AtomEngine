@@ -57,7 +57,7 @@ atom_add_tests(
         Framework/SequenceTests.cpp
         Framework/TestScriptTests.cpp
         Framework/UiKitTests.cpp
-    LIBS AtomFramework
+    LIBS AtomAuthoring # v0.0.19: the framework, plus LevelCheck and the inspector (EntityInspectorTests, LevelCheckTests)
 )
 
 # The shared content's (Content/): the kit, the environment presets.
@@ -69,7 +69,7 @@ atom_add_tests(
         Content/KitAnimationTests.cpp
         Content/KitModelTests.cpp
         Content/LevelCheckClipTests.cpp
-    LIBS AtomFramework nlohmann_json::nlohmann_json
+    LIBS AtomAuthoring nlohmann_json::nlohmann_json
 )
 
 # AtomTests: every CPU test target, built together (CI, the full check).

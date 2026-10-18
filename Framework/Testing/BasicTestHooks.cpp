@@ -1,5 +1,4 @@
 #include "Testing/BasicTestHooks.h"
-#include "Debug/DevPanels.h"
 #include "Core/Log.h"
 
 #include "Character/PlayerController.h"
@@ -10,7 +9,6 @@
 #include "World/GameWorld.h"
 
 #include "Audio/AudioSystem.h"
-#include "Debug/DevTools.h"
 #include "Physics/CollisionWorld.h"
 #include "Renderer/Renderer.h"
 #include "Scene/Camera.h"
@@ -165,26 +163,6 @@ namespace AtomFramework
 
     bool BasicTestHooks::Set(const std::string& what, const std::string& value)
     {
-        // M114: the F10 entity report's selection - by name, as a click
-        // in the panel makes it ("none" clears it).
-        if (what == "inspect" && m_view.panels)
-        {
-            const Level* level = m_view.levels ? m_view.levels->GetLevel() : nullptr;
-            if (value == "none" || !level)
-            {
-                m_view.panels->Inspector().Clear();
-            }
-            else
-            {
-                m_view.panels->Inspector().Select(level->GetName(), value);
-            }
-            return true;
-        }
-        if (what == "devtools" && m_view.devTools && (value == "on" || value == "off"))
-        {
-            m_view.devTools->SetVisible(value == "on");
-            return true;
-        }
         // The view switches every app shares (msaa, scale, fog, fov, shadows...).
         ViewToggles fallback;
         return ApplyViewSwitch(*m_view.renderer, m_view.toggles ? *m_view.toggles : fallback, m_view.camera,
@@ -196,15 +174,6 @@ namespace AtomFramework
         const Atom::FrameStats& stats = m_view.renderer->GetLastFrameStats();
         if (name == "draws") return static_cast<float>(stats.drawn);
         if (name == "shadow_draws") return static_cast<float>(stats.shadowDrawn);
-        // M114: 1 while the entity report's selection names an entity of the
-        // level loaded now (resolved, as the panel does every frame).
-        if (name == "inspect_found" && m_view.panels)
-        {
-            const Level* level = m_view.levels ? m_view.levels->GetLevel() : nullptr;
-            EntityInspector& inspector = m_view.panels->Inspector();
-            const bool found = level && inspector.Resolve(level->GetName(), level->GetData()) != EntityInspector::npos;
-            return found ? 1.0f : 0.0f;
-        }
         return std::nullopt;
     }
 }

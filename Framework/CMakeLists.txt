@@ -24,11 +24,6 @@ add_library(
     Settings/Calibration.h
     Diagnostics/DiagnosticsReport.cpp
     Diagnostics/DiagnosticsReport.h
-    # v0.0.14 (M89): the F10 panels every app shares.
-    Debug/DevPanels.cpp
-    Debug/EntityInspector.cpp
-    Debug/EntityInspector.h
-    Debug/DevPanels.h
     # v0.0.14 (M89): the player UI every app shares.
     UI/UiFonts.cpp
     UI/UiFonts.h
@@ -70,8 +65,6 @@ add_library(
     Level/JsonText.h
     Level/Level.cpp
     Level/Level.h
-    Level/LevelCheck.cpp
-    Level/LevelCheck.h
     Level/LevelData.cpp
     Level/LevelData.h
     Level/LevelManager.cpp
@@ -112,5 +105,6 @@ target_link_libraries(
         AtomEngine # M82: the developer switches, and the renderer the diagnostics report reads
     PRIVATE
         nlohmann_json::nlohmann_json
-        imgui # M89: only inside DevPanels.cpp
 )
+# v0.0.19: no ImGui, no tool code. The F10 panels became the workspace's;
+# LevelCheck and the entity inspector moved to AtomAuthoring (Authoring/).

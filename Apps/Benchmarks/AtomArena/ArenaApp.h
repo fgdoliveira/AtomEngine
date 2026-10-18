@@ -6,7 +6,6 @@
 #include "Character/PlayerController.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
-#include "Debug/DevPanels.h"
 #include "Environment/EnvironmentPresets.h"
 #include "Level/LevelManager.h"
 #include "Level/ModelCache.h"
@@ -72,7 +71,6 @@ namespace Arena
         void Simulate(float deltaSeconds);
         void SubmitArena();
         void DrawHud();
-        void DrawArenaPanel();
         // The benchmark (M94): a named scenario for a fixed number of
         // frames, one simulation step per frame, then a report and quit.
         void StartBenchmark();
@@ -102,7 +100,6 @@ namespace Arena
         Atom::Camera m_camera;
         ViewToggles m_view;
         GameDiagnostics m_diagnostics;
-        DevPanels m_panels;
         std::unique_ptr<Hooks> m_hooks;
         std::unique_ptr<UiFonts> m_fonts;
 

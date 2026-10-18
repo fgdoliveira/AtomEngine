@@ -96,16 +96,15 @@ namespace Atom
         // Audio is optional: without a device the game runs silently.
         m_audio.Initialize();
 
-        // Developer tools (M41): F10 panels and, M82, the F1 overlay. Without
-        // them the game still runs; a distribution build never starts them.
-        if (Atom::DevToolsEnabled && m_devTools.Initialize(m_window.GetSDLWindow(), m_renderer.GetDevice()))
+        // The F1 overlay (M82) and the ATOM_* switches: development builds
+        // only. The full tools (the old F10 panels) are the workspace's since
+        // v0.0.19; it attaches through OnEvent and the renderer's overlay pass.
+        if (Atom::DevToolsEnabled)
         {
-            m_renderer.SetOverlayPass([this](SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* target) {
-                m_devTools.Render(commandBuffer, target);
-            });
+            m_perfOverlay.Initialize(m_renderer);
         }
-        ATOM_LOG_INFO("Engine") << (Atom::DevToolsEnabled ? "Developer tools: on (F1 overlay, F10 panels, ATOM_* switches)\n"
-                                            : "Developer tools: off (distribution build)\n");
+        ATOM_LOG_INFO("Engine") << (Atom::DevToolsEnabled ? "Developer switches: on (F1 overlay, ATOM_* switches)\n"
+                                            : "Developer switches: off (distribution build)\n");
 
         m_initialized = true;
         m_running = true;
@@ -187,9 +186,9 @@ namespace Atom
                 ProcessEvents();
             }
             m_renderer.GetLatencyProbe().BeginFrame(frameStartNs, m_input.GetLeftClickTimeNS());
-            m_devTools.BeginFrame();
+            m_perfOverlay.BeginFrame();
             const float deltaSeconds = m_time.Tick();
-            if (m_devTools.IsOverlayVisible())
+            if (m_perfOverlay.IsOverlayVisible())
             {
                 AddEngineOverlayLines(deltaSeconds); // M82: the game appends its own in OnUpdate
             }
@@ -198,6 +197,7 @@ namespace Atom
                 ATOM_PROFILE_SCOPE("Update"); // the app's frame
                 OnUpdate(deltaSeconds);
             }
+            m_perfOverlay.Draw(m_renderer.GetUI()); // over whatever the app drew
 
             if (!m_running)
             {
@@ -259,23 +259,23 @@ namespace Atom
         char line[256];
         std::snprintf(line, sizeof(line), "%.2f ms  (%.0f fps)", m_smoothedFrameMs,
                       m_smoothedFrameMs > 0.0f ? 1000.0f / m_smoothedFrameMs : 0.0f);
-        m_devTools.AddOverlayLine(line);
+        m_perfOverlay.AddOverlayLine(line);
         // M99: the CPU's work and its wait for the GPU (averaged).
         const FrameTiming& t = m_frameTimingAverage.value;
         std::snprintf(line, sizeof(line), "CPU %.2f ms (update %.2f, render %.2f)   waiting for GPU %.2f ms", t.CpuMs(),
                       t.updateMs, t.renderMs, t.waitMs);
-        m_devTools.AddOverlayLine(line);
+        m_perfOverlay.AddOverlayLine(line);
         std::snprintf(line, sizeof(line), "Scene %ux%u  MSAA %ux   draws %u / %u   tris %.1fk", stats.sceneWidth,
                       stats.sceneHeight, stats.msaaSamples, stats.drawn, stats.submitted, triangles / 1000.0f);
-        m_devTools.AddOverlayLine(line);
+        m_perfOverlay.AddOverlayLine(line);
         std::snprintf(line, sizeof(line), "Shadow %u   binds: pipelines %u materials %u   particles %u", stats.shadowDrawn,
                       stats.pipelineBinds, stats.materialBinds, stats.particles);
-        m_devTools.AddOverlayLine(line);
-        m_devTools.AddOverlayLine(device.adapter + "  (" + device.presentMode + ", " + std::to_string(device.framesInFlight)
+        m_perfOverlay.AddOverlayLine(line);
+        m_perfOverlay.AddOverlayLine(device.adapter + "  (" + device.presentMode + ", " + std::to_string(device.framesInFlight)
                                   + " frames in flight)");
         if (const std::string& latency = m_renderer.GetLatencyProbe().LastLine(); !latency.empty())
         {
-            m_devTools.AddOverlayLine(latency);
+            m_perfOverlay.AddOverlayLine(latency);
         }
         // M101: memory, from the OS and DXGI - not every frame (DXGI's
         // adapter search costs more than a frame should spend on it).
@@ -285,7 +285,7 @@ namespace Atom
             m_memoryLine = Memory::Describe(Memory::QueryProcess(), Memory::QueryGpu(m_renderer.GetAdapterName()));
             m_memoryQueryNs = nowNs;
         }
-        m_devTools.AddOverlayLine(m_memoryLine);
+        m_perfOverlay.AddOverlayLine(m_memoryLine);
     }
 
     void Application::ProcessEvents()
@@ -296,23 +296,17 @@ namespace Atom
 
         while (SDL_PollEvent(&event))
         {
-            const bool wasVisible = m_devTools.IsVisible();
-            // The tools see events first; what they use, the game doesn't.
-            if (!m_devTools.HandleEvent(event))
+            // F1: the overlay, in development builds.
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_F1 && !event.key.repeat
+                && m_perfOverlay.IsInitialized())
+            {
+                m_perfOverlay.Toggle();
+            }
+            // The app sees events first (the workspace's tool UI); what it
+            // keeps, input doesn't.
+            else if (!OnEvent(event))
             {
                 m_input.HandleEvent(event);
-            }
-            if (m_devTools.IsVisible() && !wasVisible)
-            {
-                // The panels need a pointer; the game gets the mouse back as
-                // it had it when F10 closes them.
-                m_capturedBeforeTools = m_input.IsMouseCaptured();
-                m_input.SetMouseCaptured(m_window.GetSDLWindow(), false);
-            }
-            else if (!m_devTools.IsVisible() && wasVisible && m_capturedBeforeTools)
-            {
-                m_input.SetMouseCaptured(m_window.GetSDLWindow(), true);
-                m_capturedBeforeTools = false;
             }
 
             if (event.type == SDL_EVENT_QUIT)
@@ -352,7 +346,7 @@ namespace Atom
         OnShutdown();
 
         m_renderer.SetOverlayPass({});
-        m_devTools.Shutdown();
+        m_perfOverlay.Shutdown(); // its font is a GPU texture
 
         ATOM_LOG_INFO("Engine") << "Shutting down AtomEngine...\n";
 

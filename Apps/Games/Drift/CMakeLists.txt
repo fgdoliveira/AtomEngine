@@ -48,7 +48,6 @@ target_link_libraries(
         DriftLib
         AtomEngine
         AtomFramework
-        imgui # M89: the Flight panel under F10
 )
 target_compile_definitions(Drift PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M82: the diagnostics title
 if(ATOM_DISTRIBUTION)
@@ -67,7 +66,8 @@ install(DIRECTORY "${ATOM_SHADER_OUTPUT_DIR}" DESTINATION . COMPONENT Drift) # t
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Assets/" DESTINATION Assets/Drift COMPONENT Drift)
 
 # Licences: AtomEngine's and every third-party component in Drift.exe and
-# SDL3.dll (ImGui links but never starts in a package; its code is there).
+# SDL3.dll. v0.0.19: no ImGui (the tools are the workspace's); the engine
+# embeds ProggyClean for the F1 overlay, compiled in even where it's off.
 set(DRIFT_NOTICES "DRIFT ${PROJECT_VERSION} (AtomEngine) - third-party notices\n\nDrift.exe and SDL3.dll contain the components below. Their licences require these notices to travel with the binaries.\n")
 foreach(entry IN ITEMS
         "SDL 3|external/SDL/LICENSE.txt"
@@ -75,7 +75,7 @@ foreach(entry IN ITEMS
         "nlohmann/json|external/json/LICENSE.MIT"
         "cgltf|external/cgltf/LICENSE"
         "stb|external/stb/LICENSE"
-        "Dear ImGui|external/imgui/LICENSE.txt"
+        "ProggyClean (font, embedded)|Engine/Debug/Fonts/LICENSE.txt"
         "Space Grotesk (font)|Apps/Games/Drift/Assets/Fonts/OFL.txt")
     string(REPLACE "|" ";" parts "${entry}")
     list(GET parts 0 name)

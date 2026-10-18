@@ -107,6 +107,17 @@ if(ATOM_BUILD_GAME)
 endif()
 add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
+add_subdirectory(Authoring) # v0.0.19: what the tools know about content; no game links it
+
+# v0.0.19: the runtime carries no tool code. A guard, not a convention:
+# configuring fails if ImGui reaches the engine, the framework or the
+# authoring model again (the workspace's UI is the only place for it).
+foreach(runtime AtomEngine AtomFramework AtomAuthoring)
+    get_target_property(links ${runtime} LINK_LIBRARIES)
+    if(links AND "imgui" IN_LIST links)
+        message(FATAL_ERROR "${runtime} links imgui: tool UI belongs in WorkspaceUI (v0.0.19)")
+    endif()
+endforeach()
 # The apps (v0.0.16, M109: under Apps/, by what each is for).
 add_subdirectory(Apps/Showcase) # v0.0.14: the engine's front door, every feature in one scene
 add_subdirectory(Apps/Games/Demo) # v0.0.14: the demo, beside DRIFT

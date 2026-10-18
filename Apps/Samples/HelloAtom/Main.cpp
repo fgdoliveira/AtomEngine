@@ -6,7 +6,6 @@
 #include "Character/PlayerController.h"
 #include "Core/Application.h"
 #include "Core/DevSwitch.h"
-#include "Debug/DevPanels.h"
 #include "Environment/EnvironmentPresets.h"
 #include "Level/LevelManager.h"
 #include "Level/ModelCache.h"
@@ -52,10 +51,10 @@ namespace
             // 2. Levels: JSON in Levels/, built into a world of entities.
             m_levels = std::make_unique<LevelManager>(
                 Level::Services{ GetRenderer(), GetAudio(), m_sounds, m_assets, m_models, ScreenFactory{} });
-            // 3. Scenarios (ATOM_TEST_SCRIPT) and F10: the framework's, given what this app has.
+            // 3. Scenarios (ATOM_TEST_SCRIPT): the framework's, given what this app has.
+            //    (Inspecting the level is the workspace's: Tools/Workspace.)
             m_hooks = std::make_unique<BasicTestHooks>(BasicTestHooks::View{
-                &GetRenderer(), &GetAudio(), m_levels.get(), &m_player, &m_camera, &m_view, m_root, &m_panels,
-                &GetDevTools() });
+                &GetRenderer(), &GetAudio(), m_levels.get(), &m_player, &m_camera, &m_view, m_root });
 
             // A level puts the player at its spawn - where scenarios check the camera arrives.
             m_levels->onLoaded = [this](Level&, const SpawnPoint& spawn) {
@@ -123,18 +122,6 @@ namespace
                 level->Update(deltaSeconds, m_player.GetFeetPosition());
                 level->Submit(renderer, m_player.GetFeetPosition());
             }
-
-            // F10: the framework's panels, for what this app has.
-            DevContext tools;
-            tools.renderer = &renderer;
-            tools.tools = &GetDevTools();
-            tools.timing = &GetAverageFrameTiming(); // M99
-            tools.camera = &m_camera;
-            tools.view = &m_view;
-            tools.levels = m_levels.get();
-            tools.set = [this](const std::string& what, const std::string& value) { return m_hooks->Set(what, value); };
-            tools.applyLighting = [this] { ApplyLighting(); };
-            m_panels.Draw(tools, deltaSeconds);
         }
 
         void OnShutdown() override
@@ -160,7 +147,6 @@ namespace
         Atom::Camera m_camera;
         ViewToggles m_view;
         GameDiagnostics m_diagnostics;
-        DevPanels m_panels;
         std::unique_ptr<BasicTestHooks> m_hooks;
     };
 }

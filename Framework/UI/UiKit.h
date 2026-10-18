@@ -19,8 +19,8 @@ namespace AtomFramework
 
     // The look every app's player UI shares (v0.0.14, M89): one set of
     // colours (sRGB, straight alpha, as UIRenderer takes them), one margin,
-    // one rule for scaling with the window. The accent is the developer
-    // tools' too (DevTools::Initialize), so F10 and the game agree.
+    // one rule for scaling with the window. The accent is the workspace's
+    // too (WorkspaceUI/ImGuiHost), so the tools and the games agree.
     struct UiTheme
     {
         glm::vec4 panel{ 0.04f, 0.04f, 0.05f, 0.80f };

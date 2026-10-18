@@ -10,7 +10,6 @@
 #include "Assets/Model.h"
 #include "Core/Application.h"
 #include "Core/FrameStatsWindow.h"
-#include "Debug/DevPanels.h"
 #include "Settings/GameSettings.h"
 #include "Settings/SettingsStore.h"
 #include "UI/MenuScreen.h"
@@ -57,7 +56,6 @@ namespace Drift
                                                          AtomFramework::SettingRow::Gpu, AtomFramework::SettingRow::Back } };
         AtomFramework::SettingsStore m_store;
         std::unique_ptr<AtomFramework::UiFonts> m_uiFonts; // the menus' typeface, at every size
-        void DrawDevTools(float dt); // F10 (M89): the shared Frame and Render panels, and Flight
 
         std::vector<std::string> m_arguments;
         AtomFramework::CommandLine m_commandLine;          // M82: --gpu, --diagnostics
@@ -100,6 +98,5 @@ namespace Drift
         Atom::FrameStatsWindow m_frameTimes; // M83: reported with the summary
         std::string m_capturePath;
         bool m_captured = false;
-        AtomFramework::DevPanels m_devPanels;
     };
 }

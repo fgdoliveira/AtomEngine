@@ -9,7 +9,6 @@
 #include "Renderer/Renderer.h"
 
 #include <SDL3/SDL.h>
-#include <imgui.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -80,14 +79,6 @@ namespace Drift
     bool DriftApp::OnInitialize()
     {
         SDL_SetWindowTitle(GetWindow().GetSDLWindow(), "DRIFT");
-        m_devPanels.Add("Flight", 1, [this] {
-            ImGui::Text("Speed %.0f m/s   boost %.2f   z %.0f m", m_flight.speed, m_flight.boost, -m_flight.position.z);
-            ImGui::Text("Flow %.2f   chain %d", m_flow.value, m_flow.chain);
-            ImGui::Text("Rings %d passed, %d missed   orbs %d   rocks %d", m_flow.ringsPassed, m_flow.ringsMissed,
-                        m_flow.orbsCollected, m_flow.rocksHit);
-            ImGui::SliderFloat("Fog density", &m_fogDensity, 0.0f, 0.02f, "%.4f");
-            ImGui::SliderFloat("Cruise speed", &m_flight.speed, 10.0f, 120.0f, "%.0f m/s");
-        });
         const char* base = SDL_GetBasePath();
         m_assetRoot = std::string(base ? base : "") + "Assets/Drift/";
 
@@ -291,18 +282,18 @@ namespace Drift
         const float forward = m_running ? m_flight.Update(dt, m_flow.value, ReadInput())
                                         : m_flight.Update(dt, 0.2f, ShipInput{});
         // M82: DRIFT's lines on the shared F1 overlay, after the engine's.
-        if (GetDevTools().IsOverlayVisible())
+        if (GetPerfOverlay().IsOverlayVisible())
         {
             char line[160];
             std::snprintf(line, sizeof(line), "Speed %.0f m/s   boost %.2f   z %.0f m", forward, m_flight.boost,
                           -m_flight.position.z);
-            GetDevTools().AddOverlayLine(line);
+            GetPerfOverlay().AddOverlayLine(line);
             std::snprintf(line, sizeof(line), "Flow %.2f   chain %d   segments %d", m_flow.value, m_flow.chain,
                           m_world->Segments());
-            GetDevTools().AddOverlayLine(line);
+            GetPerfOverlay().AddOverlayLine(line);
             std::snprintf(line, sizeof(line), "Rings %d passed, %d missed   orbs %d   rocks %d", m_flow.ringsPassed,
                           m_flow.ringsMissed, m_flow.orbsCollected, m_flow.rocksHit);
-            GetDevTools().AddOverlayLine(line);
+            GetPerfOverlay().AddOverlayLine(line);
         }
         m_world->Update(dt, m_time, m_flight.position.z);
         if (m_running)
@@ -345,7 +336,6 @@ namespace Drift
         SubmitSpeedField(forward);
         DrawHud(dt);
         DrawPause();
-        DrawDevTools(dt);
 
         // The engine's glow: PointLight(0xffa050, 4 + boost*10 + sin(30t)*0.8,
         // distance 8) at the ship's tail (local 0, 0, 2).
@@ -442,16 +432,6 @@ namespace Drift
         GetRenderer().SubmitParticles(m_particles);
     }
 
-    void DriftApp::DrawDevTools(float dt)
-    {
-        // F10 (M89): the framework's Frame and Render panels - DRIFT has no
-        // level, so no Lighting, Environment or Level - and its own Flight.
-        AtomFramework::DevContext context;
-        context.renderer = &GetRenderer();
-        context.tools = &GetDevTools();
-        context.timing = &GetAverageFrameTiming(); // M99
-        m_devPanels.Draw(context, dt);
-    }
 
     void DriftApp::DrawHud(float dt)
     {

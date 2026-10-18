@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <unordered_map>
 
@@ -29,6 +30,14 @@ namespace Atom
         static std::unique_ptr<Font> Load(
             Renderer& renderer,
             const std::string& path,
+            float pixelHeight
+        );
+        // The same, from TrueType bytes already in memory (the engine's
+        // embedded overlay font); `name` is only for the log.
+        static std::unique_ptr<Font> LoadFromMemory(
+            Renderer& renderer,
+            std::span<const unsigned char> ttf,
+            const std::string& name,
             float pixelHeight
         );
 
