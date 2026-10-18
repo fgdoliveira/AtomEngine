@@ -23,6 +23,8 @@ namespace AtomFramework
         std::function<bool(const std::string& entity, const std::string& clip)> playAnimation;
         std::function<bool(const std::string& sequence)> runSequence;
         std::function<bool(const PlayMachine& machine)> playMachine;
+        // Keeps the game's progress at this save point; false if it couldn't.
+        std::function<bool(const SaveProgress& save)> save;
     };
 
     void ExecuteAction(const Action& action, ActionContext& context);

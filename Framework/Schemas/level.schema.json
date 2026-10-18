@@ -505,9 +505,15 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine", "addCounter", "exchange"] }
+        "type": { "enum": ["message", "setFlag", "dialogue", "changeLevel", "playAnimation", "sequence", "playMachine", "addCounter", "exchange", "save"] }
       },
       "oneOf": [
+        {
+          "properties": { "type": { "const": "save" },
+                          "place": { "type": "string", "description": "The save point's name; the title's Continue shows it." },
+                          "message": { "type": "string" } },
+          "required": ["place"], "additionalProperties": false
+        },
         {
           "properties": { "type": { "const": "message" }, "text": { "type": "string" } },
           "required": ["text"], "additionalProperties": false

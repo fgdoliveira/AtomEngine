@@ -172,6 +172,25 @@ TEST_CASE("A lightmap is optional, and needs a texture when given")
     CHECK(noTexture.error.find("lightmap") != std::string::npos);
 }
 
+TEST_CASE("A save point's action names its place")
+{
+    const auto level = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "shrine", "position": [0,0,0],
+            "interactable": { "prompt": "Pray", "action": { "type": "save", "place": "the roadside shrine" } } } ] })");
+    INFO(level.error);
+    REQUIRE(level.level.has_value());
+    const auto* save = std::get_if<SaveProgress>(&level.level->entities.front().interactable->action);
+    REQUIRE(save != nullptr);
+    CHECK(save->place == "the roadside shrine");
+
+    const auto noPlace = ParseLevel(R"({ "name": "x", "model": "m", "collision": "c",
+        "spawns": { "a": { "position": [0,0,0] } },
+        "entities": [ { "name": "shrine", "position": [0,0,0],
+            "interactable": { "prompt": "Pray", "action": { "type": "save" } } } ] })");
+    CHECK(noPlace.error.find("place") != std::string::npos);
+}
+
 TEST_CASE("An entity's tilt turns its model about its origin, after its yaw")
 {
     Entity entity;

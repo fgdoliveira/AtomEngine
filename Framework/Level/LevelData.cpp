@@ -240,6 +240,15 @@ namespace AtomFramework
                 play.viewPitchDegrees = Number(*view, "pitch", at, 0.0f);
                 return play;
             }
+            if (type == "save")
+            {
+                SaveProgress save{ String(json, "place", path), String(json, "message", path) };
+                if (save.place.empty())
+                {
+                    throw LevelError(path, "save needs \"place\" (the title shows it)");
+                }
+                return save;
+            }
             if (type == "sequence")
             {
                 const std::string id = String(json, "id", path);

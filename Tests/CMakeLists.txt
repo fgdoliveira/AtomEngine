@@ -49,6 +49,7 @@ atom_add_tests(
         Framework/LevelCheckTests.cpp
         Framework/AssetRootsTests.cpp
         Framework/LevelTests.cpp
+        Framework/SaveGameTests.cpp
         Framework/LogTests.cpp
         Framework/NightStreetTests.cpp
         Framework/PairedBenchTests.cpp

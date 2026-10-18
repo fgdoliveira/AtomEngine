@@ -16,6 +16,8 @@ add_library(
     Platform/AssetRoots.h
     Settings/GameSettings.cpp
     Settings/GameSettings.h
+    Settings/SaveGame.cpp
+    Settings/SaveGame.h
     Settings/SettingsStore.cpp
     Settings/SettingsStore.h
     Settings/Calibration.cpp

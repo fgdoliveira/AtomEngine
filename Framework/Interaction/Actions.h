@@ -76,6 +76,14 @@ namespace AtomFramework
         std::string shortMessage;  // not enough
     };
 
+    // A save point (demo vertical): the game keeps its progress here. What
+    // a save holds and where it goes is the game's (ActionContext::save).
+    struct SaveProgress
+    {
+        std::string place;   // shown on the title's Continue: "the roadside shrine"
+        std::string message; // "" - the game's default
+    };
+
     using Action = std::variant<ShowMessage, SetFlag, StartDialogue, ChangeLevel, PlayAnimation, RunSequence, PlayMachine,
-                                AddCounter, Exchange>;
+                                AddCounter, Exchange, SaveProgress>;
 }

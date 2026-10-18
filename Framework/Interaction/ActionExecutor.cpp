@@ -103,6 +103,14 @@ namespace AtomFramework
                     context.messages.Show("The way is shut.");
                 }
             },
+            [&](const SaveProgress& save) {
+                if (!context.save || !context.save(save))
+                {
+                    context.messages.Show("Nothing seems to change.");
+                    return;
+                }
+                context.messages.Show(save.message.empty() ? "Your progress is kept." : save.message);
+            },
         }, action);
     }
 }

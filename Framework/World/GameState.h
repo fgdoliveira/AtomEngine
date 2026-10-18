@@ -55,6 +55,26 @@ namespace AtomFramework
             return true;
         }
 
+        // A new game, and a loaded one (from a save file).
+        void Clear()
+        {
+            m_flags.clear();
+            m_counters.clear();
+        }
+        template <typename Flags, typename Counters>
+        void Restore(const Flags& flags, const Counters& counters)
+        {
+            Clear();
+            for (const auto& flag : flags)
+            {
+                SetFlag(flag);
+            }
+            for (const auto& [name, value] : counters)
+            {
+                SetCounter(name, value);
+            }
+        }
+
     private:
         std::unordered_set<std::string> m_flags;
         std::map<std::string, int, std::less<>> m_counters;
