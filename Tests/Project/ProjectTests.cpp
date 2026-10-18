@@ -1,5 +1,6 @@
 #include "Project/ProjectCreator.h"
 #include "Project/ProjectDescriptor.h"
+#include "Project/ProjectDiscovery.h"
 
 #include <doctest/doctest.h>
 
@@ -106,6 +107,30 @@ TEST_CASE("Creating a project makes its folders, descriptor and build file - and
     CHECK(Read(result.descriptorPath).find(workspace.root.string()) == std::string::npos);
     // No staging folder left behind.
     CHECK_FALSE(fs::exists(workspace.root / "Apps" / ".MyGame.creating"));
+}
+
+TEST_CASE("Projects are found by their descriptors, one or two folders down; broken ones are reported")
+{
+    TempWorkspace workspace;
+    REQUIRE(CreateProject({ workspace.root.string(), "Zeta", "0.0.19" }).ok);
+    REQUIRE(CreateProject({ workspace.root.string(), "Alpha", "0.0.19" }).ok);
+    // A grouped example, two folders down, and a broken descriptor.
+    fs::create_directories(workspace.root / "Apps" / "Games" / "Old");
+    std::ofstream(workspace.root / "Apps" / "Games" / "Old" / "Old.atomproject.json")
+        << R"({ "schema": 1, "name": "Old", "source": "." })";
+    fs::create_directories(workspace.root / "Apps" / "Broken");
+    std::ofstream(workspace.root / "Apps" / "Broken" / "Broken.atomproject.json") << "{ nope";
+
+    const Discovery found = FindProjects((workspace.root / "Apps").string());
+    REQUIRE(found.projects.size() == 3);
+    CHECK(found.projects[0].descriptor.name == "Alpha"); // sorted
+    CHECK(found.projects[1].descriptor.name == "Old");
+    CHECK(found.projects[2].descriptor.name == "Zeta");
+    CHECK(fs::path(found.projects[0].AssetsDir()) == (workspace.root / "Apps" / "Alpha" / "Assets").lexically_normal());
+    REQUIRE(found.errors.size() == 1);
+    CHECK(found.errors.front().find("Broken.atomproject.json") != std::string::npos);
+
+    CHECK(FindProjects((workspace.root / "Apps").string(), 1).projects.size() == 2); // new projects only
 }
 
 TEST_CASE("Creating never overwrites, and refuses bad names and workspaces")

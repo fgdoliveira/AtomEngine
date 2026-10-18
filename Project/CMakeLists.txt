@@ -11,6 +11,8 @@ target_sources(
         Project/ProjectCreator.h
         Project/ProjectDescriptor.cpp
         Project/ProjectDescriptor.h
+        Project/ProjectDiscovery.cpp
+        Project/ProjectDiscovery.h
 )
 
 target_include_directories(

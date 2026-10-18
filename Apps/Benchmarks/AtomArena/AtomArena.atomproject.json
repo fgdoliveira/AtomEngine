@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "name": "AtomArena",
+  "engine": "0.0.19",
+  "source": ".",
+  "assets": "Assets",
+  "executable": "AtomArena",
+  "startupLevel": "arena"
+}

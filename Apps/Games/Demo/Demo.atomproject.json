@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "name": "Demo",
+  "engine": "0.0.19",
+  "source": ".",
+  "assets": "Assets",
+  "executable": "Demo",
+  "startupLevel": "street"
+}

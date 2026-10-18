@@ -81,6 +81,14 @@ atom_add_tests(
         Project/ProjectTests.cpp
     LIBS AtomProject
 )
+# M121: a fresh project configures, is discovered, and builds nothing yet.
+# Configures the whole engine once (about a minute): label "configure", not
+# "cpu", so CI's quick run doesn't carry it; the full check does.
+add_test(NAME Project.empty_configures
+         COMMAND ${CMAKE_COMMAND} -DENGINE=${CMAKE_SOURCE_DIR} -DTOOL=$<TARGET_FILE:AtomProjectTool>
+                 -DWORK=${CMAKE_BINARY_DIR}/empty-project-test -P ${CMAKE_CURRENT_SOURCE_DIR}/Project/EmptyProjectConfigures.cmake)
+set_tests_properties(Project.empty_configures PROPERTIES LABELS "configure;project" TIMEOUT 600)
+set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomProjectTool)
 
 # AtomTests: every CPU test target, built together (CI, the full check).
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)

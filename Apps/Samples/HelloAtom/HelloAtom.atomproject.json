@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "name": "HelloAtom",
+  "engine": "0.0.19",
+  "source": ".",
+  "assets": "Assets",
+  "executable": "HelloAtom",
+  "startupLevel": "hello"
+}
