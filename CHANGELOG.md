@@ -14,6 +14,20 @@ properly in 0.0.18.
   fitted. `ThirdParty/` now ships with the demo, with its credits.
 
 ### Added
+- **Progress is kept: save points and a title screen.** Lighting a stone
+  lantern (the street by the torii, the night street's bus stop, the
+  shore's beach hut) keeps the story flags, counters, the level, where
+  you stand and look, and the flashlight and headlight. The demo now
+  opens on a title over the street: Continue (shown only when something
+  is kept, with where and when), New game (asks first; the old save
+  stays until the next lantern), Settings, Quit; the pause menu gains
+  Quit to title.
+  - **Framework:** `SaveGame` (`ParseSave` never crashes or guesses: a
+    broken or newer file is no save), `WriteFileAtomically` (a crash
+    mid-save leaves the old file), `GameState::Clear`/`Restore`, and a
+    `save` action (`{ "place" }`, `ActionContext::save`).
+  - `--no-save`, `--reset-save`. Scripted runs skip the title and save to
+    `out/test_save.json`, never the player's. Scenario `save_continue`.
 - **Sky picture in F10's Environment panel:** a checkbox turns the
   level's sky picture off, so a weather preset's gradient sky shows (a
   picture always covered it); a list offers every PNG in the asset roots'

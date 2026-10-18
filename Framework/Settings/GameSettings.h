@@ -96,6 +96,8 @@ namespace AtomFramework // M76: shared by every game
         bool calibrate = false;
         bool resetSettings = false; // forget the saved settings
         bool noSettings = false;    // ignore them for this run (tests, benches)
+        bool resetSave = false;     // forget the saved progress (a game's save.json)
+        bool noSave = false;        // neither read nor write it this run
         std::optional<std::string> diagnosticsFile;
         std::vector<std::string> errors;
     };

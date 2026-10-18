@@ -248,6 +248,8 @@ namespace AtomFramework
             else if (arg == "--calibrate") line.calibrate = true;
             else if (arg == "--reset-settings") line.resetSettings = true;
             else if (arg == "--no-settings") line.noSettings = true;
+            else if (arg == "--reset-save") line.resetSave = true;
+            else if (arg == "--no-save") line.noSave = true;
             else line.errors.push_back("unknown argument " + arg);
         }
         return line;

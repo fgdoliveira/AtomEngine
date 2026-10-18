@@ -1,0 +1,46 @@
+# Persistence: a save point keeps progress; a new game forgets it; Continue
+# brings it back, at the save point. A scripted run saves to out/ - never
+# the player's save.json.
+# Run: ATOM_TEST_SCRIPT=Apps/Games/Demo/Scenarios/save_continue.atomtest Demo
+
+expect_level street
+expect_stat save_exists == 0
+
+# Nothing kept yet: the title offers New game, Settings, Quit.
+set title on
+wait 0.3
+expect_stat title == 1
+expect_stat title_items == 3
+set title off
+
+# Earn something worth keeping, then light the lantern.
+teleport_to torii
+interact torii
+expect_flag bowed_at_torii
+teleport_to save_lantern
+expect_target save_lantern
+interact save_lantern
+expect_message progress is kept
+expect_stat save_exists == 1
+
+# Now the title offers Continue too.
+set title on
+wait 0.3
+expect_stat title_items == 4
+set title off
+
+# Wander off; start over: the flag is gone, the save is not.
+teleport_to kawasaki
+set new_game on
+wait 2.5
+expect_level street
+expect_no_flag bowed_at_torii
+expect_stat save_exists == 1
+
+# Continue: the flag is back, and we're by the lantern again.
+set continue on
+wait 2.5
+expect_level street
+expect_flag bowed_at_torii
+expect_target save_lantern
+log save_continue done

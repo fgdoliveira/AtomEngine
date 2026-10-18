@@ -165,6 +165,116 @@ namespace Demo
         return AtomFramework::WriteDiagnosticsFile(path, out.str());
     }
 
+    void DemoApp::OpenSaveFile()
+    {
+        // The player's progress, beside settings.json - except in a scripted
+        // run, which keeps its own under out/ (fresh each run), and with
+        // --no-save.
+        const bool scripted = m_diagnostics.HasTestScript() || Atom::DevSwitch("ATOM_TEST_SCRIPT");
+        if (scripted)
+        {
+            m_savePath = m_outputRoot + "out/test_save.json";
+            std::error_code error;
+            std::filesystem::create_directories(m_outputRoot + "out", error);
+            std::filesystem::remove(m_savePath, error);
+        }
+        else
+        {
+            m_savePath = SavePathFor("Demo");
+        }
+        m_savePersist = !m_savePath.empty() && !m_commandLine.noSave;
+        if (!m_savePersist)
+        {
+            return;
+        }
+        if (m_commandLine.resetSave)
+        {
+            std::error_code error;
+            std::filesystem::remove(m_savePath, error);
+            ATOM_LOG_GAME("Demo") << "Saved progress forgotten (--reset-save)\n";
+        }
+        std::ifstream file(m_savePath, std::ios::binary);
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        m_save = ParseSave(text);
+        if (!m_save.warning.empty())
+        {
+            ATOM_LOG_ERROR("Demo") << m_savePath << ": " << m_save.warning << '\n';
+        }
+        else if (m_save.found)
+        {
+            ATOM_LOG_GAME("Demo") << "Saved progress: " << m_save.save.place << ", " << m_save.save.savedAt << '\n';
+        }
+    }
+
+    bool DemoApp::SaveAt(const std::string& place)
+    {
+        const Level* level = m_levels ? m_levels->GetLevel() : nullptr;
+        if (!m_savePersist || !level)
+        {
+            return false;
+        }
+        SaveGame save;
+        save.level = level->GetName();
+        save.spawn = level->GetData().defaultSpawn;
+        save.position = m_player.GetFeetPosition();
+        save.yawRadians = m_camera.GetYaw();
+        save.pitchRadians = m_camera.GetPitch();
+        save.flags.assign(m_gameState.GetFlags().begin(), m_gameState.GetFlags().end());
+        save.counters.insert(m_gameState.GetCounters().begin(), m_gameState.GetCounters().end());
+        save.flashlightOn = m_flashlight.IsOn();
+        save.headlightOn = m_headlightOn;
+        save.place = place;
+        const std::time_t now = std::time(nullptr);
+        std::tm local{};
+#ifdef _WIN32
+        localtime_s(&local, &now);
+#else
+        localtime_r(&now, &local);
+#endif
+        char stamp[32];
+        std::strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M", &local);
+        save.savedAt = stamp;
+        if (!WriteFileAtomically(m_savePath, WriteSave(save)))
+        {
+            ATOM_LOG_ERROR("Demo") << "Could not save progress to " << m_savePath << '\n';
+            return false;
+        }
+        m_save = SaveLoad{ true, save, {} };
+        ATOM_LOG_GAME("Demo") << "Progress saved at " << place << " (" << save.level << ", "
+                              << save.flags.size() << " flags)\n";
+        return true;
+    }
+
+    bool DemoApp::ContinueFromSave()
+    {
+        if (!m_save.found)
+        {
+            return false;
+        }
+        const SaveGame& save = m_save.save;
+        m_gameState.Restore(save.flags, save.counters);
+        m_flashlight.SetOwned(m_gameState.HasFlag(FlashlightFlag));
+        m_flashlight.SetOn(save.flashlightOn);
+        m_headlightOn = save.headlightOn;
+        m_pendingArrival = save; // placed exactly when its level arrives
+        m_levels->RequestChange(save.level, save.spawn);
+        ATOM_LOG_GAME("Demo") << "Continuing from " << save.place << '\n';
+        return true;
+    }
+
+    void DemoApp::StartNewGame()
+    {
+        // The old save stays on disk until the next save point: starting
+        // over by mistake costs nothing until then.
+        m_gameState.Clear();
+        m_flashlight.SetOwned(false);
+        m_flashlight.SetOn(false);
+        m_headlightOn = true;
+        m_pendingArrival.reset();
+        m_levels->RequestChange("street", "");
+        ATOM_LOG_GAME("Demo") << "New game\n";
+    }
+
     void DemoApp::SaveSettings()
     {
         if (!m_settingsPersist)
@@ -276,6 +386,8 @@ namespace Demo
         };
         m_levels->onReloaded = [this](Level& incoming) { OnLevelReloaded(incoming); };
 
+        OpenSaveFile();
+
         // ATOM_START_LEVEL=<name>[:<spawn>] starts somewhere else (testing).
         std::string startLevel = "street";
         std::string startSpawn;
@@ -290,6 +402,12 @@ namespace Demo
         if (!m_levels->Load(startLevel, startSpawn))
         {
             return false;
+        }
+        // The title, over the street - not for scripted runs (or a chosen
+        // start level), which go straight in.
+        if (!Atom::DevSwitch("ATOM_TEST_SCRIPT") && !Atom::DevSwitch("ATOM_START_LEVEL"))
+        {
+            OpenTitle();
         }
 
         ATOM_LOG_GAME("Demo")
@@ -364,6 +482,20 @@ namespace Demo
         // Expected from the spawn itself, not read back from the camera.
         m_arrivalEye = spawn.position + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f };
         m_arrivalYaw = glm::radians(spawn.yawDegrees);
+        // Continue: exactly where the save was made, if it's this level.
+        if (m_pendingArrival && m_pendingArrival->level == data.name)
+        {
+            m_player.Teleport(m_pendingArrival->position, m_camera);
+            m_camera.SetRotation(m_pendingArrival->yawRadians, m_pendingArrival->pitchRadians);
+            m_arrivalEye = m_pendingArrival->position + glm::vec3{ 0.0f, m_player.eyeHeight, 0.0f };
+            m_arrivalYaw = m_pendingArrival->yawRadians;
+        }
+        else if (m_pendingArrival)
+        {
+            ATOM_LOG_ERROR("Demo") << "Saved level '" << m_pendingArrival->level << "' didn't load; starting at "
+                                   << data.name << "'s spawn\n";
+        }
+        m_pendingArrival.reset();
         m_arriving = true;
 
         ConfigureForLevel(incoming);
@@ -637,7 +769,7 @@ namespace Demo
             RequestQuit(*exitCode);
         }
         // Paused: the world stands still and the keys are the menu's.
-        const bool paused = UpdatePause();
+        const bool paused = UpdatePause(deltaSeconds);
         if (paused)
         {
             deltaSeconds = 0.0f;
@@ -1285,6 +1417,17 @@ namespace Demo
             },
             [this](const std::string& id) { return RunSequence(id); },
             [this](const PlayMachine& play) { return BeginMachine(play); },
+            [this](const SaveProgress& save) {
+                if (!SaveAt(save.place))
+                {
+                    return false;
+                }
+                Atom::PlayParams chime{};
+                chime.gain = 0.35f;
+                chime.pitch = 0.8f; // lower and softer than a pachinko pocket
+                GetAudio().Play(m_audioScape.GetSound("pocket_chime"), chime);
+                return true;
+            },
         };
     }
 
@@ -1523,6 +1666,9 @@ namespace Demo
         if (name == "voice_dropped") return static_cast<float>(m_speech->Dropped());
         // The ride: how far along (0..1), and 1 once it steers (not cinematic).
         if (name == "ride_progress") return m_rideActive ? m_ride.State().progress : 0.0f;
+        if (name == "save_exists") return m_save.found ? 1.0f : 0.0f;
+        if (name == "title") return m_pause == PauseScreen::Title ? 1.0f : 0.0f;
+        if (name == "title_items") return static_cast<float>(m_pauseMenu.Items().size());
         if (name == "ride_headlight") return m_rideActive && m_headlightOn ? 1.0f : 0.0f;
         if (name == "ride_offset") return m_rideActive ? m_ride.State().offset : 0.0f;
         if (name == "ride_steer") return m_rideActive && m_ride.Settings().style == RideStyle::Steer ? 1.0f : 0.0f;
@@ -1810,6 +1956,15 @@ namespace Demo
             SetQualityMode(*mode, false);
             return true;
         }
+        // Persistence, for scenarios: save here (value: the place), continue
+        // from the save, start over.
+        if (what == "save") return SaveAt(value);
+        if (what == "continue") return ContinueFromSave();
+        if (what == "new_game")
+        {
+            StartNewGame();
+            return true;
+        }
         if (what == "sky_image")
         {
             // F10's sky picture list, for scenarios: a PNG in Sky/, or "level".
@@ -1840,6 +1995,7 @@ namespace Demo
             else m_devPanels.Inspector().Select(level->GetName(), value);
         }
         else if (what == "menu" && onOff) { if (on) OpenPause(); else m_pause = PauseScreen::None; } // M90
+        else if (what == "title" && onOff) { if (on) OpenTitle(); else m_pause = PauseScreen::None; }
         else if (what == "menu" && value == "settings") { OpenPause(); m_pause = PauseScreen::Settings; }
         else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on); // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
@@ -1907,7 +2063,7 @@ namespace Demo
 
     void DemoApp::OpenPause()
     {
-        m_pauseMenu = MenuScreen("Paused", "The demo - AtomEngine", { "Resume", "Settings", "Quit" });
+        m_pauseMenu = MenuScreen("Paused", "The demo - AtomEngine", { "Resume", "Settings", "Quit to title", "Quit" });
         m_pauseSettings = SettingsScreen();
         m_pause = PauseScreen::Menu;
         m_justPaused = true;
@@ -1915,7 +2071,27 @@ namespace Demo
         GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
     }
 
-    bool DemoApp::UpdatePause()
+    void DemoApp::OpenTitle()
+    {
+        // Continue is there only when there's something to continue; the
+        // line under the title says where and when it was kept.
+        std::vector<std::string> items;
+        std::string subtitle = "A night on the old road";
+        if (m_save.found)
+        {
+            items.push_back("Continue");
+            subtitle = "Kept at " + m_save.save.place + " - " + m_save.save.savedAt;
+        }
+        items.insert(items.end(), { "New game", "Settings", "Quit" });
+        m_pauseMenu = MenuScreen("The demo", subtitle, items);
+        m_pauseSettings = SettingsScreen();
+        m_pause = PauseScreen::Title;
+        m_titleTime = 0.0f;
+        m_justPaused = true;
+        GetInput().SetMouseCaptured(GetWindow().GetSDLWindow(), true);
+    }
+
+    bool DemoApp::UpdatePause(float deltaSeconds)
     {
         Atom::Input& input = GetInput();
         const bool escape = input.WasKeyPressed(SDL_SCANCODE_ESCAPE);
@@ -1931,18 +2107,76 @@ namespace Demo
                 chosen = 0; // Esc again: resume
             }
             m_justPaused = false;
-            if (chosen == 0)
+            const std::string item = chosen ? m_pauseMenu.Items()[static_cast<std::size_t>(*chosen)] : std::string{};
+            if (item == "Resume")
             {
                 m_pause = PauseScreen::None;
                 input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
             }
-            else if (chosen == 1)
+            else if (item == "Settings")
             {
+                m_settingsFromTitle = false;
                 m_pause = PauseScreen::Settings;
             }
-            else if (chosen == 2)
+            else if (item == "Quit to title")
+            {
+                OpenTitle(); // unsaved progress since the last lantern is left behind, as in any save-point game
+            }
+            else if (item == "Quit")
             {
                 RequestQuit();
+            }
+            return true;
+        }
+        case PauseScreen::Title:
+        {
+            // The street behind it, the view drifting slowly down the road.
+            m_titleTime += deltaSeconds;
+            m_camera.SetPosition({ -24.0f + 1.2f * m_titleTime, 2.1f, 1.0f });
+            m_camera.SetRotation(glm::radians(90.0f) + 0.08f * std::sin(m_titleTime * 0.2f), -0.06f);
+            const std::optional<int> chosen = m_pauseMenu.Update(input);
+            m_justPaused = false;
+            const std::string item = chosen ? m_pauseMenu.Items()[static_cast<std::size_t>(*chosen)] : std::string{};
+            if (item == "Continue" && ContinueFromSave())
+            {
+                m_pause = PauseScreen::None;
+            }
+            else if (item == "New game")
+            {
+                if (m_save.found)
+                {
+                    m_pauseMenu = MenuScreen("Start over?", "Your kept progress will be lost at the next lantern.",
+                                             { "No", "Yes, start over" });
+                    m_pause = PauseScreen::ConfirmNewGame;
+                }
+                else
+                {
+                    StartNewGame();
+                    m_pause = PauseScreen::None;
+                }
+            }
+            else if (item == "Settings")
+            {
+                m_settingsFromTitle = true;
+                m_pause = PauseScreen::Settings;
+            }
+            else if (item == "Quit")
+            {
+                RequestQuit();
+            }
+            return true;
+        }
+        case PauseScreen::ConfirmNewGame:
+        {
+            const std::optional<int> chosen = m_pauseMenu.Update(input);
+            if (chosen == 1)
+            {
+                StartNewGame();
+                m_pause = PauseScreen::None;
+            }
+            else if (chosen == 0 || escape)
+            {
+                OpenTitle();
             }
             return true;
         }
@@ -1960,7 +2194,14 @@ namespace Demo
             }
             if (result.back)
             {
-                m_pause = PauseScreen::Menu;
+                if (m_settingsFromTitle)
+                {
+                    OpenTitle();
+                }
+                else
+                {
+                    m_pause = PauseScreen::Menu;
+                }
             }
             return true;
         }
@@ -1975,13 +2216,14 @@ namespace Demo
             return;
         }
         UiKit kit(GetRenderer().GetUI(), *m_uiFonts);
-        if (m_pause == PauseScreen::Menu)
+        if (m_pause == PauseScreen::Settings)
         {
-            m_pauseMenu.Draw(kit);
+            m_pauseSettings.Draw(kit, m_savedSettings, m_resolvedSettings.gpu);
         }
         else
         {
-            m_pauseSettings.Draw(kit, m_savedSettings, m_resolvedSettings.gpu);
+            // The title lets more of the street through than the pause does.
+            m_pauseMenu.Draw(kit, m_pause == PauseScreen::Title ? 0.35f : 0.55f);
         }
     }
 }

@@ -31,6 +31,7 @@
 #include "Character/PlayerController.h"
 #include "Settings/Calibration.h"
 #include "Settings/GameSettings.h"
+#include "Settings/SaveGame.h"
 #include "Testing/GameDiagnostics.h"
 #include "Testing/TestScript.h"
 #include "Scene/Camera.h"
@@ -97,9 +98,15 @@ namespace Demo
         void UpdateMouseCapture();
         // Esc's pause menu (M90): Resume, Settings (the framework's player
         // settings screen, saved with the rest), Quit. True while it is open.
-        enum class PauseScreen { None, Menu, Settings };
+        // The pause menu and (persistence) the title: both freeze the game
+        // and draw over the level. Settings is shared; the title returns
+        // to the title from it.
+        enum class PauseScreen { None, Menu, Settings, Title, ConfirmNewGame };
         void OpenPause();
-        bool UpdatePause();
+        void OpenTitle();
+        bool m_settingsFromTitle = false;
+        float m_titleTime = 0.0f; // the backdrop's slow drift
+        bool UpdatePause(float deltaSeconds);
         void DrawPause();
         PauseScreen m_pause = PauseScreen::None;
         bool m_justPaused = false; // the Esc that opened it is not the Esc that closes it
@@ -326,6 +333,18 @@ namespace Demo
         std::unique_ptr<DialogueSpeech> m_speech = std::make_unique<DialogueSpeech>();
         void LoadVoices();
         EntityId m_speaker{}; // who we're talking to
+
+        // Persistence: the save file (save points write it; the title's
+        // Continue reads it). A scripted run uses its own file under out/,
+        // never the player's.
+        void OpenSaveFile();
+        bool SaveAt(const std::string& place);
+        bool ContinueFromSave();
+        void StartNewGame();
+        std::string m_savePath;
+        bool m_savePersist = false;
+        SaveLoad m_save;                          // what's on disk now
+        std::optional<SaveGame> m_pendingArrival; // Continue: placed when its level arrives
 
         // The ride (a level with a "ride" block): the bike follows the road,
         // the camera is the rider's eye; the route was picked by the spawn.
