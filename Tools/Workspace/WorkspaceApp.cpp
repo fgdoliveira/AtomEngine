@@ -474,8 +474,12 @@ namespace AtomWorkspace
         const AtomProject::ProjectDescriptor& d = project.descriptor;
         std::error_code error;
         const bool hasMain = fs::is_regular_file(fs::path(project.directory) / d.source / "Main.cpp", error);
-        if (ImGui::BeginTable("##descriptor", 2, ImGuiTableFlags_SizingFixedFit))
+        if (ImGui::BeginTable("##descriptor", 2))
         {
+            // The value column takes the panel's remaining width: wrapped
+            // text in a fit-to-content column has no width to wrap to.
+            ImGui::TableSetupColumn("key", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
             const auto row = [](const char* key, const std::string& value) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
