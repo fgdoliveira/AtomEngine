@@ -21,5 +21,9 @@ set sky_picture off
 wait 0.2
 set sky_picture on
 wait 0.2
+# A picked picture is a GPU texture the app holds: it must be gone before
+# the device at exit (it wasn't - the Debug build aborted on quitting).
+set sky_image night_sky.png
+wait 0.2
 set devtools off
 wait 0.1

@@ -487,6 +487,7 @@ namespace Showcase
         m_audio.reset(); // the audio thread stops before the booth it plays goes
         GetRenderer().SetParticleAtlas(nullptr, 1); // the atmosphere's atlas goes next
         m_levels.reset(); // the level's GPU resources go before the device
+        m_view.skyImage.reset(); // F10's picked sky, likewise
         m_uiFonts.reset();
         m_smallFont.reset();
         m_font.reset();

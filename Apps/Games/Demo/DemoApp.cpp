@@ -868,6 +868,7 @@ namespace Demo
         GetRenderer().SetParticleAtlas(nullptr, 1);
         m_unease.Configure({}, nullptr);
         m_levels.reset(); // the current level cleans itself up
+        m_view.skyImage.reset(); // F10's picked sky: a GPU texture, gone before the device is
         m_uiFonts.reset();
         m_smallFont.reset();
         m_font.reset();
@@ -1808,6 +1809,14 @@ namespace Demo
             }
             SetQualityMode(*mode, false);
             return true;
+        }
+        if (what == "sky_image")
+        {
+            // F10's sky picture list, for scenarios: a PNG in Sky/, or "level".
+            const std::string file = value == "level" ? std::string{} : value;
+            const bool loaded = LoadSkyImage(renderer, m_assets.Resolve("Sky/" + file), file, m_view);
+            ApplyLighting();
+            return loaded;
         }
         if (what == "ride_progress" && isNumber)
         {
