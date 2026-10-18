@@ -71,7 +71,9 @@ if (-not $NoSmoke) {
     }
     # M82: a package is a distribution build - no developer tools. A
     # development build staged by mistake says "on" here and is refused.
-    if (-not (Select-String -Path $out -Pattern "Developer tools: off" -Quiet)) {
+    # (v0.0.19: "Developer switches" - the tools left the games, F1 and the
+    # ATOM_* switches are what remains to compile out.)
+    if (-not (Select-String -Path $out -Pattern "Developer switches: off" -Quiet)) {
         Write-Host "FAILED: the packaged game has developer tools compiled in (not a distribution build); see $out" -ForegroundColor Red
         exit 1
     }

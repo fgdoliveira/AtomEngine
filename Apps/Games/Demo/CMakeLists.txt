@@ -12,7 +12,6 @@ add_library(
     DemoApp.h
     Flashlight.cpp
     Flashlight.h
-    DemoAppDevTools.cpp
     DemoAppCalibration.cpp
     Dialogue/Dialogue.cpp
     Dialogue/Dialogue.h
@@ -51,8 +50,8 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# JSON and ImGui are used only inside the library's .cpp files (the
-# parsers, the developer panels), so they stay PRIVATE (M54).
+# JSON is used only inside the library's .cpp files (the parsers), so it
+# stays PRIVATE (M54). v0.0.19: no ImGui - the tools are the workspace's.
 target_link_libraries(
     DemoLib
     PUBLIC
@@ -60,7 +59,6 @@ target_link_libraries(
         AtomFramework # M76: log, settings, calibration decision
     PRIVATE
         nlohmann_json::nlohmann_json
-        imgui
 )
 
 target_compile_definitions(
@@ -91,7 +89,7 @@ if(ATOM_BUILD_TESTS)
             Tests/Physics2DTests.cpp
             Tests/PlayfieldTests.cpp
             Tests/RideTests.cpp
-        LIBS DemoLib nlohmann_json::nlohmann_json
+        LIBS DemoLib AtomAuthoring nlohmann_json::nlohmann_json # AtomAuthoring: the level checks
     )
 endif()
 
@@ -191,7 +189,7 @@ foreach(entry IN ITEMS
         "nlohmann/json|external/json/LICENSE.MIT"
         "cgltf|external/cgltf/LICENSE"
         "stb|external/stb/LICENSE"
-        "Dear ImGui|external/imgui/LICENSE.txt"
+        "ProggyClean (font, embedded)|Engine/Debug/Fonts/LICENSE.txt"
         "Shippori Mincho (font)|Content/Fonts/OFL.txt")
     string(REPLACE "|" ";" parts "${entry}")
     list(GET parts 0 name)

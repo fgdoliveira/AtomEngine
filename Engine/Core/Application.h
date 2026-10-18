@@ -3,12 +3,14 @@
 #include "Audio/AudioSystem.h"
 #include "Core/FrameTiming.h"
 #include "Core/Time.h"
-#include "Debug/DevTools.h"
+#include "Debug/PerfOverlay.h"
 #include "Platform/Input.h"
 #include "Platform/Window.h"
 #include "Renderer/Renderer.h"
 
 #include <string>
+
+union SDL_Event;
 
 namespace Atom
 {
@@ -43,6 +45,10 @@ namespace Atom
         virtual bool OnInitialize() { return true; }
         virtual void OnUpdate(float /*deltaSeconds*/) {}
         virtual void OnShutdown() {}
+        // Every window event, before input sees it (v0.0.19: how the
+        // workspace's tool UI takes the mouse and keyboard it uses). Return
+        // true to keep it from the input system.
+        virtual bool OnEvent(const SDL_Event& /*event*/) { return false; }
 
         // exitCode becomes the process exit code (e.g. 1 = a test failed).
         void RequestQuit(int exitCode = 0)
@@ -55,7 +61,7 @@ namespace Atom
         Input& GetInput() { return m_input; }
         Renderer& GetRenderer() { return m_renderer; }
         AudioSystem& GetAudio() { return m_audio; }
-        DevTools& GetDevTools() { return m_devTools; }
+        PerfOverlay& GetPerfOverlay() { return m_perfOverlay; } // F1
         const Time& GetTime() const { return m_time; }
         // M99: where the last completed frame's time went (read in OnUpdate:
         // the frame before this one), and the same, averaged for display.
@@ -82,8 +88,7 @@ namespace Atom
         Renderer m_renderer;
         AudioSystem m_audio;
         Input m_input;
-        DevTools m_devTools;
-        bool m_capturedBeforeTools = false; // F10 gives the mouse back as it found it
+        PerfOverlay m_perfOverlay;
         Time m_time;
     };
 }

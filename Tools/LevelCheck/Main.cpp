@@ -4,6 +4,7 @@
 // the entity and the JSON Pointer of each. The checks are the framework's
 // (Framework/Level/LevelCheck.h); this is their command line.
 //
+//   AtomLevelCheck --project Apps/MyGame/MyGame.atomproject.json   (v0.0.19)
 //   AtomLevelCheck --app demo                     every level of an app
 //   AtomLevelCheck --app showcase showcase        one level
 //   AtomLevelCheck --all                          every app
@@ -12,7 +13,9 @@
 //
 // Exit code: 0 no errors (warnings allowed), 1 errors, 2 usage.
 #include "Level/LevelCheck.h"
+#include "Project/ProjectDiscovery.h"
 
+#include <cctype>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -26,25 +29,45 @@ namespace
     namespace fs = std::filesystem;
     using namespace AtomFramework;
 
+    // v0.0.19: the projects are found, not listed - every
+    // <Name>.atomproject.json under Apps/ (AtomProject::FindProjects). The
+    // short names the tests and docs use stay as aliases.
     struct App
     {
-        const char* owner;
-        const char* assets; // relative to the repository
+        std::string owner;   // "demo", "hello", ... (the alias), or the name in lower case
+        std::string assets;
+        std::string descriptor;
     };
 
-    // The apps whose levels are checked (Apps/, v0.0.16). DRIFT has no
-    // level files.
-    constexpr App Apps[] = {
-        { "showcase", "Apps/Showcase/Assets" },
-        { "demo", "Apps/Games/Demo/Assets" },
-        { "hello", "Apps/Samples/HelloAtom/Assets" },
-        { "arena", "Apps/Benchmarks/AtomArena/Assets" },
-    };
+    std::string OwnerOf(const std::string& name)
+    {
+        if (name == "HelloAtom") return "hello";
+        if (name == "AtomArena") return "arena";
+        std::string lower = name;
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return lower;
+    }
+
+    std::vector<App> FindApps(const fs::path& root)
+    {
+        std::vector<App> apps;
+        const AtomProject::Discovery found = AtomProject::FindProjects((root / "Apps").string());
+        for (const std::string& error : found.errors)
+        {
+            std::cerr << "AtomLevelCheck: " << error << '\n';
+        }
+        for (const AtomProject::DiscoveredProject& project : found.projects)
+        {
+            apps.push_back({ OwnerOf(project.descriptor.name), project.AssetsDir(), project.descriptorPath });
+        }
+        return apps;
+    }
 
     int Usage()
     {
-        std::cerr << "usage: AtomLevelCheck --app <showcase|demo|hello|arena> [level...]\n"
-                     "       AtomLevelCheck --all\n"
+        std::cerr << "usage: AtomLevelCheck --project <Name.atomproject.json> [level...]\n"
+                     "       AtomLevelCheck --app <name> [level...]   (a project under Apps/: showcase, demo, hello, arena, ...)\n"
+                     "       AtomLevelCheck --all                      (every project under Apps/)\n"
                      "       AtomLevelCheck --assets <dir> [--content <dir>] [level...]\n"
                      "options: --root <repository>, --errors-only, --no-clips\n";
         return 2;
@@ -98,14 +121,14 @@ namespace
         return errors;
     }
 
-    std::vector<OtherAppAssets> OtherApps(const fs::path& root, const char* except)
+    std::vector<OtherAppAssets> OtherApps(const std::vector<App>& apps, const std::string& except)
     {
         std::vector<OtherAppAssets> others;
-        for (const App& app : Apps)
+        for (const App& app : apps)
         {
-            if (std::strcmp(app.owner, except) != 0)
+            if (app.owner != except)
             {
-                others.push_back({ app.owner, (root / app.assets).string() });
+                others.push_back({ app.owner, app.assets });
             }
         }
         return others;
@@ -115,7 +138,7 @@ namespace
 int main(int argc, char** argv)
 {
     fs::path root = ATOM_SOURCE_DIR;
-    std::string app, assets, content;
+    std::string app, assets, content, project;
     std::vector<std::string> levels;
     bool all = false;
     bool errorsOnly = false;
@@ -125,6 +148,7 @@ int main(int argc, char** argv)
         const std::string arg = argv[i];
         const bool hasValue = i + 1 < argc;
         if (arg == "--app" && hasValue) app = argv[++i];
+        else if (arg == "--project" && hasValue) project = argv[++i];
         else if (arg == "--assets" && hasValue) assets = argv[++i];
         else if (arg == "--content" && hasValue) content = argv[++i];
         else if (arg == "--root" && hasValue) root = argv[++i];
@@ -140,10 +164,28 @@ int main(int argc, char** argv)
     }
 
     std::size_t errors = 0;
-    if (all || !app.empty())
+    if (!project.empty())
     {
+        // A project anywhere: its descriptor says where its assets are; the
+        // projects under Apps/ (if any) are the others it may not borrow from.
+        const AtomProject::DescriptorLoad load = AtomProject::LoadDescriptor(project);
+        if (!load.descriptor)
+        {
+            std::cerr << "AtomLevelCheck: " << load.error << '\n';
+            return 2;
+        }
+        const std::string owner = OwnerOf(load.descriptor->name);
+        LevelCheckOptions options;
+        options.assets = AssetRoots({ (fs::path(project).parent_path() / load.descriptor->assets).string(), content });
+        options.otherApps = OtherApps(FindApps(root), owner);
+        options.checkClips = clips;
+        errors += Run(owner, options, levels, errorsOnly);
+    }
+    else if (all || !app.empty())
+    {
+        const std::vector<App> apps = FindApps(root);
         bool known = false;
-        for (const App& candidate : Apps)
+        for (const App& candidate : apps)
         {
             if (!all && app != candidate.owner)
             {
@@ -151,14 +193,14 @@ int main(int argc, char** argv)
             }
             known = true;
             LevelCheckOptions options;
-            options.assets = AssetRoots({ (root / candidate.assets).string(), content });
-            options.otherApps = OtherApps(root, candidate.owner);
+            options.assets = AssetRoots({ candidate.assets, content });
+            options.otherApps = OtherApps(apps, candidate.owner);
             options.checkClips = clips;
             errors += Run(candidate.owner, options, all ? std::vector<std::string>{} : levels, errorsOnly);
         }
         if (!known)
         {
-            std::cerr << "AtomLevelCheck: no app \"" << app << "\"\n";
+            std::cerr << "AtomLevelCheck: no project \"" << app << "\" under " << (root / "Apps").string() << '\n';
             return Usage();
         }
     }

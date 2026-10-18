@@ -321,7 +321,6 @@ namespace Demo
 
     bool DemoApp::OnInitialize()
     {
-        RegisterDevPanels();
         // The player's display and volume (M90; defaults in a scripted run).
         ApplyDisplayAndVolume(GetWindow().GetSDLWindow(), &GetAudio(), nullptr, m_savedSettings);
         const char* basePath = SDL_GetBasePath();
@@ -953,7 +952,6 @@ namespace Demo
         DrawMachineView(); // over everything: the machine fills the window
         DrawPause();
         UpdateWindowTitle(deltaSeconds);
-        DrawDevTools(deltaSeconds);
     }
 
     void DemoApp::UpdateFlashlight(float deltaSeconds)
@@ -1107,7 +1105,7 @@ namespace Demo
 
         // M82: F1 is the engine's shared overlay; the demo appends its own
         // lines after the engine's (frame, scene, draws, device).
-        Atom::DevTools& tools = GetDevTools();
+        Atom::PerfOverlay& tools = GetPerfOverlay();
         if (!tools.IsOverlayVisible())
         {
             return;
@@ -1547,7 +1545,7 @@ namespace Demo
                 OpenPause();
             }
         }
-        else if (m_pause == PauseScreen::None && !input.IsMouseCaptured() && !GetDevTools().IsVisible()
+        else if (m_pause == PauseScreen::None && !input.IsMouseCaptured()
             && (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK))
         {
             input.SetMouseCaptured(GetWindow().GetSDLWindow(), true);
@@ -1977,14 +1975,6 @@ namespace Demo
             StartNewGame();
             return true;
         }
-        if (what == "sky_image")
-        {
-            // F10's sky picture list, for scenarios: a PNG in Sky/, or "level".
-            const std::string file = value == "level" ? std::string{} : value;
-            const bool loaded = LoadSkyImage(renderer, m_assets.Resolve("Sky/" + file), file, m_view);
-            ApplyLighting();
-            return loaded;
-        }
         if (what == "ride_progress" && isNumber)
         {
             // Jumps along the ride (0..1), so a scenario needn't ride a minute.
@@ -1998,18 +1988,10 @@ namespace Demo
         if (what == "unease" && onOff) m_unease.SetEnabled(on);
         else if (what == "world" && onOff) m_drawWorld = on;
         else if (what == "hud" && onOff) m_showHud = on;
-        else if (what == "overlay" && onOff) GetDevTools().SetOverlayVisible(on); // M82: the shared F1 overlay
-        else if (what == "devtools" && onOff) GetDevTools().SetVisible(on); // F10 (M41)
-        else if (what == "inspect") // v0.0.17 (M114): F10's entity report, by name ("none" clears)
-        {
-            const AtomFramework::Level* level = m_levels ? m_levels->GetLevel() : nullptr;
-            if (value == "none" || !level) m_devPanels.Inspector().Clear();
-            else m_devPanels.Inspector().Select(level->GetName(), value);
-        }
+        else if (what == "overlay" && onOff) GetPerfOverlay().SetOverlayVisible(on); // M82: the shared F1 overlay
         else if (what == "menu" && onOff) { if (on) OpenPause(); else m_pause = PauseScreen::None; } // M90
         else if (what == "title" && onOff) { if (on) OpenTitle(); else m_pause = PauseScreen::None; }
         else if (what == "menu" && value == "settings") { OpenPause(); m_pause = PauseScreen::Settings; }
-        else if (what == "devtools_collapsed" && onOff) m_devPanels.CollapseNext(on); // every panel, next frame
         else if (what == "spot" && onOff) m_devSpotOn = on; // M42: the test spot, at the camera
         else if (what == "spot_follow" && onOff) m_devSpotFollows = on; // off: it stays where it is
         else if (what == "spot_shadows" && onOff) m_devSpot.castsShadows = on; // M43

@@ -29,7 +29,7 @@ if(ATOM_BUILD_TESTS)
             Tests/LevelContentTests.cpp
             Tests/ShowcaseFeatureTests.cpp
             Tests/SkinningTests.cpp
-        LIBS ShowcaseLib AtomFramework nlohmann_json::nlohmann_json
+        LIBS ShowcaseLib AtomAuthoring nlohmann_json::nlohmann_json # AtomAuthoring: the level checks
     )
 endif()
 
@@ -42,7 +42,6 @@ add_executable(
     Main.cpp
     ShowcaseApp.cpp
     ShowcaseApp.h
-    ShowcaseDevTools.cpp
     ShowcaseLab.cpp
     ShowcaseLens.cpp
     ShowcaseMenus.cpp
@@ -53,7 +52,6 @@ target_link_libraries(
         ShowcaseLib
         AtomEngine
         AtomFramework
-        imgui # M89: its own F10 panels (ShowcaseDevTools.cpp)
 )
 target_compile_definitions(Showcase PRIVATE ATOM_VERSION="${PROJECT_VERSION}") # M90: the benchmark file
 if(ATOM_DISTRIBUTION)

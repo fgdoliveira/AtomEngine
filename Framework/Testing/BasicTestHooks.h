@@ -8,13 +8,11 @@ namespace Atom
 {
     class AudioSystem;
     class Camera;
-    class DevTools;
     class Renderer;
 }
 
 namespace AtomFramework
 {
-    class DevPanels;
     class LevelManager;
     struct Entity;
     struct SpawnPoint;
@@ -38,8 +36,7 @@ namespace AtomFramework
             Atom::Camera* camera = nullptr;
             ViewToggles* toggles = nullptr; // "set" view switches, if the app has them
             std::string outputRoot;         // captures go to <outputRoot>out/img/
-            DevPanels* panels = nullptr;    // M114: "set inspect <entity>" selects in the F10 entity report
-            Atom::DevTools* devTools = nullptr; // M114: "set devtools on|off" shows F10
+            // v0.0.19: no panels or devTools - inspection is the workspace's.
         };
         explicit BasicTestHooks(View view) : m_view(std::move(view)) {}
 

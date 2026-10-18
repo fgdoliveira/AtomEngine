@@ -57,7 +57,7 @@ atom_add_tests(
         Framework/SequenceTests.cpp
         Framework/TestScriptTests.cpp
         Framework/UiKitTests.cpp
-    LIBS AtomFramework
+    LIBS AtomAuthoring # v0.0.19: the framework, plus LevelCheck and the inspector (EntityInspectorTests, LevelCheckTests)
 )
 
 # The shared content's (Content/): the kit, the environment presets.
@@ -69,8 +69,39 @@ atom_add_tests(
         Content/KitAnimationTests.cpp
         Content/KitModelTests.cpp
         Content/LevelCheckClipTests.cpp
-    LIBS AtomFramework nlohmann_json::nlohmann_json
+    LIBS AtomAuthoring nlohmann_json::nlohmann_json
 )
+
+# The project service's (v0.0.19): descriptors, names, creation. No GPU,
+# no engine - it runs anywhere CI does.
+atom_add_tests(
+    AtomProjectTests
+    OWNER project
+    SOURCES
+        Project/ProjectTests.cpp
+    LIBS AtomProject
+)
+# M121: a fresh project configures, is discovered, and builds nothing yet.
+# Configures the whole engine once (about a minute): label "configure", not
+# "cpu", so CI's quick run doesn't carry it; the full check does.
+add_test(NAME Project.empty_configures
+         COMMAND ${CMAKE_COMMAND} -DENGINE=${CMAKE_SOURCE_DIR} -DTOOL=$<TARGET_FILE:AtomProjectTool>
+                 -DWORK=${CMAKE_BINARY_DIR}/empty-project-test -P ${CMAKE_CURRENT_SOURCE_DIR}/Project/EmptyProjectConfigures.cmake)
+set_tests_properties(Project.empty_configures PROPERTIES LABELS "configure;project" TIMEOUT 600)
+set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomProjectTool)
+
+# The workspace's (v0.0.19): what it keeps between sessions, without a window.
+atom_add_tests(
+    AtomWorkspaceTests
+    OWNER workspace
+    SOURCES
+        Workspace/OperationsTests.cpp
+        Workspace/RecentProjectsTests.cpp
+    LIBS AtomWorkspaceUI
+)
+# The process tests run cmake -E (echo, false, sleep): always there in a build.
+target_compile_definitions(AtomWorkspaceTests PRIVATE ATOM_TEST_CMAKE="${CMAKE_COMMAND}")
+set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomWorkspace)
 
 # AtomTests: every CPU test target, built together (CI, the full check).
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)

@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.18**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136). v0.0.18 makes the demo a game to play: a store character held on a frame, mumbled speech on the synthesiser timed to the text, a ride down a procedural coast road (a spline by arc length, a soft-leash controller, a leaning camera), terrain and night lighting for a coast and a shore, progress kept at save points with an atomic save file and a title screen, and the development tools and bugs that came with them (§137–§143).
+A study guide to every concept the engine uses, as of **v0.0.19**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136). v0.0.18 makes the demo a game to play: a store character held on a frame, mumbled speech on the synthesiser timed to the text, a ride down a procedural coast road (a spline by arc length, a soft-leash controller, a leaning camera), terrain and night lighting for a coast and a shore, progress kept at save points with an atomic save file and a title screen, and the development tools and bugs that came with them (§137–§143). v0.0.19 (M118–M126) moves the development tools out of the games into Atom Workspace, a program of their own: the runtime kept free of tool code by a build guard, projects as self-describing folders created atomically and discovered by CMake, a frame rendered into a texture a panel can show, an immediate-mode UI with docking and detachable windows (and the format rule they taught), levels previewed without their game, tools run as separate processes read through pipes, and a program that tests itself (§144–§151).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -152,9 +152,17 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 141. [Keeping progress: save points and a title screen](#141-keeping-progress-save-points-and-a-title-screen)
 142. [Development conveniences, and the bugs they found](#142-development-conveniences-and-the-bugs-they-found)
 143. [Releasing 0.0.18](#143-releasing-0018)
-144. [Anatomy of a frame and what it costs](#144-anatomy-of-a-frame-and-what-it-costs)
-145. [Build system and project layout](#145-build-system-and-project-layout)
-146. [Glossary](#146-glossary)
+144. [The tools leave the runtime (v0.0.19, M118–M119)](#144-the-tools-leave-the-runtime-v0019-m118m119)
+145. [What a project is: a descriptor, and creation that can't half-happen (M120)](#145-what-a-project-is-a-descriptor-and-creation-that-cant-half-happen-m120)
+146. [Found, not listed (M121)](#146-found-not-listed-m121)
+147. [Rendering into a texture the UI can show (M122)](#147-rendering-into-a-texture-the-ui-can-show-m122)
+148. [Immediate-mode UI with docking and windows of its own (M123)](#148-immediate-mode-ui-with-docking-and-windows-of-its-own-m123)
+149. [A level without its game (M124)](#149-a-level-without-its-game-m124)
+150. [Tools as processes (M125)](#150-tools-as-processes-m125)
+151. [A tool that tests itself, and releasing 0.0.19 (M126)](#151-a-tool-that-tests-itself-and-releasing-0019-m126)
+152. [Anatomy of a frame and what it costs](#152-anatomy-of-a-frame-and-what-it-costs)
+153. [Build system and project layout](#153-build-system-and-project-layout)
+154. [Glossary](#154-glossary)
 
 ---
 
@@ -1606,6 +1614,8 @@ Why would a uniform branch cost anything? On paper it shouldn't: every pixel tak
 
 ## 58. Developer tools: Dear ImGui (M41)
 
+> Since v0.0.19 ImGui is no longer in the games: the panels moved to Atom Workspace (§144, §148). What follows is how F10 worked until then; the concepts carry over.
+
 **Concept.** Tuning a light by editing JSON, restarting and looking again is slow. A **developer UI** lets you drag a slider and see the result at once. **Dear ImGui** is the standard choice. It's an **immediate-mode** UI: every frame the code says "a window, a slider bound to this float". ImGui keeps no widget tree of yours, so there is nothing to synchronise with the game's state. The widget *is* the variable, for one frame.
 
 ```cpp
@@ -2731,7 +2741,7 @@ The trade-off is written down (ADR-008): the shipped executable is no longer the
 
 **Players keep** the log, the start-failure message box, `--diagnostics`, and the settings flags (`--gpu`, `--quality`, `--reset-settings`…).
 
-**Concept: a guard against the wrong build.** `package.ps1`'s smoke run checks the packaged game's output for "Developer tools: off" and refuses the package otherwise. A development build can't be shipped by mistake.
+**Concept: a guard against the wrong build.** `package.ps1`'s smoke run checks the packaged game's output for "Developer tools: off" and refuses the package otherwise. A development build can't be shipped by mistake. (Since v0.0.19 the line reads "Developer switches: off", and the guard looks for that, §151.)
 
 **One F1 overlay for every game.** The engine draws a corner window with ImGui that never takes the mouse or keyboard. The engine adds its lines first each frame (frame time, scene size and MSAA, draws and triangles, the adapter, present mode and frames in flight, the latency readout), then the game appends its own through `AddOverlayLine`. The demo's old overlay (drawn with the game's UI renderer) folded into it; DRIFT adds speed, flow, chain and totals.
 
@@ -3342,6 +3352,8 @@ It changes nothing. An editor would need undo, saving and a second source of tru
 
 The pink case covers entities with no model and no collider, such as the street's vending machines: the machine you see is part of the street's own model. At first such an entity got a fixed 0.5 m box, which read as wrong bounds; a placeholder should look like a placeholder. The overlay also used to live inside the panel, so collapsing the panel hid it. It now draws from the selection, whatever the panel's state. Like all of F10, it is compiled out of packages.
 
+*Since v0.0.19 the report is the workspace's Hierarchy and Inspector, and the bounds are drawn over its Scene panel (§149); `EntityInspector` moved to `Authoring/Debug/`, and `DevPanels` was removed.*
+
 **Code.** `Framework/Debug/EntityInspector.{h,cpp}`, `Framework/Debug/DevPanels.cpp` (`DrawLevel`, `DrawEntityBounds`), `Tests/Framework/EntityInspectorTests.cpp`.
 
 ---
@@ -3596,7 +3608,247 @@ It is view state (`ViewToggles`), applied in `SceneLightingFor`, and nothing is 
 
 ---
 
-## 144. Anatomy of a frame and what it costs
+## 144. The tools leave the runtime (v0.0.19, M118–M119)
+
+**Concept: a dependency points one way, and a guard keeps it there.** Until v0.0.18 the development tools lived inside every game:
+- `Application` owned `DevTools`, the Dear ImGui host;
+- the framework held the F10 panels (`DevPanels`) and the entity inspector;
+- every game linked ImGui, and started it only in development builds (§101).
+
+That is a dependency pointing the wrong way. Runtime code (what players get) depended on tool code (what developers use), and the only thing stopping a game from shipping a panel was a compile switch. v0.0.19 turns it around:
+- tools sit *beside* the runtime in libraries of their own (`AtomAuthoring`, `AtomProject`, `AtomWorkspaceUI`);
+- the runtime knows nothing of them.
+
+A rule like "the engine doesn't use ImGui" decays unless something fails when it's broken. So the root `CMakeLists.txt` reads the link libraries of AtomEngine, AtomFramework and AtomAuthoring at configure time, and stops with an error if `imgui` is among them. The rule is now a build failure, not a code-review comment.
+
+**Concept: what a game still needs, drawn with what it already has.** F1, the performance overlay, was drawn with ImGui. The games keep F1, so it was redrawn with the engine's own `UIRenderer` and `Font`, the same path as every HUD (§28). It needed a font that is always there, independent of any app's assets. ProggyClean, ImGui's own default font (MIT), is embedded in the executable:
+- CMake reads the `.ttf` as hex (`file(READ … HEX)`);
+- it writes it out as a C++ byte array (`file(CONFIGURE)`) into `Generated/OverlayFont.cpp`;
+- `Font::LoadFromMemory` rasterises it from that span.
+
+There's no file to find at runtime, and no build step beyond CMake. Its licence travels in `Engine/Debug/Fonts/` and in the packages' notices.
+
+**Concept: hooks, not owners.** The engine gains only what a tool needs to attach itself, and what any game could use:
+- `Application::OnEvent(const SDL_Event&)` sees each window event before the input system. Returning true keeps it, as when the mouse is over a panel.
+- the renderer's existing **overlay pass** (a callback given the frame's command buffer and target) is where the workspace draws ImGui;
+- §147's offscreen target.
+
+The engine doesn't own a tool. It offers places a tool can plug into.
+
+**What moved, and what was lost.**
+- `LevelCheck` and `EntityInspector` moved to `Authoring/`.
+- `DevPanels` was deleted; its content was rebuilt as workspace panels (§149).
+- Two scenarios that tested F10 (`demo.devtools`, `hello_inspect`) went, replaced by the workspace's self-test (§151).
+- The cost was accepted knowingly: live tuning inside a running game is gone. You can no longer open F10 while riding the bike. The workspace previews levels, not gameplay.
+
+**Code.** `Engine/Debug/PerfOverlay.{h,cpp}`, `Engine/CMakeLists.txt` (the font's generation), `Engine/UI/Font.cpp` (`LoadFromMemory`), `Engine/Core/Application.{h,cpp}` (`OnEvent`), the root `CMakeLists.txt` (the guard), `Authoring/`.
+
+---
+
+## 145. What a project is: a descriptor, and creation that can't half-happen (M120)
+
+**Concept: a project describes itself.** Before v0.0.19 a project existed because the engine's CMake and `AtomLevelCheck` listed it by hand. Now a project is a folder with a **descriptor**, `<Name>.atomproject.json`:
+
+```json
+{ "schema": 1, "name": "Sandbox", "engine": "0.0.19", "source": "Source",
+  "assets": "Assets", "executable": "Sandbox", "startupLevel": "" }
+```
+
+Every path in it is relative to the descriptor. It says what the project is and where its parts are, never where the engine or a build lives on this machine. So the folder can be moved, zipped or cloned, and it still describes itself. `CheckRelativePath` refuses a root, a drive letter or `..`. `schema` is a version number, so a later format can recognise an old file instead of misreading it.
+
+**Concept: a name has to survive every place it goes.** A project name becomes four things: a folder, a C++ identifier, a CMake target and a file name. The rules are the intersection of what all four accept:
+- a letter first, then letters, digits or `_`;
+- at most 64 characters;
+- never a Windows device name (`CON`, `NUL`, `COM1`…, in any case). Windows refuses to create a file or folder with one of those names, whatever its extension.
+
+Checking up front means the error appears in the dialog as you type, not as a strange failure halfway through creation.
+
+**Concept: write somewhere else, then rename.** Creating a project writes about a dozen folders and files. If the third write fails (a full disk, a locked file, permissions), a half-made project left in `Apps/` would be worse than none: the next configure would find a broken descriptor. So `CreateProject`:
+1. writes everything into a hidden sibling, `Apps/.<Name>.creating`;
+2. renames it to `Apps/<Name>` only when every write succeeded.
+
+A rename within one volume is a single filesystem operation: other programs see either no project or a complete one. On failure, the temporary folder is removed. An existing destination is always an error, so creation never overwrites. It's the same idea as the save file's atomic write (§141), applied to a directory.
+
+**Concept: configure now, build later.** The generated `CMakeLists.txt` adds an executable only `if(EXISTS Source/Main.cpp)`. A fresh project has no code, so it configures cleanly and builds nothing. The moment you add `Main.cpp`, the next configure gives it a target.
+
+**Code.** `Project/Project/ProjectDescriptor.{h,cpp}`, `ProjectCreator.{h,cpp}`, `Tools/ProjectTool/Main.cpp` (`AtomProjectTool create`), `Tests/Project/ProjectTests.cpp` (names, paths with spaces, no overwrite).
+
+---
+
+## 146. Found, not listed (M121)
+
+**Concept: discovery over registration.** The root CMake globs `${ATOM_PROJECTS_DIR}/*/*.atomproject.json` (one folder down: `Apps/<Name>/`) and calls `add_subdirectory` for each. A project made in the workspace joins the build without anyone editing an engine file.
+
+The glob uses `CONFIGURE_DEPENDS`, so the build itself re-checks it: with Visual Studio, a `ZERO_CHECK` step before every build reconfigures if the set of matching files changed. That's why the workspace's Build (§150) picks up a new project without an explicit configure.
+
+**Concept: examples are special, on purpose.** The bundled apps sit two levels deep (`Apps/Games/Demo/`), are listed explicitly (`ATOM_EXAMPLE_DIRS`), and can be switched off together (`ATOM_EXAMPLE_APPS=OFF`). They have descriptors too, *in place*, so the workspace opens the Demo like any project. The glob skips them, so they're never added twice.
+
+**Concept: the tools ask the projects.** `AtomLevelCheck --project <descriptor>` checks one project's levels: the descriptor gives the assets folder. `--app demo` and `--all` resolve through discovery (`FindProjects`, two levels deep), not a compiled-in list. A broken descriptor is reported with its file, never skipped silently.
+
+**Concept: test the thing you claim.** "A fresh project configures and builds nothing" is a claim about CMake. So the test (`Project.empty_configures`) runs CMake:
+1. creates a project with the real `AtomProjectTool` in a scratch folder whose path contains a space;
+2. configures the whole engine against it, with the bundled apps off;
+3. checks that it was discovered, said it has nothing to build, and generated no executable target.
+
+Since M126, it also checks that the workspace target exists without the bundled apps. It takes about 30 s, so it carries the `configure` label, run by the full check and not by CI's quick pass.
+
+**Code.** The root `CMakeLists.txt` (discovery, `ATOM_EXAMPLE_*`), `Project/Project/ProjectDiscovery.{h,cpp}`, `Tools/LevelCheck/Main.cpp`, `Tests/Project/EmptyProjectConfigures.cmake`.
+
+---
+
+## 147. Rendering into a texture the UI can show (M122)
+
+**Concept: the frame's destination is a parameter.** A game's frame ends in the swapchain image, which is presented. An editor wants the same frame inside a panel. So the renderer can draw the whole post-processed frame (shadows, scene, glow, post, the game's UI) into a texture instead:
+- `Renderer::SetSceneTarget(w, h)` creates a texture with `COLOR_TARGET | SAMPLER` usage, in the swapchain's format.
+- `Render()` draws every pass into it at that size.
+- The window itself is only cleared. The overlay pass then draws on the window: there, the workspace samples the texture into a panel.
+
+The texture uses the swapchain's format because the post and UI pipelines are built for that format (a pipeline is tied to its target format, §148). `0 × 0` returns to the window, which is what games keep doing.
+
+**Concept: a change applied later, and the reference that goes stale.** `SetSceneTarget` only records the size; the texture is recreated at the next `Render()`. In the workspace that ordering matters within one frame:
+1. the Scene panel, drawn in `OnUpdate`, asks for the new size;
+2. later in the same frame, `Render()` releases the old texture and makes the new one;
+3. then the overlay pass draws ImGui, whose draw list was recorded in step 1.
+
+If the panel had recorded the texture pointer in step 1, step 3 would draw from a texture already released. So the panel draws the image only when the texture already has the size it asked for. On the one frame of a resize, it draws a dark fill instead. Nobody sees one frame; a dangling GPU pointer would crash.
+
+**Evidence.** `hello_scene_target` screenshots the same view drawn directly and offscreen at the window's size: identical but for the spinning cubes. It then resizes the target twice and returns to the window. The GPU lifetime check at exit (§70) fails the run if a texture leaked.
+
+**Code.** `Engine/Renderer/Renderer.cpp` (`SetSceneTarget`, `EnsureViewTexture`, `Render`), `Framework/Level/ViewToggles.cpp` (`set scene_target`), `Apps/Samples/HelloAtom/Scenarios/hello_scene_target.atomtest`.
+
+---
+
+## 148. Immediate-mode UI with docking and windows of its own (M123)
+
+**Concept: immediate mode, and what holds state.** Dear ImGui (§58) has no widget objects. Each frame the code calls `Button("Build")`, and the return value says whether it was clicked. ImGui still keeps state between frames: which item is hovered or active, which tree node is open, where each window is. It keys all of it by an **ID**, a hash of the label and its parent scopes.
+
+Two widgets in one scope with the same label therefore share an ID and share that state. The workspace's start page listed Drift twice, once under recent projects and once under the engine's projects. Both rows hashed to `("Start", "Drift")`, and ImGui 1.91+ outlined both in red with a warning. The fix is ImGui's own advice for loops: `PushID` a scope per row (the list's name, then the descriptor path) around the `Selectable`. The label stays "Drift"; the IDs differ.
+
+**Concept: docking.** The docking branch lets a window become a tab in another, or a split pane in a **dock space**. The workspace covers its main window with one (`DockSpaceOverViewport`), and builds a default arrangement with the `DockBuilder` API: split the node left, right and bottom, then dock each panel by name. ImGui saves the arrangement to an `.ini` file. The workspace keeps that file in the user's settings, never beside the executable; View > Reset Layout deletes it and builds the default again.
+
+**Concept: multiple viewports - a window per panel.** With viewports on, dragging a panel outside the main window makes ImGui ask the platform backend for a new OS window, and the renderer backend for a swapchain on it. On SDL_GPU that's one device, many swapchains. Each detached window is drawn with a command buffer of its own (`RenderPlatformWindowsDefault`), called inside our overlay pass, before the main command buffer is submitted.
+
+**Bug: one pipeline, two formats.** ImGui builds *one* pipeline, for the format the main window's swapchain uses. The engine asks for `SDR_LINEAR` composition: an `_SRGB` format, where the hardware converts linear colour to sRGB as it writes. The detached windows were created as plain `SDR` (`_UNORM`). D3D12's debug layer reported every draw into one:
+
+> The render target format in slot 0 does not match that specified by the current pipeline state. (pipeline state = B8G8R8A8_UNORM_SRGB, render target format = B8G8R8A8_UNORM)
+
+The fix gives the detached windows the main swapchain's composition: `SDR_LINEAR` when its format is an `_SRGB` one, `SDR` otherwise (the engine's fallback, §83). The rule: **everything one pipeline draws into must share its format.** That includes the offscreen target of §147.
+
+**Bug: a column with nothing to wrap to.** The Project panel's values came out one letter per line. Its table's columns were sized to their content, but wrapped text takes its width *from* the column. So the column shrank to zero, and the text wrapped after every character. The fix: the key column fits its text, and the value column stretches to the rest of the panel.
+
+**Concept: windows the user can lose.** A few rules make many windows forgiving:
+- closing a *floating* panel docks it back into the main window, instead of hiding it somewhere offscreen;
+- closing a docked panel hides it (View brings it back);
+- a panel the saved layout doesn't know (new in a later version) starts as a tab in the middle (`SetNextWindowDockID` with `FirstUseEver`).
+
+SDL sends `SDL_EVENT_QUIT` only when the *last* window closes. With panels detached, closing the main window isn't that, so the workspace quits on that window's close request explicitly. For DPI, the style is scaled by the main window's display scale at start, and `ConfigDpiScaleFonts` lets a panel moved to another monitor follow that monitor's scale. `ATOM_WORKSPACE_VIEWPORTS=0` turns detaching off, for a machine whose driver mishandles extra swapchains.
+
+**Code.** `WorkspaceUI/ImGuiHost.{h,cpp}`, `Tools/Workspace/WorkspaceApp.cpp` (`DrawPanel`, `BuildDefaultLayout`, the menu, toolbar and start page), `WorkspaceUI/RecentProjects.{h,cpp}`.
+
+---
+
+## 149. A level without its game (M124)
+
+**Concept: data-driven content can be previewed for free.** A level is a JSON file the framework parses (ADR-012): models, collision, lighting, entities, their animations. Nothing in it needs the game's code to *exist*. So `ScenePreview` (in `AtomAuthoring`) loads any project's level with the framework's own `LevelManager`, and draws it with nothing above it. There's no player, no riding and no dialogue: those are behaviour, which is the game's. The preview owns:
+- **asset roots**, in the order an app's payload lays them out: the project's `Assets/`, then the engine's `Content/` (§124);
+- the **model cache**, declared before the level manager so it outlives it (§70);
+- the **environment presets** and their controller, so a preset blends over the level's own light (§66);
+- the **view switches**, the same ones the scenarios' `set` uses (`ApplyViewSwitch`);
+- a **camera**.
+
+Each frame it advances the environment and the level, and gives the renderer the lighting, the camera and the level's draws.
+
+**Concept: a fly camera.** Editors move the view, not a character. While the right mouse button is held over the Scene panel:
+- the mouse turns the camera (yaw and pitch, as the player's look does);
+- W/S move along the full view direction, pitch included, so you can fly up toward what you look at;
+- A/D strafe, Q/E go straight down and up;
+- the wheel scales the speed (×1.25 per notch), Shift multiplies it by four.
+
+Releasing the button gives the mouse back to the UI. **Framing** (F, or a double-click in the Hierarchy) places the camera back along its view direction, at the distance where a sphere around the entity's model fills the vertical field of view: `d = r / sin(fov / 2)`.
+
+**Concept: debug lines are projection, not rendering.** The selected entity's bounds (§132's colours) are drawn as 2D lines on the panel. Each box corner is projected with the camera's view-projection matrix, using the panel's aspect ratio, and mapped into the panel's rectangle, clipped to it. A corner behind the camera (`w ≤ near`) is skipped. The renderer is untouched.
+
+**Concept: don't draw what nobody sees.** When the Scene panel isn't visible (a hidden tab, closed), the offscreen target shrinks to 16×16. The full frame would otherwise be rendered every frame for nothing.
+
+**One frame behind when detached.** A detached Scene window's command buffer is submitted *before* the main one, which renders the scene (§148). The GPU runs submissions in order, so a detached Scene shows the previous frame's image. At 60 Hz that's invisible; it's a consequence of the submission order, not a bug.
+
+**Panels.**
+- **Assets** reads a folder only while its tree node is open.
+- **Hierarchy** iterates the world's entities.
+- **Inspector** is §132's read-only model: selection by name, resolved again every frame.
+- **Preview** is F10's Environment, Sky picture, Lighting, Render and Frame panels, rebuilt on the preview.
+
+**Code.** `Authoring/Preview/ScenePreview.{h,cpp}`, `Tools/Workspace/WorkspacePanels.cpp` (`DrawScenePanel`, `UpdateFlyCamera`, `DrawSelectionBounds`, the Preview sections).
+
+---
+
+## 150. Tools as processes (M125)
+
+**Concept: the process boundary is the isolation.** Validate, Build and Run are other programs: `AtomLevelCheck`, `cmake --build`, the game. The workspace starts them as **child processes** rather than calling into them:
+- A game that crashes, a build that hangs, a level that makes the checker loop forever can't take the workspace down: the operating system keeps them apart.
+- The workspace runs exactly what a developer would type in a terminal, so its results are the same.
+
+That's also why an editor that hosts game code in its own process was rejected (ADR-013).
+
+**Concept: pipes, and who waits.** A child's output arrives through a **pipe**: the OS buffers what it writes until someone reads it. Reading blocks while the child is quiet. A UI that read on its own thread would freeze until the next line came. So `ProcessRunner` (on SDL's process API: stdout piped, stderr merged into it):
+- reads on a **thread of its own**, with blocking reads;
+- splits the bytes into lines (a partial line waits for its end);
+- appends finished lines to a list under a mutex.
+
+The UI thread polls once per frame (`TakeLines`, then `TakeExitCode`) and never waits. When the pipe closes (the child ended or was killed), the thread waits for the exit code. The exit code is handed over only after the last lines, so the Console's final "exit code 0" really is final.
+
+**Concept: stopping isn't always stopping everything.** Stop calls `SDL_KillProcess(force)`, which on Windows is `TerminateProcess` on the child. `cmake --build` itself starts MSBuild worker processes, and those aren't its child's children in any way the kill follows. They can run on for a moment. Ending the whole tree would need a Windows **Job Object**, which owns a group of processes. It was left out until it's a problem.
+
+**Concept: output that leads somewhere.** "Failures are actionable" means the file first, then the message. `FileInLine` recognises three formats:
+- `AtomLevelCheck`'s `Source: Levels/street.json`, relative to the assets folder;
+- MSVC's `file(line,col): error`;
+- CMake's `CMake Error at file:line (command):`.
+
+A relative path is tried against the project's assets, the project, `Content/` and the engine root. A line whose file exists can be double-clicked to open it, and on a failure the status bar names the first such file. Lines are coloured by `ClassifyLine` ("0 error(s)" is a success, not an error). The Console draws only the visible lines (`ImGuiListClipper`): a build writes thousands.
+
+**Concept: find the build tree, don't configure it.** The workspace runs from `<build>/bin/<config>/AtomWorkspace/`. It derives the build folder and the configuration from its own location, and reads which `cmake` configured that tree from `CMakeCache.txt` (`CMAKE_COMMAND`). No machine path is compiled in. A disabled operation says why on hover: no project, another operation running, no `Source/Main.cpp`, not built yet.
+
+**Two parser bugs, caught by their tests.**
+- `"    0 Error(s)"` lost its leading space when trimmed, so the `" 0 error"` match missed it.
+- On a CMake line, `rfind(':')` found the colon *at the end of the line*, not the one before the line number. Cutting the ` (command):` suffix first fixed it.
+
+**Code.** `WorkspaceUI/ProcessRunner.{h,cpp}`, `WorkspaceUI/ConsoleLines.{h,cpp}`, `Tools/Workspace/WorkspaceOperations.cpp`, `Tests/Workspace/OperationsTests.cpp` (output, exit codes and Stop on `cmake -E echo|false|sleep`).
+
+---
+
+## 151. A tool that tests itself, and releasing 0.0.19 (M126)
+
+**Concept: drive the real program, through its own functions.** The F10 scenarios drove a game through the scenario harness. The workspace has no harness, so `AtomWorkspace --test <folder>` makes it test itself. A small state machine, one step per frame or more, calls the same functions the menus and panels call:
+- open the Demo;
+- preview the street;
+- select `shrine_keeper`, inspect it, frame it;
+- turn the sky picture off and on;
+- switch to an environment preset and back;
+- reload, switch to the shore;
+- create a project and open it (Run must say it needs `Main.cpp`);
+- validate HelloAtom as a process, and see its exit status reach the Console.
+
+A failed check is logged and the test goes on, so one run reports everything that broke. It exits 0 or 1. In test mode the user's layout and recent projects are neither read nor written. It runs in about 2 s as `Scenario.workspace.workspace_self_test`, with the `smoke` label: an engine change can break the workspace too.
+
+**Bug: a frame's draws hold pointers until it is rendered.** The first run crashed (an access violation) right after "reload the level". The self-test ran at the end of `OnUpdate`, *after* the preview had submitted the frame's draws. Submission doesn't copy models; it queues references to the level's meshes and materials (§4's immediate submission). The reload destroyed the old level, and `Render()` then drew from freed memory.
+
+The panels never hit it: they run while the UI is drawn, before submission, as the games' hot reload does. The fix runs the self-test at the same point. The rule went into Architecture §5: **levels change before the frame is submitted, never between `Submit` and `Render()`.**
+
+**A stale string.** The release's package run failed on both games: "developer tools compiled in". The games were right. M118 had renamed the log line "Developer tools: off" to "Developer switches: off", and `package.ps1`'s guard (§101) still looked for the old text. The per-milestone checks package with `-NoSmoke`, so only the full release run reached the guard. A check that matches a log line is coupled to its wording; changing the line means changing the check.
+
+**Releasing 0.0.19.**
+- `check.ps1 -Level full`: 46/46 in Debug and 46/46 in Release, including the self-test, `Project.empty_configures`, and the two Blender tests.
+- **Packages:** `Demo-v0.0.19-win64.zip` 17.2 MB (0.0.18: 17.5 MB, without ImGui now) and `Drift-v0.0.19-win64.zip` 1.8 MB, both with their smoke start.
+- `AtomLevelCheck --all`, the CI configure and the privacy check passed.
+- **Not measured:** no A/B was run. The games' frame gained nothing: F1 is drawn with the existing UI path, and only when shown.
+- **Known:** the docking, detaching and DPI behaviour were tried by hand on the development laptop's screens only.
+- **Next (0.0.20):** a relocatable source SDK, so a project can live outside the engine's tree.
+
+**Code.** `Tools/Workspace/WorkspaceSelfTest.cpp`, `Tools/Dist/package.ps1`, `CHANGELOG.md` 0.0.19, `docs/Architecture.md` (ADR-013), `docs/Getting-Started.md` §7.
+
+---
+
+## 152. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -3643,12 +3895,12 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 145. Build system and project layout
+## 153. Build system and project layout
 
-- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomShaders` (custom target compiling HLSL). The apps live under `Apps/` by purpose (§127). **CPU tests** (v0.0.16, §123): one doctest executable per owner — `AtomEngineTests`, `AtomFrameworkTests`, `AtomContentTests`, `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` — declared with `atom_add_tests` and run as `Unit.<owner>` and `Content.<owner>`; `AtomTests` builds them all. **Scenarios** (§125): each app registers its `Scenarios/*.atomtest` (and runs of its command line) as `Scenario.<owner>.<name>` with `atom_add_scenarios` / `atom_add_scenario`, labels `scenario`, the owner and, for one short run per app, `smoke`. Both helpers are in `cmake/AtomTesting.cmake`.
-- **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9 (built as the `imgui` static library with its SDL3 and SDL_GPU backends).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Apps/Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
-- **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game Demo|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build with developer tools, §101) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
+- **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomShaders` (custom target compiling HLSL). Since v0.0.19 the tools, which no game links (§144): `AtomAuthoring` (LevelCheck, the inspector, `ScenePreview`), `AtomProject` (descriptors, creation, discovery; no GPU), `AtomWorkspaceUI` (the ImGui host, recent projects, `ProcessRunner`, the Console's parsing), and the programs `AtomWorkspace`, `AtomProjectTool`, `AtomLevelCheck`; a configure-time guard keeps `imgui` out of the runtime. The apps live under `Apps/` by purpose (§127). **CPU tests** (v0.0.16, §123): one doctest executable per owner — `AtomEngineTests`, `AtomFrameworkTests`, `AtomContentTests`, `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` — declared with `atom_add_tests` and run as `Unit.<owner>` and `Content.<owner>`; `AtomTests` builds them all. **Scenarios** (§125): each app registers its `Scenarios/*.atomtest` (and runs of its command line) as `Scenario.<owner>.<name>` with `atom_add_scenarios` / `atom_add_scenario`, labels `scenario`, the owner and, for one short run per app, `smoke`. Both helpers are in `cmake/AtomTesting.cmake`.
+- **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9-docking (built as the `imgui` static library with its SDL3 and SDL_GPU backends; linked only by the workspace since v0.0.19).
+- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`), `ATOM_EXAMPLE_APPS` (the bundled apps; `ATOM_EXAMPLE_DIRS` lists them) and `ATOM_PROJECTS_DIR` (where `*/*.atomproject.json` are discovered, §146). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Apps/Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
+- **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game Demo|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build whose log doesn't say "Developer switches: off", §101, §151) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
 - **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the CPU tests (`ctest -L cpu`), HelloAtom's compile (§111), and the package check for both games (no artifact kept); without the game no scenario is registered. **Validation** (§75, §100, §125): `Tools/Dev/check.ps1 -Level changed` per milestone — the owners a change touches, from `Tools/Dev/changed.psd1`, and only their test targets and apps built — and `-Level full` once per version.
 - **Shader variants** (§69, §98): `BasicRain.frag` and `BasicToon.frag` include `Basic.frag` with a define; a change to `Basic.frag` rebuilds all three. Write float literals with `f` (§102).
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
@@ -3665,26 +3917,31 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Assets**: `blender -b --factory-startup -P Tools/Blender/build_assets.py` rebuilds every glb, the lightmaps (skipping unchanged ones, §46) and the markers; the game build copies `Assets/` next to the executable, so rebuild the game (or use `ATOM_ASSET_ROOT`) to see new assets.
 - **Authoring** (v0.0.17, §129–§135): `pwsh Tools/Blender/export.ps1 -List | -Only <unit> [-What markers] | -Scene <file.blend> -Level <name>`; `AtomLevelCheck --app <app> | --all` (`Tools/LevelCheck`); `pwsh Tools/Blender/open.ps1` (the marker panel); `clean_scene.ps1` before committing a `.blend`. Guide: `docs/Authoring.md`.
 - **Demo vertical** (v0.0.18, §137–§142): Blender units `coast` and `shore` (`export.ps1 -Only coast|shore`); the demo's progress in `save.json` beside `settings.json` (`--no-save`, `--reset-save`; scripted runs use `out/test_save.json`); voices in `Assets/Data/voices.json`; third-party models and their credits in `Apps/Games/Demo/Assets/ThirdParty/` (shipped). Scenarios `ride_to_shore`, `save_continue`.
-- **Running tests**: `ctest --test-dir build -C Release` (all), `-L cpu` (the CPU tests, no GPU), `-L scenario` (in-game), `-L smoke` (one short run per app), `-L <owner>` (one owner's: `engine`, `framework`, `content`, `demo`, `drift`, `showcase`, `hello`, `arena`); `<target> -ts=benchmark` runs a target's timing comparisons by hand (§121).
+- **Atom Workspace** (v0.0.19, §144–§151): `build/bin/<config>/AtomWorkspace/AtomWorkspace.exe [--project <descriptor> [--level <name>]] [--test <folder>]`; layout and recent projects in `%APPDATA%\AtomEngine\Workspace\`; `ATOM_WORKSPACE_VIEWPORTS=0` keeps panels inside the window. Projects: `AtomProjectTool create --workspace <folder> --name <Name>`; `AtomLevelCheck --project <descriptor>`. Tests `AtomProjectTests`, `AtomWorkspaceTests`, `Project.empty_configures` (label `configure`), `Scenario.workspace.workspace_self_test`, `hello_scene_target`; the harness's `set scene_target <w>x<h>|off`.
+- **Running tests**: `ctest --test-dir build -C Release` (all), `-L cpu` (the CPU tests, no GPU), `-L scenario` (in-game), `-L smoke` (one short run per app), `-L <owner>` (one owner's: `engine`, `framework`, `content`, `project`, `workspace`, `demo`, `drift`, `showcase`, `hello`, `arena`); `<target> -ts=benchmark` runs a target's timing comparisons by hand (§121).
 
 ```
-Engine/  Assets/ Audio/ Core/ Debug/ (ImGui host) Physics/ Platform/ Renderer/ Scene/ UI/
+Engine/  Assets/ Audio/ Core/ Debug/ (PerfOverlay, the F1 overlay; Fonts/ProggyClean) Physics/ Platform/ Renderer/ Scene/ UI/
          Renderer/GPUDevice (device, window claim, presentation, fallback)
          Audio/Synth, SynthStream (the live synth); Core/DevSwitch (development switches)
          Core/Log, Profile, Trace, FrameTiming; Platform/Memory, CrashReport (v0.0.15)
 Framework/ Platform/ (RunLog, AssetRoots), Settings/ (GameSettings, SettingsStore, Calibration),
-         Diagnostics/DiagnosticsReport, Debug/DevPanels (F10),
+         Diagnostics/DiagnosticsReport,
          Level/ (LevelData, Level, LevelManager, ModelCache, SoundLibrary, ScreenProgram, ViewToggles),
          World/ Interaction/ Environment/ (EnvironmentController, EnvironmentPresets, Atmosphere)
          Character/ (PlayerController, Animator, LabViewer, SpringArm)
          UI/ (UiKit, UiFonts, MenuScreen, SettingsScreen), Testing/ (TestScript, GameDiagnostics,
          BasicTestHooks, PairedBench), Schemas/*.schema.json
-Apps/    (v0.0.16) each app owns its Assets/, Tests/ (its CPU tests) and Scenarios/
+Authoring/ (v0.0.19) Level/LevelCheck, Debug/EntityInspector, Preview/ScenePreview
+Project/   (v0.0.19) Project/ProjectDescriptor, ProjectCreator, ProjectDiscovery
+WorkspaceUI/ (v0.0.19) ImGuiHost, RecentProjects, ProcessRunner, ConsoleLines
+Apps/    (v0.0.16) each app owns its Assets/, Tests/ (its CPU tests) and Scenarios/;
+         since v0.0.19 each is a project with its <Name>.atomproject.json
   Showcase/ ShowcaseApp (the village, clock, captions), ShowcaseLens, ShowcaseLab, ShowcaseMenus
-         (title, settings, benchmark), ShowcaseDevTools, BoothSynth, Features/ (the catalog);
+         (title, settings, benchmark), BoothSynth, Features/ (the catalog);
          Assets/ (Levels/, Lakeshore/, Lab/, ThirdParty/), Tests/, Scenarios/
   Games/Demo/ DemoApp, AudioScape, SoundSynth, UneaseDirector, Flashlight, Dialogue/, Pachinko/,
-         Input/, DemoAppDevTools, DemoAppCalibration; Assets/ (Street, Shrine, Interior, Fields,
+         Input/, DemoAppCalibration; Assets/ (Street, Shrine, Interior, Fields,
          City, Night, Pachinko, Passage, Levels, Dialogue, Data), Tests/, Scenarios/, README.txt.in
   Games/Drift/ DriftLib: Flight, World, SpeedField, Music; DriftApp, Main;
          Assets/ (ship, ring, orb, rock .glb; Fonts/SpaceGrotesk + OFL); Tests/; README.txt.in
@@ -3695,6 +3952,8 @@ Shaders/ Basic, Shadow, Particle, Fullscreen, Post, UI, Sky, Halo,
          GlowBright, GlowBlur, Skinned, ShadowSkinned, Beam, Water, BasicRain,
          BasicToon, Outline (.hlsl)
          + Common.hlsli, Sway.hlsli, Skinning.hlsli, SkyGradient.hlsli
+Tools/Workspace/  AtomWorkspace: WorkspaceApp, WorkspacePanels, WorkspaceOperations, WorkspaceSelfTest
+Tools/ProjectTool/  AtomProjectTool; Tools/LevelCheck/  AtomLevelCheck
 Tools/Machines/  playfield layout scripts; Tools/Docs/  captures, GIF maker
 Tools/Perf/  ab.ps1 (build A/B, hang guard), latency.ps1 (input latency: Engine / PresentMon),
              arena.ps1 (ATOM ARENA's matrix, -Trace),
@@ -3709,25 +3968,27 @@ Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
                 + export (each product to its app's Assets/ or to Content/)
 docs/    this manual, Architecture.md, Features.md, Getting-Started.md
 .github/ CI workflow; CLAUDE.md: working rules for agents
-Tests/   the CPU tests of what isn't an app's: Engine/, Framework/, Content/;
+Tests/   the CPU tests of what isn't an app's: Engine/, Framework/, Content/, Project/, Workspace/;
          Support/ (TestMain, TestAssets, LevelChecks)
 cmake/   AtomTesting.cmake (atom_add_tests, atom_add_scenario[s]), AtomApps.cmake (atom_app_payload)
 external/ SDL glm cgltf stb json doctest imgui
 ```
 
-**The Showcase:** a title (Explore, Benchmark, Settings, Quit) · WASD, Shift jog, mouse look · 1–5 go to a place · P next time of day · T pause the clock · **Tab the lens** (1–9, 0 switch a Feature) · E at the workshop: the character lab · at the radio shed J K L ; play, U I tone, O echo · Esc the menu · F1 overlay · F2–F8 view · F10 tools.
+**The Showcase:** a title (Explore, Benchmark, Settings, Quit) · WASD, Shift jog, mouse look · 1–5 go to a place · P next time of day · T pause the clock · **Tab the lens** (1–9, 0 switch a Feature) · E at the workshop: the character lab · at the radio shed J K L ; play, U I tone, O echo · Esc the menu · F1 overlay · F2–F8 view.
 
-**The demo:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc pause menu · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · F10 developer tools · **F flashlight** (once found) · M mute.
+**The demo:** WASD, Shift jog, mouse look, **E interact** (in dialogue: continue/confirm; W/S or 1–4 choose), Esc pause menu · F1 debug overlay · F2 render scale · F3 baked light · F4 MSAA · F5 fog · F6 shadows · F7 post look · F8 particles · F9 unease moments · **F flashlight** (once found) · M mute.
 
-**DRIFT:** click to launch · WASD, arrows or the pointer's position steer · Shift boost · M mute · Esc pause menu · (development builds: F1 overlay, F10 tools).
+**DRIFT:** click to launch · WASD, arrows or the pointer's position steer · Shift boost · M mute · Esc pause menu · (development builds: F1 overlay).
 
 **Character lab** (the Showcase's workshop): arrows / mouse orbit, wheel zoom · 1–4 clip · 5 blend (Z/X slider) · 6 state machine · −/+ speed · Space pause · . step · B bind pose · K skeleton · W weights · Tab drive (WASD, Shift run, Space jump, Tab back) · E leave.
 
-**HelloAtom:** WASD, Shift jog, mouse look · F1 · F2–F8 · F10 · Esc quit.
+**HelloAtom:** WASD, Shift jog, mouse look · F1 · F2–F8 · Esc quit.
+
+**Atom Workspace:** right mouse held over the Scene + mouse look, W/S along the view, A/D strafe, Q/E down/up, wheel speed, Shift ×4 · F frame the selection (over the Scene) · double-click a level in Assets to show it, an entity in the Hierarchy to frame it, a Console line naming a file to open it · View > Reset Layout · F1 overlay.
 
 ---
 
-## 146. Glossary
+## 154. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
@@ -4000,3 +4261,20 @@ external/ SDL glm cgltf stb json doctest imgui
 - **Hemisphere ambient** — ambient light from a sky colour above and a ground colour below, blended by the surface's facing; vertical faces get half of each (§140).
 - **Save point** — a place in the world where the game keeps its progress, chosen by the level design rather than the player's timing (§141).
 - **Soft leash** — a limit that pulls back past its edge instead of stopping hard (DRIFT's lateral bound, the ride's road edge) (§139).
+- **Build guard** — a configure or build step that fails when an architectural rule is broken (here: ImGui linked into the runtime), so the rule can't decay into a convention (§144).
+- **Child process** — a program started by another; the OS keeps their memory apart, so the child crashing or hanging can't take the parent down (§150).
+- **`CONFIGURE_DEPENDS`** — a CMake glob flag that makes the build re-check the glob and reconfigure when the set of matching files changes (§146).
+- **Descriptor (project)** — a file that says what a project is and where its parts are, relative to itself, never to a machine (§145).
+- **Discovery** — finding things by a convention (a file pattern) instead of keeping a list someone must edit (§146).
+- **Dock space / docking** — an area where windows become tabs or split panes of one another, rearranged by dragging (§148).
+- **Fly camera** — an editor camera moved freely along its view direction, not walked by a character (§149).
+- **ID (ImGui)** — the hash of a widget's label and its parent scopes, under which ImGui keeps its state; equal labels in one scope collide (§148).
+- **Job Object (Windows)** — a group of processes managed together, e.g. ended in one call with every descendant (§150).
+- **Multi-viewport** — ImGui windows living in OS windows of their own, each with its own swapchain on the one GPU device (§148).
+- **Offscreen target** — a texture the frame is rendered into instead of the swapchain, to be shown elsewhere (a panel) (§147).
+- **Overlay pass** — the renderer's last pass over the window, a hook where a tool draws on top of the frame (§144).
+- **Pipe** — an OS buffer one process writes and another reads; reading blocks while it's empty (§150).
+- **Process isolation** — running a tool as a separate program so its failures stay its own (§150).
+- **Self-test** — a program driving itself through its own functions and reporting the result as an exit code (§151).
+- **Temp-and-rename** — writing a whole result in a temporary place and renaming it into position, so others see none or all of it (§145).
+- **Windows device name** — `CON`, `NUL`, `COM1`… reserved by Windows, refused as a file or folder name with any extension (§145).

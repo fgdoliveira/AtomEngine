@@ -15,12 +15,12 @@ if(ATOM_BUILD_TESTS)
         SOURCES
             Tests/ArenaSimTests.cpp
             Tests/LevelContentTests.cpp
-        LIBS ArenaLib AtomFramework
+        LIBS ArenaLib AtomAuthoring # AtomAuthoring: the level checks
     )
 endif()
 
 add_executable(AtomArena Main.cpp ArenaApp.cpp ArenaApp.h)
-target_link_libraries(AtomArena PRIVATE ArenaLib AtomEngine AtomFramework imgui)
+target_link_libraries(AtomArena PRIVATE ArenaLib AtomEngine AtomFramework)
 # M94: what a benchmark report names - the version, the commit (when CMake
 # last configured; Tools/Perf/arena.ps1 also records HEAD) and the build.
 execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

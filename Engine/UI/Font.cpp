@@ -48,7 +48,16 @@ namespace Atom
             static_cast<unsigned char*>(file),
             static_cast<unsigned char*>(file) + size);
         SDL_free(file);
+        return LoadFromMemory(renderer, ttf, path, pixelHeight);
+    }
 
+    std::unique_ptr<Font> Font::LoadFromMemory(
+        Renderer& renderer,
+        std::span<const unsigned char> ttf,
+        const std::string& path, // a name for the log: the file, or "(embedded) ..."
+        float pixelHeight
+    )
+    {
         stbtt_fontinfo info{};
         if (!stbtt_InitFont(&info, ttf.data(), stbtt_GetFontOffsetForIndex(ttf.data(), 0)))
         {

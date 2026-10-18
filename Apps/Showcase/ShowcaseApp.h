@@ -5,7 +5,6 @@
 #include "Character/LabViewer.h"
 #include "Character/PlayerController.h"
 #include "Character/SpringArm.h"
-#include "Debug/DevPanels.h"
 #include "Core/Application.h"
 #include "Environment/Atmosphere.h"
 #include "Environment/EnvironmentController.h"
@@ -142,8 +141,6 @@ namespace Showcase
         void SendToBooth(BoothCommand command, int argument, float value);
         void DrawCaption();
 
-        // F10 (M89, ShowcaseDevTools.cpp): the shared panels, plus Features
-        // (the lens's switches) and Clock (the time of day).
         // The menus (M90, ShowcaseMenus.cpp): a title over the living
         // village - Explore, Benchmark, Settings, Quit - also Esc's pause
         // menu; the player's settings screen; the benchmark flight.
@@ -169,9 +166,6 @@ namespace Showcase
         std::array<Atom::FrameStatsWindow, 4> m_benchmarkPhases; // day, dusk, night, rain
         int m_benchmarksDone = 0;
 
-        void RegisterDevPanels();
-        void DrawDevTools(float deltaSeconds);
-        DevPanels m_devPanels;
         const Entity* FindEntity(const std::string& name) const;
         Entity* FindEntity(const std::string& name);
         const Atom::CollisionWorld* CurrentCollision() const;

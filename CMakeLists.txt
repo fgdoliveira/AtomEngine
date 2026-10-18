@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26) # M56: copy_directory_if_different
 
 project(
     AtomEngine
-    VERSION 0.0.18
+    VERSION 0.0.19
     LANGUAGES CXX
 )
 
@@ -107,12 +107,51 @@ if(ATOM_BUILD_GAME)
 endif()
 add_subdirectory(Engine)
 add_subdirectory(Framework) # M76: shared by every game
-# The apps (v0.0.16, M109: under Apps/, by what each is for).
-add_subdirectory(Apps/Showcase) # v0.0.14: the engine's front door, every feature in one scene
-add_subdirectory(Apps/Games/Demo) # v0.0.14: the demo, beside DRIFT
-add_subdirectory(Apps/Games/Drift) # M77: a second game
-add_subdirectory(Apps/Samples/HelloAtom) # M91: the smallest app - docs/Getting-Started.md
-add_subdirectory(Apps/Benchmarks/AtomArena) # M93: a seeded benchmark arena
+add_subdirectory(Authoring) # v0.0.19: what the tools know about content; no game links it
+add_subdirectory(Project) # v0.0.19: project descriptors and creation; no GPU, no engine
+add_subdirectory(WorkspaceUI) # v0.0.19: the workspace's ImGui host - the only ImGui user
+
+# v0.0.19: the runtime carries no tool code. A guard, not a convention:
+# configuring fails if ImGui reaches the engine, the framework or the
+# authoring model again (the workspace's UI is the only place for it).
+foreach(runtime AtomEngine AtomFramework AtomAuthoring)
+    get_target_property(links ${runtime} LINK_LIBRARIES)
+    if(links AND "imgui" IN_LIST links)
+        message(FATAL_ERROR "${runtime} links imgui: tool UI belongs in WorkspaceUI (v0.0.19)")
+    endif()
+endforeach()
+# The bundled apps (v0.0.16, M109: under Apps/, by what each is for) -
+# the examples, listed by hand (v0.0.19: each also has a descriptor, so
+# the workspace and AtomLevelCheck find it, but CMake adds them here).
+option(ATOM_EXAMPLE_APPS "Build the bundled apps (Showcase, Demo, DRIFT, HelloAtom, AtomArena)" ON)
+set(ATOM_EXAMPLE_DIRS
+    Apps/Showcase # v0.0.14: the engine's front door, every feature in one scene
+    Apps/Games/Demo # v0.0.14: the demo, beside DRIFT
+    Apps/Games/Drift # M77: a second game
+    Apps/Samples/HelloAtom # M91: the smallest app - docs/Getting-Started.md
+    Apps/Benchmarks/AtomArena) # M93: a seeded benchmark arena
+if(ATOM_EXAMPLE_APPS)
+    foreach(example IN LISTS ATOM_EXAMPLE_DIRS)
+        add_subdirectory(${example})
+    endforeach()
+endif()
+
+# v0.0.19: projects are found, not listed - every <Name>.atomproject.json
+# one folder down in ATOM_PROJECTS_DIR (Apps/<Name>/, as AtomProjectTool
+# makes them). A project made in the workspace appears at the next
+# configure. The examples above have descriptors too, but are skipped.
+set(ATOM_PROJECTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Apps" CACHE PATH "Where AtomEngine projects are discovered")
+file(GLOB ATOM_PROJECT_DESCRIPTORS CONFIGURE_DEPENDS "${ATOM_PROJECTS_DIR}/*/*.atomproject.json")
+foreach(descriptor IN LISTS ATOM_PROJECT_DESCRIPTORS)
+    get_filename_component(project_dir "${descriptor}" DIRECTORY)
+    file(RELATIVE_PATH project_rel "${CMAKE_CURRENT_SOURCE_DIR}" "${project_dir}")
+    if(project_rel IN_LIST ATOM_EXAMPLE_DIRS)
+        continue()
+    endif()
+    get_filename_component(project_name "${project_dir}" NAME)
+    message(STATUS "Project: ${project_name} (${project_dir})")
+    add_subdirectory("${project_dir}" "${CMAKE_CURRENT_BINARY_DIR}/Projects/${project_name}")
+endforeach()
 
 # M101: each app's executable names its .pdb without a path. Spelled out:
 # MSBuild escapes the linker's own %_PDB% into a wrong name.
@@ -125,6 +164,8 @@ if(MSVC)
 endif()
 
 add_subdirectory(Tools/LevelCheck) # M112: AtomLevelCheck, levels checked without the game
+add_subdirectory(Tools/ProjectTool) # v0.0.19: AtomProjectTool create --workspace <folder> --name <Name>
+add_subdirectory(Tools/Workspace) # v0.0.19: AtomWorkspace, the development program
 
 if(ATOM_BUILD_TESTS)
     add_subdirectory(Tests) # last: the aggregate AtomTests names every owner's

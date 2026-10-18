@@ -2,9 +2,10 @@
 
 This walks through **`Apps/Samples/HelloAtom`**, the smallest complete app on
 AtomEngine: a window, a level loaded from data, first-person walking, the
-engine's numbers, the developer tools and the scenario harness, in about
-150 lines (`Apps/Samples/HelloAtom/Main.cpp`). Everything the Showcase and the
-games do is built on the same pieces.
+engine's numbers and the scenario harness, in about 150 lines
+(`Apps/Samples/HelloAtom/Main.cpp`). Everything the Showcase and the
+games do is built on the same pieces. Section 7 makes a project of your
+own in **Atom Workspace**, the engine's development program.
 
 ## 1. Build and run it
 
@@ -24,8 +25,8 @@ the executable, `SDL3.dll`, the engine's shaders and the app's assets.
 
 WASD and the mouse walk, Shift jogs. **F1** shows the engine's numbers
 (frame time, draws, the GPU), **F2-F8** switch what's drawn (render scale,
-baked light, MSAA, fog, shadows, the post look), **F10** opens the
-developer tools, **Esc** quits.
+baked light, MSAA, fog, shadows, the post look), **Esc** quits. The
+developer tools aren't in the app: they're in the workspace (section 7).
 
 ## 2. The three layers
 
@@ -115,9 +116,9 @@ toggles into the renderer's lighting.
 ## 4. What you get for free
 
 - **F1** is the engine's: it appears in every app with no code.
-- **F10**: `DevPanels` draws the shared panels (Frame, Render, Lighting,
-  Environment, Level) for what you hand it in a `DevContext`; your own
-  panels go beside them with `DevPanels::Add`.
+- **The workspace's tools, with no code:** your levels are data, so Atom
+  Workspace previews, inspects and lights them without running your app
+  (section 7). An app carries no tool code (v0.0.19).
 - **Scenarios**: `BasicTestHooks` answers the scenario harness for an app
   that is a level, a player and a camera. Tell it where each level puts
   the camera - `m_hooks->ExpectSpawn(spawn)` in `onLoaded` (create the
@@ -156,8 +157,11 @@ build\bin\Debug\AtomLevelCheck.exe --app hello      # a typo'd model path, a cli
 build\bin\Debug\HelloAtom\HelloAtom.exe
 ```
 
-In the running app, F10 > Level lists the entities. Click `lamp` to see
-its data, where its position came from, and a box drawn around it.
+In the workspace (`AtomWorkspace --project
+Apps/Samples/HelloAtom/HelloAtom.atomproject.json --level hello`), the
+Hierarchy lists the entities. Click `lamp` to see its data in the
+Inspector and a box drawn around it in the Scene; F brings the camera to
+it. Validate runs the same check as above.
 
 **In Blender.** HelloAtom's second level, `hello_room`, was modelled by
 hand. Its source is `Apps/Samples/HelloAtom/Source/hello_room.blend`.
@@ -182,9 +186,53 @@ markers, external models) is [Authoring.md](Authoring.md).
   so the player can't walk through it.
 - **Change the light**: edit `lighting`, or switch environments (see how
   the Showcase uses `EnvironmentPresets` and `EnvironmentController`).
-  F10 > Lighting edits it live and *Copy as JSON* gives you the block.
+  The workspace's Preview > Level lighting edits it live and *Copy as
+  JSON* gives you the block.
 - **Read a bigger app**: `Apps/Showcase/` adds a time-of-day clock, a
   character with a state machine, a live synth, the lens and a benchmark;
   `Apps/Games/Drift/` is a game that uses the engine without the level system.
 - **Understand the engine**: `docs/Architecture.md` for the layers and
   decisions; `docs/AtomEngine-Tech-Manual.md` for how each system works.
+
+## 7. Your own project, in Atom Workspace (v0.0.19)
+
+```powershell
+cmake --build build --config Debug --target AtomWorkspace
+build\bin\Debug\AtomWorkspace\AtomWorkspace.exe
+```
+
+**Create it.** File > Create Project (or the Start page's button), a name
+- a letter first, then letters, digits or `_` - and the workspace: the
+folder holding `Apps/`, the engine's own by default. It makes
+`Apps/<Name>/`:
+
+```
+<Name>.atomproject.json   what the project is: name, engine version, source and assets folders,
+                          its executable, a startup level - all relative, never a machine's path
+CMakeLists.txt            builds an executable only once Source/Main.cpp exists
+Source/ Authoring/ Assets/{Levels,Models,Textures,Audio}/ Config/ Tests/ Scenarios/
+README.md
+```
+
+Nothing is overwritten: an existing folder is an error, and the project is
+written in `Apps/.<Name>.creating` and renamed into place only when
+complete. The same service runs from the command line:
+`AtomProjectTool create --workspace <folder> --name <Name>`.
+
+**Make it run.** The project has no code yet: Run is disabled and says
+so. Copy HelloAtom's `Main.cpp` into `Source/`, change its asset folder
+(`"Assets/HelloAtom/"`) to `"Assets/<Name>/"`, and give it a level in
+`Assets/Levels/` (copy `hello.json`; set `"startupLevel"` in the
+descriptor to show it first in the workspace). The descriptor already
+names the executable after the project. `hello.json` uses shared pieces
+from `Content/`: add them to `atom_app_payload` in the project's
+`CMakeLists.txt`, as HelloAtom's does (`"${CMAKE_SOURCE_DIR}/Content/Kit"
+"Assets/Kit"`, and `First`). Build: the build notices the new
+project (the engine's CMake finds every `Apps/*/*.atomproject.json`) and
+compiles it; Run starts it, its output in the Console. Validate checks its
+levels; a problem's `Source:` line opens the file with a double-click.
+
+**Look at it.** Pick a level in the toolbar: the Scene shows it without
+running your code. The right mouse button and WASD fly; the Preview panel
+tries environments, skies and render switches - nothing is saved, Copy as
+JSON gives the block for your file.

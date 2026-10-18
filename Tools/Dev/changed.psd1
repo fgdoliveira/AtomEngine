@@ -18,8 +18,10 @@
 @{
     # Owner -> its CPU test target; app owner -> the executable its scenarios run.
     TestTargets = @{ engine = 'AtomEngineTests'; framework = 'AtomFrameworkTests'; content = 'AtomContentTests'
-                     demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests' }
-    Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena' }
+                     demo = 'DemoTests'; drift = 'DriftTests'; showcase = 'ShowcaseTests'; arena = 'ArenaTests'
+                     project = 'AtomProjectTests'; workspace = 'AtomWorkspaceTests' }
+    Apps = @{ demo = 'Demo'; drift = 'Drift'; showcase = 'Showcase'; hello = 'HelloAtom'; arena = 'AtomArena'
+             workspace = 'AtomWorkspace' }
 
     Rules = @(
         # Docs and repository text: nothing to build. The CI workflow tests itself.
@@ -50,15 +52,17 @@
         @{ Pattern = '^Engine/Physics/'; Tests = @('engine', 'framework', 'demo'); Smoke = $true } # the demo's collision meshes
         @{ Pattern = '^Engine/Audio/'; Tests = @('engine', 'framework', 'drift', 'showcase'); Smoke = $true } # DRIFT's music, the booth's synth
         @{ Pattern = '^(Engine/Renderer/|Shaders/)'; Tests = @('engine', 'framework'); Smoke = $true; Scenarios = @('demo.quality_tiers') }
-        @{ Pattern = '^Engine/Debug/'; Tests = @('engine', 'framework'); Smoke = $true; Scenarios = @('demo.devtools', 'showcase.showcase_benchmark') }
+        @{ Pattern = '^Engine/Debug/'; Tests = @('engine', 'framework'); Smoke = $true; Scenarios = @('demo.diagnostics', 'showcase.showcase_benchmark') } # the F1 overlay
 
         # The framework (M85: the world layer; M89: the UI every app shares), by system.
         @{ Pattern = '^Framework/Schemas/'; Tests = @('framework', 'content', 'demo', 'showcase', 'arena') } # the content tests check files against them
         @{ Pattern = '^Framework/Level/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena'); Smoke = $true; Scenarios = @('demo.hot_reload') }
         @{ Pattern = '^Framework/Environment/'; Tests = @('framework', 'content'); Smoke = $true; Scenarios = @('demo.environment') }
         @{ Pattern = '^Framework/Character/'; Tests = @('framework'); Smoke = $true; Scenarios = @('showcase.showcase_lab') }
-        @{ Pattern = '^Framework/Testing/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.diagnostics', 'demo.devtools') }
-        @{ Pattern = '^Framework/(Debug|UI|Settings)/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.devtools', 'showcase.showcase_benchmark') }
+        @{ Pattern = '^Framework/Testing/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.diagnostics') }
+        @{ Pattern = '^Framework/(UI|Settings)/'; Tests = @('framework'); Smoke = $true; Scenarios = @('demo.save_continue', 'showcase.showcase_benchmark') }
+        # v0.0.19: AtomAuthoring (LevelCheck, the inspection model) - the tools and every owner's level checks.
+        @{ Pattern = '^Authoring/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena') }
         @{ Pattern = '^(Engine/|Framework/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true; Package = 'Demo' }
         @{ Pattern = '^Engine/'; Tests = @('engine', 'framework'); Smoke = $true }
         @{ Pattern = '^Framework/'; Tests = @('framework'); Smoke = $true }
@@ -82,7 +86,6 @@
         @{ Pattern = '^Apps/Games/Demo/Dialogue/'; Tests = @('demo'); Scenarios = @('demo.street_keeper') }
         @{ Pattern = '^Apps/Games/Demo/Ride/'; Tests = @('demo'); Scenarios = @('demo.ride_to_shore') }
         @{ Pattern = '^Apps/Games/Demo/Flashlight'; Tests = @('demo'); Scenarios = @('demo.flashlight', 'demo.passage') }
-        @{ Pattern = '^Apps/Games/Demo/DemoAppDevTools'; Tests = @('demo'); Scenarios = @('demo.devtools') }
         @{ Pattern = '^Apps/Games/Demo/DemoAppCalibration'; Tests = @('demo'); Scenarios = @('demo.calibration', 'demo.quality_tiers') }
         @{ Pattern = '^Apps/Games/Demo/'; Tests = @('demo'); Scenarios = @('demo.street_keeper', 'demo.levels_roundtrip') }
 
@@ -92,6 +95,12 @@
         @{ Pattern = '^Tests/Content/'; Tests = @('content') }
         # M112: the level check - its tool and every app's levels through it.
         @{ Pattern = '^Tools/LevelCheck/'; Tests = @('framework', 'content', 'demo', 'showcase', 'hello', 'arena') }
+        # v0.0.19: the project service and its command line.
+        @{ Pattern = '^(Project/|Tools/ProjectTool/|Tests/Project/)'; Tests = @('project') }
+        # v0.0.19: the workspace - its UI library, the program, ImGui (only it uses it).
+        @{ Pattern = '^(WorkspaceUI/|Tools/Workspace/|Tests/Workspace/|external/imgui)'; Tests = @('workspace'); Scenarios = @('workspace.workspace_self_test') }
+        # The preview the workspace draws, and the level checks it runs.
+        @{ Pattern = '^Authoring/Preview/'; Tests = @('framework'); Scenarios = @('workspace.workspace_self_test') }
         @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.

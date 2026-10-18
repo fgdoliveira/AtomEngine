@@ -11,7 +11,6 @@
 #include "UI/UiKit.h"
 
 #include <SDL3/SDL.h>
-#include <imgui.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/trigonometric.hpp>
@@ -52,7 +51,7 @@ namespace Arena
         m_levels = std::make_unique<LevelManager>(
             Level::Services{ renderer, GetAudio(), m_sounds, m_assets, m_models, ScreenFactory{} });
         m_hooks = std::make_unique<Hooks>(BasicTestHooks::View{ &renderer, &GetAudio(), m_levels.get(), &m_player,
-                                                                &m_camera, &m_view, m_root, &m_panels, &GetDevTools() },
+                                                                &m_camera, &m_view, m_root },
                                           *this);
         // The player stands at the spawn; the first frame is drawn from
         // the overview when it's on (the default) - where scenarios check
@@ -90,7 +89,6 @@ namespace Arena
         m_config.enemies = 250;
         m_config.projectiles = 500;
         Restart();
-        m_panels.Add("Arena", 1, [this] { DrawArenaPanel(); });
         if (const std::optional<int> exitCode = m_diagnostics.InitializeFromEnvironment())
         {
             RequestQuit(*exitCode);
@@ -153,16 +151,6 @@ namespace Arena
             DrawHud();
         }
 
-        DevContext tools;
-        tools.renderer = &GetRenderer();
-        tools.tools = &GetDevTools();
-        tools.timing = &GetAverageFrameTiming(); // M99
-        tools.camera = &m_camera;
-        tools.view = &m_view;
-        tools.levels = m_levels.get();
-        tools.set = [this](const std::string& what, const std::string& value) { return m_hooks->Set(what, value); };
-        tools.applyLighting = [this] { ApplyLighting(); };
-        m_panels.Draw(tools, deltaSeconds);
         if (m_scenario && frameMs > 0.0f) // M98: not the frame drawn during loading
         {
             UpdateBenchmark(NowMs() - updateStart, frameMs);
@@ -205,13 +193,13 @@ namespace Arena
                 m_simMs.Clear(); // a rolling window, about two seconds
             }
         }
-        if (GetDevTools().IsOverlayVisible())
+        if (GetPerfOverlay().IsOverlayVisible())
         {
             char line[160];
             std::snprintf(line, sizeof(line), "Arena: %zu enemies, %zu projectiles, %zu contacts, sim %.3f ms (%s)",
                           m_sim.Enemies().size(), m_sim.Projectiles().size(), m_sim.EnemyContacts().size(),
                           m_lastSimMs, m_sim.Config().collision == CollisionMode::Grid ? "grid" : "naive");
-            GetDevTools().AddOverlayLine(line);
+            GetPerfOverlay().AddOverlayLine(line);
         }
     }
 
@@ -326,53 +314,10 @@ namespace Arena
                       static_cast<unsigned long long>(m_sim.TotalHits()), m_simMs.Median(),
                       m_sim.Config().collision == CollisionMode::Grid ? "grid" : "naive");
         kit.Caption("ATOM ARENA", line,
-                    "1-5 enemies   P projectiles   C collision   B spawn 500   R restart   V view   F1   F10");
+                    "1-5 enemies   P projectiles   C collision   B spawn 500   R restart   V view   F1");
     }
-
-    void ArenaApp::DrawArenaPanel()
-    {
-        // F10 > Arena: every workload, sized and switched; applied through
-        // the same Set() the scenarios use.
-        int enemies = m_config.enemies;
-        if (ImGui::SliderInt("Enemies", &enemies, 0, 2000))
-        {
-            m_hooks->Set("arena_enemies", std::to_string(enemies));
-        }
-        int projectiles = m_config.projectiles;
-        if (ImGui::SliderInt("Projectiles", &projectiles, 0, 4000))
-        {
-            m_hooks->Set("arena_projectiles", std::to_string(projectiles));
-        }
-        int mode = m_config.collision == CollisionMode::Grid ? 1 : 0;
-        if (ImGui::Combo("Collision", &mode, "naive (all pairs)\0grid\0"))
-        {
-            m_hooks->Set("arena_collision", mode == 1 ? "grid" : "naive");
-        }
-        const auto toggle = [&](const char* label, const char* what, bool value) {
-            if (ImGui::Checkbox(label, &value))
-            {
-                m_hooks->Set(what, value ? "on" : "off");
-            }
-        };
-        toggle("A  enemy update", "arena_update", m_config.updateEnemies);
-        toggle("B  collision", "arena_collide", m_config.collide);
-        toggle("C  projectiles", "arena_projectiles_move", m_config.updateProjectiles);
-        toggle("E  draw enemies", "arena_draw", m_drawEnemies);
-        ImGui::SliderInt("Batch", &m_spawnBatch, 10, 2000);
-        ImGui::SameLine();
-        if (ImGui::Button("D  spawn"))
-        {
-            m_hooks->Set("arena_spawn", std::to_string(m_spawnBatch));
-        }
-        if (ImGui::Button("Restart (seed)"))
-        {
-            Restart();
-        }
-        ImGui::Text("sim median %.3f ms, p95 %.3f ms, last %.3f ms", m_simMs.Median(), m_simMs.Percentile(0.95),
-                    m_lastSimMs);
-        ImGui::Text("%zu contacts, %llu hits, step %llu", m_sim.EnemyContacts().size(),
-                    static_cast<unsigned long long>(m_sim.TotalHits()), static_cast<unsigned long long>(m_sim.Steps()));
-    }
+    // v0.0.19: no F10 panel - every workload is a key above or a
+    // "set arena_*" switch (scenarios, Tools/Perf).
 
     void ArenaApp::ApplyLighting()
     {

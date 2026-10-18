@@ -8,8 +8,7 @@ expect_near 0 0 3.5 0.3
 wait 0.5
 expect_stat draws >= 3
 expect_animating cube
-set inspect lantern
-expect_stat inspect_found == 1
+teleport_to lantern                # the marker-placed entity exists (fails if not)
 teleport 0 0 0 0
 wait 0.5
 expect_near 0 0 0 0.3
