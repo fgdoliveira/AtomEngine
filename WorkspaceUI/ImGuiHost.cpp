@@ -101,7 +101,13 @@ namespace AtomWorkspace
         info.Device = device;
         info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
         info.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
-        info.SwapchainComposition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR; // the detached windows'
+        // The detached windows' swapchains must match the main one's: ImGui
+        // has one pipeline, built for ColorTargetFormat. The renderer picks
+        // SDR_LINEAR (an *_SRGB format) where the window supports it, plain
+        // SDR otherwise (GPUDevice.cpp) - a mismatch is D3D12 error #613.
+        const SDL_GPUTextureFormat format = info.ColorTargetFormat;
+        const bool srgb = format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB || format == SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB;
+        info.SwapchainComposition = srgb ? SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR : SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
         info.PresentMode = SDL_GPU_PRESENTMODE_VSYNC;
         if (!ImGui_ImplSDL3_InitForSDLGPU(window) || !ImGui_ImplSDLGPU3_Init(&info))
         {
