@@ -40,8 +40,10 @@ outside the repository.
   `ATOM_BUILD_WORKSPACE`; with `ATOM_EXAMPLE_APPS` and `ATOM_BUILD_TESTS`
   they default to on only when the engine is the top-level project.
 - **Tests:** `SDK.consumer_builds` (a game adding the engine below it,
-  built and run - it fails on a C++ runtime, standard or define that
-  doesn't reach the game), `SDK.read_project` (descriptor rules, `cpu`),
+  built and run in Debug and Release - it fails on a C++ runtime, standard
+  or define that doesn't reach the game; CI runs it too, the `SDK consumer`
+  job, so a change that breaks external games fails a pull request),
+  `SDK.read_project` (descriptor rules, `cpu`),
   `Scenario.workspace.workspace_project_build` (the workspace creates,
   builds and runs a project in its own folder).
 

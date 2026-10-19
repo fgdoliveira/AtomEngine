@@ -508,8 +508,9 @@ a project, and validates HelloAtom as a process;
 `Project.empty_configures` configures a fresh project on its own, through
 its preset, and the engine with the bundled apps off;
 `SDK.consumer_builds` builds and runs a game whose CMake adds the engine
-below it (it fails on a C++ runtime, standard or define that doesn't
-reach the game); `SDK.read_project` checks `atom_add_project`'s
+below it, in Debug and Release (it fails on a C++ runtime, standard or
+define that doesn't reach the game) - CI runs it on every pull request,
+its `SDK consumer` job; `SDK.read_project` checks `atom_add_project`'s
 descriptor rules. These configure tests carry the `configure` label (the
 full check), apart from `SDK.read_project` (`cpu`).
 

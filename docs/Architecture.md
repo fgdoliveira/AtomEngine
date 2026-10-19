@@ -513,7 +513,7 @@ package that says "on".
 |---|---|---|
 | CPU tests (`ctest -L cpu`), one target per owner: `Unit.<owner>`, `Content.<owner>` | locally and in **CI** on pull requests and pushes to master | logic, parsing, shipped-content errors; a clean clone that doesn't build |
 | In-game scenarios (`ctest -L scenario`), each app's own: `Scenario.<owner>.<name>`; `-L smoke` one short run per app, and the workspace's self-test | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources; the workspace's tools end to end |
-| Configure tests (`-L configure`): `Project.empty_configures`, `SDK.consumer_builds` | locally, the full check | a fresh project configures on its own through its preset and builds nothing yet; the engine and workspace configure with the bundled apps off; a game whose CMake adds the engine below it compiles, links (one C++ runtime) and runs |
+| Configure tests (`-L configure`): `Project.empty_configures`, `SDK.consumer_builds` | locally, the full check; `SDK.consumer_builds` also in CI (job `sdk-consumer`, the script run directly) | a fresh project configures on its own through its preset and builds nothing yet; the engine and workspace configure with the bundled apps off; a game whose CMake adds the engine below it compiles, links (one C++ runtime) and runs, in Debug and Release |
 | The source SDK: `sdk.ps1` (with `verify-sdk.ps1`), `test-sdk.ps1` | locally, at a release | the archive holds what a build needs and nothing development-only; a game built from it, outside the repository, in Debug and Release |
 
 `check.ps1 -Level changed` (v0.0.16) maps each changed file to owners

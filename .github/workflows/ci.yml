@@ -9,6 +9,10 @@
 # channel - the ZIP isn't kept; packages for players are made and
 # published by hand (Tools/Dist/package.ps1).
 #
+# A third job (M133) builds a game outside the repository against the
+# engine, in Debug and Release, and runs it (Tests/SDK/ConsumerBuilds.cmake):
+# a change that breaks games made with the SDK turns it red.
+#
 # What stays local, on a machine with a GPU: the in-game scenarios (each
 # app's Scenarios/; without the game none is registered here) and every
 # performance measurement - hosted runners
@@ -81,6 +85,29 @@ jobs:
           name: test-log
           path: build/Testing/Temporary/LastTest.log
           if-no-files-found: ignore
+
+  # M133: a game with its own top-level CMake adds the engine below it
+  # (add_subdirectory + atom_add_project), in a scratch folder outside the
+  # checkout. It sets no standard, runtime or define of its own, so a usage
+  # requirement that stops reaching games fails its compile or link
+  # (LNK2038); the engine must not add its apps or tools under it. Built in
+  # Debug and Release, then run from its folder: constructed, never run - no
+  # window, no GPU. The SDK zip's end-to-end test (Tools/Dist/test-sdk.ps1)
+  # stays local: it runs HelloAtom on a GPU.
+  sdk-consumer:
+    name: SDK consumer (Windows, Debug + Release)
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure, build and run a game outside the repository
+        shell: pwsh
+        run: cmake "-DENGINE=$PWD" "-DWORK=$env:RUNNER_TEMP/sdk consumer" -P Tests/SDK/ConsumerBuilds.cmake
 
   # M69: can a clean machine assemble the distribution? The game and its
   # shaders build here (dxc from the runner's Windows SDK), the package

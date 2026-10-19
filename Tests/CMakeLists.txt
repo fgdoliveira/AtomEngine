@@ -106,8 +106,9 @@ if(TARGET AtomWorkspace) # ATOM_BUILD_WORKSPACE=OFF builds the tests without it
 endif()
 
 # v0.0.20 (M127): the engine builds under a game's own CMake - a consumer
-# outside the repository, configured, built in Debug and run. It builds SDL
-# and the engine once more (minutes): label "configure", the full check's.
+# outside the repository, configured, built in Debug and Release and run. It
+# builds SDL and the engine once more (minutes): label "configure", the full
+# check's. CI runs the same script in its own job (M133, ci.yml sdk-consumer).
 add_test(NAME SDK.consumer_builds
          COMMAND ${CMAKE_COMMAND} -DENGINE=${ATOM_ENGINE_ROOT} -DWORK=${CMAKE_BINARY_DIR}/sdk-consumer-test
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/SDK/ConsumerBuilds.cmake)
