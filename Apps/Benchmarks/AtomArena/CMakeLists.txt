@@ -23,7 +23,7 @@ add_executable(AtomArena Main.cpp ArenaApp.cpp ArenaApp.h)
 target_link_libraries(AtomArena PRIVATE ArenaLib AtomEngine AtomFramework)
 # M94: what a benchmark report names - the version, the commit (when CMake
 # last configured; Tools/Perf/arena.ps1 also records HEAD) and the build.
-execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${ATOM_ENGINE_ROOT}
                 OUTPUT_VARIABLE ARENA_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 if(NOT ARENA_GIT_COMMIT)
     set(ARENA_GIT_COMMIT "unknown")
@@ -36,9 +36,9 @@ target_compile_definitions(AtomArena PRIVATE ATOM_VERSION="${PROJECT_VERSION}" A
 # Content/ in Assets/<folder>.
 atom_app_payload(AtomArena COPY
     "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/AtomArena"
-    "${CMAKE_SOURCE_DIR}/Content/First" "Assets/First"
-    "${CMAKE_SOURCE_DIR}/Content/Fonts" "Assets/Fonts"
-    "${CMAKE_SOURCE_DIR}/Content/Kit" "Assets/Kit")
+    "${ATOM_ENGINE_ROOT}/Content/First" "Assets/First"
+    "${ATOM_ENGINE_ROOT}/Content/Fonts" "Assets/Fonts"
+    "${ATOM_ENGINE_ROOT}/Content/Kit" "Assets/Kit")
 
 # Its scenario (M107, cmake/AtomTesting.cmake) - registered only when the
 # shaders that running it needs are built (not in CI).

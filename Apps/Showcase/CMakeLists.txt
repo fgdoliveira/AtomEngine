@@ -63,7 +63,7 @@ endif()
 # uses (Content/) in Assets/<folder>.
 set(SHOWCASE_PAYLOAD "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/Showcase")
 foreach(folder IN ITEMS Environments First Fonts Kit Sky)
-    list(APPEND SHOWCASE_PAYLOAD "${CMAKE_SOURCE_DIR}/Content/${folder}" "Assets/${folder}")
+    list(APPEND SHOWCASE_PAYLOAD "${ATOM_ENGINE_ROOT}/Content/${folder}" "Assets/${folder}")
 endforeach()
 atom_app_payload(Showcase COPY ${SHOWCASE_PAYLOAD})
 

@@ -3,6 +3,7 @@
 //
 //   AtomWorkspace [--project <Name>.atomproject.json [--level <name>]]
 //   AtomWorkspace --test <folder>     the self-test (WorkspaceSelfTest.cpp)
+//   AtomWorkspace --test-build <folder>  ... that also builds and runs the project it creates
 #include "WorkspaceApp.h"
 
 #include <SDL3/SDL_main.h> // the Windows entry point of a windowed program
@@ -26,6 +27,11 @@ int main(int argc, char** argv)
         else if (option == "--test")
         {
             startup.testFolder = argv[i + 1];
+        }
+        else if (option == "--test-build")
+        {
+            startup.testFolder = argv[i + 1];
+            startup.testBuild = true;
         }
     }
     AtomWorkspace::WorkspaceApp app;

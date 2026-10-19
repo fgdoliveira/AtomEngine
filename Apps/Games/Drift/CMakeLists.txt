@@ -80,14 +80,14 @@ foreach(entry IN ITEMS
     string(REPLACE "|" ";" parts "${entry}")
     list(GET parts 0 name)
     list(GET parts 1 file)
-    file(READ "${CMAKE_SOURCE_DIR}/${file}" text)
+    file(READ "${ATOM_ENGINE_ROOT}/${file}" text)
     string(APPEND DRIFT_NOTICES "\n==============================================================================\n${name}  (${file})\n==============================================================================\n\n${text}\n")
 endforeach()
 file(WRITE "${CMAKE_BINARY_DIR}/dist-drift/THIRD_PARTY_NOTICES.txt" "${DRIFT_NOTICES}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/README.txt.in" "${CMAKE_BINARY_DIR}/dist-drift/README.txt" @ONLY)
 install(
     FILES
-        "${CMAKE_SOURCE_DIR}/LICENSE.txt"
+        "${ATOM_ENGINE_ROOT}/LICENSE.txt"
         "${CMAKE_BINARY_DIR}/dist-drift/THIRD_PARTY_NOTICES.txt"
         "${CMAKE_BINARY_DIR}/dist-drift/README.txt"
     DESTINATION .

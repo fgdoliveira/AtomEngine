@@ -5,6 +5,7 @@
 #include "WorkspaceApp.h"
 
 #include "Core/Log.h"
+#include "Project/ProjectCreator.h"
 
 #include <SDL3/SDL.h>
 
@@ -77,14 +78,33 @@ namespace AtomWorkspace
         }
     }
 
+    bool WorkspaceApp::Standalone() const
+    {
+        // v0.0.20: a project with its own presets owns its build (M129);
+        // the engine's bundled examples have none and build in the
+        // workspace's own tree.
+        std::error_code error;
+        return m_project && fs::is_regular_file(fs::path(m_project->directory) / "CMakePresets.json", error);
+    }
+
+    std::string WorkspaceApp::ProjectBuildDir() const
+    {
+        if (!m_project)
+        {
+            return {};
+        }
+        return Standalone() ? (fs::path(m_project->directory) / "build").string() : m_buildDir;
+    }
+
     std::string WorkspaceApp::GameExecutable() const
     {
-        if (!m_project || m_buildDir.empty() || m_project->descriptor.executable.empty())
+        const std::string build = ProjectBuildDir();
+        if (build.empty() || m_buildConfig.empty() || m_project->descriptor.executable.empty())
         {
             return {};
         }
         const std::string& target = m_project->descriptor.executable;
-        return Executable(fs::path(m_buildDir) / "bin" / m_buildConfig / target / target);
+        return Executable(fs::path(build) / "bin" / m_buildConfig / target / target);
     }
 
     std::string WorkspaceApp::WhyNot(Operation operation) const
@@ -99,6 +119,7 @@ namespace AtomWorkspace
         }
         if (m_buildDir.empty())
         {
+            // Its tools (AtomLevelCheck), its cmake and its configuration.
             return "The workspace isn't running from a build tree (<build>/bin/<config>/AtomWorkspace/).";
         }
         std::error_code error;
@@ -121,6 +142,12 @@ namespace AtomWorkspace
             {
                 return "The descriptor names no executable.";
             }
+            if (operation == Operation::Build && Standalone() && m_engineRoot.empty()
+                && !fs::is_regular_file(fs::path(m_project->directory) / "CMakeUserPresets.json", error))
+            {
+                return "No engine to build against: this workspace runs outside an engine's folder and the project "
+                       "has no CMakeUserPresets.json.";
+            }
             if (operation == Operation::Run && !fs::is_regular_file(GameExecutable(), error))
             {
                 return d.executable + " isn't built yet (" + m_buildConfig + ") - Build it first.";
@@ -130,6 +157,25 @@ namespace AtomWorkspace
         return {};
     }
 
+    bool WorkspaceApp::StartStep(Step step)
+    {
+        std::string commandLine;
+        for (const std::string& arg : step.args)
+        {
+            commandLine += (arg.find(' ') != std::string::npos ? "\"" + arg + "\"" : arg) + ' ';
+        }
+        AddConsoleLine("> " + std::string(NameOf(static_cast<int>(m_operation))) + ": " + commandLine);
+        if (!m_runner.Start(std::move(step.args), step.workingDirectory))
+        {
+            AddConsoleLine("< " + m_runner.Error());
+            SetStatus(m_runner.Error(), true);
+            m_pendingSteps.clear();
+            m_lastExitCode = -1;
+            return false;
+        }
+        return true;
+    }
+
     void WorkspaceApp::StartOperation(Operation operation)
     {
         if (const std::string why = WhyNot(operation); !why.empty())
@@ -137,38 +183,53 @@ namespace AtomWorkspace
             SetStatus(why, true);
             return;
         }
-        std::vector<std::string> args;
-        std::string workingDirectory;
+        // An operation is one process, or a few run one after another, each
+        // only if the one before succeeded (a standalone project's first
+        // Build configures, then builds).
+        std::vector<Step> steps;
+        const std::string project = m_project->directory;
         switch (operation)
         {
         case Operation::Validate:
-            args = { Executable(fs::path(m_buildDir) / "bin" / m_buildConfig / "AtomLevelCheck"), "--project",
-                     m_project->descriptorPath };
+            steps.push_back({ { Executable(fs::path(m_buildDir) / "bin" / m_buildConfig / "AtomLevelCheck"), "--project",
+                                m_project->descriptorPath } });
             break;
         case Operation::Build:
-            // A project added since the last configure is found here too:
-            // the build checks its CONFIGURE_DEPENDS glob first.
-            args = { m_cmake, "--build", m_buildDir, "--config", m_buildConfig, "--target", m_project->descriptor.executable };
+        {
+            const std::string build = ProjectBuildDir();
+            std::error_code error;
+            if (Standalone() && !fs::is_regular_file(fs::path(build) / "CMakeCache.txt", error))
+            {
+                // Its own build, configured once: through its presets, this
+                // engine named in CMakeUserPresets.json (written here when a
+                // cloned project has none - it is never committed).
+                const fs::path userPresets = fs::path(project) / "CMakeUserPresets.json";
+                if (!fs::is_regular_file(userPresets, error))
+                {
+                    std::ofstream(userPresets, std::ios::binary) << AtomProject::UserPresets(m_engineRoot);
+                    AddConsoleLine("> wrote CMakeUserPresets.json: this engine, for this machine only");
+                }
+                steps.push_back({ { m_cmake, "--preset", "atom" }, project });
+            }
+            // The examples build in the workspace's own tree (the engine's).
+            steps.push_back({ { m_cmake, "--build", build, "--config", m_buildConfig, "--target",
+                                m_project->descriptor.executable } });
             break;
+        }
         case Operation::Run:
-            args = { GameExecutable() };
-            workingDirectory = fs::path(args.front()).parent_path().string();
+        {
+            const std::string game = GameExecutable();
+            steps.push_back({ { game }, fs::path(game).parent_path().string() });
             break;
+        }
         }
         m_console.clear();
         m_firstProblem.clear();
         m_lastExitCode.reset();
         m_operation = operation;
-        std::string commandLine;
-        for (const std::string& arg : args)
+        m_pendingSteps.assign(steps.begin() + 1, steps.end());
+        if (!StartStep(std::move(steps.front())))
         {
-            commandLine += (arg.find(' ') != std::string::npos ? "\"" + arg + "\"" : arg) + ' ';
-        }
-        AddConsoleLine("> " + std::string(NameOf(static_cast<int>(operation))) + ": " + commandLine);
-        if (!m_runner.Start(std::move(args), workingDirectory))
-        {
-            AddConsoleLine("< " + m_runner.Error());
-            SetStatus(m_runner.Error(), true);
             return;
         }
         SetStatus(std::string(NameOf(static_cast<int>(operation))) + " running...");
@@ -198,6 +259,15 @@ namespace AtomWorkspace
         {
             return;
         }
+        // The next step of the chain, only after a success.
+        if (*exitCode == 0 && !m_runner.WasStopped() && !m_pendingSteps.empty())
+        {
+            Step next = std::move(m_pendingSteps.front());
+            m_pendingSteps.erase(m_pendingSteps.begin());
+            StartStep(std::move(next));
+            return;
+        }
+        m_pendingSteps.clear();
         m_lastExitCode = exitCode;
         const char* name = NameOf(static_cast<int>(m_operation));
         char summary[160];

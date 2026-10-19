@@ -82,7 +82,9 @@ namespace AtomWorkspace
         }
         m_engineRoot = FindEngineRoot();
         FindBuildTree();
-        std::snprintf(m_newWorkspace, sizeof(m_newWorkspace), "%s", m_engineRoot.c_str());
+        // New projects beside the engine by default, not inside it: each owns its build.
+        std::snprintf(m_newLocation, sizeof(m_newLocation), "%s",
+                      m_engineRoot.empty() ? "" : fs::path(m_engineRoot).parent_path().string().c_str());
 
         // ATOM_WORKSPACE_VIEWPORTS=0 keeps every panel inside the main
         // window, for a machine whose driver mishandles extra swapchains.
@@ -635,8 +637,9 @@ namespace AtomWorkspace
         {
             return;
         }
-        ImGui::TextWrapped("A project is a folder, Apps/<Name>/, with a descriptor, the standard folders and its "
-                           "CMake file. No gameplay: it builds an executable once you add Source/Main.cpp.");
+        ImGui::TextWrapped("A project is a folder, <Location>/<Name>/, with a descriptor, the standard folders and "
+                           "its own CMake build (this engine added below it). No gameplay: it builds an executable "
+                           "once you add Source/Main.cpp.");
         ImGui::Spacing();
         if (ImGui::IsWindowAppearing())
         {
@@ -648,31 +651,29 @@ namespace AtomWorkspace
         {
             ImGui::TextColored({ 1.0f, 0.45f, 0.4f, 1.0f }, "%s", nameError.c_str());
         }
-        ImGui::InputText("Workspace", m_newWorkspace, sizeof(m_newWorkspace));
+        ImGui::InputText("Location", m_newLocation, sizeof(m_newLocation));
         ImGui::SameLine();
         if (ImGui::Button("Browse..."))
         {
-            BrowseForWorkspace();
+            BrowseForLocation();
         }
-        ImGui::TextDisabled("The folder holding Apps/ (the engine's own, or another).");
+        ImGui::TextDisabled("Any folder: the project is made in it, with its own build and repository.");
         if (!m_createError.empty())
         {
             ImGui::TextColored({ 1.0f, 0.45f, 0.4f, 1.0f }, "%s", m_createError.c_str());
         }
         ImGui::Spacing();
-        ImGui::BeginDisabled(m_newName[0] == '\0' || !nameError.empty() || m_newWorkspace[0] == '\0');
+        ImGui::BeginDisabled(m_newName[0] == '\0' || !nameError.empty() || m_newLocation[0] == '\0');
         if (ImGui::Button("Create"))
         {
-            const AtomProject::CreateResult result = AtomProject::CreateProject({ m_newWorkspace, m_newName, ATOM_VERSION });
+            // This engine goes in the project's CMakeUserPresets.json (not committed).
+            const AtomProject::CreateResult result =
+                AtomProject::CreateProject({ m_newLocation, m_newName, ATOM_VERSION, m_engineRoot });
             if (result.ok)
             {
                 ATOM_LOG_INFO("Workspace") << "Created project " << m_newName << ".\n";
                 OpenProject(result.descriptorPath);
-                SetStatus(std::string("Created ") + m_newName + ". Configure CMake again to add it to the build.");
-                if (!m_engineRoot.empty())
-                {
-                    Rediscover();
-                }
+                SetStatus(std::string("Created ") + m_newName + " in " + m_newLocation + ".");
                 m_newName[0] = '\0';
                 ImGui::CloseCurrentPopup();
             }
@@ -807,17 +808,17 @@ namespace AtomWorkspace
             this, GetWindow().GetSDLWindow(), filters, 1, location.empty() ? nullptr : location.c_str(), false);
     }
 
-    void WorkspaceApp::BrowseForWorkspace()
+    void WorkspaceApp::BrowseForLocation()
     {
         static std::string location;
-        location = m_newWorkspace;
+        location = m_newLocation;
         SDL_ShowOpenFolderDialog(
             [](void* user, const char* const* folders, int /*filter*/) {
                 if (folders && folders[0])
                 {
                     auto* self = static_cast<WorkspaceApp*>(user);
                     const std::lock_guard lock(self->m_dialogMutex);
-                    self->m_pickedWorkspace = folders[0];
+                    self->m_pickedLocation = folders[0];
                 }
             },
             this, GetWindow().GetSDLWindow(), location.empty() ? nullptr : location.c_str(), false);
@@ -829,10 +830,10 @@ namespace AtomWorkspace
         {
             const std::lock_guard lock(m_dialogMutex);
             descriptor.swap(m_pickedDescriptor);
-            if (m_pickedWorkspace)
+            if (m_pickedLocation)
             {
-                std::snprintf(m_newWorkspace, sizeof(m_newWorkspace), "%s", m_pickedWorkspace->c_str());
-                m_pickedWorkspace.reset();
+                std::snprintf(m_newLocation, sizeof(m_newLocation), "%s", m_pickedLocation->c_str());
+                m_pickedLocation.reset();
             }
         }
         if (descriptor)

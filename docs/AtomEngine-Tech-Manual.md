@@ -1,6 +1,6 @@
 # AtomEngine — Technical Manual
 
-A study guide to every concept the engine uses, as of **v0.0.19**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136). v0.0.18 makes the demo a game to play: a store character held on a frame, mumbled speech on the synthesiser timed to the text, a ride down a procedural coast road (a spline by arc length, a soft-leash controller, a leaning camera), terrain and night lighting for a coast and a shore, progress kept at save points with an atomic save file and a title screen, and the development tools and bugs that came with them (§137–§143). v0.0.19 (M118–M126) moves the development tools out of the games into Atom Workspace, a program of their own: the runtime kept free of tool code by a build guard, projects as self-describing folders created atomically and discovered by CMake, a frame rendered into a texture a panel can show, an immediate-mode UI with docking and detachable windows (and the format rule they taught), levels previewed without their game, tools run as separate processes read through pipes, and a program that tests itself (§144–§151).
+A study guide to every concept the engine uses, as of **v0.0.20**. v0.0.1 (M2–M8) covers rendering, lighting and fog, shadows, tonemapping and grading, particles, audio and the scripted unease moments. v0.0.2 (M9–M14) adds text and UI, entities and interaction, dialogue, data-driven levels, automated testing and validation (§28–§33). v0.0.3 (M15–M20) adds baked lighting (vertex colours and lightmaps), alpha-tested materials, decals, rigid animation and vertex sway, a fourth level, and authoring tools: schemas, precise errors, hot reload and Blender markers (§34–§39). v0.0.4 (M22–M28) adds the night city: chunks, cells and distance layers, a collision grid, draw sorting and a model cache; emissive masks, glow, halos and a night sky; facade shells, impostors and skyline cards; per-chunk lightmaps, live lights and a wet road; action sequences; render-to-texture screens, a fixed timestep and a room reverb; and a cached asset build (§40–§46). v0.0.5 (M29–M34) makes a pachinko machine playable: documentation captures, input contexts and a mode switch into a 2D game, 2D physics, playfields and rules as data, a seeded lottery, and counters for an economy (§47–§52). v0.0.6 (M35–M40) animates characters: skeletal skinning, a model-viewer lab with debug views, pose blending and an animation state machine, and a third-person character with a spring-arm camera; and a regression found by measuring against the last release (§53–§57). v0.0.7 (M41–M46) goes into the dark: developer tools with Dear ImGui, spot lights with a specular highlight, a spot shadow map, a flashlight that reveals what only its beam shows, a dark passage between two levels, light culling, and a way of measuring performance that a laptop's drift can't fool (§58–§63). v0.0.8 (M47–M52) adds water and weather: a procedural day sky, stylized water in a lakeshore lab, environment presets blended at runtime, rain and wind, a planar reflection, and a regression caught by measuring against the last release (§64–§69). v0.0.9 (M53–M58) hardens the engine after an architecture audit: GPU lifetimes checked at shutdown, honest CMake dependencies, continuous integration, an explicit runtime asset payload, diagnostics moved out of the game coordinator, load timings, an architecture document, and tooling for hung benchmarks and cheap validation (§70–§75). v0.0.10 (M59–M65) makes the engine portable across machines: a settings model that keeps the GPU choice apart from the graphics quality, a command line read before the device exists, saved settings and a Settings panel, a diagnostics report and a doctor script, a high-performance GPU option that falls back safely on hybrid laptops, opt-in calibration, and the trade-off between frames in flight, GPU clocks and input latency (§76–§82). v0.0.11 (M66–M71) takes the game out of the repository: the GPU device separated from window presentation, so a hybrid laptop's failure is reported at the step where it happens, then a statically linked C++ runtime, a windowed program that keeps a log, one package command built on CMake's install rules, a CI check that a clean clone can make the package, a policy for what ships, and a clean-machine test (§83–§89). v0.0.12 (M72–M75) measures input latency: click-to-display with PresentMon, where the time goes inside the engine, waiting for the swapchain before reading input, 2 frames in flight with a safeguard, and measurement that needs no administrator rights (§90–§94). v0.0.13 (M76–M83) adds a second game, DRIFT, a faithful port of a three.js web game: a framework layer the games share, rules ported line by line as pure seeded code, toon shading and inverted-hull outlines, a live synth on the audio thread with a lock-free command queue, validation chosen by what changed, packages without developer tools, one F1 overlay and one diagnostics report for every game, and two old bugs a second game exposed (double precision in a Debug shader, blurry text from a mipmapped font atlas) (§95–§103). v0.0.14 (M84–M92) gives the engine a front door and a direction: three layers (engine, framework, apps) with extension points and asset roots, a Showcase that is a place rather than a collage, capabilities as Features checked by tests and shown through a lens, one UI and one set of developer tools for every app, text rasterised at the size it is drawn, menus and player settings, a benchmark mode, and HelloAtom, the smallest app (§104–§112). v0.0.15 (M93–M102) is about observability: ATOM ARENA, a seeded workload built to judge profiling tools; zero-cost profiling zones and a minimal built-in tracer, chosen over an external profiler by criteria fixed in advance; the first-frame hitch moved into loading; the CPU's work told apart from its wait for the GPU; log lines with a time, a level and a subsystem; why it stopped (device removal, crash minidumps, symbols); process and GPU memory (§113–§120). v0.0.16 (M103–M110) is about ownership: every test, scenario and asset belongs to the engine, the framework, the shared content or one app and sees only what that owner ships — a check that could not fail made to measure, one test executable per owner with unit and content runs, asset lookups that never borrow another app's files, scenarios registered by their app and a check that runs only the owners a change touches, a runtime folder per app, and the apps placed under `Apps/` by purpose (§121–§128). v0.0.17 (M111–M117) is about authoring: one authority per fact and warnings when a level file overrides a marker, content checked without the game by the parser's own rules, an export of one unit or only its markers that rewrites nothing unchanged, F10's read-only entity report, a marker panel in Blender, a level made by hand through the same pipeline, and the glTF subset the engine reads (§129–§136). v0.0.18 makes the demo a game to play: a store character held on a frame, mumbled speech on the synthesiser timed to the text, a ride down a procedural coast road (a spline by arc length, a soft-leash controller, a leaning camera), terrain and night lighting for a coast and a shore, progress kept at save points with an atomic save file and a title screen, and the development tools and bugs that came with them (§137–§143). v0.0.19 (M118–M126) moves the development tools out of the games into Atom Workspace, a program of their own: the runtime kept free of tool code by a build guard, projects as self-describing folders created atomically and discovered by CMake, a frame rendered into a texture a panel can show, an immediate-mode UI with docking and detachable windows (and the format rule they taught), levels previewed without their game, tools run as separate processes read through pipes, and a program that tests itself (§144–§151). v0.0.20 (M127–M133) lets a game live outside the engine's repository: the engine built as a subproject of the game's own CMake (settings carried as usage requirements, not directory variables), a project's executable made from its descriptor by one CMake function, projects that own their build with presets and a machine-local engine path, the workspace configuring and building them in their own folders, a source SDK archive staged from what git tracks, and the SDK tested end to end from its zip and guarded by CI (§152–§157).
 Each section follows the same shape: **the concept → how AtomEngine does it → where to look in the code**.
 
 > This file lives in `docs/`. It is only updated on request.
@@ -160,9 +160,15 @@ Each section follows the same shape: **the concept → how AtomEngine does it �
 149. [A level without its game (M124)](#149-a-level-without-its-game-m124)
 150. [Tools as processes (M125)](#150-tools-as-processes-m125)
 151. [A tool that tests itself, and releasing 0.0.19 (M126)](#151-a-tool-that-tests-itself-and-releasing-0019-m126)
-152. [Anatomy of a frame and what it costs](#152-anatomy-of-a-frame-and-what-it-costs)
-153. [Build system and project layout](#153-build-system-and-project-layout)
-154. [Glossary](#154-glossary)
+152. [The engine as a subproject (v0.0.20, M127)](#152-the-engine-as-a-subproject-v0020-m127)
+153. [A project's build from its descriptor (M128)](#153-a-projects-build-from-its-descriptor-m128)
+154. [Projects that own their build (M129)](#154-projects-that-own-their-build-m129)
+155. [Building a project in its own folder (M130)](#155-building-a-project-in-its-own-folder-m130)
+156. [A source SDK from what git tracks (M131)](#156-a-source-sdk-from-what-git-tracks-m131)
+157. [Tested as a stranger would, guarded by CI, and releasing 0.0.20 (M132–M133)](#157-tested-as-a-stranger-would-guarded-by-ci-and-releasing-0020-m132m133)
+158. [Anatomy of a frame and what it costs](#158-anatomy-of-a-frame-and-what-it-costs)
+159. [Build system and project layout](#159-build-system-and-project-layout)
+160. [Glossary](#160-glossary)
 
 ---
 
@@ -3692,6 +3698,8 @@ The glob uses `CONFIGURE_DEPENDS`, so the build itself re-checks it: with Visual
 
 Since M126, it also checks that the workspace target exists without the bundled apps. It takes about 30 s, so it carries the `configure` label, run by the full check and not by CI's quick pass.
 
+**Retired in v0.0.20 (§154).** Discovery made a project a guest in the engine's build: it had to sit inside the repository, and it built with the engine's settings. When projects began to own their build, the glob went; the examples keep their explicit list, and `FindProjects` still serves the tools.
+
 **Code.** The root `CMakeLists.txt` (discovery, `ATOM_EXAMPLE_*`), `Project/Project/ProjectDiscovery.{h,cpp}`, `Tools/LevelCheck/Main.cpp`, `Tests/Project/EmptyProjectConfigures.cmake`.
 
 ---
@@ -3848,7 +3856,145 @@ The panels never hit it: they run while the UI is drawn, before submission, as t
 
 ---
 
-## 152. Anatomy of a frame and what it costs
+## 152. The engine as a subproject (v0.0.20, M127)
+
+**Concept: who is on top.** Until v0.0.19 the engine was always CMake's top-level project, and a game was a folder inside it. v0.0.20 turns this around (ADR-014, "projects own their build"): a game has its own top-level `CMakeLists.txt` and pulls the engine in below it:
+
+```cmake
+project(MyGame)
+add_subdirectory(${ATOM_ENGINE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/atom)
+atom_add_project()
+```
+
+That's how many libraries are consumed (SDL is added the same way inside the engine). The engine's whole build has to work from one level down. Most of it didn't.
+
+**Concept: directory scope.** A CMake variable set in a directory is seen by that directory and the ones it adds, never by its parent. The engine's root set three global settings that way, and none reached a game's target:
+- `CMAKE_CXX_STANDARD 20`: a game could compile the engine's headers as C++17;
+- `CMAKE_MSVC_RUNTIME_LIBRARY` static (§84): a game at the default /MD links against an engine at /MT, and the linker stops with **LNK2038** ("mismatch detected for 'RuntimeLibrary'"). Every object in one program must agree on one C++ runtime;
+- `add_compile_definitions(ATOM_DEV_TOOLS=…)`: the game's code wouldn't see it.
+
+The last is the dangerous one, because it compiles. `Core/DevSwitch.h` defaults `ATOM_DEV_TOOLS` to 1 when it's missing, so a game linking a distribution engine (0) would compile the same inline functions with a different value: an **ODR violation** (the one-definition rule). The linker keeps whichever copy it sees first, without a warning.
+
+**Concept: usage requirements.** The fix is to attach the settings to the target that needs them, not to a directory. `target_compile_features(AtomEngine PUBLIC cxx_std_20)` and a PUBLIC `ATOM_DEV_TOOLS=<value>` travel to everything that links AtomEngine, wherever it is. The runtime library can't travel (it's a property of each target, not a requirement), so it became a cached value, `ATOM_MSVC_RUNTIME`, that `atom_app_payload` sets on every executable.
+
+**Concept: paths relative to the engine.** 19 places used `CMAKE_SOURCE_DIR`, which is the *top-level* source folder: under a game, the game's. They now use `ATOM_ENGINE_ROOT` (cached by the engine's root). A variable set with `PARENT_SCOPE` (the shaders' output folder) reached only one directory up, and became a cached internal value too.
+
+**Concept: build only what a game needs.** `PROJECT_IS_TOP_LEVEL` is true only for the top-level `project()`. The options for examples, tests, tools and the workspace default to it, so under a game the engine builds the engine, the framework and the shaders, and not ImGui.
+
+**Concept: test it as a consumer.** `SDK.consumer_builds` copies `Tests/SDK/Consumer/` (a tiny game) to a scratch folder with a space in its path, configures it against the engine, builds and runs it. The consumer sets no standard, runtime or define of its own, so each lost requirement fails it: the C++20 headers stop compiling, the link fails with LNK2038, or an `#error` fires when `ATOM_DEV_TOOLS` is missing. It also fails if any app or tool target appeared under it. It builds SDL and the engine again, minutes, so it carries the `configure` label.
+
+**Code.** The root `CMakeLists.txt` (options, `ATOM_ENGINE_ROOT`, `ATOM_MSVC_RUNTIME`), `Engine/CMakeLists.txt`, `cmake/AtomApps.cmake`, `Tests/SDK/ConsumerBuilds.cmake`, `Tests/SDK/Consumer/`.
+
+---
+
+## 153. A project's build from its descriptor (M128)
+
+**Concept: a function over normal targets.** A game shouldn't have to know the engine's build to make an executable. `atom_add_project()` (`cmake/AtomProject.cmake`) reads the project's `<Name>.atomproject.json` (§145) and does what each app's CMake did by hand:
+1. reads and checks the descriptor;
+2. if `Source/Main.cpp` doesn't exist yet, says "nothing to build" and stops: an empty project still configures;
+3. collects every `.cpp`/`.h` under the source folder;
+4. `add_executable`, links AtomEngine and AtomFramework;
+5. defines `ATOM_PROJECT_ASSETS="Assets/<Name>/"` so the code finds its own assets;
+6. calls `atom_app_payload` with the project's assets and the shared `Content/` folders named by `CONTENT` (`atom_add_project(CONTENT First Kit)`).
+
+The result is an ordinary CMake target (`ATOM_PROJECT_TARGET` names it). A game can add its own sources, libraries or flags with normal CMake after the call. The descriptor holds no source lists or compiler flags: JSON isn't a build language.
+
+**Concept: JSON in CMake.** `string(JSON …)` (CMake 3.19+) reads the descriptor. `atom_read_project` applies the C++ parser's rules (§145): schema 1; the name and executable are identifiers; the source and asset folders are relative, with no `..` and no drive letter. Two parsers for one format must agree, so `SDK.read_project` runs 11 cases through it in script mode (`cmake -P`), each in its own process, because a `FATAL_ERROR` ends the script. Seconds, so it's a `cpu` test.
+
+**Bug: a filter on the wrong path.** The glob first excluded `build/`, `Tests/` and `Scenarios/` by matching the *absolute* path. The test's scratch folder sat under a `build/` directory, so every file was excluded, `Main.cpp` included. The glob now collects paths `RELATIVE` to the source folder and filters those, and a FATAL error fires if `Main.cpp` wasn't collected. A filter should be tested against the paths it will really see.
+
+**Code.** `cmake/AtomProject.cmake`, `Tests/SDK/ReadProject.cmake`, `Tests/SDK/Consumer/SdkConsumer.atomproject.json`.
+
+---
+
+## 154. Projects that own their build (M129)
+
+**Concept: a project is a repository of its own.** `AtomProjectTool create --in <folder> --name <Name>` (and the workspace's Create dialog, which now asks for a location) makes `<folder>/<Name>/` anywhere on disk. As before, it's staged in a hidden `.<Name>.creating` folder and renamed into place, so creation can't half-happen (§145). Besides the descriptor, `Source/` and `Assets/`, it writes:
+- `CMakeLists.txt`: `cmake_minimum_required`, `project()`, an `ATOM_ENGINE_DIR` cache path (FATAL if it doesn't name an engine), `add_subdirectory`, `atom_add_project()`;
+- `CMakePresets.json`, tracked: a hidden base preset (`binaryDir` `build/`) and a `default` preset that takes the engine from the `ATOM_ENGINE_DIR` environment variable;
+- `CMakeUserPresets.json`, git-ignored: a preset `atom` that sets this machine's engine path;
+- `.gitignore` (`build/`, `CMakeUserPresets.json`) and a README.
+
+**Concept: machine-local settings stay out of the repository.** Where the engine is installed differs per machine and must never be committed (the privacy rule, and a path that's wrong on every other machine). CMake's two preset files split exactly this way: `CMakePresets.json` is the project's, `CMakeUserPresets.json` is the user's. A user preset may inherit a tracked one, but not the other way round. So the tracked file holds everything but the path, and `cmake --preset atom` works once the user file exists. The tool writes the path with forward slashes and escapes `"` and `\`, since it's a JSON string.
+
+**Bug: a raw string that ended early.** The templates are C++ raw strings, `R"(...)"`. A raw string ends at the first `)"`, and a CMake template contains `)"` (`"${CMAKE_CURRENT_BINARY_DIR}/atom")`). The fix is a custom delimiter, `R"tmpl(...)tmpl"`, which ends only at `)tmpl"`.
+
+**Concept: discovery retired.** With a project's build its own, the engine's glob for `Apps/*/*.atomproject.json` (§146) would make a second, conflicting way in. It was removed (decided with the plan). The bundled examples stay engine-owned, listed in `ATOM_EXAMPLE_DIRS`. `Project.empty_configures` was rewritten: it creates a project outside the repository, configures it *on its own* through `cmake --preset atom`, and checks that it built nothing.
+
+**Code.** `Project/Project/ProjectCreator.{h,cpp}`, `Tools/ProjectTool/Main.cpp`, `Tests/Project/EmptyProjectConfigures.cmake`.
+
+---
+
+## 155. Building a project in its own folder (M130)
+
+**Concept: the workspace follows the project.** In v0.0.19 the workspace built a project inside its own build tree (§150). A standalone project (one with `CMakePresets.json`) now builds in `<project>/build`:
+1. write `CMakeUserPresets.json` with this engine's path, if it's missing (a cloned project has none);
+2. `cmake --preset atom`, in the project's folder;
+3. `cmake --build build --config <config> --target <executable>`.
+
+Run starts the executable from `<project>/build/bin/<config>/<Name>/`. The examples still build in the workspace's own tree.
+
+**Concept: a chain of processes.** Each step is a separate process (§150), and a step makes sense only if the one before succeeded. The workspace keeps `m_pendingSteps`; when a process exits with 0, the next one starts, and any other exit code stops the chain and leaves its output in the Console. That's a build script's `&&`, in a UI that must keep drawing frames while it waits.
+
+**Concept: the self-test does it for real.** `Scenario.workspace.workspace_project_build` extends the self-test (§151): it creates a project in a scratch folder, writes a `Main.cpp`, builds it (the engine and SDL compile inside the project), runs it and checks its exit. That's minutes, not seconds, so it's not a smoke test (timeout 3600 s; it passed 27 checks in 109 s on the development laptop).
+
+**Code.** `Tools/Workspace/WorkspaceOperations.cpp`, `WorkspaceApp.h` (`Step`, `m_pendingSteps`), `WorkspaceSelfTest.cpp`.
+
+---
+
+## 156. A source SDK from what git tracks (M131)
+
+**Concept: an SDK is a list, not a copy of a folder.** `pwsh Tools/Dist/sdk.ps1` makes `Dist/AtomSDK-v<version>-src.zip`. A working folder holds build output, captures, local tools and files nobody committed, and none of it may leak into an archive. So the list starts from `git ls-files` (and `git ls-files` inside each submodule), then keeps:
+- an explicit include list: the engine, framework, authoring, project and workspace libraries, the workspace and its two tools, shaders, `cmake/`, `Content/`, HelloAtom, `docs/`, the licence and notices;
+- each dependency minus its tests, docs, samples and IDE projects (a `$prune` list per submodule; SDL alone drops most of its size this way);
+- never a `.blend` or `.github/`.
+
+It writes an `SDK-README.txt` from a template, verifies, then zips. The result was 2,590 files, 47.6 MB, 11.9 MB zipped.
+
+**Concept: the same bytes from the same commit.** `cmake -E tar --format=zip --mtime=<commit time>` stamps every entry with the commit's time instead of the moment of copying, so two runs on one commit make the same archive.
+
+**Concept: verify the artefact, not the recipe.** `verify-sdk.ps1` checks the staged folder itself:
+- the files a build needs and every licence are there;
+- nothing development-only got in;
+- it configures on its own in a fresh folder, and produces exactly the expected targets.
+
+To make that last check possible, the root CMake adds an example or `Tests/` only if its `CMakeLists.txt` exists, so a trimmed tree still configures.
+
+**Bug: a case-insensitive match.** The forbidden-files rule flagged SDL's `src/hidapi/dist/`, because PowerShell's `-match` ignores case and the repository's own `Dist/` folder was on the list. The rules now use `-cmatch` and match local folders only at the top level.
+
+**Code.** `Tools/Dist/sdk.ps1`, `Tools/Dist/verify-sdk.ps1`, `Tools/Dist/SDK-README.txt.in`.
+
+---
+
+## 157. Tested as a stranger would, guarded by CI, and releasing 0.0.20 (M132–M133)
+
+**Concept: test the path a user takes.** `pwsh Tools/Dist/test-sdk.ps1` uses nothing of the repository but the zip:
+1. extracts it into a temporary folder with a space in its path;
+2. configures that SDK and builds *its* `AtomProjectTool`;
+3. creates MyGame in another folder, and checks its user presets name the extracted SDK;
+4. makes it HelloAtom the way Getting-Started §7 tells a reader to (its `Main.cpp`, its level, `CONTENT First Kit`);
+5. configures it through its preset, builds Debug and Release, and runs HelloAtom's scenario from each.
+
+It passed in 971 s. Most of that is the engine and SDL compiling inside the game, once per configuration: the first-build cost of a source SDK, accepted in ADR-014. The steps follow the documentation, so a step that changes in the docs must change here (the script stops with that message if HelloAtom's asset line moves).
+
+**Concept: guard the promise in CI (M133).** `SDK.consumer_builds` proved external games build, but only locally: CI ran just the `cpu` label. A change that broke games outside the repository would have passed it. The fix reuses the test:
+- the script builds and runs each of `CONFIGS` (default Debug and Release; /MTd and /MT are different runtimes);
+- a new CI job, `sdk-consumer`, runs the script directly in the runner's temp folder, with no engine configure first and no GPU (the consumer constructs an `Application` but never runs it).
+
+A guard that can't fail proves nothing (§121), so it was tried once with the engine's `cxx_std_20` made PRIVATE: the consumer's C++20 headers stopped compiling and the test failed. That was reverted, never committed. Making the job *required* to merge is a GitHub branch rule, not a file in the repository. The zip test stays local: it runs HelloAtom on a GPU.
+
+**Releasing 0.0.20.**
+- `check.ps1 -Level full`: 49/49 in Debug and 49/49 in Release, including `SDK.consumer_builds`, `SDK.read_project` and `Project.empty_configures`.
+- **Packages:** `Demo-v0.0.20-win64.zip` 17.2 MB and `Drift-v0.0.20-win64.zip` 1.8 MB, both with their smoke start.
+- **SDK:** `AtomSDK-v0.0.20-src.zip` 11.9 MB, verified; `test-sdk.ps1` PASS in Debug and Release.
+- The CI configure and the privacy check passed. M133's consumer test passed in Debug and Release (940 s locally).
+- **Not done:** SDK 2 (a public header boundary, exported targets, `find_package(AtomEngine)`) and SDK 3 (an installed binary package) are later versions.
+
+**Code.** `Tools/Dist/test-sdk.ps1`, `Tests/SDK/ConsumerBuilds.cmake`, `.github/workflows/ci.yml` (`sdk-consumer`), `docs/Architecture.md` (ADR-014), `docs/Getting-Started.md` §7, `CHANGELOG.md` 0.0.20.
+
+---
+
+## 158. Anatomy of a frame and what it costs
 
 Measured in Release, vsync off, looking down the street, 1280×720, Iris Xe (laptop numbers — expect ±10 % noise):
 
@@ -3895,13 +4041,13 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 
 ---
 
-## 153. Build system and project layout
+## 159. Build system and project layout
 
 - **CMake** 3.26+, C++20. Targets (v0.0.14, §104): `AtomEngine` (static lib), `AtomFramework` (what every app shares), `ShowcaseLib` and `Showcase` (§105), `DemoLib` and `Demo` (the demo, `Games/Demo`), `DriftLib` and `Drift` (§96), `HelloAtom` (§111), `ArenaLib` and `AtomArena` (§113), `AtomProfile` (the profiling switch, §114), `AtomShaders` (custom target compiling HLSL). Since v0.0.19 the tools, which no game links (§144): `AtomAuthoring` (LevelCheck, the inspector, `ScenePreview`), `AtomProject` (descriptors, creation, discovery; no GPU), `AtomWorkspaceUI` (the ImGui host, recent projects, `ProcessRunner`, the Console's parsing), and the programs `AtomWorkspace`, `AtomProjectTool`, `AtomLevelCheck`; a configure-time guard keeps `imgui` out of the runtime. The apps live under `Apps/` by purpose (§127). **CPU tests** (v0.0.16, §123): one doctest executable per owner — `AtomEngineTests`, `AtomFrameworkTests`, `AtomContentTests`, `DemoTests`, `DriftTests`, `ShowcaseTests`, `ArenaTests` — declared with `atom_add_tests` and run as `Unit.<owner>` and `Content.<owner>`; `AtomTests` builds them all. **Scenarios** (§125): each app registers its `Scenarios/*.atomtest` (and runs of its command line) as `Scenario.<owner>.<name>` with `atom_add_scenarios` / `atom_add_scenario`, labels `scenario`, the owner and, for one short run per app, `smoke`. Both helpers are in `cmake/AtomTesting.cmake`.
 - **Dependencies as git submodules, pinned**: SDL 3.4.18, GLM 1.0.1, cgltf v1.15, stb, nlohmann/json 3.12.0, doctest 2.5.3, Dear ImGui 1.92.9-docking (built as the `imgui` static library with its SDL3 and SDL_GPU backends; linked only by the workspace since v0.0.19).
-- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`), `ATOM_EXAMPLE_APPS` (the bundled apps; `ATOM_EXAMPLE_DIRS` lists them) and `ATOM_PROJECTS_DIR` (where `*/*.atomproject.json` are discovered, §146). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Apps/Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
+- **Build options** (§71): `ATOM_BUILD_GAME` (the apps, shaders and scenarios; off, no `dxc` needed, and still the libraries, unit tests and HelloAtom), `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE` (`PresentationProbe` and `SwapchainMatrix`, §83), `ATOM_DISTRIBUTION` (the windowed player build, §85), `ATOM_TRACE` (the built-in tracer, §114; refused with `ATOM_DISTRIBUTION`), `ATOM_EXAMPLE_APPS` (the bundled apps; `ATOM_EXAMPLE_DIRS` lists them); since v0.0.20 (§152) `ATOM_BUILD_SHADERS`, `ATOM_BUILD_TOOLS`, `ATOM_BUILD_WORKSPACE`, with the examples and tests defaulting to on only when the engine is the top-level project (`ATOM_PROJECTS_DIR` and discovery were retired, §154). Release builds also write a PDB, kept in the build folder (§118). The demo's runtime asset payload is the folder list in `Apps/Games/Demo/CMakeLists.txt` (§73); shared folders come from `Content/`, split into shipped and development-only folders (§86). The C++ runtime is linked statically (§84). CMake 3.26 or later.
 - **Distribution** (§86): `pwsh Tools/Dist/package.ps1 [-Game Demo|Drift]` builds `build-dist/`, stages `Dist/<Game>/` with `cmake --install --component <Game>`, verifies it, smoke-runs it (refusing a build whose log doesn't say "Developer switches: off", §101, §151) and zips `Dist/<Game>-v<version>-win64.zip`. A distribution build defines `ATOM_DEV_TOOLS=0`.
-- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the CPU tests (`ctest -L cpu`), HelloAtom's compile (§111), and the package check for both games (no artifact kept); without the game no scenario is registered. **Validation** (§75, §100, §125): `Tools/Dev/check.ps1 -Level changed` per milestone — the owners a change touches, from `Tools/Dev/changed.psd1`, and only their test targets and apps built — and `-Level full` once per version.
+- **CI** (§72, §87): `.github/workflows/ci.yml`, on pull requests and pushes to master: the CPU tests (`ctest -L cpu`), HelloAtom's compile (§111), the package check for both games (no artifact kept), and since v0.0.20 an external game built in Debug and Release (`sdk-consumer`, §157); without the game no scenario is registered. **Validation** (§75, §100, §125): `Tools/Dev/check.ps1 -Level changed` per milestone — the owners a change touches, from `Tools/Dev/changed.psd1`, and only their test targets and apps built — and `-Level full` once per version.
 - **Shader variants** (§69, §98): `BasicRain.frag` and `BasicToon.frag` include `Basic.frag` with a define; a change to `Basic.frag` rebuilds all three. Write float literals with `f` (§102).
 - **Version**: `project(VERSION …)` in CMake becomes `ATOM_VERSION`, shown in the log and the window title.
 - Each app runs from its own folder, `bin/<Config>/<app>/` (v0.0.16, §126): `atom_app_payload` (`cmake/AtomApps.cmake`) copies after each build its `SDL3.dll`, the engine's shaders (compiled once into `bin/<Config>/shaders/`) and the folders it declares — its `Assets/` to `Assets/<App>/`, the `Content/` folders it uses to `Assets/` (§104). The test executables stay in `bin/<Config>/`.
@@ -3918,6 +4064,7 @@ Takeaways: the shadow pass is the biggest single cost; screen-space math (fog, p
 - **Authoring** (v0.0.17, §129–§135): `pwsh Tools/Blender/export.ps1 -List | -Only <unit> [-What markers] | -Scene <file.blend> -Level <name>`; `AtomLevelCheck --app <app> | --all` (`Tools/LevelCheck`); `pwsh Tools/Blender/open.ps1` (the marker panel); `clean_scene.ps1` before committing a `.blend`. Guide: `docs/Authoring.md`.
 - **Demo vertical** (v0.0.18, §137–§142): Blender units `coast` and `shore` (`export.ps1 -Only coast|shore`); the demo's progress in `save.json` beside `settings.json` (`--no-save`, `--reset-save`; scripted runs use `out/test_save.json`); voices in `Assets/Data/voices.json`; third-party models and their credits in `Apps/Games/Demo/Assets/ThirdParty/` (shipped). Scenarios `ride_to_shore`, `save_continue`.
 - **Atom Workspace** (v0.0.19, §144–§151): `build/bin/<config>/AtomWorkspace/AtomWorkspace.exe [--project <descriptor> [--level <name>]] [--test <folder>]`; layout and recent projects in `%APPDATA%\AtomEngine\Workspace\`; `ATOM_WORKSPACE_VIEWPORTS=0` keeps panels inside the window. Projects: `AtomProjectTool create --workspace <folder> --name <Name>`; `AtomLevelCheck --project <descriptor>`. Tests `AtomProjectTests`, `AtomWorkspaceTests`, `Project.empty_configures` (label `configure`), `Scenario.workspace.workspace_self_test`, `hello_scene_target`; the harness's `set scene_target <w>x<h>|off`.
+- **Projects and the SDK** (v0.0.20, §152–§157): `AtomProjectTool create --in <folder> --name <Name> [--engine <dir> | --no-engine]`; in the project, `cmake --preset atom` then `cmake --build build --config <config>`; its CMake calls `atom_add_project([MANIFEST <file>] [CONTENT <folder>...])` (`cmake/AtomProject.cmake`). `pwsh Tools/Dist/sdk.ps1` makes `Dist/AtomSDK-v<version>-src.zip` (`verify-sdk.ps1` checks it), `test-sdk.ps1` builds a game from it. Tests `SDK.consumer_builds` (`configure`, also in CI), `SDK.read_project` (`cpu`), `Scenario.workspace.workspace_project_build`.
 - **Running tests**: `ctest --test-dir build -C Release` (all), `-L cpu` (the CPU tests, no GPU), `-L scenario` (in-game), `-L smoke` (one short run per app), `-L <owner>` (one owner's: `engine`, `framework`, `content`, `project`, `workspace`, `demo`, `drift`, `showcase`, `hello`, `arena`); `<target> -ts=benchmark` runs a target's timing comparisons by hand (§121).
 
 ```
@@ -3960,7 +4107,8 @@ Tools/Perf/  ab.ps1 (build A/B, hang guard), latency.ps1 (input latency: Engine 
              benchmark scenarios (lights, water and weather)
 Tools/Dev/  check.ps1 (validation: changed, quick, feature, full), changed.psd1 (its table),
             doctor.ps1, privacy.ps1, common.ps1
-Tools/Dist/  package.ps1 (the package), verify.ps1 (its check)
+Tools/Dist/  package.ps1 (the package), verify.ps1 (its check);
+             sdk.ps1, verify-sdk.ps1, test-sdk.ps1 (the source SDK, v0.0.20)
 Tools/PresentationProbe/  PresentationProbe (SDL or raw D3D12, window moves),
                           SwapchainMatrix (every swapchain kind, D3D11/D3D12, every adapter)
 Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
@@ -3969,8 +4117,9 @@ Tools/Blender/  kit + street + levels + city + night + pachinko + lab + lint
 docs/    this manual, Architecture.md, Features.md, Getting-Started.md
 .github/ CI workflow; CLAUDE.md: working rules for agents
 Tests/   the CPU tests of what isn't an app's: Engine/, Framework/, Content/, Project/, Workspace/;
-         Support/ (TestMain, TestAssets, LevelChecks)
-cmake/   AtomTesting.cmake (atom_add_tests, atom_add_scenario[s]), AtomApps.cmake (atom_app_payload)
+         Support/ (TestMain, TestAssets, LevelChecks); SDK/ (the consumer game, descriptor rules)
+cmake/   AtomTesting.cmake (atom_add_tests, atom_add_scenario[s]), AtomApps.cmake (atom_app_payload),
+         AtomProject.cmake (atom_read_project, atom_add_project)
 external/ SDL glm cgltf stb json doctest imgui
 ```
 
@@ -3988,7 +4137,7 @@ external/ SDL glm cgltf stb json doctest imgui
 
 ---
 
-## 154. Glossary
+## 160. Glossary
 
 - **AABB** — axis-aligned bounding box (min/max corners).
 - **ACES** — a film-industry colour standard; its filmic tonemapping curve is widely approximated in games.
