@@ -166,7 +166,10 @@ set(ATOM_EXAMPLE_DIRS
     Apps/Benchmarks/AtomArena) # M93: a seeded benchmark arena
 if(ATOM_EXAMPLE_APPS)
     foreach(example IN LISTS ATOM_EXAMPLE_DIRS)
-        add_subdirectory(${example})
+        # v0.0.20 (M131): the source SDK ships HelloAtom only.
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${example}/CMakeLists.txt")
+            add_subdirectory(${example})
+        endif()
     endforeach()
 endif()
 
@@ -193,7 +196,7 @@ if(ATOM_BUILD_WORKSPACE)
     add_subdirectory(Tools/Workspace) # v0.0.19: AtomWorkspace, the development program
 endif()
 
-if(ATOM_BUILD_TESTS)
+if(ATOM_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/CMakeLists.txt") # not in the source SDK
     add_subdirectory(Tests) # last: the aggregate AtomTests names every owner's
 endif()
 

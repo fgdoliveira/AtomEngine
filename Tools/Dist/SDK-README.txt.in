@@ -1,0 +1,37 @@
+AtomEngine @VERSION@ - source SDK
+=================================
+
+A C++20 game engine on SDL3's GPU API (Direct3D 12), as source: the
+engine, its framework, the development tools (Atom Workspace,
+AtomProjectTool, AtomLevelCheck), the shared content, the pinned
+dependencies and HelloAtom, the smallest app. Licence: MIT (LICENSE.txt);
+each dependency keeps its own (external/*/, Engine/Debug/Fonts/,
+Content/Fonts/).
+
+Requirements: Windows 10/11, Visual Studio 2022 or later (C++20), CMake
+3.26+, and dxc (the Windows SDK or the Vulkan SDK) for the shaders.
+
+1. Build the engine and its tools
+
+    cmake -B build -S .
+    cmake --build build --config Release
+    build\bin\Release\AtomWorkspace\AtomWorkspace.exe
+
+2. Make a game - anywhere, its own folder and build
+
+    In the workspace: File > Create Project. Or:
+    build\bin\Release\AtomProjectTool.exe create --in <folder> --name MyGame
+
+    MyGame\ has its own CMakeLists.txt that adds this engine below it.
+    Add Source\Main.cpp (start from Apps\Samples\HelloAtom\Main.cpp), then:
+
+    cd <folder>\MyGame
+    cmake --preset atom
+    cmake --build build --config Debug
+
+    or press Build and Run in the workspace.
+
+docs\Getting-Started.md walks through both; docs\Architecture.md explains
+how the engine is put together. Not included: the bundled games and the
+Showcase, the Blender content build and its .blend sources, the
+engine's own tests and development scripts.

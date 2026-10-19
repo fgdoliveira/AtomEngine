@@ -104,6 +104,8 @@
         @{ Pattern = '^(Tests/|cmake/)'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true }
 
         # Packaging and the build: stage and verify a package.
+        # v0.0.20: the source SDK's scripts - checked by running them (sdk.ps1 verifies and configures).
+        @{ Pattern = '^Tools/Dist/(sdk|verify-sdk)\.ps1$|^Tools/Dist/SDK-README\.txt\.in$'; Build = $false }
         @{ Pattern = '^Tools/Dist/'; Package = 'Demo' }
         @{ Pattern = '(^|/)CMakeLists\.txt$'; Tests = @('engine', 'framework', 'content', 'demo', 'drift', 'showcase', 'hello', 'arena'); Smoke = $true; Package = 'Demo' }
 
