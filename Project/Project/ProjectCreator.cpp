@@ -20,32 +20,74 @@ namespace AtomProject
             return text;
         }
 
-        // The project's build integration: found by the engine's CMake
-        // (Apps/*/*.atomproject.json, M121), it adds an executable only when
-        // there is code to build.
-        const char* CMakeTemplate = R"(# @NAME@ - an AtomEngine project (made by AtomProjectTool / Atom Workspace).
-# The engine's CMake finds this folder through @NAME@.atomproject.json.
+        // The project's own build (v0.0.20): it is the top-level project and
+        // adds the engine below it; atom_add_project (the engine's
+        // cmake/AtomProject.cmake) makes the executable from the descriptor.
+        // Raw strings with a delimiter of their own: CMake and JSON text holds
+        // ')"', which would end a plain R"(...)" early.
+        const char* CMakeTemplate = R"tmpl(# @NAME@ - an AtomEngine project (made by AtomProjectTool / Atom Workspace).
+# It owns its build: the engine is added below it, and atom_add_project makes
+# the executable that @NAME@.atomproject.json names, from Source/.
 #
-# There is no executable until Source/Main.cpp exists: add it (see README.md),
-# then configure again. Everything under Source/ is compiled.
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/Main.cpp")
-    file(GLOB_RECURSE @NAME@_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.h")
-    add_executable(@NAME@ ${@NAME@_SOURCES})
-    target_link_libraries(@NAME@ PRIVATE AtomEngine AtomFramework)
-    # Its own folder, bin/<config>/@NAME@/: SDL3.dll, the engine's shaders
-    # and its assets in Assets/@NAME@/ (cmake/AtomApps.cmake).
-    atom_app_payload(@NAME@ COPY "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/@NAME@")
-else()
-    message(STATUS "@NAME@: no Source/Main.cpp yet - nothing to build")
+#   cmake --preset atom          (CMakeUserPresets.json: this machine's engine)
+#   cmake --preset default       (the ATOM_ENGINE_DIR environment variable)
+#   cmake --build build --config Debug
+#
+# There is no executable until Source/Main.cpp exists (see README.md).
+cmake_minimum_required(VERSION 3.26)
+project(@NAME@ LANGUAGES CXX)
+
+set(ATOM_ENGINE_DIR "$ENV{ATOM_ENGINE_DIR}" CACHE PATH "The AtomEngine folder this project builds against")
+if(NOT EXISTS "${ATOM_ENGINE_DIR}/cmake/AtomProject.cmake")
+    message(FATAL_ERROR "@NAME@ needs the AtomEngine folder: configure with --preset atom (CMakeUserPresets.json), "
+                        "or set ATOM_ENGINE_DIR (got '${ATOM_ENGINE_DIR}').")
 endif()
-)";
+add_subdirectory("${ATOM_ENGINE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/atom")
 
-        const char* ReadmeTemplate = R"(# @NAME@
+# Shared pieces of the engine's Content/ this project uses: CONTENT Kit Sky ...
+atom_add_project()
+)tmpl";
 
-An AtomEngine project. `@NAME@.atomproject.json` says what it is; the
-engine's build and Atom Workspace find it from there.
+        const char* PresetsTemplate = R"tmpl({
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "atom-base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build"
+    },
+    {
+      "name": "default",
+      "displayName": "@NAME@ (engine from ATOM_ENGINE_DIR)",
+      "inherits": "atom-base",
+      "cacheVariables": { "ATOM_ENGINE_DIR": "$env{ATOM_ENGINE_DIR}" }
+    }
+  ]
+}
+)tmpl";
+
+        const char* UserPresetsTemplate = R"tmpl({
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "atom",
+      "displayName": "This machine's AtomEngine",
+      "inherits": "atom-base",
+      "cacheVariables": { "ATOM_ENGINE_DIR": "@ENGINE@" }
+    }
+  ]
+}
+)tmpl";
+
+        const char* GitignoreTemplate = R"tmpl(# The build, and this machine's engine path (CMakeUserPresets.json).
+build/
+CMakeUserPresets.json
+)tmpl";
+
+        const char* ReadmeTemplate = R"tmpl(# @NAME@
+
+An AtomEngine project. `@NAME@.atomproject.json` says what it is;
+`CMakeLists.txt` builds it, with the engine added below it.
 
 | Folder | Holds |
 |---|---|
@@ -56,13 +98,26 @@ engine's build and Atom Workspace find it from there.
 | `Tests/` | CPU tests |
 | `Scenarios/` | scripted runs (`*.atomtest`) |
 
+## Build
+
+`CMakeUserPresets.json` (not committed) names this machine's engine:
+
+    cmake --preset atom
+    cmake --build build --config Debug
+
+Elsewhere, set `ATOM_ENGINE_DIR` and use `--preset default`, or pass
+`-DATOM_ENGINE_DIR=<engine>`. Atom Workspace does all of this for you.
+
 ## Start
 
 1. Add `Source/Main.cpp` - an `Atom::Application` with a `main` (see the
    engine's `Apps/Samples/HelloAtom/Main.cpp` and `docs/Getting-Started.md`).
-2. Configure and build again; `@NAME@` appears as a target.
+   Its assets are found at `Assets/@NAME@/` beside the executable
+   (`ATOM_PROJECT_ASSETS`), shared ones at `Assets/`.
+2. Name the engine's shared content it uses in `CMakeLists.txt`:
+   `atom_add_project(CONTENT Kit)`.
 3. Put a level in `Assets/Levels/` and check it: `AtomLevelCheck --project @NAME@.atomproject.json`.
-)";
+)tmpl";
 
         bool WriteText(const fs::path& path, const std::string& text)
         {
@@ -80,6 +135,15 @@ engine's build and Atom Workspace find it from there.
             const fs::path relative = c.lexically_relative(p);
             return !relative.empty() && *relative.begin() != ".." && *relative.begin() != ".";
         }
+
+        std::string Lower(std::string text)
+        {
+            for (char& c : text)
+            {
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            return text;
+        }
     }
 
     const std::vector<std::string>& ProjectFolders()
@@ -88,6 +152,23 @@ engine's build and Atom Workspace find it from there.
             "Source", "Authoring", "Assets/Levels", "Assets/Models", "Assets/Textures", "Assets/Audio",
             "Config", "Tests", "Scenarios" };
         return Folders;
+    }
+
+    std::string UserPresets(const std::string& engineDir)
+    {
+        // A JSON string: forward slashes need no escaping; a quote or a
+        // backslash left in a path would.
+        std::string path = fs::path(engineDir).generic_string();
+        std::string escaped;
+        for (const char c : path)
+        {
+            if (c == '"' || c == '\\')
+            {
+                escaped += '\\';
+            }
+            escaped += c;
+        }
+        return Replace(UserPresetsTemplate, "@ENGINE@", escaped);
     }
 
     CreateResult CreateProject(const CreateRequest& request)
@@ -99,17 +180,16 @@ engine's build and Atom Workspace find it from there.
             return result;
         }
         std::error_code error;
-        const fs::path workspace = fs::path(request.workspace);
-        if (request.workspace.empty() || !fs::is_directory(workspace, error))
+        const fs::path location = fs::path(request.location);
+        if (request.location.empty() || !fs::is_directory(location, error))
         {
-            result.error = "Workspace: \"" + request.workspace + "\" is not a folder";
+            result.error = "Location: \"" + request.location + "\" is not a folder";
             return result;
         }
-        const fs::path apps = workspace / "Apps";
-        const fs::path destination = apps / request.name;
-        if (!Inside(workspace, destination))
+        const fs::path destination = location / request.name;
+        if (!Inside(location, destination))
         {
-            result.error = "Destination leaves the workspace";
+            result.error = "Destination leaves the location";
             return result;
         }
         if (fs::exists(destination, error))
@@ -119,29 +199,17 @@ engine's build and Atom Workspace find it from there.
         }
         // Another name that differs only in case is the same folder on
         // Windows: refuse it rather than write into it.
-        if (fs::is_directory(apps, error))
+        for (const auto& entry : fs::directory_iterator(location, error))
         {
-            for (const auto& entry : fs::directory_iterator(apps, error))
+            if (Lower(entry.path().filename().string()) == Lower(request.name))
             {
-                std::string existing = entry.path().filename().string();
-                std::string wanted = request.name;
-                for (auto* s : { &existing, &wanted })
-                {
-                    for (char& c : *s)
-                    {
-                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                    }
-                }
-                if (existing == wanted)
-                {
-                    result.error = "\"" + entry.path().filename().string() + "\" already exists in Apps/ (names ignore case)";
-                    return result;
-                }
+                result.error = "\"" + entry.path().filename().string() + "\" already exists there (names ignore case)";
+                return result;
             }
         }
 
         // Everything in a temporary sibling first.
-        const fs::path staging = apps / ("." + request.name + ".creating");
+        const fs::path staging = location / ("." + request.name + ".creating");
         fs::remove_all(staging, error); // a leftover from a crash is ours to clear
         error.clear();
         const auto fail = [&](const std::string& why) {
@@ -169,7 +237,10 @@ engine's build and Atom Workspace find it from there.
         const std::string descriptorName = request.name + ".atomproject.json";
         if (!WriteText(staging / descriptorName, WriteDescriptor(descriptor))
             || !WriteText(staging / "CMakeLists.txt", Replace(CMakeTemplate, "@NAME@", request.name))
-            || !WriteText(staging / "README.md", Replace(ReadmeTemplate, "@NAME@", request.name)))
+            || !WriteText(staging / "CMakePresets.json", Replace(PresetsTemplate, "@NAME@", request.name))
+            || !WriteText(staging / ".gitignore", GitignoreTemplate)
+            || !WriteText(staging / "README.md", Replace(ReadmeTemplate, "@NAME@", request.name))
+            || (!request.engineDir.empty() && !WriteText(staging / "CMakeUserPresets.json", UserPresets(request.engineDir))))
         {
             return fail("Cannot write the project's files in " + staging.string());
         }

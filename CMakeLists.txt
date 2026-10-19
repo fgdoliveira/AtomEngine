@@ -170,25 +170,10 @@ if(ATOM_EXAMPLE_APPS)
     endforeach()
 endif()
 
-# v0.0.19: projects are found, not listed - every <Name>.atomproject.json
-# one folder down in ATOM_PROJECTS_DIR (Apps/<Name>/, as AtomProjectTool
-# makes them). A project made in the workspace appears at the next
-# configure. The examples above have descriptors too, but are skipped.
-set(ATOM_PROJECTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Apps" CACHE PATH "Where AtomEngine projects are discovered")
-set(ATOM_PROJECT_DESCRIPTORS "")
-if(PROJECT_IS_TOP_LEVEL) # under a game, the game is the project
-    file(GLOB ATOM_PROJECT_DESCRIPTORS CONFIGURE_DEPENDS "${ATOM_PROJECTS_DIR}/*/*.atomproject.json")
-endif()
-foreach(descriptor IN LISTS ATOM_PROJECT_DESCRIPTORS)
-    get_filename_component(project_dir "${descriptor}" DIRECTORY)
-    file(RELATIVE_PATH project_rel "${CMAKE_CURRENT_SOURCE_DIR}" "${project_dir}")
-    if(project_rel IN_LIST ATOM_EXAMPLE_DIRS)
-        continue()
-    endif()
-    get_filename_component(project_name "${project_dir}" NAME)
-    message(STATUS "Project: ${project_name} (${project_dir})")
-    add_subdirectory("${project_dir}" "${CMAKE_CURRENT_BINARY_DIR}/Projects/${project_name}")
-endforeach()
+# v0.0.20 (M129): projects own their build - each has its own top-level
+# CMakeLists.txt that adds this engine below it (cmake/AtomProject.cmake),
+# so the engine no longer discovers projects (v0.0.19's ATOM_PROJECTS_DIR
+# glob is gone). Only the examples above, which the engine owns, build here.
 
 # M101: each app's executable names its .pdb without a path. Spelled out:
 # MSBuild escapes the linker's own %_PDB% into a wrong name.

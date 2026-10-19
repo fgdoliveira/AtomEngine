@@ -128,9 +128,10 @@ namespace AtomWorkspace
             // A project made the workspace's way, then opened: it has no
             // Main.cpp, so Run is disabled and says why.
             std::error_code ignored;
-            fs::remove_all(fs::path(m_startup.testFolder) / "Apps" / "WorkspaceTest", ignored);
+            fs::remove_all(fs::path(m_startup.testFolder) / "WorkspaceTest", ignored);
             fs::create_directories(m_startup.testFolder, ignored);
-            const AtomProject::CreateResult created = AtomProject::CreateProject({ m_startup.testFolder, "WorkspaceTest", ATOM_VERSION });
+            const AtomProject::CreateResult created =
+                AtomProject::CreateProject({ m_startup.testFolder, "WorkspaceTest", ATOM_VERSION, m_engineRoot });
             if (Check(created.ok, "create a project (" + (created.ok ? std::string("WorkspaceTest") : created.error) + ")"))
             {
                 Check(OpenProject(created.descriptorPath) && m_project->descriptor.name == "WorkspaceTest", "open the new project");

@@ -123,7 +123,7 @@ namespace AtomWorkspace
         void CloseProject();
         void Rediscover();
         void BrowseForProject();
-        void BrowseForWorkspace();
+        void BrowseForLocation();
         void TakeDialogResults();
         void SetStatus(std::string text, bool error = false);
 
@@ -187,12 +187,12 @@ namespace AtomWorkspace
         bool m_openCreatePopup = false;
         bool m_openAboutPopup = false;
         char m_newName[65] = "";
-        char m_newWorkspace[1024] = "";
+        char m_newLocation[1024] = ""; // the folder a new project is made in (v0.0.20: anywhere)
         std::string m_createError;
 
         // The OS file dialogs answer on a thread of their own.
         std::mutex m_dialogMutex;
         std::optional<std::string> m_pickedDescriptor;
-        std::optional<std::string> m_pickedWorkspace;
+        std::optional<std::string> m_pickedLocation;
     };
 }
