@@ -11,8 +11,8 @@ target_link_libraries(HelloAtom PRIVATE AtomEngine AtomFramework)
 # Content/ in Assets/<folder>.
 atom_app_payload(HelloAtom COPY
     "${CMAKE_CURRENT_SOURCE_DIR}/Assets" "Assets/HelloAtom"
-    "${CMAKE_SOURCE_DIR}/Content/First" "Assets/First"
-    "${CMAKE_SOURCE_DIR}/Content/Kit" "Assets/Kit")
+    "${ATOM_ENGINE_ROOT}/Content/First" "Assets/First"
+    "${ATOM_ENGINE_ROOT}/Content/Kit" "Assets/Kit")
 
 # Its scenario (M107, cmake/AtomTesting.cmake) - registered only when the
 # shaders that running it needs are built (not in CI).

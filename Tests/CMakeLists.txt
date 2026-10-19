@@ -85,7 +85,7 @@ atom_add_tests(
 # Configures the whole engine once (about a minute): label "configure", not
 # "cpu", so CI's quick run doesn't carry it; the full check does.
 add_test(NAME Project.empty_configures
-         COMMAND ${CMAKE_COMMAND} -DENGINE=${CMAKE_SOURCE_DIR} -DTOOL=$<TARGET_FILE:AtomProjectTool>
+         COMMAND ${CMAKE_COMMAND} -DENGINE=${ATOM_ENGINE_ROOT} -DTOOL=$<TARGET_FILE:AtomProjectTool>
                  -DWORK=${CMAKE_BINARY_DIR}/empty-project-test -P ${CMAKE_CURRENT_SOURCE_DIR}/Project/EmptyProjectConfigures.cmake)
 set_tests_properties(Project.empty_configures PROPERTIES LABELS "configure;project" TIMEOUT 600)
 set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomProjectTool)
@@ -101,7 +101,17 @@ atom_add_tests(
 )
 # The process tests run cmake -E (echo, false, sleep): always there in a build.
 target_compile_definitions(AtomWorkspaceTests PRIVATE ATOM_TEST_CMAKE="${CMAKE_COMMAND}")
-set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomWorkspace)
+if(TARGET AtomWorkspace) # ATOM_BUILD_WORKSPACE=OFF builds the tests without it
+    set_property(GLOBAL APPEND PROPERTY ATOM_TEST_TARGETS AtomWorkspace)
+endif()
+
+# v0.0.20 (M127): the engine builds under a game's own CMake - a consumer
+# outside the repository, configured, built in Debug and run. It builds SDL
+# and the engine once more (minutes): label "configure", the full check's.
+add_test(NAME SDK.consumer_builds
+         COMMAND ${CMAKE_COMMAND} -DENGINE=${ATOM_ENGINE_ROOT} -DWORK=${CMAKE_BINARY_DIR}/sdk-consumer-test
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/SDK/ConsumerBuilds.cmake)
+set_tests_properties(SDK.consumer_builds PROPERTIES LABELS "configure;sdk" TIMEOUT 1800)
 
 # AtomTests: every CPU test target, built together (CI, the full check).
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)
@@ -114,7 +124,7 @@ add_custom_target(AtomTests DEPENDS ${ATOM_ALL_TESTS})
 file(GLOB ATOM_BLENDER_INSTALLS "$ENV{ProgramFiles}/Blender Foundation/*/blender.exe")
 find_program(ATOM_PWSH pwsh)
 if(ATOM_PWSH AND (ATOM_BLENDER_INSTALLS OR DEFINED ENV{ATOM_BLENDER}))
-    add_test(NAME Blender.export COMMAND ${ATOM_PWSH} -NoProfile -File "${CMAKE_SOURCE_DIR}/Tools/Blender/test_export.ps1")
+    add_test(NAME Blender.export COMMAND ${ATOM_PWSH} -NoProfile -File "${ATOM_ENGINE_ROOT}/Tools/Blender/test_export.ps1")
     set_tests_properties(Blender.export PROPERTIES LABELS blender TIMEOUT 1800)
     # M115: the AtomEngine panel's markers export exactly like the builders'.
     if(DEFINED ENV{ATOM_BLENDER})
@@ -124,6 +134,6 @@ if(ATOM_PWSH AND (ATOM_BLENDER_INSTALLS OR DEFINED ENV{ATOM_BLENDER}))
         list(GET ATOM_BLENDER_INSTALLS -1 ATOM_BLENDER_EXE) # the newest
     endif()
     add_test(NAME Blender.markers
-             COMMAND ${ATOM_BLENDER_EXE} -b --factory-startup --python "${CMAKE_SOURCE_DIR}/Tools/Blender/test_markers.py")
+             COMMAND ${ATOM_BLENDER_EXE} -b --factory-startup --python "${ATOM_ENGINE_ROOT}/Tools/Blender/test_markers.py")
     set_tests_properties(Blender.markers PROPERTIES LABELS blender TIMEOUT 300)
 endif()

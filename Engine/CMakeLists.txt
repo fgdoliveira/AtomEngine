@@ -84,8 +84,8 @@ target_include_directories(
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/external/cgltf
-        ${CMAKE_SOURCE_DIR}/external/stb
+        ${ATOM_ENGINE_ROOT}/external/cgltf
+        ${ATOM_ENGINE_ROOT}/external/stb
 )
 
 # PUBLIC: what the engine's own headers expose (SDL types, GLM maths).
@@ -122,12 +122,15 @@ if(WIN32)
 endif()
 
 # The GLM settings change what GLM's headers mean, so every user needs
-# them; the version string is the engine's own.
+# them, and so does ATOM_DEV_TOOLS (Core/DevSwitch.h compiles differently
+# without it: a game must see the value the engine was built with, M127);
+# the version string is the engine's own.
 target_compile_definitions(
     AtomEngine
     PUBLIC
         GLM_FORCE_DEPTH_ZERO_TO_ONE
         GLM_FORCE_RADIANS
+        ATOM_DEV_TOOLS=${ATOM_DEV_TOOLS_VALUE}
     PRIVATE
         ATOM_VERSION="${PROJECT_VERSION}"
 )

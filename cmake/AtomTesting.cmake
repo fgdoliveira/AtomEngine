@@ -14,7 +14,7 @@
 #   Content.<owner>  the "content" suite: shipped files checked (cpu, content, <owner>)
 # The "benchmark" suite (wall-clock comparisons) is never registered:
 # `<target> -ts=benchmark` runs it by hand. `AtomTests` builds them all.
-set(ATOM_TEST_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/Tests/Support")
+set(ATOM_TEST_SUPPORT_DIR "${ATOM_ENGINE_ROOT}/Tests/Support" CACHE INTERNAL "")
 
 function(atom_add_tests target)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "OWNER;ASSETS" "SOURCES;LIBS")
@@ -24,8 +24,8 @@ function(atom_add_tests target)
 
     add_executable(${target} ${ATOM_TEST_SUPPORT_DIR}/TestMain.cpp ${ARG_SOURCES})
     target_link_libraries(${target} PRIVATE ${ARG_LIBS})
-    target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/external/doctest ${ATOM_TEST_SUPPORT_DIR})
-    target_compile_definitions(${target} PRIVATE ATOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    target_include_directories(${target} PRIVATE ${ATOM_ENGINE_ROOT}/external/doctest ${ATOM_TEST_SUPPORT_DIR})
+    target_compile_definitions(${target} PRIVATE ATOM_SOURCE_DIR="${ATOM_ENGINE_ROOT}")
     if(ARG_ASSETS)
         target_compile_definitions(${target} PRIVATE ATOM_TEST_ASSETS="${ARG_ASSETS}/")
     endif()

@@ -146,7 +146,7 @@ set(ATOM_CONTENT_ASSETS Environments Fonts Kit Sky)
 set(ATOM_RUNTIME_ASSETS ${ATOM_SHIPPED_ASSETS} ${ATOM_DEV_ASSETS})
 function(atom_asset_source folder out)
     if(folder IN_LIST ATOM_CONTENT_ASSETS)
-        set(${out} "${CMAKE_SOURCE_DIR}/Content/${folder}" PARENT_SCOPE)
+        set(${out} "${ATOM_ENGINE_ROOT}/Content/${folder}" PARENT_SCOPE)
     else()
         set(${out} "${CMAKE_CURRENT_SOURCE_DIR}/Assets/${folder}" PARENT_SCOPE)
     endif()
@@ -194,14 +194,14 @@ foreach(entry IN ITEMS
     string(REPLACE "|" ";" parts "${entry}")
     list(GET parts 0 name)
     list(GET parts 1 file)
-    file(READ "${CMAKE_SOURCE_DIR}/${file}" text)
+    file(READ "${ATOM_ENGINE_ROOT}/${file}" text)
     string(APPEND ATOM_NOTICES "\n==============================================================================\n${name}  (${file})\n==============================================================================\n\n${text}\n")
 endforeach()
 file(WRITE "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt" "${ATOM_NOTICES}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/README.txt.in" "${CMAKE_BINARY_DIR}/dist/README.txt" @ONLY)
 install(
     FILES
-        "${CMAKE_SOURCE_DIR}/LICENSE.txt"
+        "${ATOM_ENGINE_ROOT}/LICENSE.txt"
         "${CMAKE_BINARY_DIR}/dist/THIRD_PARTY_NOTICES.txt"
         "${CMAKE_BINARY_DIR}/dist/README.txt"
     DESTINATION .

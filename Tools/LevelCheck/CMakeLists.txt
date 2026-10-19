@@ -3,7 +3,7 @@
 # authoring library's (Authoring/Level/LevelCheck.h, v0.0.19).
 add_executable(AtomLevelCheck Main.cpp)
 target_link_libraries(AtomLevelCheck PRIVATE AtomAuthoring AtomProject) # v0.0.19: projects found by their descriptors
-target_compile_definitions(AtomLevelCheck PRIVATE ATOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_compile_definitions(AtomLevelCheck PRIVATE ATOM_SOURCE_DIR="${ATOM_ENGINE_ROOT}")
 
 # Each app's levels, checked as a CPU test of that owner (the "content"
 # kind: shipped files). Errors fail it; warnings are printed.

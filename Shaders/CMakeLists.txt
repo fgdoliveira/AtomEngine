@@ -61,7 +61,9 @@ else()
     set(ATOM_SHADER_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
 endif()
 # M68: the distribution's install rules (Apps/Games/Demo/) and its check need both.
-set(ATOM_SHADER_OUTPUT_DIR "${ATOM_SHADER_OUTPUT_DIR}" PARENT_SCOPE)
+# M127: cached, so atom_app_payload sees it from a game's own folder too
+# (PARENT_SCOPE reached only the engine's root).
+set(ATOM_SHADER_OUTPUT_DIR "${ATOM_SHADER_OUTPUT_DIR}" CACHE INTERNAL "Where the compiled shaders are")
 list(LENGTH ATOM_SHADER_SOURCES ATOM_SHADER_COUNT)
 set(ATOM_SHADER_COUNT ${ATOM_SHADER_COUNT} PARENT_SCOPE)
 set(ATOM_SHADER_OUTPUTS)
