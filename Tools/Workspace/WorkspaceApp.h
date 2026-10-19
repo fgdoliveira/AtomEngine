@@ -39,6 +39,9 @@ namespace AtomWorkspace
             // it creates go under <folder>; the user's layout and recent
             // projects are neither read nor written.
             std::string testFolder;
+            // --test-build <folder>: also builds and runs the project it
+            // creates - a whole engine build in that project (minutes).
+            bool testBuild = false;
         };
         void SetStartup(Startup startup) { m_startup = std::move(startup); }
 
@@ -108,6 +111,16 @@ namespace AtomWorkspace
         void AddConsoleLine(std::string text);
         void DrawConsolePanel();
         std::string GameExecutable() const;
+        // v0.0.20 (M130): a project that owns its build (its own presets)
+        // builds in <project>/build; the bundled examples in the workspace's tree.
+        bool Standalone() const;
+        std::string ProjectBuildDir() const;
+        struct Step
+        {
+            std::vector<std::string> args;
+            std::string workingDirectory;
+        };
+        bool StartStep(Step step);
 
         // M126: the self-test (WorkspaceSelfTest.cpp), one step a frame or more.
         void RunSelfTest();
@@ -162,11 +175,13 @@ namespace AtomWorkspace
         std::array<char, 64> m_consoleFilter{};
         bool m_consoleScroll = false;  // follow the output (until scrolled up)
         std::optional<int> m_lastExitCode; // the last operation's, once it ended
+        std::vector<Step> m_pendingSteps;  // the operation's next processes, each after a success
 
         // The self-test's progress.
         int m_testStep = 0;
         int m_testFrames = 0;   // frames spent in the current step
         int m_testFailures = 0;
+        std::uint64_t m_testStepTicks = 0; // when a waiting step began (ms)
 
         // The level shown (M124): no game code, the project's data only.
         std::unique_ptr<AtomFramework::ScenePreview> m_preview;

@@ -14,6 +14,11 @@
 #include "Level/Level.h"
 #include "Project/ProjectCreator.h"
 
+#include <SDL3/SDL.h>
+
+#include <algorithm>
+#include <fstream>
+
 namespace fs = std::filesystem;
 
 namespace AtomWorkspace
@@ -137,8 +142,74 @@ namespace AtomWorkspace
                 Check(OpenProject(created.descriptorPath) && m_project->descriptor.name == "WorkspaceTest", "open the new project");
                 Check(WhyNot(Operation::Run).find("Main.cpp") != std::string::npos, "Run is disabled without Source/Main.cpp");
                 Check(!m_preview->GetLevel(), "a project without levels shows none");
+                Check(Standalone() && fs::path(ProjectBuildDir()) == fs::path(created.projectDir) / "build",
+                      "the new project owns its build (<project>/build)");
             }
             next();
+            if (m_startup.testBuild && created.ok)
+            {
+                m_testStep = 20; // build and run it, then back to step 8
+            }
+            break;
+        }
+        case 20:
+        {
+            // v0.0.20 (M130): give the project code, then Build - its first
+            // build configures it through its presets and compiles the
+            // engine inside it - then Run it.
+            const fs::path main = fs::path(m_project->directory) / m_project->descriptor.source / "Main.cpp";
+            std::ofstream(main, std::ios::binary)
+                << "// Written by the workspace's self-test (--test-build).\n"
+                   "#include \"Core/Application.h\"\n"
+                   "#include <SDL3/SDL_main.h>\n"
+                   "#include <cstdio>\n"
+                   "int main(int, char**)\n"
+                   "{\n"
+                   "    std::printf(\"WorkspaceTest ran, built against AtomEngine\\n\");\n"
+                   "    return 0;\n"
+                   "}\n";
+            if (Check(WhyNot(Operation::Build).empty(), "Build is available once Source/Main.cpp exists"))
+            {
+                StartOperation(Operation::Build);
+                m_testStepTicks = SDL_GetTicks();
+                next();
+            }
+            else
+            {
+                m_testStep = 8;
+            }
+            break;
+        }
+        case 21:
+            if (!m_lastExitCode && SDL_GetTicks() - m_testStepTicks < 50ull * 60 * 1000)
+            {
+                return; // configure + the engine's whole build: minutes
+            }
+            Check(m_lastExitCode && *m_lastExitCode == 0, "Build the new project in its own folder (configure, then build)");
+            Check(std::filesystem::is_regular_file(fs::path(m_project->directory) / "build" / "CMakeCache.txt"),
+                  "its build was configured through its presets");
+            if (Check(WhyNot(Operation::Run).empty(), "Run is available once it is built"))
+            {
+                StartOperation(Operation::Run);
+                m_testStepTicks = SDL_GetTicks();
+                next();
+            }
+            else
+            {
+                m_testStep = 8;
+            }
+            break;
+        case 22:
+        {
+            if (!m_lastExitCode && SDL_GetTicks() - m_testStepTicks < 60ull * 1000)
+            {
+                return;
+            }
+            const bool ran = std::any_of(m_console.begin(), m_console.end(), [](const ConsoleLine& line) {
+                return line.text.find("WorkspaceTest ran, built against AtomEngine") != std::string::npos;
+            });
+            Check(m_lastExitCode && *m_lastExitCode == 0 && ran, "Run it: its output reaches the Console");
+            m_testStep = 8;
             break;
         }
         case 8:
