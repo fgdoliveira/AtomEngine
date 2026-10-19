@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.0.20 — Source SDK
+
+A game no longer lives inside the engine. It is a folder anywhere - its
+own repository - with its own build that adds the engine below it, made
+by the workspace or `AtomProjectTool` and built and run by the workspace
+there. The engine ships as a source SDK, tested by building a game from it
+outside the repository.
+
+### Added
+- **Projects own their build.** A new project (`<folder>/<Name>/`, made
+  anywhere) has a top-level `CMakeLists.txt` that adds the engine
+  (`add_subdirectory(${ATOM_ENGINE_DIR})`) and calls `atom_add_project`;
+  `CMakePresets.json` (`default`: the engine from `ATOM_ENGINE_DIR`); a
+  git-ignored `CMakeUserPresets.json` (`atom`: this machine's engine -
+  never in a tracked file); a `.gitignore`. `cmake --preset atom` and
+  `cmake --build build` build it.
+- **`atom_add_project([MANIFEST <file>] [CONTENT <folder>...])`**
+  (`cmake/AtomProject.cmake`): the descriptor's executable from every
+  `.cpp`/`.h` under its source folder once `Main.cpp` exists, linked to the
+  engine and framework, its assets staged as `Assets/<Name>/`
+  (`ATOM_PROJECT_ASSETS`) and the named shared `Content/` folders as
+  `Assets/<folder>`. No source lists or flags in JSON;
+  `atom_read_project` checks the descriptor with the C++ parser's rules.
+- **The workspace builds and runs them:** the first Build configures the
+  project through its preset (writing `CMakeUserPresets.json` for a cloned
+  one), then builds in `<project>/build`; Run starts it from there. Build
+  is a chain of processes, each after the one before succeeded.
+- **The source SDK:** `pwsh Tools/Dist/sdk.ps1` makes
+  `Dist/AtomSDK-v<version>-src.zip` (about 12 MB) from what git tracks -
+  the engine, framework, authoring, project and workspace libraries, the
+  workspace and its tools, shaders, `Content/`, the dependencies without
+  their tests and samples, HelloAtom, docs, licences and an
+  `SDK-README.txt`. `verify-sdk.ps1` checks it holds what a build needs,
+  nothing development-only, and configures on its own; `test-sdk.ps1`
+  builds HelloAtom as a new game from it, outside the repository, in Debug
+  and Release.
+- **Build options:** `ATOM_BUILD_SHADERS`, `ATOM_BUILD_TOOLS`,
+  `ATOM_BUILD_WORKSPACE`; with `ATOM_EXAMPLE_APPS` and `ATOM_BUILD_TESTS`
+  they default to on only when the engine is the top-level project.
+- **Tests:** `SDK.consumer_builds` (a game adding the engine below it,
+  built and run - it fails on a C++ runtime, standard or define that
+  doesn't reach the game), `SDK.read_project` (descriptor rules, `cpu`),
+  `Scenario.workspace.workspace_project_build` (the workspace creates,
+  builds and runs a project in its own folder).
+
+### Changed
+- **The engine works as a subproject:** no `CMAKE_SOURCE_DIR` - its
+  folder, `Content/` and the shaders' output are cached variables; C++20
+  and `ATOM_DEV_TOOLS` are AtomEngine's PUBLIC usage requirements; the
+  static C++ runtime is set on a game's target by `atom_app_payload`. Under
+  a game it builds only the engine, the framework and the shaders (no
+  ImGui, tools, examples or tests).
+- **Project discovery is retired** (`ATOM_PROJECTS_DIR`, v0.0.19): the
+  engine builds only its own examples; every other project builds itself.
+- **`AtomProjectTool create --in <folder> --name <Name> [--engine <dir> |
+  --no-engine]`** (was `--workspace`, making `Apps/<Name>/`); the
+  workspace's Create Project asks for a location, by default beside the
+  engine.
+- `Project.empty_configures` configures the new project on its own, through
+  its preset; the workspace's self-tests register only where the Demo is.
+
 ## 0.0.19 — Atom Workspace
 
 The development tools leave the games for a program of their own. Atom

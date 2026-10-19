@@ -20,14 +20,15 @@ A small C++20 game engine built step by step as a learning and portfolio
 project, on **SDL3's GPU API (Direct3D 12)** - with a showcase that shows
 what it can do, two games made with it, and a sample to start your own.
 
-Current version: **0.0.19 "Atom Workspace"** - the development tools
-leave the games for a program of their own. **Atom Workspace** opens and
-creates projects, previews their levels without the game in a docked
-scene viewport (panels can leave the window), inspects entities, tries
-environments and skies, and validates, builds and runs a project as
-separate processes. Games now carry no tool code: F10 is gone from them.
-(0.0.18 was Demo Vertical: the Kawasaki, the shore, save points; 0.0.17
-Authoring Workflow.)
+Current version: **0.0.20 "Source SDK"** - a game no longer lives inside
+the engine. It is a folder anywhere, its own repository, with its own
+CMake build that adds the engine below it; Atom Workspace and
+`AtomProjectTool` create it, and the workspace configures, builds and
+runs it there. The engine ships as a **source SDK** zip - the engine, its
+tools, the shared content, the dependencies and HelloAtom - tested by
+building a game from it outside the repository. (0.0.19 was Atom
+Workspace: the tools out of the games, into a program of their own;
+0.0.18 Demo Vertical.)
 See [CHANGELOG.md](CHANGELOG.md) · [Features](docs/Features.md) ·
 [Architecture](docs/Architecture.md) · [Getting started](docs/Getting-Started.md).
 Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atomengine)
@@ -36,7 +37,7 @@ Play DRIFT on Itch.io: [drift-atomengine](https://fgdoliveira.itch.io/drift-atom
 Engine/      the engine (namespace Atom): window, GPU renderer, audio, input, physics, UI drawing
 Framework/   what every app shares (AtomFramework): levels, world, player, environments, UI kit, settings, testing
 Authoring/   what the tools know about content (AtomAuthoring): level checks, the inspector, the scene preview
-Project/     what a project is (AtomProject): its descriptor, creation, discovery
+Project/     what a project is (AtomProject): its descriptor, creation
 WorkspaceUI/ the workspace's ImGui host and its parts; Tools/Workspace is the program
 Apps/        what is made with them, by purpose (each a project with a <Name>.atomproject.json):
   Showcase/    the engine's front door: a lakeside village, and the lens
@@ -182,10 +183,12 @@ be dragged out into a window of its own, and closing it docks it back.
 - **Preview:** environment presets and live edits, the sky picture, the
   level's lighting, render switches, performance - nothing saved; Copy as
   JSON gives the block for the file.
-- **Validate, Build, Run** (the toolbar): `AtomLevelCheck`, `cmake
-  --build` and the game, each a separate process, with its output in the
-  **Console** as it comes - double-click a line naming a file to open it -
-  its exit code, and Stop. A disabled button says why.
+- **Validate, Build, Run** (the toolbar): `AtomLevelCheck`, the build and
+  the game, each a separate process, with its output in the **Console** as
+  it comes - double-click a line naming a file to open it - its exit code,
+  and Stop. A game builds in its own `build/` folder (the first Build
+  configures it through its preset); the bundled apps in the engine's. A
+  disabled button says why.
 
 Layout and recent projects are kept in `%APPDATA%\AtomEngine\Workspace\`
 (View > Reset Layout restores the default). `ATOM_WORKSPACE_VIEWPORTS=0`
@@ -194,13 +197,36 @@ keeps every panel inside the window. `AtomWorkspace --project <descriptor>
 
 ## Build your own
 
-Create a project in the workspace (File > Create Project) or with
-`AtomProjectTool create --workspace <folder> --name <Name>`: a folder
-`Apps/<Name>/` with its descriptor, the standard folders and its CMake
-file, found by the next configure. `Apps/Samples/HelloAtom` is a complete
-app in about 150 lines: a window, a level from JSON, walking, F1 and
-scenarios. [docs/Getting-Started.md](docs/Getting-Started.md) walks
-through both.
+A game is a folder of its own, anywhere. Create it in the workspace
+(File > Create Project) or with
+`AtomProjectTool create --in <folder> --name MyGame`: its descriptor, the
+standard folders, and its own build - a `CMakeLists.txt` that adds the
+engine below it and makes the game with `atom_add_project`, presets, and a
+`.gitignore`. This machine's engine is named only in the untracked
+`CMakeUserPresets.json`, so the folder can be its own repository:
+
+```sh
+cd MyGame
+cmake --preset atom                   # or: -DATOM_ENGINE_DIR=<engine>
+cmake --build build --config Debug    # the engine compiles inside it, once
+```
+
+`Apps/Samples/HelloAtom` is a complete app in about 150 lines: a window, a
+level from JSON, walking, F1 and scenarios.
+[docs/Getting-Started.md](docs/Getting-Started.md) walks through both, and
+section 7 turns a new project into HelloAtom.
+
+**The source SDK.** `pwsh Tools/Dist/sdk.ps1` makes
+`Dist/AtomSDK-v<version>-src.zip` (about 12 MB): the engine, framework,
+authoring, project and workspace libraries, the workspace and the two
+command-line tools, shaders, `Content/`, the pinned dependencies without
+their tests and samples, HelloAtom, the docs and every licence - staged
+from what git tracks and checked (`verify-sdk.ps1`: nothing
+development-only, and it configures on its own). `pwsh
+Tools/Dist/test-sdk.ps1` uses it as a stranger would: extracted outside
+the repository, its own `AtomProjectTool` makes a game in another folder,
+which becomes HelloAtom, builds in Debug and Release, and passes HelloAtom's
+scenario.
 
 ## Building
 
@@ -236,13 +262,19 @@ Build options (CMake `-D`):
 | Option | Default | What it builds |
 |---|---|---|
 | `ATOM_BUILD_GAME` | ON | the apps' shaders, and the Showcase, the demo and DRIFT (needs `dxc`) |
-| `ATOM_BUILD_TESTS` | ON | the CPU tests, one target per owner (`AtomTests` builds them all); with the game, also the in-game scenarios |
+| `ATOM_BUILD_TESTS` | ON\* | the CPU tests, one target per owner (`AtomTests` builds them all); with the game, also the in-game scenarios |
+| `ATOM_BUILD_SHADERS` | `ATOM_BUILD_GAME` | the engine's shaders alone - what a game built on the engine needs (`dxc`) |
+| `ATOM_EXAMPLE_APPS` | ON\* | the bundled apps (Showcase, the demo, DRIFT, HelloAtom, ATOM ARENA) |
+| `ATOM_BUILD_TOOLS` / `ATOM_BUILD_WORKSPACE` | ON\* | `AtomLevelCheck` and `AtomProjectTool` / Atom Workspace |
 | `ATOM_DISTRIBUTION` | OFF | the game as players get it: a windowed program, no console (development builds keep theirs) |
 | `ATOM_TRACE` | OFF | records the CPU profiling zones with the built-in tracer when `ATOM_TRACE=<prefix>` is set (development builds only) |
 | `ATOM_BUILD_PRESENTATION_PROBE` | OFF | presentation diagnostics: `PresentationProbe` (SDL or raw D3D12, window moves) and `SwapchainMatrix` (every swapchain kind on every adapter) |
 
 `-DATOM_BUILD_GAME=OFF` builds the engine, framework and app libraries, the unit
 tests and HelloAtom with no shader compiler - the configuration CI uses.
+\* v0.0.20: ON when the engine is the top-level project; OFF when a game
+adds it below its own build, which then gets only the engine, the
+framework and the shaders.
 
 Something missing or failing? `pwsh Tools/Dev/doctor.ps1` checks the
 prerequisites (Windows, CMake, Visual Studio's C++ tools, `dxc`, the
@@ -471,8 +503,15 @@ need a real GPU, and hosted machines time things too noisily.
 The workspace tests itself: `AtomWorkspace --test <folder>`
 (`Scenario.workspace.workspace_self_test`) opens the Demo, previews and
 inspects, switches the sky picture and an environment, creates and opens
-a project, and validates HelloAtom as a process. `Project.empty_configures`
-configures a fresh project with the bundled apps off.
+a project, and validates HelloAtom as a process;
+`workspace_project_build` also builds and runs the project it creates.
+`Project.empty_configures` configures a fresh project on its own, through
+its preset, and the engine with the bundled apps off;
+`SDK.consumer_builds` builds and runs a game whose CMake adds the engine
+below it (it fails on a C++ runtime, standard or define that doesn't
+reach the game); `SDK.read_project` checks `atom_add_project`'s
+descriptor rules. These configure tests carry the `configure` label (the
+full check), apart from `SDK.read_project` (`cpu`).
 
 Every scenario also checks, on each level change, that the new level is
 first drawn from its spawn. The asset build has its own check: it refuses
@@ -694,7 +733,7 @@ Engine/    Assets Audio Core Debug Physics Platform Renderer Scene UI
 Framework/ what every app shares: Character Diagnostics Environment Interaction
            Level Platform Schemas Settings Testing UI (kit, menus, settings screen) World
 Authoring/ the tools' content knowledge: Level (LevelCheck), Debug (the inspector), Preview (the scene preview)
-Project/   project descriptors, creation, discovery (AtomProject)
+Project/   project descriptors, creation, finding the engine's examples (AtomProject)
 WorkspaceUI/ the ImGui host, recent projects, the operations' processes, the Console's parsing
 Apps/      each app owns its Assets/, Tests/ (CPU tests) and Scenarios/ (in-game runs):
   Showcase/            the engine's front door: the village, the lens and its Features, menus, benchmark

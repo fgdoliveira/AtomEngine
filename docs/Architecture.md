@@ -19,11 +19,12 @@ Framework/   AtomFramework  (namespace AtomFramework)  levels, world, player, en
                                                        settings, diagnostics, the scenario harness
 Authoring/   AtomAuthoring  (namespace AtomFramework)  what tools know about content: LevelCheck, the entity
                                                        inspector, ScenePreview (a level without its game)
-Project/     AtomProject    (namespace AtomProject)    the project descriptor, creation, discovery - no GPU, no engine
+Project/     AtomProject    (namespace AtomProject)    the project descriptor, creation, finding the examples - no GPU, no engine
 WorkspaceUI/ AtomWorkspaceUI (namespace AtomWorkspace) the Dear ImGui host (docking, detachable windows), recent
                                                        projects, the operations' processes, the Console's parsing
 Tools/Workspace/            AtomWorkspace               the development program
-Tools/ProjectTool/          AtomProjectTool             `create --workspace <folder> --name <Name>`
+Tools/ProjectTool/          AtomProjectTool             `create --in <folder> --name <Name> [--engine <dir>]`
+cmake/AtomProject.cmake                                 atom_add_project: a game's executable from its descriptor
 Tools/LevelCheck/           AtomLevelCheck              levels checked without the game (`--project`, `--app`, `--all`)
 Apps/Showcase/              ShowcaseLib + Showcase      the engine's front door: a lakeside village and the lens
 Apps/Games/Demo/            DemoLib + Demo              the demo: a night street, its story
@@ -100,9 +101,22 @@ AtomAuthoring.
   in a panel. It previews a project's levels with `ScenePreview` (levels
   are data, ADR-012) and runs Validate, Build and Run as separate
   processes. **Projects** are folders with a `<Name>.atomproject.json`
-  (relative paths only); CMake discovers `Apps/*/*.atomproject.json`, and
-  the bundled apps, listed in `ATOM_EXAMPLE_DIRS` (`ATOM_EXAMPLE_APPS`),
-  have descriptors too.
+  (relative paths only). Since v0.0.20 a project **owns its build**
+  (ADR-014): its own top-level `CMakeLists.txt` adds the engine below it
+  (`add_subdirectory(${ATOM_ENGINE_DIR})`) and makes the game with
+  `atom_add_project`; it lives anywhere, its own repository, and builds in
+  its own `build/`. The bundled apps stay the engine's, listed in
+  `ATOM_EXAMPLE_DIRS` (`ATOM_EXAMPLE_APPS`), with descriptors so the
+  workspace and `AtomLevelCheck` find them.
+- **The engine as a subproject** (v0.0.20): what a game must agree on
+  travels with the targets, not as settings of the engine's folder (which
+  a game's targets above it never see) - C++20 and `ATOM_DEV_TOOLS` as
+  PUBLIC usage requirements of AtomEngine; the static C++ runtime set on
+  the game's target by `atom_app_payload`; the engine's folder, `Content/`
+  and the shaders' output as cached variables. Under a game the engine
+  builds only the engine, the framework and the shaders
+  (`PROJECT_IS_TOP_LEVEL` decides the examples, tests, tools and
+  workspace); nothing in it refers to `CMAKE_SOURCE_DIR`.
 - **The Showcase** (v0.0.14) is the engine's front door, built only from the
   engine and the framework. Each capability it shows is a *Feature* in its
   catalog (`Apps/Showcase/Features/`) with a source file, a manual section, a
@@ -121,10 +135,17 @@ AtomAuthoring.
 - **Usage requirements are honest** (M54): PUBLIC only for what a target's
   headers expose (SDL types, GLM maths and its settings); PRIVATE for what
   only its `.cpp` files use (JSON, cgltf, stb, the version string).
-- **Build options:** `ATOM_BUILD_GAME` (the apps' shaders, needs `dxc`),
-  `ATOM_BUILD_TESTS`, `ATOM_BUILD_PRESENTATION_PROBE`, `ATOM_EXAMPLE_APPS`
-  (the bundled apps), `ATOM_PROJECTS_DIR` (where projects are discovered).
-  CI builds with the game off, the unit tests and HelloAtom (§11).
+- **Build options:** `ATOM_BUILD_GAME` (the apps and their shaders, needs
+  `dxc`), `ATOM_BUILD_SHADERS` (the shaders alone; follows the game),
+  `ATOM_BUILD_TESTS`, `ATOM_EXAMPLE_APPS`, `ATOM_BUILD_TOOLS`,
+  `ATOM_BUILD_WORKSPACE` (these four on only when the engine is the top
+  level), `ATOM_BUILD_PRESENTATION_PROBE`. CI builds with the game off,
+  the unit tests and HelloAtom (§11).
+- **The source SDK** (v0.0.20): `Tools/Dist/sdk.ps1` stages what git
+  tracks of the engine, its tools, `Content/`, the dependencies (pruned)
+  and HelloAtom into `Dist/AtomSDK-v<version>-src.zip`; `verify-sdk.ps1`
+  checks it, `test-sdk.ps1` builds a game from it outside the repository
+  (§9).
 
 ## 2. Application, engine and app: the real layering
 
@@ -492,7 +513,8 @@ package that says "on".
 |---|---|---|
 | CPU tests (`ctest -L cpu`), one target per owner: `Unit.<owner>`, `Content.<owner>` | locally and in **CI** on pull requests and pushes to master | logic, parsing, shipped-content errors; a clean clone that doesn't build |
 | In-game scenarios (`ctest -L scenario`), each app's own: `Scenario.<owner>.<name>`; `-L smoke` one short run per app, and the workspace's self-test | locally (needs a GPU) | gameplay, rendering, transitions, leaks of voices and GPU resources; the workspace's tools end to end |
-| Configure tests (`-L configure`): `Project.empty_configures` | locally, the full check | a fresh project configures and builds nothing yet; the engine and workspace configure with the bundled apps off |
+| Configure tests (`-L configure`): `Project.empty_configures`, `SDK.consumer_builds` | locally, the full check | a fresh project configures on its own through its preset and builds nothing yet; the engine and workspace configure with the bundled apps off; a game whose CMake adds the engine below it compiles, links (one C++ runtime) and runs |
+| The source SDK: `sdk.ps1` (with `verify-sdk.ps1`), `test-sdk.ps1` | locally, at a release | the archive holds what a build needs and nothing development-only; a game built from it, outside the repository, in Debug and Release |
 
 `check.ps1 -Level changed` (v0.0.16) maps each changed file to owners
 (`Tools/Dev/changed.psd1`) and builds and runs only theirs: an app's
@@ -716,6 +738,37 @@ tools down; the process boundary is the isolation); a plugin or DLL
 system for projects (ADR-002). **Revisit when** a tool needs a running
 game's live state - then talk to the game across the process boundary,
 not by linking the tools back into it.
+
+### ADR-014 — A game owns its build; the engine is consumed, not a host
+**Context (v0.0.20):** v0.0.19's projects built only inside the engine:
+the root CMake discovered `Apps/*/*.atomproject.json` and added each, and
+a project's CMake file used engine functions as if it were part of the
+engine. A game couldn't live in its own repository, have its own build or
+CI, or be built against an engine somewhere else. **Decision:** the game
+is the top-level CMake project and adds the engine below it
+(`add_subdirectory(${ATOM_ENGINE_DIR})`); `atom_add_project` (a thin
+wrapper: no source lists or flags in JSON) makes its executable from its
+descriptor. The engine works as a subproject: no `CMAKE_SOURCE_DIR`, what
+a game must agree on as usage requirements or cached variables, and only
+the engine, framework and shaders built under a game. The engine's path
+is a machine fact: only in the git-ignored `CMakeUserPresets.json` (or
+`ATOM_ENGINE_DIR`), never in a tracked file. Discovery is retired; the
+bundled examples stay engine-owned. The engine ships as a source SDK zip.
+**Evidence:** `SDK.consumer_builds` fails on each of the three settings
+that didn't reach a game before (LNK2038, C++17, `ATOM_DEV_TOOLS`) and
+caught two more (imgui under a game, shaders not staged); the workspace
+creates, configures, builds and runs a project in its own folder
+(`workspace_project_build`); `test-sdk.ps1` builds HelloAtom as a new
+game from the extracted zip in Debug and Release. **Cost:** a game's first
+build compiles the engine and SDL inside it (minutes, once per build
+folder); a game needs `dxc` for the shaders. **Rejected:** keeping
+discovery beside it ("both": two build models to test for no current
+need); an installed SDK with exported targets now (it needs a public
+header boundary and Debug/Release binaries first - premature for an
+engine whose headers still change every version). **Revisit when** the
+public API settles: then `find_package(AtomEngine CONFIG)` with exported
+targets (SDK 2) and an installed, prebuilt package with its ABI policy
+(SDK 3), the source path kept for engine development.
 
 ## 13. When to add what
 

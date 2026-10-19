@@ -79,8 +79,8 @@ Step "stage $stage ($($files.Count) files)" {
         if (-not (Test-Path -LiteralPath $folder)) { New-Item -ItemType Directory -Force $folder | Out-Null }
         Copy-Item -LiteralPath $file -Destination $target
     }
-    (Get-Content "$PSScriptRoot/SDK-README.txt.in" -Raw).Replace("@VERSION@", $version) |
-        Set-Content -NoNewline (Join-Path $stage "SDK-README.txt")
+    Set-Content -LiteralPath (Join-Path $stage "SDK-README.txt") -NoNewline `
+        -Value (Get-Content "$PSScriptRoot/SDK-README.txt.in" -Raw).Replace("@VERSION@", $version)
     $global:LASTEXITCODE = 0
 }
 

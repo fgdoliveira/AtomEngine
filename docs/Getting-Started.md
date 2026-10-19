@@ -194,43 +194,66 @@ markers, external models) is [Authoring.md](Authoring.md).
 - **Understand the engine**: `docs/Architecture.md` for the layers and
   decisions; `docs/AtomEngine-Tech-Manual.md` for how each system works.
 
-## 7. Your own project, in Atom Workspace (v0.0.19)
+## 7. Your own game, in a folder of its own (v0.0.19-v0.0.20)
+
+A game doesn't live inside the engine: it is a folder anywhere - its own
+repository if you like - with its own CMake build that adds the engine
+below it. Make one with Atom Workspace or from the command line.
 
 ```powershell
-cmake --build build --config Debug --target AtomWorkspace
+cmake --build build --config Debug --target AtomWorkspace AtomProjectTool
 build\bin\Debug\AtomWorkspace\AtomWorkspace.exe
 ```
 
-**Create it.** File > Create Project (or the Start page's button), a name
-- a letter first, then letters, digits or `_` - and the workspace: the
-folder holding `Apps/`, the engine's own by default. It makes
-`Apps/<Name>/`:
+**Create it.** File > Create Project (or the Start page's button): a name
+- a letter first, then letters, digits or `_` - and a location, by
+default the folder beside the engine. Or:
+`build\bin\Debug\AtomProjectTool.exe create --in <folder> --name MyGame`.
+It makes `<folder>/MyGame/`:
 
 ```
-<Name>.atomproject.json   what the project is: name, engine version, source and assets folders,
+MyGame.atomproject.json   what the project is: name, engine version, source and assets folders,
                           its executable, a startup level - all relative, never a machine's path
-CMakeLists.txt            builds an executable only once Source/Main.cpp exists
+CMakeLists.txt            its own build: project(MyGame), the engine added below it,
+                          atom_add_project() - an executable only once Source/Main.cpp exists
+CMakePresets.json         "default" (the engine from ATOM_ENGINE_DIR) and its hidden base
+CMakeUserPresets.json     "atom": this machine's engine - not committed (.gitignore)
+.gitignore                build/ and CMakeUserPresets.json
 Source/ Authoring/ Assets/{Levels,Models,Textures,Audio}/ Config/ Tests/ Scenarios/
 README.md
 ```
 
 Nothing is overwritten: an existing folder is an error, and the project is
-written in `Apps/.<Name>.creating` and renamed into place only when
-complete. The same service runs from the command line:
-`AtomProjectTool create --workspace <folder> --name <Name>`.
+written in `.MyGame.creating` beside it and renamed into place only when
+complete. Where the engine is on your machine is only ever in
+`CMakeUserPresets.json`: someone who clones your game gets theirs written
+by their workspace's first Build, or sets `ATOM_ENGINE_DIR` and uses
+`--preset default`.
 
 **Make it run.** The project has no code yet: Run is disabled and says
-so. Copy HelloAtom's `Main.cpp` into `Source/`, change its asset folder
-(`"Assets/HelloAtom/"`) to `"Assets/<Name>/"`, and give it a level in
-`Assets/Levels/` (copy `hello.json`; set `"startupLevel"` in the
-descriptor to show it first in the workspace). The descriptor already
-names the executable after the project. `hello.json` uses shared pieces
-from `Content/`: add them to `atom_app_payload` in the project's
-`CMakeLists.txt`, as HelloAtom's does (`"${CMAKE_SOURCE_DIR}/Content/Kit"
-"Assets/Kit"`, and `First`). Build: the build notices the new
-project (the engine's CMake finds every `Apps/*/*.atomproject.json`) and
-compiles it; Run starts it, its output in the Console. Validate checks its
-levels; a problem's `Source:` line opens the file with a double-click.
+so. Make it HelloAtom:
+1. Copy HelloAtom's `Main.cpp` into `Source/` and change its asset folder,
+   `m_root + "Assets/HelloAtom/"`, to `m_root + ATOM_PROJECT_ASSETS` (the
+   project's own assets, staged as `Assets/MyGame/`).
+2. Copy `hello.json` into `Assets/Levels/`; set `"startupLevel": "hello"`
+   in the descriptor to show it first in the workspace.
+3. `hello.json` uses shared pieces of the engine's `Content/`: name them in
+   `CMakeLists.txt` - `atom_add_project(CONTENT First Kit)`.
+
+Then Build: the first time it configures the project through its preset
+(the engine compiles inside it - minutes, once), then builds; Run starts
+it, its output in the Console. Without the workspace:
+
+```powershell
+cd <folder>\MyGame
+cmake --preset atom
+cmake --build build --config Debug
+build\bin\Debug\MyGame\MyGame.exe
+```
+
+Validate checks its levels; a problem's `Source:` line opens the file with
+a double-click. The same steps, run from the source SDK's zip, are the
+release's end-to-end test (`Tools/Dist/test-sdk.ps1`).
 
 **Look at it.** Pick a level in the toolbar: the Scene shows it without
 running your code. The right mouse button and WASD fly; the Preview panel
