@@ -132,6 +132,7 @@ if(ATOM_BUILD_TESTS)
 endif()
 
 include(cmake/AtomApps.cmake) # M108: atom_app_payload - each app's own runtime folder
+include(cmake/AtomProject.cmake) # M128: atom_add_project - a project's build from its descriptor
 
 if(ATOM_BUILD_SHADERS)
     add_subdirectory(Shaders)

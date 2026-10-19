@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "name": "SdkConsumer",
+  "engine": "0.0.20",
+  "source": "Source",
+  "assets": "Assets",
+  "executable": "SdkConsumer",
+  "startupLevel": ""
+}

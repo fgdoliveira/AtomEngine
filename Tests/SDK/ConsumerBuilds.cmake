@@ -35,7 +35,7 @@ if(NOT EXISTS "${payload}/SDL3.dll")
 endif()
 execute_process(COMMAND "${payload}/SdkConsumer.exe" WORKING_DIRECTORY "${payload}"
                 RESULT_VARIABLE ran OUTPUT_VARIABLE out ERROR_VARIABLE err)
-if(NOT ran EQUAL 0 OR NOT out MATCHES "SDK consumer: linked AtomEngine and AtomFramework")
+if(NOT ran EQUAL 0 OR NOT out MATCHES "SDK consumer: linked AtomEngine and AtomFramework.*own found, shared Kit found")
     message(FATAL_ERROR "the consumer didn't run (${ran}):\n${out}\n${err}")
 endif()
 if(EXISTS "${build}/atom/Shaders" AND NOT EXISTS "${payload}/shaders")

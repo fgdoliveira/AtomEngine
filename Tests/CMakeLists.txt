@@ -112,6 +112,11 @@ add_test(NAME SDK.consumer_builds
          COMMAND ${CMAKE_COMMAND} -DENGINE=${ATOM_ENGINE_ROOT} -DWORK=${CMAKE_BINARY_DIR}/sdk-consumer-test
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/SDK/ConsumerBuilds.cmake)
 set_tests_properties(SDK.consumer_builds PROPERTIES LABELS "configure;sdk" TIMEOUT 1800)
+# M128: atom_add_project's descriptor rules, in script mode (seconds).
+add_test(NAME SDK.read_project
+         COMMAND ${CMAKE_COMMAND} -DENGINE=${ATOM_ENGINE_ROOT} -DWORK=${CMAKE_BINARY_DIR}/sdk-read-project-test
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/SDK/ReadProject.cmake)
+set_tests_properties(SDK.read_project PROPERTIES LABELS "cpu;sdk" TIMEOUT 120)
 
 # AtomTests: every CPU test target, built together (CI, the full check).
 get_property(ATOM_ALL_TESTS GLOBAL PROPERTY ATOM_TEST_TARGETS)
